@@ -1,0 +1,741 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>Sake Table - Dashboard</title>
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+	<header>
+		<h1>Home <span id="run-name-display" class="run-name-header"></span></h1>
+	</header>
+
+	<main>
+		<div class="stage">
+			<section class="layout">
+				<section class="zones">
+					<a class="zone" href="zone1.html" role="button" aria-label="Zone 1">Zone 1</a>
+					<a class="zone" href="zone2.html" role="button" aria-label="Zone 2">Zone 2</a>
+					<a class="zone" href="zone3.html" role="button" aria-label="Zone 3">Zone 3</a>
+					<a class="zone" href="zone4.html" role="button" aria-label="Zone 4">Zone 4</a>
+					<a class="zone" href="zone5.html" role="button" aria-label="Zone 5">Zone 5</a>
+					<a class="zone" href="zone6.html" role="button" aria-label="Zone 6">Zone 6</a>
+				</section>
+
+			<div class="notes-wrap">
+				<div class="notes__meta" id="notes-meta" aria-live="polite">Date, Time</div>
+				<div class="notes" aria-label="Notes">
+					<label class="sr-only" for="notes-input">Notes</label>
+					<textarea id="notes-input" class="notes__input" placeholder="Enter notes..." aria-label="Notes input"></textarea>
+				</div>
+			</div>
+
+			<div class="left">
+				<div class="long long--top-left">
+					Temperature over time
+					<button type="button" class="temp-overlay-btn" id="start-run-btn">Start Run</button>
+				</div>
+				<div class="long long--top-left">Humidity over time</div>
+				<div class="long long--top-left">Fans on/off over time</div>
+			</div>
+			</section>
+
+			<section class="temp-row" aria-label="Temperature readings">
+				<div class="temp">
+					<span class="temp__label">Temp 1</span>
+					<span class="temp__value"><span class="temp__num" id="temp-1">--</span><span class="temp__unit">°F</span></span>
+				</div>
+				<div class="temp">
+					<span class="temp__label">Temp 2</span>
+					<span class="temp__value"><span class="temp__num" id="temp-2">--</span><span class="temp__unit">°F</span></span>
+				</div>
+				<div class="temp">
+					<span class="temp__label">Temp 3</span>
+					<span class="temp__value"><span class="temp__num" id="temp-3">--</span><span class="temp__unit">°F</span></span>
+				</div>
+				<div class="temp">
+					<span class="temp__label">Temp 4</span>
+					<span class="temp__value"><span class="temp__num" id="temp-4">--</span><span class="temp__unit">°F</span></span>
+				</div>
+				<div class="temp">
+					<span class="temp__label">Temp 5</span>
+					<span class="temp__value"><span class="temp__num" id="temp-5">--</span><span class="temp__unit">°F</span></span>
+				</div>
+				<div class="temp">
+					<span class="temp__label">Temp 6</span>
+					<span class="temp__value"><span class="temp__num" id="temp-6">--</span><span class="temp__unit">°F</span></span>
+				</div>
+			</section>
+		</div>
+	</main>
+
+	<!-- Modal popup for Start run -->
+	<div id="start-run-modal" class="modal-overlay">
+		<div class="modal-popup">
+			<div class="modal-header">
+				<h3 class="modal-title">Start New Run</h3>
+				<button type="button" class="modal-close" id="close-modal" aria-label="Close modal">&times;</button>
+			</div>
+			<div class="modal-content">
+				<p>This will begin collecting data from all temperature sensors and start the monitoring process.</p>
+				
+				<div class="modal-input-section">
+					<label for="run-name">Run Name:</label>
+					<input type="text" id="run-name" name="run-name" placeholder="Enter run name..." />
+				</div>
+				
+				<div class="modal-input-section">
+					<label for="target-csv-upload">Select Koji Strain:</label>
+					<input type="file" id="target-csv-upload" accept=".csv" class="upload-input">
+					<div id="upload-status" class="upload-status"></div>
+					<small class="help-text">Upload a CSV with target temperatures over time</small>
+				</div>
+				
+				<div class="modal-input-section">
+					<button type="button" class="modal-enter-btn" id="enter-run-btn">Start</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Modal popup for End run confirmation -->
+	<div id="end-run-modal" class="modal-overlay">
+		<div class="modal-popup">
+			<div class="modal-header">
+				<h3 class="modal-title">End Current Run</h3>
+				<button type="button" class="modal-close" id="close-end-modal" aria-label="Close modal">&times;</button>
+			</div>
+			<div class="modal-content">
+				<p>Are you sure you would like to end the run?</p>
+				<p>This will stop data collection and finalize the current monitoring session.</p>
+				
+				<div class="modal-button-section">
+					<button type="button" class="modal-cancel-btn" id="cancel-end-btn">Cancel</button>
+					<button type="button" class="modal-confirm-btn" id="confirm-end-btn">End Run</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Live Date/Time script: updates the .notes__meta element each minute -->
+	<script>
+	(function(){
+		const el = document.getElementById('notes-meta');
+		if(!el) return;
+
+		function formatNow(d){
+			const date = d.toLocaleDateString(undefined,{ month: 'short', day: 'numeric', year: 'numeric' });
+			const time = d.toLocaleTimeString(undefined,{ hour: '2-digit', minute: '2-digit' });
+			return `${date} — ${time}`;
+		}
+
+		function update(){
+			el.textContent = formatNow(new Date());
+		}
+
+		// initial update
+		update();
+
+		// schedule first tick to align with start of next minute, then every 60s
+		const msToNext = 60000 - (Date.now() % 60000);
+		let timer = setTimeout(function(){
+			update();
+			timer = setInterval(update, 60000);
+		}, msToNext);
+
+		// update when user returns to tab
+		document.addEventListener('visibilitychange', function(){
+			if(document.visibilityState === 'visible') update();
+		});
+
+	})();
+
+	// Modal functionality script
+	(function(){
+		const startBtn = document.getElementById('start-run-btn');
+		const modal = document.getElementById('start-run-modal');
+		const closeBtn = document.getElementById('close-modal');
+		const enterBtn = document.getElementById('enter-run-btn');
+		const runNameInput = document.getElementById('run-name');
+		
+		// Data collection variables
+		let dataCollectionInterval;
+		let collectedData = [];
+		let runStartTime;
+		
+		// Function to generate sensor readings (using CSV temperatures + simulated other data)
+		function generateSensorData(){
+			const timestamp = new Date().toISOString();
+			const temps = [];
+			
+			// Get current temperatures from CSV or fallback
+			const csvTemps = window.getCurrentTemperatures ? window.getCurrentTemperatures() : null;
+			
+			for(let i = 1; i <= 6; i++){
+				if(csvTemps && csvTemps[`temp${i}`] && csvTemps[`temp${i}`] !== '--'){
+					// Use CSV temperature data
+					temps.push(csvTemps[`temp${i}`]);
+				} else {
+					// Fallback to displayed temperature or random
+					const tempElement = document.getElementById(`temp-${i}`);
+					if(tempElement && tempElement.textContent !== '--'){
+						temps.push(tempElement.textContent);
+					} else {
+						temps.push((70 + Math.random() * 10).toFixed(1));
+					}
+				}
+			}
+			
+			const humidity = (60 + Math.random() * 20).toFixed(1); // Random humidity 60-80%
+			const fans = [];
+			for(let i = 1; i <= 6; i++){
+				fans.push(Math.random() > 0.5 ? 'On' : 'Off'); // Random fan states
+			}
+			const notes = localStorage.getItem('currentNotes') || '';
+			
+			return {
+				timestamp,
+				temp1: temps[0], temp2: temps[1], temp3: temps[2],
+				temp4: temps[3], temp5: temps[4], temp6: temps[5],
+				humidity,
+				fan1: fans[0], fan2: fans[1], fan3: fans[2],
+				fan4: fans[3], fan5: fans[4], fan6: fans[5],
+				notes: notes.replace(/[\r\n]/g, ' ') // Remove line breaks from notes
+			};
+		}
+		
+		// Function to start data collection
+		function startDataCollection(){
+			collectedData = [];
+			runStartTime = new Date();
+			
+			// Collect initial data point
+			collectedData.push(generateSensorData());
+			
+			// Start collecting data every 30 seconds
+			dataCollectionInterval = setInterval(function(){
+				collectedData.push(generateSensorData());
+			}, 30000); // 30 seconds
+		}
+		
+		// Function to stop data collection and export CSV
+		function stopDataCollectionAndExport(runName){
+			if(dataCollectionInterval){
+				clearInterval(dataCollectionInterval);
+				dataCollectionInterval = null;
+			}
+			
+			// Add final data point
+			if(collectedData.length > 0){
+				collectedData.push(generateSensorData());
+			}
+			
+			// Generate CSV content
+			let csvContent = 'Timestamp,Temp1,Temp2,Temp3,Temp4,Temp5,Temp6,Humidity,Fan1,Fan2,Fan3,Fan4,Fan5,Fan6,Notes\n';
+			
+			collectedData.forEach(function(data){
+				csvContent += `${data.timestamp},${data.temp1},${data.temp2},${data.temp3},${data.temp4},${data.temp5},${data.temp6},${data.humidity},${data.fan1},${data.fan2},${data.fan3},${data.fan4},${data.fan5},${data.fan6},"${data.notes}"\n`;
+			});
+			
+			// Create and download CSV file
+			const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+			const link = document.createElement('a');
+			if (link.download !== undefined) {
+				const url = URL.createObjectURL(blob);
+				link.setAttribute('href', url);
+				link.setAttribute('download', `${runName}.csv`);
+				link.style.visibility = 'hidden';
+				document.body.appendChild(link);
+				link.click();
+				document.body.removeChild(link);
+			}
+			
+			// Clear collected data
+			collectedData = [];
+			
+			// Reset notes box and clear from localStorage
+			const notesInput = document.getElementById('notes-input');
+			if(notesInput){
+				notesInput.value = '';
+				localStorage.removeItem('currentNotes');
+			}
+		}
+		
+		if(!startBtn || !modal || !closeBtn || !enterBtn || !runNameInput) return;
+		
+		// Handle Start Run / End Run button clicks
+		startBtn.addEventListener('click', function(){
+			if(startBtn.classList.contains('end-run-btn-active')){
+				// User clicked End Run button - show confirmation modal
+				const endModal = document.getElementById('end-run-modal');
+				if(endModal){
+					endModal.style.display = 'flex';
+				}
+			}
+			else {
+				// User clicked Start Run button
+				
+				// Clear file input and status
+				const fileInput = document.getElementById('target-csv-upload');
+				const uploadStatus = document.getElementById('upload-status');
+				if(fileInput) fileInput.value = '';
+				if(uploadStatus) uploadStatus.textContent = '';
+				
+				// Setup file upload handler for modal
+				if(window.setupFileUploadHandler){
+					window.setupFileUploadHandler();
+				}
+				
+				modal.style.display = 'flex';
+				runNameInput.focus();
+			}
+		});
+		
+		// Close modal when X button is clicked
+		closeBtn.addEventListener('click', function(){
+			modal.style.display = 'none';
+		});
+		
+		// Close modal when clicking outside the popup
+		modal.addEventListener('click', function(e){
+			if(e.target === modal){
+				modal.style.display = 'none';
+			}
+		});
+		
+		// Close modal with Escape key
+		document.addEventListener('keydown', function(e){
+			if(e.key === 'Escape' && modal.style.display === 'flex'){
+				modal.style.display = 'none';
+			}
+		});
+
+		// Handle Start button click in modal
+		enterBtn.addEventListener('click', function(){
+			const runName = runNameInput.value.trim();
+			if(runName){
+				// Display the run name next to Home with dash prefix
+				const runNameDisplay = document.getElementById('run-name-display');
+				if(runNameDisplay){
+					runNameDisplay.textContent = '- ' + runName;
+				}
+				// Save run name to localStorage for other pages
+				localStorage.setItem('currentRunName', runName);
+			// Start data collection and temperature reading
+			startDataCollection();
+			if(window.startTemperatureReading){
+				window.startTemperatureReading();
+			}
+			
+			// Set run start time for target comparison
+			if(window.setRunStartTime){
+				window.setRunStartTime();
+			}
+				// Replace Start Run button with End Run button
+				startBtn.textContent = 'End Run';
+				startBtn.classList.add('end-run-btn-active');
+				startBtn.style.pointerEvents = 'auto'; // Re-enable clicks for End Run
+				startBtn.style.cursor = 'pointer';
+				modal.style.display = 'none';
+				runNameInput.value = ''; // Clear the input for next time
+			}
+		});
+
+		// Also handle Enter key in the input field
+		runNameInput.addEventListener('keydown', function(e){
+			if(e.key === 'Enter'){
+				enterBtn.click();
+			}
+		});
+
+		// End Run Modal functionality
+		const endModal = document.getElementById('end-run-modal');
+		const closeEndBtn = document.getElementById('close-end-modal');
+		const cancelEndBtn = document.getElementById('cancel-end-btn');
+		const confirmEndBtn = document.getElementById('confirm-end-btn');
+
+		if(endModal && closeEndBtn && cancelEndBtn && confirmEndBtn){
+			// Close end modal when X button is clicked
+			closeEndBtn.addEventListener('click', function(){
+				endModal.style.display = 'none';
+			});
+
+			// Close end modal when Cancel button is clicked
+			cancelEndBtn.addEventListener('click', function(){
+				endModal.style.display = 'none';
+			});
+
+			// Close end modal when clicking outside the popup
+			endModal.addEventListener('click', function(e){
+				if(e.target === endModal){
+					endModal.style.display = 'none';
+				}
+			});
+
+			// Handle End Run confirmation
+			confirmEndBtn.addEventListener('click', function(){
+				// Get current run name for file export
+				const currentRunName = localStorage.getItem('currentRunName') || 'UnknownRun';
+				
+				// Stop data collection and export CSV
+				stopDataCollectionAndExport(currentRunName);
+				
+				// Stop temperature reading and reset to dashes
+				if(window.stopTemperatureReading){
+					window.stopTemperatureReading();
+				}
+				
+				// Clear run timing data and reset colors
+				if(window.clearRunData){
+					window.clearRunData();
+				}
+				
+				// Clear notes across all pages by removing from localStorage
+				// (already done in stopDataCollectionAndExport, but ensure it's cleared)
+				localStorage.removeItem('currentNotes');
+				
+				// Reset the UI
+				const runNameDisplay = document.getElementById('run-name-display');
+				if(runNameDisplay){
+					runNameDisplay.textContent = '';
+				}
+				// Clear run name from localStorage
+				localStorage.removeItem('currentRunName');
+				startBtn.textContent = 'Start Run';
+				startBtn.classList.remove('end-run-btn-active');
+				endModal.style.display = 'none';
+			});
+
+			// Close end modal with Escape key
+			document.addEventListener('keydown', function(e){
+				if(e.key === 'Escape' && endModal.style.display === 'flex'){
+					endModal.style.display = 'none';
+				}
+			});
+		}
+	})();
+
+	// Initialize run name display from localStorage
+	(function(){
+		const savedRunName = localStorage.getItem('currentRunName');
+		if(savedRunName){
+			const runNameDisplay = document.getElementById('run-name-display');
+			if(runNameDisplay){
+				runNameDisplay.textContent = '- ' + savedRunName;
+			}
+			// Update button state if run is active
+			const startBtn = document.getElementById('start-run-btn');
+			if(startBtn){
+				startBtn.textContent = 'End Run';
+				startBtn.classList.add('end-run-btn-active');
+				startBtn.style.pointerEvents = 'auto';
+				startBtn.style.cursor = 'pointer';
+			}
+		}
+	})();
+
+	// Notes localStorage functionality
+	(function(){
+		const notesInput = document.getElementById('notes-input');
+		if(!notesInput) return;
+
+		// Load saved notes on page load
+		const savedNotes = localStorage.getItem('currentNotes');
+		if(savedNotes){
+			notesInput.value = savedNotes;
+		}
+
+		// Save notes whenever user types (with debounce to avoid excessive saves)
+		let saveTimeout;
+		notesInput.addEventListener('input', function(){
+			clearTimeout(saveTimeout);
+			saveTimeout = setTimeout(function(){
+				localStorage.setItem('currentNotes', notesInput.value);
+			}, 500); // Save 500ms after user stops typing
+		});
+
+		// Save notes immediately when user leaves the input field
+		notesInput.addEventListener('blur', function(){
+			clearTimeout(saveTimeout);
+			localStorage.setItem('currentNotes', notesInput.value);
+		});
+	})();
+
+	// Live temperature readings from CSV file
+	(function(){
+		// CSV file path - update this path to your actual CSV file location
+		const CSV_FILE_PATH = 'data/temperature_readings.csv';
+		
+		// Store the latest temperature readings
+		let currentTemperatures = {
+			temp1: '--', temp2: '--', temp3: '--',
+			temp4: '--', temp5: '--', temp6: '--'
+		};
+
+		// Track if temperature reading is active
+		let temperatureReadingActive = false;
+
+		// Function to parse CSV data and extract temperature readings
+		function parseCSVData(csvText){
+			const lines = csvText.trim().split('\n');
+			if(lines.length < 2) return null; // Need at least header + 1 data row
+			
+			// Get the most recent reading (last line)
+			const lastLine = lines[lines.length - 1];
+			const values = lastLine.split(',');
+			
+			// Expected CSV format: timestamp,temp1,temp2,temp3,temp4,temp5,temp6,humidity,fan1,fan2,fan3,fan4,fan5,fan6
+			// Or adjust indices based on your actual CSV structure
+			if(values.length >= 7){
+				return {
+					temp1: parseFloat(values[1]).toFixed(1),
+					temp2: parseFloat(values[2]).toFixed(1),
+					temp3: parseFloat(values[3]).toFixed(1),
+					temp4: parseFloat(values[4]).toFixed(1),
+					temp5: parseFloat(values[5]).toFixed(1),
+					temp6: parseFloat(values[6]).toFixed(1)
+				};
+			}
+			return null;
+		}
+
+		// Function to read CSV file and update temperatures
+		async function readCSVFile(){
+			// Only read temperatures if a run is active
+			if(!temperatureReadingActive) return;
+			
+			try {
+				const response = await fetch(CSV_FILE_PATH);
+				if(!response.ok){
+					console.warn('Could not read CSV file:', response.statusText);
+					return;
+				}
+				
+				const csvText = await response.text();
+				const temperatures = parseCSVData(csvText);
+				
+				if(temperatures){
+					currentTemperatures = temperatures;
+					updateTemperatureDisplay();
+				}
+			} catch(error){
+				console.warn('Error reading CSV file:', error);
+				// Fallback to simulated data if CSV file is not available
+				generateFallbackTemperatures();
+			}
+		}
+
+		// Fallback function to generate simulated temperatures if CSV is unavailable
+		function generateFallbackTemperatures(){
+			if(!temperatureReadingActive) return;
+			
+			for(let i = 1; i <= 6; i++){
+				const temp = (70 + Math.random() * 10).toFixed(1);
+				currentTemperatures[`temp${i}`] = temp;
+			}
+			updateTemperatureDisplay();
+		}
+
+		// Function to update the temperature display elements
+		function updateTemperatureDisplay(){
+			for(let i = 1; i <= 6; i++){
+				const tempElement = document.getElementById(`temp-${i}`);
+				if(tempElement){
+					tempElement.textContent = currentTemperatures[`temp${i}`] || '--';
+				}
+			}
+		}
+
+		// Function to start temperature readings
+		function startTemperatureReading(){
+			temperatureReadingActive = true;
+			// Immediately read temperatures when starting
+			readCSVFile();
+		}
+
+		// Function to stop temperature readings
+		function stopTemperatureReading(){
+			temperatureReadingActive = false;
+			// Reset to dashes
+			currentTemperatures = {
+				temp1: '--', temp2: '--', temp3: '--',
+				temp4: '--', temp5: '--', temp6: '--'
+			};
+			updateTemperatureDisplay();
+		}
+
+		// Function to get current temperature readings (for data collection)
+		function getCurrentTemperatures(){
+			return currentTemperatures;
+		}
+
+		// Make functions available globally
+		window.getCurrentTemperatures = getCurrentTemperatures;
+		window.startTemperatureReading = startTemperatureReading;
+		window.stopTemperatureReading = stopTemperatureReading;
+
+		// Check if a run is already active on page load
+		const savedRunName = localStorage.getItem('currentRunName');
+		if(savedRunName){
+			temperatureReadingActive = true;
+		}
+
+		// Poll the CSV file every 5 seconds for updates (only when active)
+		setInterval(readCSVFile, 5000);
+	})();
+
+	// Target temperature CSV upload and deviation detection
+	(function(){
+		// Store target temperatures and run timing
+		let targetTemperatures = [];
+		let runStartTime = null;
+		
+		// Function to parse uploaded target CSV
+		function parseTargetCSV(csvText){
+			const lines = csvText.trim().split('\n');
+			if(lines.length < 2) return [];
+			
+			const targets = [];
+			// Skip header, parse data rows
+			// Expected format: time_minutes,temp1_target,temp2_target,temp3_target,temp4_target,temp5_target,temp6_target
+			for(let i = 1; i < lines.length; i++){
+				const values = lines[i].split(',');
+				if(values.length >= 7){
+					targets.push({
+						time: parseFloat(values[0]), // time in minutes from run start
+						temp1: parseFloat(values[1]),
+						temp2: parseFloat(values[2]),
+						temp3: parseFloat(values[3]),
+						temp4: parseFloat(values[4]),
+						temp5: parseFloat(values[5]),
+						temp6: parseFloat(values[6])
+					});
+				}
+			}
+			return targets.sort((a, b) => a.time - b.time); // Sort by time
+		}
+		
+		// Function to get current target temperatures based on elapsed time
+		function getCurrentTargets(){
+			if(!runStartTime || targetTemperatures.length === 0) return null;
+			
+			const elapsedMinutes = (Date.now() - runStartTime) / (1000 * 60);
+			
+			// Find the appropriate target based on elapsed time
+			let currentTarget = null;
+			for(let i = 0; i < targetTemperatures.length; i++){
+				if(targetTemperatures[i].time <= elapsedMinutes){
+					currentTarget = targetTemperatures[i];
+				} else {
+					break;
+				}
+			}
+			return currentTarget;
+		}
+		
+		// Function to apply color coding based on deviation
+		function applyDeviationColors(){
+			const currentTargets = getCurrentTargets();
+			const currentTemps = window.getCurrentTemperatures ? window.getCurrentTemperatures() : null;
+			
+			for(let i = 1; i <= 6; i++){
+				const tempElement = document.getElementById(`temp-${i}`);
+				if(!tempElement) continue;
+				
+				// Reset classes
+				tempElement.classList.remove('temp-good', 'temp-warning', 'temp-danger', 'temp-too-hot', 'temp-too-cold');
+				
+				if(currentTargets && currentTemps && currentTemps[`temp${i}`] !== '--'){
+					const actualTemp = parseFloat(currentTemps[`temp${i}`]);
+					const targetTemp = currentTargets[`temp${i}`];
+					
+					if(!isNaN(actualTemp) && !isNaN(targetTemp)){
+						const deviation = actualTemp - targetTemp; // Keep sign for direction
+						
+						// Color coding based on 5-degree deviation thresholds
+						if(deviation >= 5.0){ // 5+ degrees above target - light red background
+							tempElement.classList.add('temp-too-hot');
+						} else if(deviation <= -5.0){ // 5+ degrees below target - light blue background
+							tempElement.classList.add('temp-too-cold');
+						} else {
+							// Within 5 degrees - no special background
+							tempElement.classList.add('temp-good');
+						}
+					}
+				}
+			}
+		}
+		
+		// Function to set run start time
+		function setRunStartTime(){
+			runStartTime = Date.now();
+		}
+		
+		// Function to clear run data
+		function clearRunData(){
+			runStartTime = null;
+			// Reset all temperature colors
+			for(let i = 1; i <= 6; i++){
+				const tempElement = document.getElementById(`temp-${i}`);
+				if(tempElement){
+					tempElement.classList.remove('temp-good', 'temp-warning', 'temp-danger', 'temp-too-hot', 'temp-too-cold');
+				}
+			}
+		}
+		
+		// Function to setup file upload handler
+		function setupFileUploadHandler(){
+			const fileInput = document.getElementById('target-csv-upload');
+			const uploadStatus = document.getElementById('upload-status');
+			
+			if(fileInput && !fileInput.hasAttribute('data-handler-added')){
+				fileInput.setAttribute('data-handler-added', 'true');
+				fileInput.addEventListener('change', function(e){
+					const file = e.target.files[0];
+					if(!file){
+						if(uploadStatus) uploadStatus.textContent = '';
+						return;
+					}
+					
+					const reader = new FileReader();
+					reader.onload = function(event){
+						try {
+							targetTemperatures = parseTargetCSV(event.target.result);
+							if(targetTemperatures.length > 0){
+								if(uploadStatus){
+									uploadStatus.textContent = `✓ Loaded ${targetTemperatures.length} target points`;
+									uploadStatus.style.color = '#28a745';
+								}
+							} else {
+								if(uploadStatus){
+									uploadStatus.textContent = '⚠ No valid data found';
+									uploadStatus.style.color = '#ffc107';
+								}
+							}
+						} catch(error){
+							if(uploadStatus){
+								uploadStatus.textContent = '✗ Error parsing CSV';
+								uploadStatus.style.color = '#dc3545';
+							}
+						}
+					};
+					reader.readAsText(file);
+				});
+			}
+		}
+		
+		// Make functions available globally
+		window.setRunStartTime = setRunStartTime;
+		window.clearRunData = clearRunData;
+		window.applyDeviationColors = applyDeviationColors;
+		window.setupFileUploadHandler = setupFileUploadHandler;
+		
+		// Update colors every 5 seconds when run is active
+		setInterval(applyDeviationColors, 5000);
+	})();
+	</script>
+	</body>
+	</html>
+

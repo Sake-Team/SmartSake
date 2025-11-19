@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Sake Table - Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
+  <meta name="description" content="Smart Sake Table: zone links, notes, and live readings.">
+</head>
+<body>
+  <header>
+    <h1>Home</h1>
+  </header>
+
+  <main>
+    <div class="stage">
+      <section class="layout">
+        <section class="zones" aria-label="Zones">
+          <a class="zone" href="zone1.html" role="button" aria-label="Zone 1">Zone 1</a>
+          <a class="zone" href="zone2.html" role="button" aria-label="Zone 2">Zone 2</a>
+          <a class="zone" href="zone3.html" role="button" aria-label="Zone 3">Zone 3</a>
+          <a class="zone" href="zone4.html" role="button" aria-label="Zone 4">Zone 4</a>
+          <a class="zone" href="zone5.html" role="button" aria-label="Zone 5">Zone 5</a>
+          <a class="zone" href="zone6.html" role="button" aria-label="Zone 6">Zone 6</a>
+        </section>
+
+        <div class="notes-wrap">
+          <div class="notes__meta" id="notes-meta" aria-live="polite">Date, Time</div>
+          <div class="notes" aria-label="Notes">
+            <label class="sr-only" for="notes-input">Notes</label>
+            <textarea id="notes-input" class="notes__input" placeholder="Enter notes..." aria-label="Notes input"></textarea>
+          </div>
+        </div>
+
+        <div class="left">
+          <div class="long long--top-left">Temperature over time</div>
+          <div class="long long--top-left">Humidity over time</div>
+          <div class="long long--top-left">Fans on/off over time</div>
+        </div>
+      </section>
+
+      <section class="temp-row" aria-label="Temperature readings">
+        <div class="temp">
+          <span class="temp__label">Temp 1</span>
+          <span class="temp__value"><span class="temp__num">XX</span><span class="temp__unit"> °F</span></span>
+        </div>
+        <div class="temp">
+          <span class="temp__label">Temp 2</span>
+          <span class="temp__value"><span class="temp__num">XX</span><span class="temp__unit"> °F</span></span>
+        </div>
+        <div class="temp">
+          <span class="temp__label">Temp 3</span>
+          <span class="temp__value"><span class="temp__num">XX</span><span class="temp__unit"> °F</span></span>
+        </div>
+        <div class="temp">
+          <span class="temp__label">Temp 4</span>
+          <span class="temp__value"><span class="temp__num">XX</span><span class="temp__unit"> °F</span></span>
+        </div>
+        <div class="temp">
+          <span class="temp__label">Temp 5</span>
+          <span class="temp__value"><span class="temp__num">XX</span><span class="temp__unit"> °F</span></span>
+        </div>
+        <div class="temp">
+          <span class="temp__label">Temp 6</span>
+          <span class="temp__value"><span class="temp__num">XX</span><span class="temp__unit"> °F</span></span>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Live Date/Time script: updates the .notes__meta element each minute -->
+  <script>
+  (function(){
+    const el = document.getElementById('notes-meta');
+    if(!el) return;
+
+    function formatNow(d){
+      const date = d.toLocaleDateString(undefined,{ month: 'short', day: 'numeric', year: 'numeric' });
+      const time = d.toLocaleTimeString(undefined,{ hour: '2-digit', minute: '2-digit' });
+      return `${date} — ${time}`;
+    }
+
+    function update(){ el.textContent = formatNow(new Date()); }
+    update();
+
+    const msToNext = 60000 - (Date.now() % 60000);
+    let timer = setTimeout(function(){
+      update();
+      timer = setInterval(update, 60000);
+    }, msToNext);
+
+    document.addEventListener('visibilitychange', function(){
+      if(document.visibilityState === 'visible') update();
+    });
+  })();
+  </script>
+</body>
+</html>

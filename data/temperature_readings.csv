@@ -1,0 +1,4 @@
+timestamp,temp1,temp2,temp3,temp4,temp5,temp6,humidity,fan1,fan2,fan3,fan4,fan5,fan6
+2025-11-13T10:00:00.000Z,72.3,74.1,73.8,75.2,71.9,73.5,65.2,On,Off,On,On,Off,On
+2025-11-13T10:00:05.000Z,72.1,74.3,73.6,75.4,72.1,73.7,65.4,On,Off,On,On,Off,On
+2025-11-13T10:00:10.000Z,72.5,74.0,73.9,75.1,71.8,73.3,65.1,On,On,On,On,Off,On

@@ -1,0 +1,784 @@
+/* Shared site styles extracted from dashboard */
+html, body { height: 100%; margin: 0; font-family: Arial, Helvetica, sans-serif; background: #e0e2e6; }
+
+/* Centralized sizing variable so left column panels can match the notes box height */
+:root { --notes-height: calc(3 * 138px + 2 * 10px); }
+
+/* Top-left large header */
+header {
+	position: absolute;
+	top: 16px;
+	left: 16px;
+	text-align: left;
+	z-index: 10;
+}
+
+header h1 { font-size: calc(3.2rem + 6pt); margin: 0; line-height: 1; color: #111; font-weight: 700; }
+
+/* Run name display in header */
+.run-name-header {
+	color: #1e3a8a;
+	font-weight: 800;
+	font-size: calc(2.5rem + 6pt);
+}
+
+/* Start Run Button positioned over temperature rectangle */
+.temp-overlay-btn {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	background-color: #d40000;
+	color: white;
+	border: none;
+	padding: 12px 24px;
+	border-radius: 6px;
+	font-size: 1.2rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background-color 0.3s ease;
+	z-index: 10;
+}
+
+.temp-overlay-btn:hover {
+	background-color: #b00000;
+}
+
+.temp-overlay-btn:focus {
+	outline: 2px solid #d40000;
+	outline-offset: 2px;
+}
+
+/* Ensure temperature rectangle has relative positioning for absolute button */
+.long--top-left:first-child {
+	position: relative;
+}
+
+/* Matching utility used by zone pages */
+.page-title { font-size: calc(3.2rem + 6pt); margin: 0 0 12px; line-height: 1; color: #111; font-weight: 700; }
+
+/* Large HOME link positioned top-right on zone pages */
+.home-link {
+	position: absolute;
+	top: 16px;
+	right: 16px;
+	font-size: calc(3.2rem + 6pt);
+	line-height: 1;
+	font-weight: 700;
+	color: #d40000; /* red */
+	text-decoration: none;
+	transition: color 140ms ease, text-decoration 140ms ease;
+}
+
+/* hover and keyboard focus styles: slightly lighter red and underline */
+.home-link:hover,
+.home-link:focus-visible {
+	color: #ff6b6b; /* lighter red on hover/focus */
+	text-decoration: underline;
+}
+
+@media (max-width: 480px) {
+	.home-link { font-size: calc(1.8rem + 6pt); }
+}
+
+/* When the Home link is placed inside the .notes container, pin it above the box
+   and align its right edge with the notes box outer edge (notes padding = 12px). */
+.notes > .home-link {
+	position: absolute;
+	/* place above the notes box and render like the zone buttons */
+	top: -76px;
+	right: 12px; /* align inside the notes box padding */
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 140px;
+	height: 64px;
+	background: #ffffff;
+	border: 1px solid #e1e1e6;
+	box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+	border-radius: 8px;
+	color: #d40000; /* red text */
+	font-weight: 800;
+	font-size: 1.3rem; /* slightly bigger red text */
+	text-decoration: none;
+	cursor: pointer;
+	z-index: 12;
+}
+
+@media (max-width: 768px) {
+	/* slightly smaller offset on mid-size screens */
+	.notes > .home-link { top: -66px; width: 110px; height: 50px; font-size: 1.05rem; right: 10px; }
+}
+
+@media (max-width: 480px) {
+	/* mobile adjustments */
+	.notes > .home-link { top: -60px; right: 8px; width: 88px; height: 44px; font-size: 1.0rem; }
+}
+
+/* hover/focus state for the Home button when it's rendered above the notes box */
+.notes > .home-link {
+	transition: background-color 160ms ease, color 160ms ease, transform 120ms ease;
+}
+
+.notes > .home-link:hover,
+.notes > .home-link:focus-visible {
+	background: #ff6b6b; /* light red */
+	color: #ffffff; /* white text for contrast */
+	border-color: #ff6b6b;
+	transform: translateY(-2px);
+}
+
+/* Responsive scaling for small screens */
+@media (max-width: 480px) { header h1, .page-title { font-size: calc(1.8rem + 6pt); } }
+
+/* Main padding so content doesn't overlap the absolute header */
+main { padding: 64px 16px 16px; }
+
+/* Layout: left column (longs) + right column (zones) */
+.layout { display: flex; align-items: flex-start; gap: 16px; margin-top: 28px; padding-left: 0; }
+
+.left { display: flex; flex-direction: column; gap: 10px; width: 943px; order: 1; /* match notes height so bottoms align */ height: var(--notes-height); }
+
+/* Make long panels flexible so they can share the left column height with the mid-row
+	(preserves visual proportions while allowing zone pages with 2 x .long + .mid-row
+	to align with the .notes container). We keep a sensible minimum height as a
+	fallback for very small viewports. */
+.long { background: #ffffff; border: 1px solid #e1e1e6; box-shadow: 0 2px 4px rgba(0,0,0,0.04); display: flex; align-items: center; justify-content: center; font-weight: 600; color: #222; width: 100%; box-sizing: border-box; min-height: 138px; border-radius: 8px; font-size: 1rem; flex: 1 1 auto; height: auto; position: relative; }
+
+.long--top-left { display: flex; align-items: flex-start; justify-content: flex-start; padding: 12px; text-align: left; }
+
+/* Start run button overlay positioned over temperature rectangle, aligned with Home header */
+.temp-overlay-btn {
+	position: absolute;
+	left: 50%;
+	top: -80px;
+	transform: translateX(-50%);
+	width: 72%;
+	max-width: 520px;
+	height: calc(3.2rem + 6pt);
+	background: #ffffff;
+	border: 1px solid #e1e1e6;
+	box-shadow: 0 4px 8px rgba(0,0,0,0.06);
+	border-radius: 10px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-weight: 800;
+	color: #d40000;
+	font-size: 1.6rem;
+	cursor: pointer;
+	text-decoration: none;
+	transition: background-color 160ms ease, color 160ms ease, transform 120ms ease;
+	z-index: 10;
+}
+
+.temp-overlay-btn:hover,
+.temp-overlay-btn:focus {
+	background: #ff6b6b;
+	color: #ffffff;
+	transform: translateX(-50%) translateY(-2px);
+}
+
+.temp-overlay-btn:focus {
+	outline: 3px solid rgba(21, 126, 251, 0.18);
+	outline-offset: 3px;
+}
+
+/* medium rectangles used on zone pages beneath the long panels
+   same visual treatment as cards but shorter height and consistent spacing */
+.mid { background: #ffffff; border: 1px solid #e1e1e6; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border-radius: 8px; box-sizing: border-box; min-height: 84px; display: flex; align-items: center; justify-content: center; padding: 12px; font-weight: 600; color: #222; font-size: 0.95rem; flex: 1 1 auto; width: auto; height: 100%; text-align: center; transition: background-color 180ms ease, color 180ms ease, transform 180ms ease; cursor: pointer; }
+
+/* container to lay out mid cards horizontally and allow the mid-row to occupy
+	one of the vertical slots in the left column (so the total left column
+	height equals the notes box height). */
+.mid-row { display: flex; gap: 10px; margin-top: 10px; flex: 1 1 auto; }
+
+/* Hover and keyboard focus appearance to match the .zone buttons */
+.mid:hover { background: #e0e0e0; color: #111; transform: translateY(-2px); }
+.mid:focus { outline: 3px solid rgba(21, 126, 251, 0.18); outline-offset: 3px; }
+.mid:focus-visible { outline: 3px solid rgba(21, 126, 251, 0.18); outline-offset: 3px; }
+
+@media (max-width: 768px) {
+	.mid { height: 66px; font-size: 0.9rem; }
+}
+
+@media (max-width: 480px) {
+	.mid { height: 56px; font-size: 0.85rem; }
+	.mid-row { flex-direction: column; }
+}
+
+.notes { order: 2; width: 220px; background: #ffffff; border: 1px solid #e1e1e6; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border-radius: 8px; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; padding: 12px; box-sizing: border-box; color: #222; height: var(--notes-height); position: relative; }
+
+.sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+.notes__input { width: 100%; height: 100%; border: none; resize: none; background: transparent; color: #222; font-size: 0.95rem; line-height: 1.2; outline: none; box-sizing: border-box; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #ccc #f5f5f5; }
+
+/* small grey metadata text shown above the notes box (e.g. Date, time) */
+.notes__meta { color: #6b6b6b; font-size: 0.8rem; text-align: right; }
+
+/* Date and Time Display Container */
+.date-time-container {
+	display: flex;
+	align-items: center;
+	gap: 15px;
+	justify-content: space-between;
+}
+
+/* End Run Button */
+.end-run-btn {
+	background-color: #d40000;
+	color: white;
+	border: none;
+	padding: 8px 16px;
+	border-radius: 4px;
+	font-size: 1rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background-color 0.3s ease;
+	flex-shrink: 0;
+}
+
+.end-run-btn:hover {
+	background-color: #b00000;
+}
+
+.end-run-btn:focus {
+	outline: 2px solid #d40000;
+	outline-offset: 2px;
+}
+
+/* Modal overlay and popup styles */
+.modal-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background-color: rgba(0, 0, 0, 0.5);
+	display: none;
+	justify-content: center;
+	align-items: center;
+	z-index: 1000;
+}
+
+.modal-popup {
+	background: white;
+	border-radius: 8px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	max-width: 500px;
+	width: 90%;
+	max-height: 80vh;
+	overflow-y: auto;
+}
+
+.modal-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 20px 24px 0 24px;
+	border-bottom: 1px solid #e1e1e6;
+	margin-bottom: 20px;
+}
+
+.modal-title {
+	margin: 0;
+	font-size: 1.5rem;
+	color: #333;
+	font-weight: 600;
+}
+
+.modal-close {
+	background: none;
+	border: none;
+	font-size: 1.5rem;
+	color: #666;
+	cursor: pointer;
+	padding: 0;
+	width: 24px;
+	height: 24px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 4px;
+	transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.modal-close:hover {
+	background-color: #f5f5f5;
+	color: #333;
+}
+
+.modal-close:focus {
+	outline: 2px solid #d40000;
+	outline-offset: 2px;
+}
+
+.modal-content {
+	padding: 0 24px 24px 24px;
+}
+
+.modal-content p {
+	margin: 0 0 16px 0;
+	color: #555;
+	line-height: 1.5;
+}
+
+/* Modal form elements */
+.modal-input-section {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	margin-top: 20px;
+}
+
+.modal-input-section label {
+	font-weight: 600;
+	color: #333;
+	font-size: 0.95rem;
+}
+
+.modal-input-section input {
+	padding: 10px 12px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	font-size: 1rem;
+	transition: border-color 0.2s ease;
+}
+
+.modal-input-section input:focus {
+	outline: none;
+	border-color: #d40000;
+	box-shadow: 0 0 0 2px rgba(212, 0, 0, 0.1);
+}
+
+.modal-enter-btn {
+	background-color: #d40000;
+	color: white;
+	border: none;
+	padding: 10px 20px;
+	border-radius: 4px;
+	font-size: 1rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background-color 0.3s ease;
+	align-self: flex-start;
+}
+
+.modal-enter-btn:hover {
+	background-color: #b00000;
+}
+
+.modal-enter-btn:focus {
+	outline: 2px solid #d40000;
+	outline-offset: 2px;
+}
+
+/* Style for when button becomes run name display */
+.temp-overlay-btn.run-name-display {
+	background: none;
+	border: none;
+	color: #1e3a8a;
+	font-size: 2rem;
+	font-weight: 800;
+	padding: 0;
+}
+
+/* Style for End Run button state */
+.temp-overlay-btn.end-run-btn-active {
+	background-color: #3b82f6 !important; /* Blue color */
+	color: white;
+	width: 140px !important; /* Slightly wider than before */
+	padding: 12px 8px !important; /* Minimal horizontal padding */
+	left: 92% !important; /* Move button just a tiny bit further to the right */
+}
+
+.temp-overlay-btn.end-run-btn-active:hover {
+	background-color: #2563eb !important; /* Darker blue on hover */
+}
+
+/* Modal form elements */
+.modal-input-section {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	margin-top: 20px;
+}
+
+.modal-input-section label {
+	font-weight: 600;
+	color: #333;
+	font-size: 0.95rem;
+}
+
+.modal-input-section input {
+	padding: 10px 12px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	font-size: 1rem;
+	transition: border-color 0.2s ease;
+}
+
+.modal-input-section input:focus {
+	outline: none;
+	border-color: #d40000;
+	box-shadow: 0 0 0 2px rgba(212, 0, 0, 0.1);
+}
+
+.modal-enter-btn {
+	background-color: #d40000;
+	color: white;
+	border: none;
+	padding: 10px 20px;
+	border-radius: 4px;
+	font-size: 1rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background-color 0.3s ease;
+	align-self: flex-start;
+}
+
+.modal-enter-btn:hover {
+	background-color: #b00000;
+}
+
+.modal-enter-btn:focus {
+	outline: 2px solid #d40000;
+	outline-offset: 2px;
+}
+
+/* Style for when button becomes run name display */
+.temp-overlay-btn.run-name-display {
+	background: none;
+	border: none;
+	color: #1e3a8a;
+	font-size: 2rem;
+	font-weight: 800;
+	padding: 0;
+}
+
+/* wrapper so we can position meta text above the notes box and align with .home-link */
+.notes-wrap { order: 2; width: 220px; position: relative; display: flex; flex-direction: column; align-items: stretch; }
+
+.notes-wrap > .notes__meta {
+	position: absolute;
+	top: -76px; /* align vertically with header/home */
+	right: 12px; /* move inside the notes box to align with inner padding */
+	font-size: 1.3rem; /* larger label */
+	font-weight: 600;
+	z-index: 11;
+}
+
+@media (max-width: 768px) {
+	.notes-wrap > .notes__meta { top: -66px; right: 10px; font-size: 1.1rem; }
+}
+
+@media (max-width: 480px) {
+	.notes-wrap > .notes__meta { top: -60px; right: 8px; font-size: 1rem; }
+}
+
+.stage { display: inline-block; }
+
+.temp-row { display: flex; gap: 16px; margin-top: 20px; align-items: stretch; }
+
+.temp { background: #ffffff; border: 1px solid #e1e1e6; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border-radius: 8px; flex: 1 1 0; display: flex; align-items: flex-start; justify-content: flex-start; padding: 12px; text-align: left; position: relative; font-weight: 600; color: #222; height: 84px; font-size: 0.95rem; }
+
+.temp__label { font-size: 0.85rem; font-weight: 600; color: #222; z-index: 2; }
+
+.temp__value { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.8rem; font-weight: 700; color: #111; line-height: 1; z-index: 1; pointer-events: none; }
+
+.temp__num { display: inline-block; font-size: 2.2rem; line-height: 1; }
+
+.temp__unit { display: inline-block; font-size: 0.95rem; margin-left: 6px; vertical-align: super; }
+
+.zones { display: flex; flex-direction: column; gap: 10px; width: 140px; margin-left: 0; order: 0; }
+
+.zone { background: #ffffff; border: 1px solid #e1e1e6; box-shadow: 0 2px 4px rgba(0,0,0,0.04); display: flex; align-items: center; justify-content: center; font-weight: 600; color: #222; width: 140px; height: 64px; border-radius: 8px; font-size: 0.9rem; transition: background-color 180ms ease, color 180ms ease, transform 180ms ease; cursor: pointer; text-decoration: none; color: inherit; }
+
+.zone:hover { background: #e0e0e0; color: #111; transform: translateY(-2px); }
+
+.zone:focus { outline: 3px solid rgba(21, 126, 251, 0.18); outline-offset: 3px; }
+
+@media (max-width: 768px) {
+	.left { width: 680px; height: calc(3 * 110px + 2 * 10px); }
+	.long { min-height: 110px; font-size: 0.95rem; }
+	:root { --notes-height: calc(3 * 110px + 2 * 10px); }
+
+	.notes { height: var(--notes-height); }
+	.temp { height: 66px; font-size: 0.9rem; }
+	.temp__value { font-size: 1.4rem; }
+	.temp__num { font-size: 1.8rem; }
+	.zones { width: 110px; margin-left: 0; margin-top: 20px; }
+	.zone { width: 110px; height: 50px; font-size: 0.85rem; }
+	.temp-overlay-btn { width: 78%; height: calc(1.8rem + 6pt); font-size: 1.05rem; }
+}
+
+@media (max-width: 480px) {
+	.left { width: 418px; height: calc(3 * 98px + 2 * 10px); }
+	.long { min-height: 98px; font-size: 0.9rem; }
+	:root { --notes-height: calc(3 * 98px + 2 * 10px); }
+	
+	.notes { height: var(--notes-height); }
+	.temp { height: 56px; font-size: 0.85rem; }
+	.temp__value { font-size: 1.1rem; }
+	.temp__num { font-size: 1.4rem; }
+	.zones { width: 88px; margin-left: 0; margin-top: 16px; }
+	.zone { width: 88px; height: 44px; font-size: 0.8rem; }
+	.temp-overlay-btn { width: 84%; height: calc(1.8rem + 6pt); font-size: 0.95rem; }
+}
+
+/* Card and small utilities used by the zone pages */
+.card{max-width:900px;margin:40px auto;background:#fff;border:1px solid #e1e1e6;padding:24px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.04)}
+
+a.button{display:inline-block;margin-top:16px;padding:8px 12px;border-radius:6px;background:#f3f7ff;border:1px solid #e1e9ff;color:#156efb;text-decoration:none}
+
+/* Modal overlay and popup styles */
+.modal-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: rgba(0, 0, 0, 0.5);
+	z-index: 1000;
+	display: none;
+	align-items: center;
+	justify-content: center;
+}
+
+.modal-popup {
+	background: #ffffff;
+	border: 1px solid #e1e1e6;
+	border-radius: 12px;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+	width: 90%;
+	max-width: 500px;
+	max-height: 80vh;
+	overflow-y: auto;
+	padding: 24px;
+	position: relative;
+}
+
+.modal-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 20px;
+}
+
+.modal-title {
+	font-size: 1.5rem;
+	font-weight: 800;
+	color: #111;
+	margin: 0;
+}
+
+.modal-close {
+	background: none;
+	border: none;
+	font-size: 1.5rem;
+	color: #666;
+	cursor: pointer;
+	padding: 4px;
+	border-radius: 4px;
+	transition: background-color 150ms ease, color 150ms ease;
+	position: absolute;
+	top: 8px;
+	right: 8px;
+}
+
+.modal-close:hover,
+.modal-close:active {
+	background: #f0f0f0;
+	color: #d40000;
+}
+
+.modal-content {
+	color: #333;
+	line-height: 1.6;
+}
+
+.modal-input-section {
+	margin-top: 20px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.modal-input-section label {
+	font-weight: 600;
+	color: #333;
+	font-size: 0.95rem;
+}
+
+.modal-input-section input {
+	padding: 10px 12px;
+	border: 1px solid #e1e1e6;
+	border-radius: 6px;
+	font-size: 1rem;
+	color: #333;
+	outline: none;
+	transition: border-color 150ms ease;
+}
+
+.modal-input-section input:focus {
+	border-color: #156efb;
+	box-shadow: 0 0 0 3px rgba(21, 126, 251, 0.1);
+}
+
+.modal-enter-btn {
+	padding: 10px 20px;
+	background: #d40000;
+	color: #ffffff;
+	border: none;
+	border-radius: 6px;
+	font-weight: 600;
+	font-size: 1rem;
+	cursor: pointer;
+	transition: background-color 150ms ease;
+	align-self: flex-start;
+}
+
+.modal-enter-btn:hover {
+	background: #ff6b6b;
+}
+
+.modal-enter-btn:focus {
+	outline: 3px solid rgba(21, 126, 251, 0.18);
+	outline-offset: 2px;
+}
+
+/* Style for when button shows run name instead of Start Run */
+.temp-overlay-btn.run-name-display {
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	color: #1e3a8a;
+	font-weight: 800;
+	font-size: 2.5rem;
+}
+
+/* Modal button section for confirmation dialogs */
+.modal-button-section {
+	display: flex;
+	gap: 12px;
+	margin-top: 20px;
+	justify-content: flex-end;
+}
+
+.modal-cancel-btn {
+	background-color: #6b7280;
+	color: white;
+	border: none;
+	padding: 10px 20px;
+	border-radius: 4px;
+	font-size: 1rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background-color 0.3s ease;
+}
+
+.modal-cancel-btn:hover {
+	background-color: #4b5563;
+}
+
+.modal-cancel-btn:focus {
+	outline: 2px solid #6b7280;
+	outline-offset: 2px;
+}
+
+.modal-confirm-btn {
+	background-color: #d40000;
+	color: white;
+	border: none;
+	padding: 10px 20px;
+	border-radius: 4px;
+	font-size: 1rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background-color 0.3s ease;
+}
+
+.modal-confirm-btn:hover {
+	background-color: #b00000;
+}
+
+.modal-confirm-btn:focus {
+	outline: 2px solid #d40000;
+	outline-offset: 2px;
+}
+
+/* Upload section styles */
+.upload-section {
+	margin-top: 10px;
+	padding: 10px;
+	border: 1px solid #ccc;
+	border-radius: 4px;
+	background-color: #f8f9fa;
+}
+
+.upload-label {
+	display: block;
+	font-size: 12px;
+	font-weight: bold;
+	margin-bottom: 5px;
+	color: #333;
+}
+
+.upload-input {
+	width: 100%;
+	padding: 5px;
+	border: 1px solid #ddd;
+	border-radius: 3px;
+	font-size: 12px;
+	background-color: white;
+}
+
+.upload-status {
+	margin-top: 5px;
+	font-size: 11px;
+	font-weight: bold;
+}
+
+.help-text {
+	display: block;
+	font-size: 10px;
+	color: #666;
+	margin-top: 3px;
+	font-style: italic;
+}
+
+/* Temperature deviation color coding */
+.temp__num.temp-good {
+	color: #333 !important;
+	background-color: transparent;
+	padding: 2px 4px;
+	border-radius: 3px;
+}
+
+.temp__num.temp-warning {
+	color: #ffc107 !important;
+	background-color: rgba(255, 193, 7, 0.1);
+	padding: 2px 4px;
+	border-radius: 3px;
+}
+
+.temp__num.temp-danger {
+	color: #dc3545 !important;
+	background-color: rgba(220, 53, 69, 0.1);
+	padding: 2px 4px;
+	border-radius: 3px;
+}
+
+.temp__num.temp-too-hot {
+	color: #333 !important;
+	background-color: rgba(255, 182, 182, 0.7) !important;
+	padding: 2px 4px;
+	border-radius: 3px;
+}
+
+.temp__num.temp-too-cold {
+	color: #333 !important;
+	background-color: rgba(173, 216, 230, 0.7) !important;
+	padding: 2px 4px;
+	border-radius: 3px;
+}

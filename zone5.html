@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Zone 5</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+	<header>
+		<h1>Zone 5 <span id="run-name-display" class="run-name-header"></span></h1>
+	</header>  <main>
+    <div class="stage">
+      <section class="layout">
+        <section class="zones">
+          <a class="zone" href="zone1.html" role="button" aria-label="Zone 1">Zone 1</a>
+          <a class="zone" href="zone2.html" role="button" aria-label="Zone 2">Zone 2</a>
+          <a class="zone" href="zone3.html" role="button" aria-label="Zone 3">Zone 3</a>
+          <a class="zone" href="zone4.html" role="button" aria-label="Zone 4">Zone 4</a>
+          <a class="zone" href="zone5.html" role="button" aria-label="Zone 5">Zone 5</a>
+          <a class="zone" href="zone6.html" role="button" aria-label="Zone 6">Zone 6</a>
+        </section>
+
+        <div class="left">
+          <div class="long long--top-left">Zone 5 temperature</div>
+          <div class="long long--top-left">Zone 5 fan on/off</div>
+          <div class="mid-row">
+            <div class="mid" tabindex="0">Manual off for X hours</div>
+            <div class="mid" tabindex="0">Manual on for X hours</div>
+            <div class="mid" tabindex="0">Manual off until end of run</div>
+            <div class="mid" tabindex="0">Manual on until end of run</div>
+          </div>
+        </div>
+
+        <div class="notes" aria-label="Notes">
+          <a class="home-link" href="html dashboard ai.html">Home</a>
+          <label class="sr-only" for="notes-input">Notes</label>
+          <textarea id="notes-input" class="notes__input" placeholder="Enter notes..." aria-label="Notes input"></textarea>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- placeholder card removed -->
+  
+  <script>
+  // Initialize run name display from localStorage
+  (function(){
+    const savedRunName = localStorage.getItem('currentRunName');
+    if(savedRunName){
+      const runNameDisplay = document.getElementById('run-name-display');
+      if(runNameDisplay){
+        runNameDisplay.textContent = '- ' + savedRunName;
+      }
+    }
+  })();
+
+  // Notes localStorage functionality
+  (function(){
+    const notesInput = document.getElementById('notes-input');
+    if(!notesInput) return;
+
+    // Load saved notes on page load
+    const savedNotes = localStorage.getItem('currentNotes');
+    if(savedNotes){
+      notesInput.value = savedNotes;
+    }
+
+    // Save notes whenever user types (with debounce to avoid excessive saves)
+    let saveTimeout;
+    notesInput.addEventListener('input', function(){
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(function(){
+        localStorage.setItem('currentNotes', notesInput.value);
+      }, 500); // Save 500ms after user stops typing
+    });
+
+    // Save notes immediately when user leaves the input field
+    notesInput.addEventListener('blur', function(){
+      clearTimeout(saveTimeout);
+      localStorage.setItem('currentNotes', notesInput.value);
+    });
+  })();
+  </script>
+</body>
+</html>
