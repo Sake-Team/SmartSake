@@ -1047,6 +1047,10 @@
 					window.startTemperatureReading = startTemperatureReading;
 					window.stopTemperatureReading = stopTemperatureReading;
 
+					// Auto-start simulator on page load
+					window.addEventListener("load", startTemperatureReading);
+
+
 					// If you ever want it to auto-start on page load, you can call:
 					// startTemperatureReading();
 				})();
