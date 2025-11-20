@@ -878,6 +878,9 @@
 				window.startTemperatureReading = startTemperatureReading;
 				window.stopTemperatureReading = stopTemperatureReading;
 
+				// 🔸 Always start simulated readings on page load
+				startTemperatureReading();
+
 				// If you want it to auto-run when a run name exists, you can uncomment:
 				// const savedRunName = localStorage.getItem('currentRunName');
 				// if (savedRunName) {
