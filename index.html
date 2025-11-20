@@ -246,52 +246,12 @@
 
   // update when user returns to tab
   document.addEventListener('visibilitychange', function(){
-    if(document.visibilityState === 'visible') update();
+	if(document.visibilityState === 'visible') update();
   });
-})();
 
-		const el = document.getElementById('notes-meta');
-		if(!el) return;
-
-		function formatNow(d){
-			const date = d.toLocaleDateString(undefined,{ month: 'short', day: 'numeric', year: 'numeric' });
-			const time = d.toLocaleTimeString(undefined,{ hour: '2-digit', minute: '2-digit' });
-			return `${date} — ${time}`;
-		}
-
-		function update(){
-			el.textContent = formatNow(new Date());
-		}
-
-		// initial update
-		update();
-
-		// schedule first tick to align with start of next minute, then every 60s
-		const msToNext = 60000 - (Date.now() % 60000);
-		let timer = setTimeout(function(){
-			update();
-			timer = setInterval(update, 60000);
-		}, msToNext);
-
-		// update when user returns to tab
-		document.addEventListener('visibilitychange', function(){
-			if(document.visibilityState === 'visible') update();
-		});
-
-	})();
-	
 		// Modal functionality script
 	(function(){
-		const startBtn = document.getElementById('start-run-btn');
-		const modal = document.getElementById('start-run-modal');
-		const closeBtn = document.getElementById('close-modal');
-		const enterBtn = document.getElementById('enter-run-btn');
-		const runNameInput = document.getElementById('run-name');
-
-		// Data collection variables
-		let dataCollectionInterval;
-		let collectedData = [];
-		let runStartTime;
+		// Duplicate variable declarations removed to fix redeclaration error.
 
 		// 🔸 FAILSAFE AUTOSAVE SYSTEM ---------------------------
 		const RUN_STATE_KEY = 'sakeRunState';
@@ -504,23 +464,23 @@
 			}
 		});
 
-		const endModal = document.getElementById('end-run-modal');
+		const endModal1 = document.getElementById('end-run-modal');
 		const closeEndBtn = document.getElementById('close-end-modal');
 		const cancelEndBtn = document.getElementById('cancel-end-btn');
 		const confirmEndBtn = document.getElementById('confirm-end-btn');
 
-		if(endModal && closeEndBtn && cancelEndBtn && confirmEndBtn){
+		if(endModal1 && closeEndBtn && cancelEndBtn && confirmEndBtn){
 			closeEndBtn.addEventListener('click', function(){
-				endModal.style.display='none';
+				endModal1.style.display='none';
 			});
 
 			cancelEndBtn.addEventListener('click', function(){
-				endModal.style.display='none';
+				endModal1.style.display='none';
 			});
 
-			endModal.addEventListener('click', function(e){
-				if(e.target === endModal){
-					endModal.style.display='none';
+			endModal1.addEventListener('click', function(e){
+				if(e.target === endModal1){
+					endModal1.style.display='none';
 				}
 			});
 
@@ -546,27 +506,16 @@
 				localStorage.removeItem('currentRunName');
 				startBtn.textContent='Start Run';
 				startBtn.classList.remove('end-run-btn-active');
-				endModal.style.display='none';
+				endModal1.style.display='none';
 			});
 
 			document.addEventListener('keydown', function(e){
-				if(e.key === 'Escape' && endModal.style.display === 'flex'){
-					endModal.style.display='none';
+				if(e.key === 'Escape' && endModal1.style.display === 'flex'){
+					endModal1.style.display='none';
 				}
 			});
 		}
-	})();
-
-		const startBtn = document.getElementById('start-run-btn');
-		const modal = document.getElementById('start-run-modal');
-		const closeBtn = document.getElementById('close-modal');
-		const enterBtn = document.getElementById('enter-run-btn');
-		const runNameInput = document.getElementById('run-name');
-		
-		// Data collection variables
-		let dataCollectionInterval;
-		let collectedData = [];
-		let runStartTime;
+	// Remove this line if there is no matching opening for an IIFE above.
 		
 		    // Expose a helper to export a recovered run and reset the UI
     window.sakeExportRecoveredRun = function(){
