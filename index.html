@@ -51,12 +51,21 @@
 
 					<div class="left">
 						<div class="long long--top-left">
-							Temperature over time
-							<button type="button" class="temp-overlay-btn" id="start-run-btn">Start Run</button>
+							<div class="chart-header">
+								<span>Temperature over time</span>
+								<button type="button" class="temp-overlay-btn" id="start-run-btn">Start Run</button>
+							</div>
+							<canvas id="temp-chart"></canvas>
 						</div>
-						<div class="long long--top-left">Humidity over time</div>
+
+						<div class="long long--top-left">
+							<span>Humidity over time</span>
+							<canvas id="humidity-chart"></canvas>
+						</div>
+
 						<div class="long long--top-left">Fans on/off over time</div>
 					</div>
+
 				</section>
 
 				<section class="temp-row" aria-label="Temperature readings">
