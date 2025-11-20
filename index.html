@@ -277,12 +277,26 @@
 				</div>
 				<div class="modal-content chart-modal-content">
 					<canvas id="chart-modal-canvas"></canvas>
+
+					<div class="chart-modal-controls">
+						<div class="chart-modal-control">
+							<label for="chart-window-range">Time window</label>
+							<input type="range" id="chart-window-range" min="0" max="0" value="0">
+						</div>
+						<div class="chart-modal-control">
+							<label for="chart-y-range">Y zoom</label>
+							<input type="range" id="chart-y-range" min="0" max="100" value="0">
+						</div>
+					</div>
+
 					<p class="chart-modal-help">
-						Click legend items to toggle series. Press ESC or click outside to close.
+						Drag the sliders to scroll/zoom. Click legend items to toggle series. Press ESC or click outside
+						to close.
 					</p>
 				</div>
 			</div>
 		</div>
+
 
 
 		<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -1234,6 +1248,447 @@
 				};
 
 				// ---------- Full-page chart modal logic ----------
+
+				// ---------- Full-page chart modal logic with timeline scroll + Y zoom ----------
+				(function () {
+					const tempCanvas = document.getElementById('temp-chart');
+					const humCanvas = document.getElementById('humidity-chart');
+					const fansCanvas = document.getElementById('fans-chart');
+
+					if (!tempCanvas || !humCanvas || !fansCanvas || !window.Chart) return;
+
+					const tempCtx = tempCanvas.getContext('2d');
+					const humCtx = humCanvas.getContext('2d');
+					const fansCtx = fansCanvas.getContext('2d');
+
+					const maxPoints = 60; // keep last 60 samples (~5 min if 5s interval)
+					const labels = [];
+					const humidityData = [];
+
+					const tempSeries = {
+						temp1: [],
+						temp2: [],
+						temp3: [],
+						temp4: [],
+						temp5: [],
+						temp6: []
+					};
+
+					const fansSeries = {
+						fan1: [],
+						fan2: [],
+						fan3: [],
+						fan4: [],
+						fan5: [],
+						fan6: []
+					};
+
+					const tempChart = new Chart(tempCtx, {
+						type: 'line',
+						data: {
+							labels,
+							datasets: [
+								{ label: 'Temp 1', data: tempSeries.temp1, borderWidth: 1, pointRadius: 0 },
+								{ label: 'Temp 2', data: tempSeries.temp2, borderWidth: 1, pointRadius: 0 },
+								{ label: 'Temp 3', data: tempSeries.temp3, borderWidth: 1, pointRadius: 0 },
+								{ label: 'Temp 4', data: tempSeries.temp4, borderWidth: 1, pointRadius: 0 },
+								{ label: 'Temp 5', data: tempSeries.temp5, borderWidth: 1, pointRadius: 0 },
+								{ label: 'Temp 6', data: tempSeries.temp6, borderWidth: 1, pointRadius: 0 }
+							]
+						},
+						options: {
+							animation: false,
+							responsive: true,
+							maintainAspectRatio: false,
+							scales: {
+								x: {
+									ticks: { autoSkip: true, maxTicksLimit: 6 }
+								},
+								y: {
+									title: { display: true, text: 'Temperature (°C)' }
+								}
+							},
+							plugins: {
+								legend: { position: 'bottom' }
+							}
+						}
+					});
+
+					const humChart = new Chart(humCtx, {
+						type: 'line',
+						data: {
+							labels,
+							datasets: [
+								{ label: 'Humidity', data: humidityData, borderWidth: 1, pointRadius: 0 }
+							]
+						},
+						options: {
+							animation: false,
+							responsive: true,
+							maintainAspectRatio: false,
+							scales: {
+								x: {
+									ticks: { autoSkip: true, maxTicksLimit: 6 }
+								},
+								y: {
+									title: { display: true, text: 'Humidity (%)' }
+								}
+							},
+							plugins: {
+								legend: { display: false }
+							}
+						}
+					});
+
+					const fansChart = new Chart(fansCtx, {
+						type: 'line',
+						data: {
+							labels,
+							datasets: [
+								{ label: 'Fan 1', data: fansSeries.fan1, borderWidth: 1, pointRadius: 0, stepped: true },
+								{ label: 'Fan 2', data: fansSeries.fan2, borderWidth: 1, pointRadius: 0, stepped: true },
+								{ label: 'Fan 3', data: fansSeries.fan3, borderWidth: 1, pointRadius: 0, stepped: true },
+								{ label: 'Fan 4', data: fansSeries.fan4, borderWidth: 1, pointRadius: 0, stepped: true },
+								{ label: 'Fan 5', data: fansSeries.fan5, borderWidth: 1, pointRadius: 0, stepped: true },
+								{ label: 'Fan 6', data: fansSeries.fan6, borderWidth: 1, pointRadius: 0, stepped: true }
+							]
+						},
+						options: {
+							animation: false,
+							responsive: true,
+							maintainAspectRatio: false,
+							scales: {
+								x: {
+									ticks: { autoSkip: true, maxTicksLimit: 6 }
+								},
+								y: {
+									min: -0.1,
+									max: 1.1,
+									ticks: {
+										stepSize: 1,
+										callback: v => (v === 0 ? 'Off' : v === 1 ? 'On' : '')
+									},
+									title: { display: true, text: 'Fan state' }
+								}
+							},
+							plugins: {
+								legend: { position: 'bottom' }
+							}
+						}
+					});
+
+					// This gets called from the simulator
+					window.pushSensorSample = function (sample) {
+						const t = sample.time instanceof Date ? sample.time : new Date(sample.time);
+						const label = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+						labels.push(label);
+
+						// temps
+						for (let i = 1; i <= 6; i++) {
+							const key = `temp${i}`;
+							const val = parseFloat(sample.temps[key]);
+							tempSeries[key].push(isNaN(val) ? null : val);
+						}
+
+						// humidity
+						const humVal = parseFloat(sample.humidity);
+						humidityData.push(isNaN(humVal) ? null : humVal);
+
+						// fans (optional)
+						if (sample.fans) {
+							for (let i = 1; i <= 6; i++) {
+								const key = `fan${i}`;
+								const v = parseFloat(sample.fans[key]);
+								fansSeries[key].push(isNaN(v) ? null : v);
+							}
+						} else {
+							Object.values(fansSeries).forEach(arr => arr.push(null));
+						}
+
+						// keep arrays bounded
+						if (labels.length > maxPoints) {
+							labels.shift();
+							Object.values(tempSeries).forEach(arr => arr.shift());
+							humidityData.shift();
+							Object.values(fansSeries).forEach(arr => arr.shift());
+						}
+
+						tempChart.update('none');
+						humChart.update('none');
+						fansChart.update('none');
+
+						// If modal is open and we're "following the tail", keep window at the end
+						if (chartModal && chartModal.style.display === 'flex' && windowSlider && !windowSlider.disabled) {
+							const total = labels.length;
+							const maxStart = Math.max(0, total - windowSize);
+							if (parseInt(windowSlider.value || '0', 10) === parseInt(windowSlider.max || '0', 10)) {
+								// stay pinned to latest data
+								windowSlider.max = String(maxStart);
+								windowSlider.value = String(maxStart);
+								updateModalWindowFromSlider();
+							} else {
+								// just update max range; user is looking somewhere earlier
+								windowSlider.max = String(maxStart);
+							}
+						}
+					};
+
+					// ---------- Full-page chart modal + controls ----------
+					const chartModal = document.getElementById('chart-modal');
+					const chartModalClose = document.getElementById('chart-modal-close');
+					const chartModalTitle = document.getElementById('chart-modal-title');
+					const chartModalCanvas = document.getElementById('chart-modal-canvas');
+
+					const windowSlider = document.getElementById('chart-window-range');
+					const ySlider = document.getElementById('chart-y-range');
+
+					let modalChart = null;
+					let modalChartType = null;   // 'temp' | 'humidity' | 'fans'
+					let windowSize = 20;         // number of points visible in the modal
+					let currentWindowStart = 0;  // index into labels
+
+					let yBaseMin = null;
+					let yBaseMax = null;
+
+					function computeYRange(type) {
+						let vals = [];
+						if (type === 'temp') {
+							Object.values(tempSeries).forEach(arr => {
+								vals = vals.concat(arr.filter(v => v != null));
+							});
+						} else if (type === 'humidity') {
+							vals = humidityData.filter(v => v != null);
+						} else if (type === 'fans') {
+							// fans are 0–1
+							return { min: -0.1, max: 1.1 };
+						}
+
+						if (!vals.length) {
+							return { min: 0, max: 1 };
+						}
+						const min = Math.min(...vals);
+						const max = Math.max(...vals);
+						const pad = (max - min) * 0.1 || 1;
+						return { min: min - pad, max: max + pad };
+					}
+
+					function getSlicedData(type, start) {
+						const total = labels.length;
+						const s = Math.max(0, Math.min(start, Math.max(0, total - 1)));
+						const e = Math.min(s + windowSize, total);
+
+						const labelSlice = labels.slice(s, e);
+						let datasets;
+
+						if (type === 'temp') {
+							datasets = Object.keys(tempSeries).map((key, idx) => ({
+								label: tempChart.data.datasets[idx].label,
+								borderWidth: 1,
+								pointRadius: 0,
+								data: tempSeries[key].slice(s, e)
+							}));
+						} else if (type === 'humidity') {
+							datasets = [{
+								label: 'Humidity',
+								borderWidth: 1,
+								pointRadius: 0,
+								data: humidityData.slice(s, e)
+							}];
+						} else if (type === 'fans') {
+							datasets = Object.keys(fansSeries).map((key, idx) => ({
+								label: fansChart.data.datasets[idx].label,
+								borderWidth: 1,
+								pointRadius: 0,
+								stepped: true,
+								data: fansSeries[key].slice(s, e)
+							}));
+						} else {
+							datasets = [];
+						}
+
+						return { labels: labelSlice, datasets };
+					}
+
+					function openChartModal(type) {
+						if (!chartModal || !chartModalCanvas) return;
+
+						modalChartType = type;
+
+						// Destroy any previous modal chart
+						if (modalChart) {
+							modalChart.destroy();
+							modalChart = null;
+						}
+
+						const ctx = chartModalCanvas.getContext('2d');
+
+						// Initial window: last windowSize points (or all if fewer)
+						const total = labels.length;
+						const maxStart = Math.max(0, total - windowSize);
+						currentWindowStart = maxStart;
+
+						// Setup X slider
+						if (windowSlider) {
+							if (total <= windowSize) {
+								windowSlider.disabled = true;
+								windowSlider.min = '0';
+								windowSlider.max = '0';
+								windowSlider.value = '0';
+							} else {
+								windowSlider.disabled = false;
+								windowSlider.min = '0';
+								windowSlider.max = String(maxStart);
+								windowSlider.value = String(maxStart); // start pinned to the tail
+							}
+						}
+
+						// Setup Y range & slider
+						const { min, max } = computeYRange(type);
+						yBaseMin = min;
+						yBaseMax = max;
+						if (ySlider) {
+							ySlider.disabled = false;
+							ySlider.value = '0'; // no zoom initially
+						}
+
+						const sliced = getSlicedData(type, currentWindowStart);
+
+						let yTitle = '';
+						if (type === 'temp') {
+							chartModalTitle.textContent = 'Temperature over time';
+							yTitle = 'Temperature (°C)';
+						} else if (type === 'humidity') {
+							chartModalTitle.textContent = 'Humidity over time';
+							yTitle = 'Humidity (%)';
+						} else if (type === 'fans') {
+							chartModalTitle.textContent = 'Fans on/off over time';
+							yTitle = 'Fan state';
+						}
+
+						modalChart = new Chart(ctx, {
+							type: 'line',
+							data: {
+								labels: sliced.labels,
+								datasets: sliced.datasets
+							},
+							options: {
+								animation: false,
+								responsive: true,
+								maintainAspectRatio: false,
+								scales: {
+									x: {
+										ticks: { autoSkip: true, maxTicksLimit: 10 }
+									},
+									y: {
+										min: (type === 'fans') ? -0.1 : yBaseMin,
+										max: (type === 'fans') ? 1.1 : yBaseMax,
+										ticks: type === 'fans'
+											? {
+												stepSize: 1,
+												callback: v => (v === 0 ? 'Off' : v === 1 ? 'On' : '')
+											}
+											: {},
+										title: { display: true, text: yTitle }
+									}
+								},
+								plugins: {
+									legend: { position: 'bottom' }
+								}
+							}
+						});
+
+						chartModal.style.display = 'flex';
+					}
+
+					function closeChartModal() {
+						if (modalChart) {
+							modalChart.destroy();
+							modalChart = null;
+						}
+						if (chartModal) {
+							chartModal.style.display = 'none';
+						}
+					}
+
+					function updateModalWindowFromSlider() {
+						if (!modalChart || !modalChartType) return;
+						if (!windowSlider) return;
+
+						const start = parseInt(windowSlider.value || '0', 10) || 0;
+						currentWindowStart = start;
+
+						const sliced = getSlicedData(modalChartType, currentWindowStart);
+						modalChart.data.labels = sliced.labels;
+						modalChart.data.datasets.forEach((ds, i) => {
+							ds.data = sliced.datasets[i].data;
+						});
+						modalChart.update('none');
+					}
+
+					function updateModalYZoomFromSlider() {
+						if (!modalChart || !modalChartType) return;
+						if (!ySlider) return;
+						if (modalChartType === 'fans') {
+							// fans have fixed 0–1 range
+							return;
+						}
+
+						const v = parseInt(ySlider.value || '0', 10) || 0; // 0–100
+						const span = yBaseMax - yBaseMin;
+						if (!span || span <= 0) return;
+
+						// zoomFactor: 1x to 4x
+						const zoomFactor = 1 + (v / 100) * 3;
+						const mid = (yBaseMax + yBaseMin) / 2;
+						const halfSpan = span / (2 * zoomFactor);
+
+						modalChart.options.scales.y.min = mid - halfSpan;
+						modalChart.options.scales.y.max = mid + halfSpan;
+						modalChart.update('none');
+					}
+
+					// Slider event hooks
+					if (windowSlider) {
+						windowSlider.addEventListener('input', updateModalWindowFromSlider);
+					}
+					if (ySlider) {
+						ySlider.addEventListener('input', updateModalYZoomFromSlider);
+					}
+
+					// Click small charts to expand
+					tempCanvas.addEventListener('click', function () {
+						openChartModal('temp');
+					});
+
+					humCanvas.addEventListener('click', function () {
+						openChartModal('humidity');
+					});
+
+					fansCanvas.addEventListener('click', function () {
+						openChartModal('fans');
+					});
+
+					if (chartModalClose) {
+						chartModalClose.addEventListener('click', closeChartModal);
+					}
+
+					if (chartModal) {
+						chartModal.addEventListener('click', function (e) {
+							if (e.target === chartModal) {
+								closeChartModal();
+							}
+						});
+					}
+
+					document.addEventListener('keydown', function (e) {
+						if (e.key === 'Escape' && chartModal && chartModal.style.display === 'flex') {
+							closeChartModal();
+						}
+					});
+				})();
+
+
 				const chartModal = document.getElementById('chart-modal');
 				const chartModalClose = document.getElementById('chart-modal-close');
 				const chartModalTitle = document.getElementById('chart-modal-title');

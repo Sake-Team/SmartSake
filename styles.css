@@ -997,3 +997,34 @@ header {
 	width: 100% !important;
 	height: 100% !important;
 }
+
+.chart-modal-content {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	height: 70vh; /* taller timeline area */
+}
+
+#chart-modal-canvas {
+	width: 100% !important;
+	height: 100% !important;
+}
+
+.chart-modal-controls {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1rem;
+	align-items: center;
+	font-size: 0.9rem;
+}
+
+.chart-modal-control {
+	display: flex;
+	flex-direction: column;
+	min-width: 180px;
+}
+
+.chart-modal-control input[type="range"] {
+	width: 100%;
+}
+
