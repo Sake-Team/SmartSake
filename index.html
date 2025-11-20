@@ -161,6 +161,25 @@
       </div>
     </div>
 
+	    <!-- Easter egg Pong modal -->
+    <div id="pong-modal" class="modal-overlay">
+      <div class="modal-popup pong-modal-popup">
+        <div class="modal-header">
+          <h3 class="modal-title">Pong Mode</h3>
+          <button type="button" class="modal-close" id="pong-close-btn"
+            aria-label="Close Pong">&times;</button>
+        </div>
+        <div class="modal-content">
+          <canvas id="pong-canvas" width="500" height="300"
+            aria-label="Pong game"></canvas>
+          <p class="pong-help-text">
+            Use ↑ and ↓ arrows to move your paddle. Press ESC to exit.
+          </p>
+        </div>
+      </div>
+    </div>
+
+
     <!-- Live Date/Time script: updates the .notes__meta element each minute -->
     <script>
 	(function(){
@@ -1127,6 +1146,161 @@
 		// Update colors every 5 seconds when run is active
 		setInterval(applyDeviationColors, 5000);
 	})();
+
+	// Easter egg: Pong game when clicking the logo
+(function(){
+    const logo = document.getElementById('sake-logo-egg');
+    const pongModal = document.getElementById('pong-modal');
+    const pongCloseBtn = document.getElementById('pong-close-btn');
+    const canvas = document.getElementById('pong-canvas');
+
+    if(!logo || !pongModal || !canvas) return;
+
+    const ctx = canvas.getContext('2d');
+
+    let animationId = null;
+    let ball, paddleLeft, paddleRight;
+    let upPressed = false;
+    let downPressed = false;
+
+    function resetGame(){
+        ball = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            vx: 3,
+            vy: 2,
+            r: 6
+        };
+        paddleLeft = {
+            x: 10,
+            y: canvas.height / 2 - 25,
+            w: 8,
+            h: 50
+        };
+        paddleRight = {
+            x: canvas.width - 18,
+            y: canvas.height / 2 - 25,
+            w: 8,
+            h: 50
+        };
+    }
+
+    function draw(){
+        // clear
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // center line
+        ctx.strokeStyle = '#444';
+        ctx.setLineDash([5,5]);
+        ctx.beginPath();
+        ctx.moveTo(canvas.width/2, 0);
+        ctx.lineTo(canvas.width/2, canvas.height);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // paddles
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(paddleLeft.x, paddleLeft.y, paddleLeft.w, paddleLeft.h);
+        ctx.fillRect(paddleRight.x, paddleRight.y, paddleRight.w, paddleRight.h);
+
+        // ball
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2);
+        ctx.fill();
+    }
+
+    function update(){
+        // move player paddle
+        const speed = 4;
+        if(upPressed) paddleLeft.y -= speed;
+        if(downPressed) paddleLeft.y += speed;
+        paddleLeft.y = Math.max(0, Math.min(canvas.height - paddleLeft.h, paddleLeft.y));
+
+        // simple AI for right paddle
+        const target = ball.y - paddleRight.h/2;
+        paddleRight.y += (target - paddleRight.y) * 0.06;
+
+        // move ball
+        ball.x += ball.vx;
+        ball.y += ball.vy;
+
+        // bounce top/bottom
+        if(ball.y - ball.r < 0 || ball.y + ball.r > canvas.height){
+            ball.vy *= -1;
+        }
+
+        // paddle collisions
+        if(ball.x - ball.r < paddleLeft.x + paddleLeft.w &&
+           ball.y > paddleLeft.y && ball.y < paddleLeft.y + paddleLeft.h){
+            ball.vx = Math.abs(ball.vx);
+        }
+
+        if(ball.x + ball.r > paddleRight.x &&
+           ball.y > paddleRight.y && ball.y < paddleRight.y + paddleRight.h){
+            ball.vx = -Math.abs(ball.vx);
+        }
+
+        // reset if ball goes out of bounds
+        if(ball.x < 0 || ball.x > canvas.width){
+            resetGame();
+        }
+    }
+
+    function loop(){
+        update();
+        draw();
+        animationId = requestAnimationFrame(loop);
+    }
+
+    function openPong(){
+        resetGame();
+        pongModal.style.display = 'flex';
+        loop();
+        document.addEventListener('keydown', keyHandler);
+        document.addEventListener('keyup', keyUpHandler);
+    }
+
+    function closePong(){
+        pongModal.style.display = 'none';
+        if(animationId) cancelAnimationFrame(animationId);
+        animationId = null;
+        document.removeEventListener('keydown', keyHandler);
+        document.removeEventListener('keyup', keyUpHandler);
+    }
+
+    function keyHandler(e){
+        if(e.key === 'ArrowUp'){
+            upPressed = true;
+        } else if(e.key === 'ArrowDown'){
+            downPressed = true;
+        } else if(e.key === 'Escape'){
+            closePong();
+        }
+    }
+
+    function keyUpHandler(e){
+        if(e.key === 'ArrowUp'){
+            upPressed = false;
+        } else if(e.key === 'ArrowDown'){
+            downPressed = false;
+        }
+    }
+
+    // Click the logo to open Pong
+    logo.addEventListener('click', openPong);
+
+    // Close button and click outside
+    if(pongCloseBtn){
+        pongCloseBtn.addEventListener('click', closePong);
+    }
+    pongModal.addEventListener('click', function(e){
+        if(e.target === pongModal){
+            closePong();
+        }
+    });
+})();
+
 	</script>
   </body>
 </html>

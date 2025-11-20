@@ -816,3 +816,20 @@ a.button{display:inline-block;margin-top:16px;padding:8px 12px;border-radius:6px
   cursor: pointer;      /* makes it feel clickable */
   user-select: none;
 }
+
+.pong-modal-popup {
+  max-width: 560px;
+}
+
+#pong-canvas {
+  border: 1px solid #ccc;
+  display: block;
+  margin: 0 auto;
+  background: #000;
+}
+
+.pong-help-text {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  text-align: center;
+}
