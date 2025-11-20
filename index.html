@@ -8,8 +8,9 @@
     <link rel="stylesheet" href="styles.css">
   </head>
 
+
 <body>
-  <div class="page-wrapper">
+	<div class="page-wrapper">
 
 <header class="header">
   <div class="header-inner">
@@ -464,40 +465,31 @@
 		});
 
 		const endModal1 = document.getElementById('end-run-modal');
-		const closeEndBtn = document.getElementById('close-end-modal');
-		const cancelEndBtn = document.getElementById('cancel-end-btn');
-		const confirmEndBtn = document.getElementById('confirm-end-btn');
+		// ...existing code...
 
 		if(endModal1 && closeEndBtn && cancelEndBtn && confirmEndBtn){
+			// Modal functionality for ending the run
 			closeEndBtn.addEventListener('click', function(){
 				endModal1.style.display='none';
 			});
-
 			cancelEndBtn.addEventListener('click', function(){
 				endModal1.style.display='none';
 			});
-
 			endModal1.addEventListener('click', function(e){
 				if(e.target === endModal1){
 					endModal1.style.display='none';
 				}
 			});
-
 			confirmEndBtn.addEventListener('click', function(){
 				const currentRunName = localStorage.getItem('currentRunName') || 'UnknownRun';
-
 				stopDataCollectionAndExport(currentRunName);
-
 				if(window.stopTemperatureReading){
 					window.stopTemperatureReading();
 				}
-
 				if(window.clearRunData){
 					window.clearRunData();
 				}
-
 				localStorage.removeItem('currentNotes');
-
 				const runNameDisplay = document.getElementById('run-name-display');
 				if(runNameDisplay){
 					runNameDisplay.textContent='';
@@ -507,7 +499,6 @@
 				startBtn.classList.remove('end-run-btn-active');
 				endModal1.style.display='none';
 			});
-
 			document.addEventListener('keydown', function(e){
 				if(e.key === 'Escape' && endModal1.style.display === 'flex'){
 					endModal1.style.display='none';
@@ -1409,6 +1400,7 @@
 })();
 
 	</script>
-</div> <!-- end page-wrapper -->
-  </body>
+
+	</div> <!-- end page-wrapper -->
+</body>
 </html>
