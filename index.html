@@ -55,12 +55,12 @@
 								<span>Temperature over time</span>
 								<button type="button" class="temp-overlay-btn" id="start-run-btn">Start Run</button>
 							</div>
-							<canvas id="temp-chart"></canvas>
+							<canvas id="temp-chart" class="metric-chart"></canvas>
 						</div>
 
 						<div class="long long--top-left">
 							<span>Humidity over time</span>
-							<canvas id="humidity-chart"></canvas>
+							<canvas id="humidity-chart" class="metric-chart"></canvas>
 						</div>
 
 						<div class="long long--top-left">Fans on/off over time</div>
@@ -194,6 +194,24 @@
 				</div>
 			</div>
 		</div>
+
+		<!-- Full-page Chart Modal -->
+		<div id="chart-modal" class="modal-overlay">
+			<div class="modal-popup chart-modal-popup">
+				<div class="modal-header">
+					<h3 class="modal-title" id="chart-modal-title">Chart</h3>
+					<button type="button" class="modal-close" id="chart-modal-close"
+						aria-label="Close chart">&times;</button>
+				</div>
+				<div class="modal-content chart-modal-content">
+					<canvas id="chart-modal-canvas"></canvas>
+					<p class="chart-modal-help">
+						Click legend items to toggle series. Press ESC or click outside to close.
+					</p>
+				</div>
+			</div>
+		</div>
+
 
 		<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -993,6 +1011,124 @@
 					tempChart.update('none');
 					humChart.update('none');
 				};
+
+				// ---------- Full-page chart modal logic ----------
+				const chartModal = document.getElementById('chart-modal');
+				const chartModalClose = document.getElementById('chart-modal-close');
+				const chartModalTitle = document.getElementById('chart-modal-title');
+				const chartModalCanvas = document.getElementById('chart-modal-canvas');
+
+				let modalChart = null;
+
+				function openChartModal(type) {
+					if (!chartModal || !chartModalCanvas) return;
+
+					// Destroy any previous modal chart
+					if (modalChart) {
+						modalChart.destroy();
+						modalChart = null;
+					}
+
+					const ctx = chartModalCanvas.getContext('2d');
+
+					if (type === 'temp') {
+						chartModalTitle.textContent = 'Temperature over time';
+						modalChart = new Chart(ctx, {
+							type: 'line',
+							data: {
+								labels: labels,
+								datasets: tempChart.data.datasets
+							},
+							options: {
+								animation: false,
+								responsive: true,
+								maintainAspectRatio: false,
+								scales: {
+									x: {
+										ticks: { autoSkip: true, maxTicksLimit: 10 }
+									},
+									y: {
+										title: { display: true, text: 'Temperature (°F)' }
+									}
+								},
+								plugins: {
+									legend: {
+										position: 'bottom',
+										// default behavior: click legend to show/hide series
+									}
+								}
+							}
+						});
+					} else if (type === 'humidity') {
+						chartModalTitle.textContent = 'Humidity over time';
+						modalChart = new Chart(ctx, {
+							type: 'line',
+							data: {
+								labels: labels,
+								datasets: humChart.data.datasets
+							},
+							options: {
+								animation: false,
+								responsive: true,
+								maintainAspectRatio: false,
+								scales: {
+									x: {
+										ticks: { autoSkip: true, maxTicksLimit: 10 }
+									},
+									y: {
+										title: { display: true, text: 'Humidity (%)' }
+									}
+								},
+								plugins: {
+									legend: {
+										position: 'bottom'
+									}
+								}
+							}
+						});
+					}
+
+					chartModal.style.display = 'flex';
+				}
+
+				function closeChartModal() {
+					if (modalChart) {
+						modalChart.destroy();
+						modalChart = null;
+					}
+					if (chartModal) {
+						chartModal.style.display = 'none';
+					}
+				}
+
+				// Click small charts to expand
+				tempCanvas.addEventListener('click', function () {
+					openChartModal('temp');
+				});
+
+				humCanvas.addEventListener('click', function () {
+					openChartModal('humidity');
+				});
+
+				if (chartModalClose) {
+					chartModalClose.addEventListener('click', closeChartModal);
+				}
+
+				if (chartModal) {
+					chartModal.addEventListener('click', function (e) {
+						if (e.target === chartModal) {
+							closeChartModal();
+						}
+					});
+				}
+
+				document.addEventListener('keydown', function (e) {
+					if (e.key === 'Escape' && chartModal && chartModal.style.display === 'flex') {
+						closeChartModal();
+					}
+				});
+
+
 			})();
 
 
