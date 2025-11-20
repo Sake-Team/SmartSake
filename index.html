@@ -328,11 +328,12 @@
 			<!-- Live Date/Time script: updates the .notes__meta element each minute -->
 			<script>
 				// Live Date/Time script: updates notes meta and header datetime each minute
+				// Live Date/Time script: updates notes meta and header datetime each minute
 				(function () {
 					const notesMeta = document.getElementById('notes-meta');
-					if (!notesMeta) return;
+					const headerMeta = document.getElementById('header-datetime');
 
-
+					// if neither exists, do nothing
 					if (!notesMeta && !headerMeta) return;
 
 					function formatNow(d) {
@@ -350,9 +351,9 @@
 
 					function update() {
 						const text = formatNow(new Date());
-						notesMeta.textContent = text;
+						if (notesMeta) notesMeta.textContent = text;
+						if (headerMeta) headerMeta.textContent = text;
 					}
-
 
 					// initial update
 					update();
@@ -369,6 +370,7 @@
 						if (document.visibilityState === 'visible') update();
 					});
 				})();
+
 
 
 				// Modal + run state + autosave + recovery
@@ -442,7 +444,19 @@
 							if (csvTemps && csvTemps[`temp${i}`] && csvTemps[`temp${i}`] !== '--') {
 								temps.push(csvTemps[`temp${i}`]);
 							} else {
-								const tempElement = document.getElementById(`temp-${i}`);
+								for (let i = 1; i <= 6; i++) {
+									if (csvTemps && csvTemps[`temp${i}`] && csvTemps[`temp${i}`] !== '--') {
+										temps.push(csvTemps[`temp${i}`]);
+									} else {
+										const wetEl = document.getElementById(`temp-${i}-wet`);
+										if (wetEl && wetEl.textContent !== '--') {
+											temps.push(wetEl.textContent);
+										} else {
+											temps.push((70 + Math.random() * 10).toFixed(1));
+										}
+									}
+								}
+
 								if (tempElement && tempElement.textContent !== '--') {
 									temps.push(tempElement.textContent);
 								} else {
