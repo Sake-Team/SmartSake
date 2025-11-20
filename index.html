@@ -11,12 +11,6 @@
 <body>
   <div class="page-wrapper">
 
-<!-- Recovery banner: ALWAYS above header but styled to not break layout -->
-<div id="recovery-banner" class="recovery-banner" hidden>
-  <span id="recovery-banner-text">Recovered autosaved run data from a previous session.</span>
-  <button type="button" id="export-recovered-btn">Export recovered CSV</button>
-</div>
-
 <header class="header">
   <div class="header-inner">
     <img
@@ -38,15 +32,6 @@
     <div id="notes-meta" class="header-datetime">Date, Time</div>
   </div>
 </header>
-
-
-
-    <!-- Recovery banner for autosaved runs -->
-    <div id="recovery-banner" class="recovery-banner" hidden>
-      <span id="recovery-banner-text">Recovered autosaved run data from a previous session.</span>
-      <button type="button" id="export-recovered-btn">Export recovered CSV</button>
-    </div>
-
 
     <main>
       <div class="stage">
@@ -180,6 +165,29 @@
         </div>
       </div>
     </div>
+
+	    <!-- Recovery popup for crashed / unfinished runs -->
+    <div id="recovery-modal" class="modal-overlay">
+      <div class="modal-popup">
+        <div class="modal-header">
+          <h3 class="modal-title">Recovered Run Detected</h3>
+          <button type="button" class="modal-close" id="recovery-close-btn"
+            aria-label="Close recovery popup">&times;</button>
+        </div>
+        <div class="modal-content">
+          <p>We detected autosaved data from a previous session that didn't end cleanly.</p>
+          <p>You can export the recovered run as a CSV or discard it and start fresh.</p>
+
+          <div class="modal-button-section">
+            <button type="button" class="modal-cancel-btn"
+              id="recovery-discard-btn">Discard</button>
+            <button type="button" class="modal-confirm-btn"
+              id="recovery-export-btn">Export recovered CSV</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
 
 	    <!-- Easter egg Pong modal -->
     <div id="pong-modal" class="modal-overlay">
@@ -525,6 +533,12 @@
     window.sakeExportRecoveredRun = function(){
         const currentRunName = localStorage.getItem('currentRunName') || 'RecoveredRun';
 
+				// Hide recovery modal if present
+		const recoveryModal = document.getElementById('recovery-modal');
+		if(recoveryModal){
+			recoveryModal.style.display = 'none';
+		}
+		
         // Export CSV and clear autosave + notes
         stopDataCollectionAndExport(currentRunName);
 
@@ -814,8 +828,94 @@
 		}
 	})();
 
-		// Initialize run name display and Start/End button from localStorage + autosave
-	(function(){
+// Initialize run name display, Start button, and crash recovery popup
+// Popup only shows when a run was in progress and the page exited uncleanly.
+(function(){
+    const runNameDisplay   = document.getElementById('run-name-display');
+    const startBtn         = document.getElementById('start-run-btn');
+    const recoveryModal    = document.getElementById('recovery-modal');
+    const exportBtn        = document.getElementById('recovery-export-btn');
+    const discardBtn       = document.getElementById('recovery-discard-btn');
+    const closeBtn         = document.getElementById('recovery-close-btn');
+
+    const savedRunName = localStorage.getItem('currentRunName');
+    const rawState     = localStorage.getItem('sakeRunState');        // autosave key
+    const inProgress   = localStorage.getItem('sakeRunInProgress') === 'true';
+
+    let hasData = false;
+
+    if(rawState){
+        try {
+            const state = JSON.parse(rawState);
+            if(state && Array.isArray(state.collectedData) && state.collectedData.length > 0){
+                hasData = true;
+            }
+        } catch(e){
+            console.warn('Invalid autosave state detected, clearing:', e);
+            localStorage.removeItem('sakeRunState');
+        }
+    }
+
+    const crashDetected = hasData && inProgress;
+
+    // We never auto-resume a run: UI always starts in "Start Run" state
+    if(runNameDisplay){
+        // If we crashed and have a name, show it; otherwise clear it
+        runNameDisplay.textContent = crashDetected && savedRunName ? ('- ' + savedRunName) : '';
+    }
+    if(startBtn){
+        startBtn.textContent = 'Start Run';
+        startBtn.classList.remove('end-run-btn-active');
+        startBtn.style.pointerEvents = 'auto';
+        startBtn.style.cursor = 'pointer';
+    }
+
+    function discardAndClose(){
+        localStorage.removeItem('sakeRunState');
+        localStorage.setItem('sakeRunInProgress', 'false');
+        localStorage.removeItem('currentRunName');
+
+        if(runNameDisplay){
+            runNameDisplay.textContent = '';
+        }
+        if(recoveryModal){
+            recoveryModal.style.display = 'none';
+        }
+    }
+
+    if(crashDetected && recoveryModal && exportBtn && discardBtn){
+        // Show popup about recovered data
+        recoveryModal.style.display = 'flex';
+
+        exportBtn.addEventListener('click', function(){
+            if(window.sakeExportRecoveredRun){
+                window.sakeExportRecoveredRun();
+            }
+            localStorage.setItem('sakeRunInProgress', 'false');
+            if(recoveryModal){
+                recoveryModal.style.display = 'none';
+            }
+        });
+
+        discardBtn.addEventListener('click', discardAndClose);
+        if(closeBtn){
+            closeBtn.addEventListener('click', discardAndClose);
+        }
+
+        document.addEventListener('keydown', function(e){
+            if(e.key === 'Escape' && recoveryModal.style.display === 'flex'){
+                discardAndClose();
+            }
+        });
+    } else {
+        // No crash scenario – clean up stray flags if no run name
+        if(!savedRunName){
+            localStorage.removeItem('sakeRunState');
+            localStorage.setItem('sakeRunInProgress', 'false');
+        }
+    }
+})();
+
 		const runNameDisplay = document.getElementById('run-name-display');
 		const startBtn = document.getElementById('start-run-btn');
 
