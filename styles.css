@@ -803,3 +803,16 @@ a.button{display:inline-block;margin-top:16px;padding:8px 12px;border-radius:6px
   color: #fff;
   cursor: pointer;
 }
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sake-logo-egg {
+  height: 40px;
+  width: auto;
+  cursor: pointer;      /* makes it feel clickable */
+  user-select: none;
+}
