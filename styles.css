@@ -1064,21 +1064,3 @@ header {
   background: #111;
 }
 
-/* Smaller, lighter timestamp chip */
-.timestamp-card {
-	margin: 0 1.5rem 1rem;
-	display: flex;
-	justify-content: flex-end;      /* push to the right */
-}
-
-.timestamp-text {
-	display: inline-block;
-	padding: 0.35rem 0.75rem;
-	border-radius: 999px;           /* pill shape */
-	background: rgba(17, 24, 39, 0.08); /* very light slate tint */
-	color: #111827;                 /* dark text */
-	font-size: 0.8rem;
-	letter-spacing: 0.03em;
-	opacity: 0.9;
-	border: 1px solid rgba(17, 24, 39, 0.15);
-}
