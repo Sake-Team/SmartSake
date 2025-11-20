@@ -1063,3 +1063,51 @@ header {
 .start-run-btn.end-run-btn-active:hover {
   background: #111;
 }
+
+.run-bar {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;        /* <— ensures same Y-axis */
+  padding: 12px 20px;
+  margin-top: 10px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.run-bar-left {
+  display: flex;
+  align-items: center;
+}
+
+.run-bar-right {
+  font-size: 1.1rem;
+  color: #444;
+  font-weight: 500;
+}
+
+/* Keep the classy red style */
+.start-run-btn {
+  background: #b22222;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.start-run-btn:hover {
+  background: #8b1a1a;
+}
+
+.start-run-btn.end-run-btn-active {
+  background: #333;
+}
+
+.start-run-btn.end-run-btn-active:hover {
+  background: #111;
+}
