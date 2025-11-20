@@ -8,17 +8,34 @@
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
-	<header>
-	<div class="header-inner">
-		<img
-		src="images/VoidSakeLogo.jpg"
-		alt="Smart Sake logo"
-		id="sake-logo-egg"
-		class="sake-logo-egg"
-		>
-		<h1>Home <span id="run-name-display" class="run-name-header"></span></h1>
-	</div>
-	</header>
+<!-- Recovery banner: ALWAYS above header but styled to not break layout -->
+<div id="recovery-banner" class="recovery-banner" hidden>
+  <span id="recovery-banner-text">Recovered autosaved run data from a previous session.</span>
+  <button type="button" id="export-recovered-btn">Export recovered CSV</button>
+</div>
+
+<header class="header">
+  <div class="header-inner">
+    <img
+      src="images/logo.jpg"
+      alt="Smart Sake logo"
+      id="sake-logo-egg"
+      class="sake-logo-egg"
+    />
+
+    <h1 class="header-title">
+      Home <span id="run-name-display" class="run-name-header"></span>
+    </h1>
+  </div>
+
+  <div class="header-meta">
+    <div class="header-start-btn-wrap">
+      <button id="start-run-btn" class="start-run-btn">Start Run</button>
+    </div>
+    <div id="notes-meta" class="header-datetime">Date, Time</div>
+  </div>
+</header>
+
 
 
     <!-- Recovery banner for autosaved runs -->

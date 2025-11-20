@@ -833,3 +833,52 @@ a.button{display:inline-block;margin-top:16px;padding:8px 12px;border-radius:6px
   font-size: 0.8rem;
   text-align: center;
 }
+
+/* Restore normal layout */
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+}
+
+/* Keep logo small & aligned */
+.sake-logo-egg {
+  height: 38px;
+  width: auto;
+  cursor: pointer;
+  margin-right: 12px;
+}
+
+/* Main header layout */
+.header-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.header-title {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+/* Right side (datetime + start button) */
+.header-meta {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+/* Recovery banner formatting */
+.recovery-banner {
+  background: #fff3cd;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #ffeeba;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
