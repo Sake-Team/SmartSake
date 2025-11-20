@@ -75,33 +75,64 @@
 				<section class="temp-row" aria-label="Temperature readings">
 					<div class="temp">
 						<span class="temp__label">Temp 1</span>
-						<span class="temp__value"><span class="temp__num" id="temp-1">--</span><span
-								class="temp__unit">°C</span></span>
+						<span class="temp__value">
+							<span class="temp__num" id="temp-1-dry">--</span>
+							<span class="temp__unit">°C</span>
+							<span class="temp__sep"> / </span>
+							<span class="temp__num temp__num--wb" id="temp-1-wet">--</span>
+							<span class="temp__unit">°C WB</span>
+						</span>
 					</div>
+
 					<div class="temp">
 						<span class="temp__label">Temp 2</span>
-						<span class="temp__value"><span class="temp__num" id="temp-2">--</span><span
-								class="temp__unit">°C</span></span>
+						<span class="temp__value">
+							<span class="temp__num" id="temp-2-dry">--</span>
+							<span class="temp__unit">°C</span>
+							<span class="temp__sep"> / </span>
+							<span class="temp__num temp__num--wb" id="temp-2-wet">--</span>
+							<span class="temp__unit">°C WB</span>
+						</span>
 					</div>
 					<div class="temp">
 						<span class="temp__label">Temp 3</span>
-						<span class="temp__value"><span class="temp__num" id="temp-3">--</span><span
-								class="temp__unit">°C</span></span>
+						<span class="temp__value">
+							<span class="temp__num" id="temp-3-dry">--</span>
+							<span class="temp__unit">°C</span>
+							<span class="temp__sep"> / </span>
+							<span class="temp__num temp__num--wb" id="temp-3-wet">--</span>
+							<span class="temp__unit">°C WB</span>
+						</span>
 					</div>
 					<div class="temp">
 						<span class="temp__label">Temp 4</span>
-						<span class="temp__value"><span class="temp__num" id="temp-4">--</span><span
-								class="temp__unit">°C</span></span>
+						<span class="temp__value">
+							<span class="temp__num" id="temp-4-dry">--</span>
+							<span class="temp__unit">°C</span>
+							<span class="temp__sep"> / </span>
+							<span class="temp__num temp__num--wb" id="temp-4-wet">--</span>
+							<span class="temp__unit">°C WB</span>
+						</span>
 					</div>
 					<div class="temp">
 						<span class="temp__label">Temp 5</span>
-						<span class="temp__value"><span class="temp__num" id="temp-5">--</span><span
-								class="temp__unit">°C</span></span>
+						<span class="temp__value">
+							<span class="temp__num" id="temp-5-dry">--</span>
+							<span class="temp__unit">°C</span>
+							<span class="temp__sep"> / </span>
+							<span class="temp__num temp__num--wb" id="temp-5-wet">--</span>
+							<span class="temp__unit">°C WB</span>
+						</span>
 					</div>
 					<div class="temp">
 						<span class="temp__label">Temp 6</span>
-						<span class="temp__value"><span class="temp__num" id="temp-6">--</span><span
-								class="temp__unit">°C</span></span>
+						<span class="temp__value">
+							<span class="temp__num" id="temp-6-dry">--</span>
+							<span class="temp__unit">°C</span>
+							<span class="temp__sep"> / </span>
+							<span class="temp__num temp__num--wb" id="temp-6-wet">--</span>
+							<span class="temp__unit">°C WB</span>
+						</span>
 					</div>
 				</section>
 			</div>
@@ -822,12 +853,42 @@
 			*/
 
 			// Simulated live temperature readings (20–50 °C) + humidity + fans
+			// Simulated live temperature readings (dry-bulb 20–50 °C) + humidity + fans,
+			// but DISPLAY wet-bulb temperature based on humidity.
 			(function () {
-				// Latest temperature readings
+				// Latest displayed temperatures (wet-bulb °C)
 				let currentTemperatures = {
 					temp1: '--', temp2: '--', temp3: '--',
 					temp4: '--', temp5: '--', temp6: '--'
 				};
+
+				// Optional: keep dry-bulb internally if you want later
+				function stopTemperatureReading() {
+					temperatureReadingActive = false;
+					if (simIntervalId) {
+						clearInterval(simIntervalId);
+						simIntervalId = null;
+					}
+
+					currentTemperatures = {
+						temp1: '--', temp2: '--', temp3: '--',
+						temp4: '--', temp5: '--', temp6: '--'
+					};
+
+					currentDryBulb = {
+						temp1: null, temp2: null, temp3: null,
+						temp4: null, temp5: null, temp6: null
+					};
+
+					currentHumidity = null;
+					currentFans = {
+						fan1: 0, fan2: 0, fan3: 0,
+						fan4: 0, fan5: 0, fan6: 0
+					};
+
+					updateTemperatureDisplay();
+				}
+
 
 				// Latest fan states (1 = on, 0 = off)
 				let currentFans = {
@@ -841,26 +902,63 @@
 
 				function updateTemperatureDisplay() {
 					for (let i = 1; i <= 6; i++) {
-						const tempElement = document.getElementById(`temp-${i}`);
-						if (tempElement) {
-							tempElement.textContent = currentTemperatures[`temp${i}`] || '--';
+						const dryEl = document.getElementById(`temp-${i}-dry`);
+						const wetEl = document.getElementById(`temp-${i}-wet`);
+
+						if (dryEl) {
+							const dry = currentDryBulb[`temp${i}`];
+							dryEl.textContent =
+								(typeof dry === 'number' && !Number.isNaN(dry)) ? dry.toFixed(1) : '--';
+						}
+
+						if (wetEl) {
+							const wet = currentTemperatures[`temp${i}`];
+							wetEl.textContent = wet || '--';
 						}
 					}
 				}
 
-				// Generate random sample: temps 20–50 °C, humidity 40–80%, fans on if temp > 40 °C
+
+				// Approximate wet-bulb temperature (°C) from dry-bulb (°C) and RH (%)
+				// Using Stull (2011) empirical formula – good for 0–50 °C and 5–99% RH.
+				function computeWetBulbC(TdbC, RH) {
+					const R = Math.min(100, Math.max(1, RH)); // clamp 1–100
+					const T = TdbC;
+
+					const Tw =
+						T * Math.atan(0.151977 * Math.sqrt(R + 8.313659)) +
+						Math.atan(T + R) -
+						Math.atan(R - 1.676331) +
+						0.00391838 * Math.pow(R, 1.5) * Math.atan(0.023101 * R) -
+						4.686035;
+
+					return Tw;
+				}
+
+				// Generate random sample:
+				//   dry-bulb: 20–50 °C
+				//   RH: 40–80 %
+				//   wet-bulb: computed from Tdb & RH
+				//   fans ON when wet-bulb > 40 °C
 				function generateRandomSample() {
 					if (!temperatureReadingActive) return;
 
-					for (let i = 1; i <= 6; i++) {
-						const tempC = 20 + Math.random() * 30; // 20–50 °C
-						currentTemperatures[`temp${i}`] = tempC.toFixed(1);
-
-						// Fan ON when zone temp > 40 °C
-						currentFans[`fan${i}`] = tempC > 40 ? 1 : 0;
-					}
-
+					// First choose a humidity for this sample
 					currentHumidity = (40 + Math.random() * 40).toFixed(1); // 40–80 % RH
+					const RH = parseFloat(currentHumidity);
+
+					for (let i = 1; i <= 6; i++) {
+						// Dry-bulb temperature for this zone
+						const dryC = 20 + Math.random() * 30; // 20–50 °C
+						currentDryBulb[`temp${i}`] = dryC;
+
+						// Compute wet-bulb from dry-bulb + RH
+						const wetC = computeWetBulbC(dryC, RH);
+						currentTemperatures[`temp${i}`] = wetC.toFixed(1);
+
+						// Fan ON when *displayed* (wet-bulb) temp > 40 °C
+						currentFans[`fan${i}`] = wetC > 40 ? 1 : 0;
+					}
 
 					updateTemperatureDisplay();
 
@@ -868,9 +966,12 @@
 					if (window.pushSensorSample) {
 						window.pushSensorSample({
 							time: new Date(),
+							// charts see wet-bulb temps
 							temps: { ...currentTemperatures },
 							humidity: currentHumidity,
-							fans: { ...currentFans }
+							fans: { ...currentFans },
+							// dry-bulb available if you ever want it
+							dryBulb: { ...currentDryBulb }
 						});
 					}
 				}
@@ -920,92 +1021,9 @@
 				// startTemperatureReading();
 			})();
 
-			// Store the latest temperature readings
-			let currentTemperatures = {
-				temp1: '--', temp2: '--', temp3: '--',
-				temp4: '--', temp5: '--', temp6: '--'
-			};
-
-			let currentHumidity = null;
-			let temperatureReadingActive = false;
-			let simIntervalId = null;
-
-			function updateTemperatureDisplay() {
-				for (let i = 1; i <= 6; i++) {
-					const tempElement = document.getElementById(`temp-${i}`);
-					if (tempElement) {
-						tempElement.textContent = currentTemperatures[`temp${i}`] || '--';
-					}
-				}
-			}
-
-			// Generate random temperatures between 20–50 °C and random humidity
-			function generateRandomSample() {
-				if (!temperatureReadingActive) return;
-
-				for (let i = 1; i <= 6; i++) {
-					const tempC = 20 + Math.random() * 30; // 20–50 °C
-					currentTemperatures[`temp${i}`] = tempC.toFixed(1);
-				}
-
-				currentHumidity = (40 + Math.random() * 40).toFixed(1); // 40–80 % RH
-
-				updateTemperatureDisplay();
-
-				// Push to charts if chart logic is present
-				if (window.pushSensorSample) {
-					window.pushSensorSample({
-						time: new Date(),
-						temps: { ...currentTemperatures },
-						humidity: currentHumidity
-					});
-				}
-			}
-
-			function startTemperatureReading() {
-				if (temperatureReadingActive) return;
-				temperatureReadingActive = true;
-
-				// Immediate first sample
-				generateRandomSample();
-
-				// Then update every 5 seconds
-				simIntervalId = setInterval(generateRandomSample, 5000);
-			}
-
-			function stopTemperatureReading() {
-				temperatureReadingActive = false;
-				if (simIntervalId) {
-					clearInterval(simIntervalId);
-					simIntervalId = null;
-				}
-
-				currentTemperatures = {
-					temp1: '--', temp2: '--', temp3: '--',
-					temp4: '--', temp5: '--', temp6: '--'
-				};
-				currentHumidity = null;
-				updateTemperatureDisplay();
-			}
-
-			function getCurrentTemperatures() {
-				return currentTemperatures;
-			}
-
-			// Expose globally for the rest of your code
-			window.getCurrentTemperatures = getCurrentTemperatures;
-			window.startTemperatureReading = startTemperatureReading;
-			window.stopTemperatureReading = stopTemperatureReading;
-
-			// 🔸 Always start simulated readings on page load
-			startTemperatureReading();
-
-				// If you want it to auto-run when a run name exists, you can uncomment:
-				// const savedRunName = localStorage.getItem('currentRunName');
-				// if (savedRunName) {
-				//     startTemperatureReading();
-				// }
-			}) ();
+			// Duplicate legacy simulator removed — using the wet-bulb simulator defined earlier.
+			// The active simulator above exposes startTemperatureReading/stopTemperatureReading/getCurrentTemperatures
+			// and will call startTemperatureReading() if you want readings to begin automatically.
 
 			// Live-updating charts for temperature, humidity, and fans
 			(function () {
@@ -1375,7 +1393,7 @@
 					const currentTemps = window.getCurrentTemperatures ? window.getCurrentTemperatures() : null;
 
 					for (let i = 1; i <= 6; i++) {
-						const tempElement = document.getElementById(`temp-${i}`);
+						const tempElement = document.getElementById(`temp-${i}-wet`);
 						if (!tempElement) continue;
 
 						tempElement.classList.remove(
@@ -1412,7 +1430,7 @@
 				function clearRunData() {
 					runStartTime = null;
 					for (let i = 1; i <= 6; i++) {
-						const tempElement = document.getElementById(`temp-${i}`);
+						const tempElement = document.getElementById(`temp-${i}-wet`);
 						if (tempElement) {
 							tempElement.classList.remove(
 								'temp-good',
@@ -1423,6 +1441,7 @@
 							);
 						}
 					}
+
 				}
 
 				function setupFileUploadHandler() {
