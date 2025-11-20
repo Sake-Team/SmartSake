@@ -424,10 +424,12 @@
 						}
 
 						const humidity = (60 + Math.random() * 20).toFixed(1);
+
 						const fans = [];
 						for (let i = 1; i <= 6; i++) {
 							fans.push(Math.random() > 0.5 ? 'On' : 'Off');
 						}
+
 						const notes = localStorage.getItem('currentNotes') || '';
 
 						return {
@@ -448,7 +450,6 @@
 							notes: notes.replace(/[\r\n]/g, ' ')
 						};
 					}
-
 
 					// ---------- Start / stop collection ----------
 					function startDataCollection() {
