@@ -1,126 +1,152 @@
 
 <!doctype html>
 <html lang="en">
-<head>
-	<meta charset="utf-8">
-	<title>Sake Table - Dashboard</title>
-	<meta name="viewport" content="width=device-width,initial-scale=1">
-	<link rel="stylesheet" href="styles.css">
-</head>
-<body>
-	<header>
-		<h1>Home <span id="run-name-di splay" class="run-name-header"></span></h1>
-	</header>
+  <head>
+    <meta charset="utf-8">
+    <title>Sake Table - Dashboard</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header>
+      <h1>Home <span id="run-name-di splay" class="run-name-header"></span></h1>
+    </header>
 
-	<main>
-		<div class="stage">
-			<section class="layout">
-				<section class="zones">
-					<a class="zone" href="zone1.html" role="button" aria-label="Zone 1">Zone 1</a>
-					<a class="zone" href="zone2.html" role="button" aria-label="Zone 2">Zone 2</a>
-					<a class="zone" href="zone3.html" role="button" aria-label="Zone 3">Zone 3</a>
-					<a class="zone" href="zone4.html" role="button" aria-label="Zone 4">Zone 4</a>
-					<a class="zone" href="zone5.html" role="button" aria-label="Zone 5">Zone 5</a>
-					<a class="zone" href="zone6.html" role="button" aria-label="Zone 6">Zone 6</a>
-				</section>
+    <main>
+      <div class="stage">
+        <section class="layout">
+          <section class="zones">
+            <a class="zone" href="zone1.html" role="button"
+              aria-label="Zone 1">Zone 1</a>
+            <a class="zone" href="zone2.html" role="button"
+              aria-label="Zone 2">Zone 2</a>
+            <a class="zone" href="zone3.html" role="button"
+              aria-label="Zone 3">Zone 3</a>
+            <a class="zone" href="zone4.html" role="button"
+              aria-label="Zone 4">Zone 4</a>
+            <a class="zone" href="zone5.html" role="button"
+              aria-label="Zone 5">Zone 5</a>
+            <a class="zone" href="zone6.html" role="button"
+              aria-label="Zone 6">Zone 6</a>
+          </section>
 
-			<div class="notes-wrap">
-				<div class="notes__meta" id="notes-meta" aria-live="polite">Date, Time</div>
-				<div class="notes" aria-label="Notes">
-					<label class="sr-only" for="notes-input">Notes</label>
-					<textarea id="notes-input" class="notes__input" placeholder="Enter notes..." aria-label="Notes input"></textarea>
-				</div>
-			</div>
+          <div class="notes-wrap">
+            <div class="notes__meta" id="notes-meta" aria-live="polite">Date,
+              Time</div>
+            <div class="notes" aria-label="Notes">
+              <label class="sr-only" for="notes-input">Notes</label>
+              <textarea id="notes-input" class="notes__input"
+                placeholder="Enter notes..."
+                aria-label="Notes input"></textarea>
+            </div>
+          </div>
 
-			<div class="left">
-				<div class="long long--top-left">
-					Temperature over time
-					<button type="button" class="temp-overlay-btn" id="start-run-btn">Start Run</button>
-				</div>
-				<div class="long long--top-left">Humidity over time</div>
-				<div class="long long--top-left">Fans on/off over time</div>
-			</div>
-			</section>
+          <div class="left">
+            <div class="long long--top-left">
+              Temperature over time
+              <button type="button" class="temp-overlay-btn"
+                id="start-run-btn">Start Run</button>
+            </div>
+            <div class="long long--top-left">Humidity over time</div>
+            <div class="long long--top-left">Fans on/off over time</div>
+          </div>
+        </section>
 
-			<section class="temp-row" aria-label="Temperature readings">
-				<div class="temp">
-					<span class="temp__label">Temp 1</span>
-					<span class="temp__value"><span class="temp__num" id="temp-1">--</span><span class="temp__unit">°F</span></span>
-				</div>
-				<div class="temp">
-					<span class="temp__label">Temp 2</span>
-					<span class="temp__value"><span class="temp__num" id="temp-2">--</span><span class="temp__unit">°F</span></span>
-				</div>
-				<div class="temp">
-					<span class="temp__label">Temp 3</span>
-					<span class="temp__value"><span class="temp__num" id="temp-3">--</span><span class="temp__unit">°F</span></span>
-				</div>
-				<div class="temp">
-					<span class="temp__label">Temp 4</span>
-					<span class="temp__value"><span class="temp__num" id="temp-4">--</span><span class="temp__unit">°F</span></span>
-				</div>
-				<div class="temp">
-					<span class="temp__label">Temp 5</span>
-					<span class="temp__value"><span class="temp__num" id="temp-5">--</span><span class="temp__unit">°F</span></span>
-				</div>
-				<div class="temp">
-					<span class="temp__label">Temp 6</span>
-					<span class="temp__value"><span class="temp__num" id="temp-6">--</span><span class="temp__unit">°F</span></span>
-				</div>
-			</section>
-		</div>
-	</main>
+        <section class="temp-row" aria-label="Temperature readings">
+          <div class="temp">
+            <span class="temp__label">Temp 1</span>
+            <span class="temp__value"><span class="temp__num"
+                id="temp-1">--</span><span class="temp__unit">°F</span></span>
+          </div>
+          <div class="temp">
+            <span class="temp__label">Temp 2</span>
+            <span class="temp__value"><span class="temp__num"
+                id="temp-2">--</span><span class="temp__unit">°F</span></span>
+          </div>
+          <div class="temp">
+            <span class="temp__label">Temp 3</span>
+            <span class="temp__value"><span class="temp__num"
+                id="temp-3">--</span><span class="temp__unit">°F</span></span>
+          </div>
+          <div class="temp">
+            <span class="temp__label">Temp 4</span>
+            <span class="temp__value"><span class="temp__num"
+                id="temp-4">--</span><span class="temp__unit">°F</span></span>
+          </div>
+          <div class="temp">
+            <span class="temp__label">Temp 5</span>
+            <span class="temp__value"><span class="temp__num"
+                id="temp-5">--</span><span class="temp__unit">°F</span></span>
+          </div>
+          <div class="temp">
+            <span class="temp__label">Temp 6</span>
+            <span class="temp__value"><span class="temp__num"
+                id="temp-6">--</span><span class="temp__unit">°F</span></span>
+          </div>
+        </section>
+      </div>
+    </main>
 
-	<!-- Modal popup for Start run -->
-	<div id="start-run-modal" class="modal-overlay">
-		<div class="modal-popup">
-			<div class="modal-header">
-				<h3 class="modal-title">Start New Run</h3>
-				<button type="button" class="modal-close" id="close-modal" aria-label="Close modal">&times;</button>
-			</div>
-			<div class="modal-content">
-				<p>This will begin collecting data from all temperature sensors and start the monitoring process.</p>
-				
-				<div class="modal-input-section">
-					<label for="run-name">Run Name:</label>
-					<input type="text" id="run-name" name="run-name" placeholder="Enter run name..." />
-				</div>
-				
-				<div class="modal-input-section">
-					<label for="target-csv-upload">Select Koji Strain:</label>
-					<input type="file" id="target-csv-upload" accept=".csv" class="upload-input">
-					<div id="upload-status" class="upload-status"></div>
-					<small class="help-text">Upload a CSV with target temperatures over time</small>
-				</div>
-				
-				<div class="modal-input-section">
-					<button type="button" class="modal-enter-btn" id="enter-run-btn">Start</button>
-				</div>
-			</div>
-		</div>
-	</div>
+    <!-- Modal popup for Start run -->
+    <div id="start-run-modal" class="modal-overlay">
+      <div class="modal-popup">
+        <div class="modal-header">
+          <h3 class="modal-title">Start New Run</h3>
+          <button type="button" class="modal-close" id="close-modal"
+            aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-content">
+          <p>This will begin collecting data from all temperature sensors and
+            start the monitoring process.</p>
 
-	<!-- Modal popup for End run confirmation -->
-	<div id="end-run-modal" class="modal-overlay">
-		<div class="modal-popup">
-			<div class="modal-header">
-				<h3 class="modal-title">End Current Run</h3>
-				<button type="button" class="modal-close" id="close-end-modal" aria-label="Close modal">&times;</button>
-			</div>
-			<div class="modal-content">
-				<p>Are you sure you would like to end the run?</p>
-				<p>This will stop data collection and finalize the current monitoring session.</p>
-				
-				<div class="modal-button-section">
-					<button type="button" class="modal-cancel-btn" id="cancel-end-btn">Cancel</button>
-					<button type="button" class="modal-confirm-btn" id="confirm-end-btn">End Run</button>
-				</div>
-			</div>
-		</div>
-	</div>
+          <div class="modal-input-section">
+            <label for="run-name">Run Name:</label>
+            <input type="text" id="run-name" name="run-name"
+              placeholder="Enter run name..." />
+          </div>
 
-	<!-- Live Date/Time script: updates the .notes__meta element each minute -->
-	<script>
+          <div class="modal-input-section">
+            <label for="target-csv-upload">Select Koji Strain:</label>
+            <input type="file" id="target-csv-upload" accept=".csv"
+              class="upload-input">
+            <div id="upload-status" class="upload-status"></div>
+            <small class="help-text">Upload a CSV with target temperatures over
+              time</small>
+          </div>
+
+          <div class="modal-input-section">
+            <button type="button" class="modal-enter-btn"
+              id="enter-run-btn">Start</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal popup for End run confirmation -->
+    <div id="end-run-modal" class="modal-overlay">
+      <div class="modal-popup">
+        <div class="modal-header">
+          <h3 class="modal-title">End Current Run</h3>
+          <button type="button" class="modal-close" id="close-end-modal"
+            aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-content">
+          <p>Are you sure you would like to end the run?</p>
+          <p>This will stop data collection and finalize the current monitoring
+            session.</p>
+
+          <div class="modal-button-section">
+            <button type="button" class="modal-cancel-btn"
+              id="cancel-end-btn">Cancel</button>
+            <button type="button" class="modal-confirm-btn"
+              id="confirm-end-btn">End Run</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Date/Time script: updates the .notes__meta element each minute -->
+    <script>
 	(function(){
 		const el = document.getElementById('notes-meta');
 		if(!el) return;
@@ -736,6 +762,5 @@
 		setInterval(applyDeviationColors, 5000);
 	})();
 	</script>
-	</body>
-	</html>
-
+  </body>
+</html>
