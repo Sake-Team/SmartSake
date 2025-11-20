@@ -170,21 +170,202 @@
 		</div>
 
 		<!-- Easter egg Pong modal -->
-		<div id="pong-modal" class="modal-overlay">
-			<div class="modal-popup pong-modal-popup">
-				<div class="modal-header">
-					<h3 class="modal-title">Pong Mode</h3>
-					<button type="button" class="modal-close" id="pong-close-btn"
-						aria-label="Close Pong">&times;</button>
-				</div>
-				<div class="modal-content">
-					<canvas id="pong-canvas" width="500" height="300" aria-label="Pong game"></canvas>
-					<p class="pong-help-text">
-						Use ↑ and ↓ arrows to move your paddle. Press ESC to exit.
-					</p>
-				</div>
-			</div>
-		</div>
+// Easter egg: Pong game when clicking the logo
+(function(){
+    const logo       = document.getElementById('sake-logo-egg');
+    const pongModal  = document.getElementById('pong-modal');
+    const pongCloseBtn = document.getElementById('pong-close-btn');
+    const canvas     = document.getElementById('pong-canvas');
+
+    if(!logo || !pongModal || !canvas) return;
+
+    const ctx = canvas.getContext('2d');
+
+    let animationId = null;
+    let ball, paddleLeft, paddleRight;
+    let upPressed = false;
+    let downPressed = false;
+
+    const HITBOX_PADDING = 3;      // makes edge hits more forgiving
+    const PLAYER_SPEED   = 4;
+    const AI_MAX_SPEED   = 3;
+    const AI_NOISE_RANGE = 25;     // how “jittery” the CPU aim is
+
+    function resetGame(){
+        ball = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            vx: 3 * (Math.random() > 0.5 ? 1 : -1),
+            vy: (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1),
+            r: 6
+        };
+        paddleLeft = {
+            x: 10,
+            y: canvas.height / 2 - 25,
+            w: 8,
+            h: 50
+        };
+        paddleRight = {
+            x: canvas.width - 18,
+            y: canvas.height / 2 - 25,
+            w: 8,
+            h: 50
+        };
+    }
+
+    function draw(){
+        // background
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // center line
+        ctx.strokeStyle = '#444';
+        ctx.setLineDash([5,5]);
+        ctx.beginPath();
+        ctx.moveTo(canvas.width/2, 0);
+        ctx.lineTo(canvas.width/2, canvas.height);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // paddles
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(paddleLeft.x,  paddleLeft.y,  paddleLeft.w,  paddleLeft.h);
+        ctx.fillRect(paddleRight.x, paddleRight.y, paddleRight.w, paddleRight.h);
+
+        // ball
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    function update(){
+        // --- Player paddle (left) ---
+        if(upPressed)   paddleLeft.y -= PLAYER_SPEED;
+        if(downPressed) paddleLeft.y += PLAYER_SPEED;
+        paddleLeft.y = Math.max(0, Math.min(canvas.height - paddleLeft.h, paddleLeft.y));
+
+        // --- CPU paddle (right) ---
+        // Only “try hard” when the ball is on its half of the court
+        let aiTargetY;
+        if(ball.x > canvas.width * 0.4){
+            // aim with some noise
+            const noise = (Math.random() - 0.5) * AI_NOISE_RANGE;
+            aiTargetY = ball.y + noise - paddleRight.h / 2;
+        } else {
+            // drift back toward center when ball is far away
+            aiTargetY = canvas.height / 2 - paddleRight.h / 2;
+        }
+
+        if(aiTargetY > paddleRight.y){
+            paddleRight.y = Math.min(paddleRight.y + AI_MAX_SPEED, aiTargetY);
+        } else {
+            paddleRight.y = Math.max(paddleRight.y - AI_MAX_SPEED, aiTargetY);
+        }
+        paddleRight.y = Math.max(0, Math.min(canvas.height - paddleRight.h, paddleRight.y));
+
+        // --- Move ball ---
+        ball.x += ball.vx;
+        ball.y += ball.vy;
+
+        // --- Bounce off top/bottom ---
+        if(ball.y - ball.r < 0){
+            ball.y = ball.r;
+            ball.vy *= -1;
+        } else if(ball.y + ball.r > canvas.height){
+            ball.y = canvas.height - ball.r;
+            ball.vy *= -1;
+        }
+
+        // --- Paddle collisions with padding to reduce “misread” losses ---
+        // Left paddle
+        if(
+            ball.x - ball.r <= paddleLeft.x + paddleLeft.w + HITBOX_PADDING &&
+            ball.x - ball.r >= paddleLeft.x - HITBOX_PADDING &&
+            ball.y >= paddleLeft.y - HITBOX_PADDING &&
+            ball.y <= paddleLeft.y + paddleLeft.h + HITBOX_PADDING
+        ){
+            ball.x = paddleLeft.x + paddleLeft.w + ball.r + HITBOX_PADDING;
+            ball.vx = Math.abs(ball.vx);
+
+            // slight “spin” based on hit position
+            const offset = (ball.y - (paddleLeft.y + paddleLeft.h / 2)) / (paddleLeft.h / 2);
+            ball.vy += offset * 1.5;
+        }
+
+        // Right paddle (CPU)
+        if(
+            ball.x + ball.r >= paddleRight.x - HITBOX_PADDING &&
+            ball.x + ball.r <= paddleRight.x + paddleRight.w + HITBOX_PADDING &&
+            ball.y >= paddleRight.y - HITBOX_PADDING &&
+            ball.y <= paddleRight.y + paddleRight.h + HITBOX_PADDING
+        ){
+            ball.x = paddleRight.x - ball.r - HITBOX_PADDING;
+            ball.vx = -Math.abs(ball.vx);
+
+            const offset = (ball.y - (paddleRight.y + paddleRight.h / 2)) / (paddleRight.h / 2);
+            ball.vy += offset * 1.5;
+        }
+
+        // --- Reset if ball goes out of bounds ---
+        if(ball.x < -30 || ball.x > canvas.width + 30){
+            resetGame();
+        }
+    }
+
+    function loop(){
+        update();
+        draw();
+        animationId = requestAnimationFrame(loop);
+    }
+
+    function keyHandler(e){
+        if(e.key === 'ArrowUp'){
+            upPressed = true;
+        } else if(e.key === 'ArrowDown'){
+            downPressed = true;
+        } else if(e.key === 'Escape'){
+            closePong();
+        }
+    }
+
+    function keyUpHandler(e){
+        if(e.key === 'ArrowUp'){
+            upPressed = false;
+        } else if(e.key === 'ArrowDown'){
+            downPressed = false;
+        }
+    }
+
+    function openPong(){
+        resetGame();
+        pongModal.style.display = 'flex';
+        loop();
+        document.addEventListener('keydown', keyHandler);
+        document.addEventListener('keyup', keyUpHandler);
+    }
+
+    function closePong(){
+        pongModal.style.display = 'none';
+        if(animationId) cancelAnimationFrame(animationId);
+        animationId = null;
+        document.removeEventListener('keydown', keyHandler);
+        document.removeEventListener('keyup', keyUpHandler);
+    }
+
+    // Click the logo to open Pong
+    logo.addEventListener('click', openPong);
+
+    // Close button and click outside
+    if(pongCloseBtn){
+        pongCloseBtn.addEventListener('click', closePong);
+    }
+    pongModal.addEventListener('click', function(e){
+        if(e.target === pongModal){
+            closePong();
+        }
+    });
+})();
+
 
 		<!-- Live Date/Time script: updates the .notes__meta element each minute -->
 		<script>
