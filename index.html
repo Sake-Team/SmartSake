@@ -187,1342 +187,908 @@
 		</div>
 
 		<!-- Live Date/Time script: updates the .notes__meta element each minute -->
-		<script>
-			// Live Date/Time script: updates notes meta and header datetime each minute
-			(function () {
-				const notesMeta = document.getElementById('notes-meta');
-				const headerMeta = document.getElementById('header-datetime');
-
-				// If neither exists, bail out
-				if (!notesMeta && !headerMeta) return;
-
-				function formatNow(d) {
-					const date = d.toLocaleDateString(undefined, {
-						month: 'short', day: 'numeric', year: 'numeric'
-					});
-					const time = d.toLocaleTimeString(undefined, {
-						hour: '2-digit', minute: '2-digit'
-					});
-					return `${date} — ${time}`;
-				}
-
-				function update() {
-					const text = formatNow(new Date());
-					if (notesMeta) notesMeta.textContent = text;
-					if (headerMeta) headerMeta.textContent = text;
-				}
-
-				// initial update
-				update();
-
-				// align with start of next minute, then every 60s
-				const msToNext = 60000 - (Date.now() % 60000);
-				let timer = setTimeout(function () {
-					update();
-					timer = setInterval(update, 60000);
-				}, msToNext);
-
-				// update when user returns to tab
-				document.addEventListener('visibilitychange', function () {
-					if (document.visibilityState === 'visible') update();
-				});
-
-			})();
-
-			// Modal functionality script
-			(function () {
-				// Duplicate variable declarations removed to fix redeclaration error.
-
-				// 🔸 FAILSAFE AUTOSAVE SYSTEM ---------------------------
-				const RUN_STATE_KEY = 'sakeRunState';
-				const RUN_IN_PROGRESS_KEY = 'sakeRunInProgress';
-
-
-				function saveRunState() {
-					try {
-						const state = {
-							collectedData,
-							runStartTime: runStartTime ? runStartTime.toISOString() : null,
-							runName: localStorage.getItem('currentRunName') || null
-						};
-						localStorage.setItem(RUN_STATE_KEY, JSON.stringify(state));
-					} catch (e) {
-						console.warn("Autosave failed:", e);
-					}
-				}
-
-				function loadRunState() {
-					try {
-						const raw = localStorage.getItem(RUN_STATE_KEY);
-						if (!raw) return;
-
-						const state = JSON.parse(raw);
-
-						if (Array.isArray(state.collectedData)) {
-							collectedData = state.collectedData;
-						}
-						if (state.runStartTime) {
-							runStartTime = new Date(state.runStartTime);
-						}
-
-						console.log("Recovered autosaved run:", collectedData.length, "rows restored");
-					} catch (e) {
-						console.warn("Failed to load autosaved run:", e);
-					}
-				}
-
-				// Load any autosaved run BEFORE evaluating UI state
-				loadRunState();
-				// --------------------------------------------------------
-
-				if (!startBtn || !modal || !closeBtn || !enterBtn || !runNameInput) return;
-
-				// Function to generate sensor data (unchanged)
-				function generateSensorData() {
-					const timestamp = new Date().toISOString();
-					const temps = [];
-
-					const csvTemps = window.getCurrentTemperatures ? window.getCurrentTemperatures() : null;
-
-					for (let i = 1; i <= 6; i++) {
-						if (csvTemps && csvTemps[`temp${i}`] && csvTemps[`temp${i}`] !== '--') {
-							temps.push(csvTemps[`temp${i}`]);
-						} else {
-							const tempElement = document.getElementById(`temp-${i}`);
-							if (tempElement && tempElement.textContent !== '--') {
-								temps.push(tempElement.textContent);
-							} else {
-								temps.push((70 + Math.random() * 10).toFixed(1));
-							}
-						}
-					}
-
-					const humidity = (60 + Math.random() * 20).toFixed(1);
-					const fans = [];
-					for (let i = 1; i <= 6; i++) {
-						fans.push(Math.random() > 0.5 ? 'On' : 'Off');
-					}
-					const notes = localStorage.getItem('currentNotes') || '';
-
-					return {
-						timestamp,
-						temp1: temps[0], temp2: temps[1], temp3: temps[2],
-						temp4: temps[3], temp5: temps[4], temp6: temps[5],
-						humidity,
-						fan1: fans[0], fan2: fans[1], fan3: fans[2],
-						fan4: fans[3], fan5: fans[4], fan6: fans[5],
-						notes: notes.replace(/[\r\n]/g, ' ')
-					};
-				}
-
-				// 🔸 MODIFIED: Start data collection with autosave
-				function startDataCollection() {
-					collectedData = [];
-					runStartTime = new Date();
-
-					collectedData.push(generateSensorData());
-					saveRunState();  // autosave initial row
-
-					dataCollectionInterval = setInterval(function () {
-						collectedData.push(generateSensorData());
-						saveRunState();  // autosave every row
-					}, 30000);
-				}
-
-				// 🔸 MODIFIED: Stop collection & clear autosave
-				function stopDataCollectionAndExport(runName) {
-					if (dataCollectionInterval) {
-						clearInterval(dataCollectionInterval);
-						dataCollectionInterval = null;
-					}
-
-					if (collectedData.length > 0) {
-						collectedData.push(generateSensorData());
-					}
-
-					// Build CSV
-					let csvContent = 'Timestamp,Temp1,Temp2,Temp3,Temp4,Temp5,Temp6,Humidity,Fan1,Fan2,Fan3,Fan4,Fan5,Fan6,Notes\n';
-					collectedData.forEach(function (data) {
-						csvContent += `${data.timestamp},${data.temp1},${data.temp2},${data.temp3},${data.temp4},${data.temp5},${data.temp6},${data.humidity},${data.fan1},${data.fan2},${data.fan3},${data.fan4},${data.fan5},${data.fan6},"${data.notes}"\n`;
-					});
-
-					// Download CSV
-					const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-					const link = document.createElement('a');
-					if (link.download !== undefined) {
-						const url = URL.createObjectURL(blob);
-						link.setAttribute('href', url);
-						link.setAttribute('download', `${runName}.csv`);
-						link.style.visibility = 'hidden';
-						document.body.appendChild(link);
-						link.click();
-						document.body.removeChild(link);
-					}
-
-					// Clear data
-					collectedData = [];
-					localStorage.removeItem(RUN_STATE_KEY);  // 🔸 clear autosave
-					localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');  // 🔸 mark run as finished
-
-					// Reset notes
-					const notesInput = document.getElementById('notes-input');
-					if (notesInput) {
-						notesInput.value = '';
-						localStorage.removeItem('currentNotes');
-					}
-
-				}
-
-				// ---------------- Rest of your modal code unchanged ------------------
-
-				startBtn.addEventListener('click', function () {
-					if (startBtn.classList.contains('end-run-btn-active')) {
-						const endModal = document.getElementById('end-run-modal');
-						if (endModal) {
-							endModal.style.display = 'flex';
-						}
-					} else {
-						const fileInput = document.getElementById('target-csv-upload');
-						const uploadStatus = document.getElementById('upload-status');
-						if (fileInput) fileInput.value = '';
-						if (uploadStatus) uploadStatus.textContent = '';
-
-						if (window.setupFileUploadHandler) {
-							window.setupFileUploadHandler();
-						}
-
-						modal.style.display = 'flex';
-						runNameInput.focus();
-					}
-				});
-
-				closeBtn.addEventListener('click', function () {
-					modal.style.display = 'none';
-				});
-
-				modal.addEventListener('click', function (e) {
-					if (e.target === modal) {
-						modal.style.display = 'none';
-					}
-				});
-
-				document.addEventListener('keydown', function (e) {
-					if (e.key === 'Escape' && modal.style.display === 'flex') {
-						modal.style.display = 'none';
-					}
-				});
-
-				enterBtn.addEventListener('click', function () {
-					const runName = runNameInput.value.trim();
-					if (runName) {
-						const runNameDisplay = document.getElementById('run-name-display');
-						if (runNameDisplay) {
-							runNameDisplay.textContent = '- ' + runName;
-						}
-						localStorage.setItem('currentRunName', runName);
-
-						startDataCollection();
-						if (window.startTemperatureReading) {
-							window.startTemperatureReading();
-						}
-						if (window.setRunStartTime) {
-							window.setRunStartTime();
-						}
-
-						startBtn.textContent = 'End Run';
-						startBtn.classList.add('end-run-btn-active');
-						startBtn.style.pointerEvents = 'auto';
-						startBtn.style.cursor = 'pointer';
-						modal.style.display = 'none';
-						runNameInput.value = '';
-					}
-				});
-
-				runNameInput.addEventListener('keydown', function (e) {
-					if (e.key === 'Enter') {
-						enterBtn.click();
-					}
-				});
-
-				const endModal1 = document.getElementById('end-run-modal');
-				// ...existing code...
-
-				if (endModal1 && closeEndBtn && cancelEndBtn && confirmEndBtn) {
-					// Modal functionality for ending the run
-					closeEndBtn.addEventListener('click', function () {
-						endModal1.style.display = 'none';
-					});
-					cancelEndBtn.addEventListener('click', function () {
-						endModal1.style.display = 'none';
-					});
-					endModal1.addEventListener('click', function (e) {
-						if (e.target === endModal1) {
-							endModal1.style.display = 'none';
-						}
-					});
-					confirmEndBtn.addEventListener('click', function () {
-						const currentRunName = localStorage.getItem('currentRunName') || 'UnknownRun';
-						stopDataCollectionAndExport(currentRunName);
-						if (window.stopTemperatureReading) {
-							window.stopTemperatureReading();
-						}
-						if (window.clearRunData) {
-							window.clearRunData();
-						}
-						localStorage.removeItem('currentNotes');
-						const runNameDisplay = document.getElementById('run-name-display');
-						if (runNameDisplay) {
-							runNameDisplay.textContent = '';
-						}
-						localStorage.removeItem('currentRunName');
-						startBtn.textContent = 'Start Run';
-						startBtn.classList.remove('end-run-btn-active');
-						endModal1.style.display = 'none';
-					});
-					document.addEventListener('keydown', function (e) {
-						if (e.key === 'Escape' && endModal1.style.display === 'flex') {
-							endModal1.style.display = 'none';
-						}
-					});
-				}
-				// Remove this line if there is no matching opening for an IIFE above.
-
-				// Expose a helper to export a recovered run and reset the UI
-				window.sakeExportRecoveredRun = function () {
-					const currentRunName = localStorage.getItem('currentRunName') || 'RecoveredRun';
-
-					// Hide recovery modal if present
-					const recoveryModal = document.getElementById('recovery-modal');
-					if (recoveryModal) {
-						recoveryModal.style.display = 'none';
-					}
-
-					// Export CSV and clear autosave + notes
-					stopDataCollectionAndExport(currentRunName);
-
-					if (window.stopTemperatureReading) {
-						window.stopTemperatureReading();
-					}
-					if (window.clearRunData) {
-						window.clearRunData();
-					}
-					localStorage.removeItem('currentNotes');
-
-					// Reset UI to "no active run"
-					const runNameDisplay = document.getElementById('run-name-display');
-					if (runNameDisplay) {
-						runNameDisplay.textContent = '';
-					}
-					localStorage.removeItem('currentRunName');
-
-					const startBtn = document.getElementById('start-run-btn');
-					if (startBtn) {
-						startBtn.textContent = 'Start Run';
-						startBtn.classList.remove('end-run-btn-active');
-						startBtn.style.pointerEvents = 'auto';
-						startBtn.style.cursor = 'pointer';
-					}
-
-					// Hide recovery banner if present
-					const banner = document.getElementById('recovery-banner');
-					if (banner) {
-						banner.hidden = true;
-					}
-				};
-
-
-				// Function to generate sensor readings (using CSV temperatures + simulated other data)
-				function generateSensorData() {
-					const timestamp = new Date().toISOString();
-					const temps = [];
-
-					// Get current temperatures from CSV or fallback
-					const csvTemps = window.getCurrentTemperatures ? window.getCurrentTemperatures() : null;
-
-					for (let i = 1; i <= 6; i++) {
-						if (csvTemps && csvTemps[`temp${i}`] && csvTemps[`temp${i}`] !== '--') {
-							// Use CSV temperature data
-							temps.push(csvTemps[`temp${i}`]);
-						} else {
-							// Fallback to displayed temperature or random
-							const tempElement = document.getElementById(`temp-${i}`);
-							if (tempElement && tempElement.textContent !== '--') {
-								temps.push(tempElement.textContent);
-							} else {
-								temps.push((70 + Math.random() * 10).toFixed(1));
-							}
-						}
-					}
-
-					const humidity = (60 + Math.random() * 20).toFixed(1); // Random humidity 60-80%
-					const fans = [];
-					for (let i = 1; i <= 6; i++) {
-						fans.push(Math.random() > 0.5 ? 'On' : 'Off'); // Random fan states
-					}
-					const notes = localStorage.getItem('currentNotes') || '';
-
-					return {
-						timestamp,
-						temp1: temps[0], temp2: temps[1], temp3: temps[2],
-						temp4: temps[3], temp5: temps[4], temp6: temps[5],
-						humidity,
-						fan1: fans[0], fan2: fans[1], fan3: fans[2],
-						fan4: fans[3], fan5: fans[4], fan6: fans[5],
-						notes: notes.replace(/[\r\n]/g, ' ') // Remove line breaks from notes
-					};
-				}
-
-				// Function to start data collection
-				function startDataCollection() {
-					collectedData = [];
-					runStartTime = new Date();
-
-					// mark that a run is active in this session
-					localStorage.setItem(RUN_IN_PROGRESS_KEY, 'true');
-
-					// Collect initial data point
-					collectedData.push(generateSensorData());
-
-					// Start collecting data every 30 seconds
-					dataCollectionInterval = setInterval(function () {
-						collectedData.push(generateSensorData());
-					}, 30000); // 30 seconds
-				}
-
-				// Function to stop data collection and export CSV
-				function stopDataCollectionAndExport(runName) {
-					if (dataCollectionInterval) {
-						clearInterval(dataCollectionInterval);
-						dataCollectionInterval = null;
-					}
-
-					// Add final data point
-					if (collectedData.length > 0) {
-						collectedData.push(generateSensorData());
-					}
-
-					// Generate CSV content
-					let csvContent = 'Timestamp,Temp1,Temp2,Temp3,Temp4,Temp5,Temp6,Humidity,Fan1,Fan2,Fan3,Fan4,Fan5,Fan6,Notes\n';
-
-					collectedData.forEach(function (data) {
-						csvContent += `${data.timestamp},${data.temp1},${data.temp2},${data.temp3},${data.temp4},${data.temp5},${data.temp6},${data.humidity},${data.fan1},${data.fan2},${data.fan3},${data.fan4},${data.fan5},${data.fan6},"${data.notes}"\n`;
-					});
-
-					// Create and download CSV file
-					const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-					const link = document.createElement('a');
-					if (link.download !== undefined) {
-						const url = URL.createObjectURL(blob);
-						link.setAttribute('href', url);
-						link.setAttribute('download', `${runName}.csv`);
-						link.style.visibility = 'hidden';
-						document.body.appendChild(link);
-						link.click();
-						document.body.removeChild(link);
-					}
-
-					// Clear collected data
-					collectedData = [];
-
-					// Reset notes box and clear from localStorage
-					const notesInput = document.getElementById('notes-input');
-					if (notesInput) {
-						notesInput.value = '';
-						localStorage.removeItem('currentNotes');
-					}
-				}
-
-				if (!startBtn || !modal || !closeBtn || !enterBtn || !runNameInput) return;
-
-				// Handle Start Run / End Run button clicks
-				startBtn.addEventListener('click', function () {
-					if (startBtn.classList.contains('end-run-btn-active')) {
-						// User clicked End Run button - show confirmation modal
-						const endModal = document.getElementById('end-run-modal');
-						if (endModal) {
-							endModal.style.display = 'flex';
-						}
-					}
-					else {
-						// User clicked Start Run button
-
-						// Clear file input and status
-						const fileInput = document.getElementById('target-csv-upload');
-						const uploadStatus = document.getElementById('upload-status');
-						if (fileInput) fileInput.value = '';
-						if (uploadStatus) uploadStatus.textContent = '';
-
-						// Setup file upload handler for modal
-						if (window.setupFileUploadHandler) {
-							window.setupFileUploadHandler();
-						}
-
-						modal.style.display = 'flex';
-						runNameInput.focus();
-					}
-				});
-
-				// Close modal when X button is clicked
-				closeBtn.addEventListener('click', function () {
-					modal.style.display = 'none';
-				});
-
-				// Close modal when clicking outside the popup
-				modal.addEventListener('click', function (e) {
-					if (e.target === modal) {
-						modal.style.display = 'none';
-					}
-				});
-
-				// Close modal with Escape key
-				document.addEventListener('keydown', function (e) {
-					if (e.key === 'Escape' && modal.style.display === 'flex') {
-						modal.style.display = 'none';
-					}
-				});
-
-				// Handle Start button click in modal
-				enterBtn.addEventListener('click', function () {
-					const runName = runNameInput.value.trim();
-					if (runName) {
-						// Display the run name next to Home with dash prefix
-						const runNameDisplay = document.getElementById('run-name-display');
-						if (runNameDisplay) {
-							runNameDisplay.textContent = '- ' + runName;
-						}
-						// Save run name to localStorage for other pages
-						localStorage.setItem('currentRunName', runName);
-						// Start data collection and temperature reading
-						startDataCollection();
-						if (window.startTemperatureReading) {
-							window.startTemperatureReading();
-						}
-
-						// Set run start time for target comparison
-						if (window.setRunStartTime) {
-							window.setRunStartTime();
-						}
-						// Replace Start Run button with End Run button
-						startBtn.textContent = 'End Run';
-						startBtn.classList.add('end-run-btn-active');
-						startBtn.style.pointerEvents = 'auto'; // Re-enable clicks for End Run
-						startBtn.style.cursor = 'pointer';
-						modal.style.display = 'none';
-						runNameInput.value = ''; // Clear the input for next time
-					}
-				});
-
-				// Also handle Enter key in the input field
-				runNameInput.addEventListener('keydown', function (e) {
-					if (e.key === 'Enter') {
-						enterBtn.click();
-					}
-				});
-
-				// End Run Modal functionality
-				const endModal = document.getElementById('end-run-modal');
-				const closeEndBtn = document.getElementById('close-end-modal');
-				const cancelEndBtn = document.getElementById('cancel-end-btn');
-				const confirmEndBtn = document.getElementById('confirm-end-btn');
-
-				if (endModal && closeEndBtn && cancelEndBtn && confirmEndBtn) {
-					// Close end modal when X button is clicked
-					closeEndBtn.addEventListener('click', function () {
-						endModal.style.display = 'none';
-					});
-
-					// Close end modal when Cancel button is clicked
-					cancelEndBtn.addEventListener('click', function () {
-						endModal.style.display = 'none';
-					});
-
-					// Close end modal when clicking outside the popup
-					endModal.addEventListener('click', function (e) {
-						if (e.target === endModal) {
-							endModal.style.display = 'none';
-						}
-					});
-
-					// Handle End Run confirmation
-					confirmEndBtn.addEventListener('click', function () {
-						// Get current run name for file export
-						const currentRunName = localStorage.getItem('currentRunName') || 'UnknownRun';
-
-						// Stop data collection and export CSV
-						stopDataCollectionAndExport(currentRunName);
-
-						// Stop temperature reading and reset to dashes
-						if (window.stopTemperatureReading) {
-							window.stopTemperatureReading();
-						}
-
-						// Clear run timing data and reset colors
-						if (window.clearRunData) {
-							window.clearRunData();
-						}
-
-						// Clear notes across all pages by removing from localStorage
-						// (already done in stopDataCollectionAndExport, but ensure it's cleared)
-						localStorage.removeItem('currentNotes');
-
-						// Reset the UI
-						const runNameDisplay = document.getElementById('run-name-display');
-						if (runNameDisplay) {
-							runNameDisplay.textContent = '';
-						}
-						// Clear run name from localStorage
-						localStorage.removeItem('currentRunName');
-						startBtn.textContent = 'Start Run';
-						startBtn.classList.remove('end-run-btn-active');
-						endModal.style.display = 'none';
-					});
-
-					// Close end modal with Escape key
-					document.addEventListener('keydown', function (e) {
-						if (e.key === 'Escape' && endModal.style.display === 'flex') {
-							endModal.style.display = 'none';
-						}
-					});
-				}
-			})();
-
-			// Initialize run name display, Start button, and crash recovery popup
-			// Popup only shows when a run was in progress and the page exited uncleanly.
-			(function () {
-				const runNameDisplay = document.getElementById('run-name-display');
-				const startBtn = document.getElementById('start-run-btn');
-				const recoveryModal = document.getElementById('recovery-modal');
-				const exportBtn = document.getElementById('recovery-export-btn');
-				const discardBtn = document.getElementById('recovery-discard-btn');
-				const closeBtn = document.getElementById('recovery-close-btn');
-
-				const savedRunName = localStorage.getItem('currentRunName');
-				const rawState = localStorage.getItem('sakeRunState');        // autosave key
-				const inProgress = localStorage.getItem('sakeRunInProgress') === 'true';
-
-				let hasData = false;
-
-				if (rawState) {
-					try {
-						const state = JSON.parse(rawState);
-						if (state && Array.isArray(state.collectedData) && state.collectedData.length > 0) {
-							hasData = true;
-						}
-					} catch (e) {
-						console.warn('Invalid autosave state detected, clearing:', e);
-						localStorage.removeItem('sakeRunState');
-					}
-				}
-
-				const crashDetected = hasData && inProgress;
-
-				// We never auto-resume a run: UI always starts in "Start Run" state
-				if (runNameDisplay) {
-					// If we crashed and have a name, show it; otherwise clear it
-					runNameDisplay.textContent = crashDetected && savedRunName ? ('- ' + savedRunName) : '';
-				}
-				if (startBtn) {
-					startBtn.textContent = 'Start Run';
-					startBtn.classList.remove('end-run-btn-active');
-					startBtn.style.pointerEvents = 'auto';
-					startBtn.style.cursor = 'pointer';
-				}
-
-				function discardAndClose() {
-					localStorage.removeItem('sakeRunState');
-					localStorage.setItem('sakeRunInProgress', 'false');
-					localStorage.removeItem('currentRunName');
-
-					if (runNameDisplay) {
-						runNameDisplay.textContent = '';
-					}
-					if (recoveryModal) {
-						recoveryModal.style.display = 'none';
-					}
-				}
-
-				if (crashDetected && recoveryModal && exportBtn && discardBtn) {
-					// Show popup about recovered data
-					recoveryModal.style.display = 'flex';
-
-					exportBtn.addEventListener('click', function () {
-						if (window.sakeExportRecoveredRun) {
-							window.sakeExportRecoveredRun();
-						}
-						localStorage.setItem('sakeRunInProgress', 'false');
-						if (recoveryModal) {
-							recoveryModal.style.display = 'none';
-						}
-					});
-
-					discardBtn.addEventListener('click', discardAndClose);
-					if (closeBtn) {
-						closeBtn.addEventListener('click', discardAndClose);
-					}
-
-					document.addEventListener('keydown', function (e) {
-						if (e.key === 'Escape' && recoveryModal.style.display === 'flex') {
-							discardAndClose();
-						}
-					});
-				} else {
-					// No crash scenario – clean up stray flags if no run name
-					if (!savedRunName) {
-						localStorage.removeItem('sakeRunState');
-						localStorage.setItem('sakeRunInProgress', 'false');
-					}
-				}
-			})();
-
-			// Notes localStorage functionality
-			(function () {
-				const notesInput = document.getElementById('notes-input');
-				if (!notesInput) return;
-
-				// Load saved notes on page load
-				const savedNotes = localStorage.getItem('currentNotes');
-				if (savedNotes) {
-					notesInput.value = savedNotes;
-				}
-
-				// Save notes whenever user types (with debounce to avoid excessive saves)
-				let saveTimeout;
-				notesInput.addEventListener('input', function () {
-					clearTimeout(saveTimeout);
-					saveTimeout = setTimeout(function () {
-						localStorage.setItem('currentNotes', notesInput.value);
-					}, 500); // Save 500ms after user stops typing
-				});
-
-				// Save notes immediately when user leaves the input field
-				notesInput.addEventListener('blur', function () {
-					clearTimeout(saveTimeout);
-					localStorage.setItem('currentNotes', notesInput.value);
-				});
-			})();
-
-			// Live temperature readings from CSV file
-			(function () {
-				// CSV file path - update this path to your actual CSV file location
-				const CSV_FILE_PATH = 'data/temperature_readings.csv';
-
-				// Store the latest temperature readings
-				let currentTemperatures = {
-					temp1: '--', temp2: '--', temp3: '--',
-					temp4: '--', temp5: '--', temp6: '--'
-				};
-
-				// Track if temperature reading is active
-				let temperatureReadingActive = false;
-
-				// Function to parse CSV data and extract temperature readings
-				function parseCSVData(csvText) {
-					const lines = csvText.trim().split('\n');
-					if (lines.length < 2) return null; // Need at least header + 1 data row
-
-					// Get the most recent reading (last line)
-					const lastLine = lines[lines.length - 1];
-					const values = lastLine.split(',');
-
-					// Expected CSV format: timestamp,temp1,temp2,temp3,temp4,temp5,temp6,humidity,fan1,fan2,fan3,fan4,fan5,fan6
-					// Or adjust indices based on your actual CSV structure
-					if (values.length >= 7) {
-						return {
-							temp1: parseFloat(values[1]).toFixed(1),
-							temp2: parseFloat(values[2]).toFixed(1),
-							temp3: parseFloat(values[3]).toFixed(1),
-							temp4: parseFloat(values[4]).toFixed(1),
-							temp5: parseFloat(values[5]).toFixed(1),
-							temp6: parseFloat(values[6]).toFixed(1)
-						};
-					}
-					return null;
-				}
-
-				// Function to read CSV file and update temperatures
-				async function readCSVFile() {
-					// Only read temperatures if a run is active
-					if (!temperatureReadingActive) return;
-
-					try {
-						const response = await fetch(CSV_FILE_PATH);
-						if (!response.ok) {
-							console.warn('Could not read CSV file:', response.statusText);
-							return;
-						}
-
-						const csvText = await response.text();
-						const temperatures = parseCSVData(csvText);
-
-						if (temperatures) {
-							currentTemperatures = temperatures;
-							updateTemperatureDisplay();
-						}
-					} catch (error) {
-						console.warn('Error reading CSV file:', error);
-						// Fallback to simulated data if CSV file is not available
-						generateFallbackTemperatures();
-					}
-				}
-
-				// Fallback function to generate simulated temperatures if CSV is unavailable
-				function generateFallbackTemperatures() {
-					if (!temperatureReadingActive) return;
-
-					for (let i = 1; i <= 6; i++) {
-						const temp = (70 + Math.random() * 10).toFixed(1);
-						currentTemperatures[`temp${i}`] = temp;
-					}
-					updateTemperatureDisplay();
-				}
-
-				// Function to update the temperature display elements
-				function updateTemperatureDisplay() {
-					for (let i = 1; i <= 6; i++) {
-						const tempElement = document.getElementById(`temp-${i}`);
-						if (tempElement) {
-							tempElement.textContent = currentTemperatures[`temp${i}`] || '--';
-						}
-					}
-				}
-
-				// Function to start temperature readings
-				function startTemperatureReading() {
-					temperatureReadingActive = true;
-					// Immediately read temperatures when starting
-					readCSVFile();
-				}
-
-				// Function to stop temperature readings
-				function stopTemperatureReading() {
-					temperatureReadingActive = false;
-					// Reset to dashes
-					currentTemperatures = {
-						temp1: '--', temp2: '--', temp3: '--',
-						temp4: '--', temp5: '--', temp6: '--'
-					};
-					updateTemperatureDisplay();
-				}
-
-				// Function to get current temperature readings (for data collection)
-				function getCurrentTemperatures() {
-					return currentTemperatures;
-				}
-
-				// Make functions available globally
-				window.getCurrentTemperatures = getCurrentTemperatures;
-				window.startTemperatureReading = startTemperatureReading;
-				window.stopTemperatureReading = stopTemperatureReading;
-
-				// Check if a run is already active on page load
-				const savedRunName = localStorage.getItem('currentRunName');
-				if (savedRunName) {
-					temperatureReadingActive = true;
-				}
-
-				// Poll the CSV file every 5 seconds for updates (only when active)
-				setInterval(readCSVFile, 5000);
-			})();
-
-			// Target temperature CSV upload and deviation detection
-			(function () {
-				// Store target temperatures and run timing
-				let targetTemperatures = [];
-				let runStartTime = null;
-
-				// Function to parse uploaded target CSV
-				function parseTargetCSV(csvText) {
-					const lines = csvText.trim().split('\n');
-					if (lines.length < 2) return [];
-
-					const targets = [];
-					// Skip header, parse data rows
-					// Expected format: time_minutes,temp1_target,temp2_target,temp3_target,temp4_target,temp5_target,temp6_target
-					for (let i = 1; i < lines.length; i++) {
-						const values = lines[i].split(',');
-						if (values.length >= 7) {
-							targets.push({
-								time: parseFloat(values[0]), // time in minutes from run start
-								temp1: parseFloat(values[1]),
-								temp2: parseFloat(values[2]),
-								temp3: parseFloat(values[3]),
-								temp4: parseFloat(values[4]),
-								temp5: parseFloat(values[5]),
-								temp6: parseFloat(values[6])
-							});
-						}
-					}
-					return targets.sort((a, b) => a.time - b.time); // Sort by time
-				}
-
-				// Function to get current target temperatures based on elapsed time
-				function getCurrentTargets() {
-					if (!runStartTime || targetTemperatures.length === 0) return null;
-
-					const elapsedMinutes = (Date.now() - runStartTime) / (1000 * 60);
-
-					// Find the appropriate target based on elapsed time
-					let currentTarget = null;
-					for (let i = 0; i < targetTemperatures.length; i++) {
-						if (targetTemperatures[i].time <= elapsedMinutes) {
-							currentTarget = targetTemperatures[i];
-						} else {
-							break;
-						}
-					}
-					return currentTarget;
-				}
-
-				// Function to apply color coding based on deviation
-				function applyDeviationColors() {
-					const currentTargets = getCurrentTargets();
-					const currentTemps = window.getCurrentTemperatures ? window.getCurrentTemperatures() : null;
-
-					for (let i = 1; i <= 6; i++) {
-						const tempElement = document.getElementById(`temp-${i}`);
-						if (!tempElement) continue;
-
-						// Reset classes
-						tempElement.classList.remove('temp-good', 'temp-warning', 'temp-danger', 'temp-too-hot', 'temp-too-cold');
-
-						if (currentTargets && currentTemps && currentTemps[`temp${i}`] !== '--') {
-							const actualTemp = parseFloat(currentTemps[`temp${i}`]);
-							const targetTemp = currentTargets[`temp${i}`];
-
-							if (!isNaN(actualTemp) && !isNaN(targetTemp)) {
-								const deviation = actualTemp - targetTemp; // Keep sign for direction
-
-								// Color coding based on 5-degree deviation thresholds
-								if (deviation >= 5.0) { // 5+ degrees above target - light red background
-									tempElement.classList.add('temp-too-hot');
-								} else if (deviation <= -5.0) { // 5+ degrees below target - light blue background
-									tempElement.classList.add('temp-too-cold');
-								} else {
-									// Within 5 degrees - no special background
-									tempElement.classList.add('temp-good');
-								}
-							}
-						}
-					}
-				}
-
-				// Function to set run start time
-				function setRunStartTime() {
-					runStartTime = Date.now();
-				}
-
-				// Function to clear run data
-				function clearRunData() {
-					runStartTime = null;
-					// Reset all temperature colors
-					for (let i = 1; i <= 6; i++) {
-						const tempElement = document.getElementById(`temp-${i}`);
-						if (tempElement) {
-							tempElement.classList.remove('temp-good', 'temp-warning', 'temp-danger', 'temp-too-hot', 'temp-too-cold');
-						}
-					}
-				}
-
-				// Function to setup file upload handler
-				function setupFileUploadHandler() {
-					const fileInput = document.getElementById('target-csv-upload');
-					const uploadStatus = document.getElementById('upload-status');
-
-					if (fileInput && !fileInput.hasAttribute('data-handler-added')) {
-						fileInput.setAttribute('data-handler-added', 'true');
-						fileInput.addEventListener('change', function (e) {
-							const file = e.target.files[0];
-							if (!file) {
-								if (uploadStatus) uploadStatus.textContent = '';
-								return;
-							}
-
-							const reader = new FileReader();
-							reader.onload = function (event) {
-								try {
-									targetTemperatures = parseTargetCSV(event.target.result);
-									if (targetTemperatures.length > 0) {
-										if (uploadStatus) {
-											uploadStatus.textContent = `✓ Loaded ${targetTemperatures.length} target points`;
-											uploadStatus.style.color = '#28a745';
-										}
-									} else {
-										if (uploadStatus) {
-											uploadStatus.textContent = '⚠ No valid data found';
-											uploadStatus.style.color = '#ffc107';
-										}
-									}
-								} catch (error) {
-									if (uploadStatus) {
-										uploadStatus.textContent = '✗ Error parsing CSV';
-										uploadStatus.style.color = '#dc3545';
-									}
-								}
-							};
-							reader.readAsText(file);
-						});
-					}
-				}
-
-				// Make functions available globally
-				window.setRunStartTime = setRunStartTime;
-				window.clearRunData = clearRunData;
-				window.applyDeviationColors = applyDeviationColors;
-				window.setupFileUploadHandler = setupFileUploadHandler;
-
-				// Update colors every 5 seconds when run is active
-				setInterval(applyDeviationColors, 5000);
-			})();
-
-			// Easter egg: Pong game when clicking the logo
-(function(){
-    const logo       = document.getElementById('sake-logo-egg');
-    const pongModal  = document.getElementById('pong-modal');
-    const pongCloseBtn = document.getElementById('pong-close-btn');
-    const canvas     = document.getElementById('pong-canvas');
-
-    if(!logo || !pongModal || !canvas) return;
-
-    const ctx = canvas.getContext('2d');
-
-    let animationId = null;
-    let ball, paddleLeft, paddleRight;
-    let upPressed = false;
-    let downPressed = false;
-
-    const HITBOX_PADDING = 3;      // makes edge hits more forgiving
-    const PLAYER_SPEED   = 4;
-    const AI_MAX_SPEED   = 3;
-    const AI_NOISE_RANGE = 25;     // how “jittery” the CPU aim is
-
-    function resetGame(){
-        ball = {
-            x: canvas.width / 2,
-            y: canvas.height / 2,
-            vx: 3 * (Math.random() > 0.5 ? 1 : -1),
-            vy: (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1),
-            r: 6
-        };
-        paddleLeft = {
-            x: 10,
-            y: canvas.height / 2 - 25,
-            w: 8,
-            h: 50
-        };
-        paddleRight = {
-            x: canvas.width - 18,
-            y: canvas.height / 2 - 25,
-            w: 8,
-            h: 50
-        };
-    }
-
-    function draw(){
-        // background
-        ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // center line
-        ctx.strokeStyle = '#444';
-        ctx.setLineDash([5,5]);
-        ctx.beginPath();
-        ctx.moveTo(canvas.width/2, 0);
-        ctx.lineTo(canvas.width/2, canvas.height);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // paddles
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(paddleLeft.x,  paddleLeft.y,  paddleLeft.w,  paddleLeft.h);
-        ctx.fillRect(paddleRight.x, paddleRight.y, paddleRight.w, paddleRight.h);
-
-        // ball
-        ctx.beginPath();
-        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-        ctx.fill();
-    }
-
-    function update(){
-        // --- Player paddle (left) ---
-        if(upPressed)   paddleLeft.y -= PLAYER_SPEED;
-        if(downPressed) paddleLeft.y += PLAYER_SPEED;
-        paddleLeft.y = Math.max(0, Math.min(canvas.height - paddleLeft.h, paddleLeft.y));
-
-        // --- CPU paddle (right) ---
-        // Only “try hard” when the ball is on its half of the court
-        let aiTargetY;
-        if(ball.x > canvas.width * 0.4){
-            // aim with some noise
-            const noise = (Math.random() - 0.5) * AI_NOISE_RANGE;
-            aiTargetY = ball.y + noise - paddleRight.h / 2;
-        } else {
-            // drift back toward center when ball is far away
-            aiTargetY = canvas.height / 2 - paddleRight.h / 2;
-        }
-
-        if(aiTargetY > paddleRight.y){
-            paddleRight.y = Math.min(paddleRight.y + AI_MAX_SPEED, aiTargetY);
-        } else {
-            paddleRight.y = Math.max(paddleRight.y - AI_MAX_SPEED, aiTargetY);
-        }
-        paddleRight.y = Math.max(0, Math.min(canvas.height - paddleRight.h, paddleRight.y));
-
-        // --- Move ball ---
-        ball.x += ball.vx;
-        ball.y += ball.vy;
-
-        // --- Bounce off top/bottom ---
-        if(ball.y - ball.r < 0){
-            ball.y = ball.r;
-            ball.vy *= -1;
-        } else if(ball.y + ball.r > canvas.height){
-            ball.y = canvas.height - ball.r;
-            ball.vy *= -1;
-        }
-
-        // --- Paddle collisions with padding to reduce “misread” losses ---
-        // Left paddle
-        if(
-            ball.x - ball.r <= paddleLeft.x + paddleLeft.w + HITBOX_PADDING &&
-            ball.x - ball.r >= paddleLeft.x - HITBOX_PADDING &&
-            ball.y >= paddleLeft.y - HITBOX_PADDING &&
-            ball.y <= paddleLeft.y + paddleLeft.h + HITBOX_PADDING
-        ){
-            ball.x = paddleLeft.x + paddleLeft.w + ball.r + HITBOX_PADDING;
-            ball.vx = Math.abs(ball.vx);
-
-            // slight “spin” based on hit position
-            const offset = (ball.y - (paddleLeft.y + paddleLeft.h / 2)) / (paddleLeft.h / 2);
-            ball.vy += offset * 1.5;
-        }
-
-        // Right paddle (CPU)
-        if(
-            ball.x + ball.r >= paddleRight.x - HITBOX_PADDING &&
-            ball.x + ball.r <= paddleRight.x + paddleRight.w + HITBOX_PADDING &&
-            ball.y >= paddleRight.y - HITBOX_PADDING &&
-            ball.y <= paddleRight.y + paddleRight.h + HITBOX_PADDING
-        ){
-            ball.x = paddleRight.x - ball.r - HITBOX_PADDING;
-            ball.vx = -Math.abs(ball.vx);
-
-            const offset = (ball.y - (paddleRight.y + paddleRight.h / 2)) / (paddleRight.h / 2);
-            ball.vy += offset * 1.5;
-        }
-
-        // --- Reset if ball goes out of bounds ---
-        if(ball.x < -30 || ball.x > canvas.width + 30){
-            resetGame();
-        }
-    }
-
-    function loop(){
-        update();
-        draw();
-        animationId = requestAnimationFrame(loop);
-    }
-
-    function keyHandler(e){
-        if(e.key === 'ArrowUp'){
-            upPressed = true;
-        } else if(e.key === 'ArrowDown'){
-            downPressed = true;
-        } else if(e.key === 'Escape'){
-            closePong();
-        }
-    }
-
-    function keyUpHandler(e){
-        if(e.key === 'ArrowUp'){
-            upPressed = false;
-        } else if(e.key === 'ArrowDown'){
-            downPressed = false;
-        }
-    }
-
-    function openPong(){
-        resetGame();
-        pongModal.style.display = 'flex';
-        loop();
-        document.addEventListener('keydown', keyHandler);
-        document.addEventListener('keyup', keyUpHandler);
-    }
-
-    function closePong(){
-        pongModal.style.display = 'none';
-        if(animationId) cancelAnimationFrame(animationId);
-        animationId = null;
-        document.removeEventListener('keydown', keyHandler);
-        document.removeEventListener('keyup', keyUpHandler);
-    }
-
-    // Click the logo to open Pong
-    logo.addEventListener('click', openPong);
-
-    // Close button and click outside
-    if(pongCloseBtn){
-        pongCloseBtn.addEventListener('click', closePong);
-    }
-    pongModal.addEventListener('click', function(e){
-        if(e.target === pongModal){
-            closePong();
-        }
+<script>
+// Live Date/Time script: updates notes meta and header datetime each minute
+(function () {
+  const notesMeta  = document.getElementById('notes-meta');
+  const headerMeta = document.getElementById('header-datetime');
+
+  if (!notesMeta && !headerMeta) return;
+
+  function formatNow(d) {
+    const date = d.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
     });
+    const time = d.toLocaleTimeString(undefined, {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    return `${date} — ${time}`;
+  }
+
+  function update() {
+    const text = formatNow(new Date());
+    if (notesMeta)  notesMeta.textContent  = text;
+    if (headerMeta) headerMeta.textContent = text;
+  }
+
+  // initial update
+  update();
+
+  // align with start of next minute, then every 60s
+  const msToNext = 60000 - (Date.now() % 60000);
+  let timer = setTimeout(function () {
+    update();
+    timer = setInterval(update, 60000);
+  }, msToNext);
+
+  // update when user returns to tab
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') update();
+  });
 })();
 
-				const logo = document.getElementById('sake-logo-egg');
-				const pongModal = document.getElementById('pong-modal');
-				const pongCloseBtn = document.getElementById('pong-close-btn');
-				const canvas = document.getElementById('pong-canvas');
 
-				if (!logo || !pongModal || !canvas) return;
+// Modal + run state + autosave + recovery
+(function () {
+  const RUN_STATE_KEY       = 'sakeRunState';
+  const RUN_IN_PROGRESS_KEY = 'sakeRunInProgress';
 
-				const ctx = canvas.getContext('2d');
+  // DOM elements
+  const startBtn        = document.getElementById('start-run-btn');
+  const startModal      = document.getElementById('start-run-modal');
+  const closeStartBtn   = document.getElementById('close-modal');
+  const enterBtn        = document.getElementById('enter-run-btn');
+  const runNameInput    = document.getElementById('run-name');
+  const runNameDisplay  = document.getElementById('run-name-display');
 
-				let animationId = null;
-				let ball, paddleLeft, paddleRight;
-				let upPressed = false;
-				let downPressed = false;
+  const endModal        = document.getElementById('end-run-modal');
+  const closeEndBtn     = document.getElementById('close-end-modal');
+  const cancelEndBtn    = document.getElementById('cancel-end-btn');
+  const confirmEndBtn   = document.getElementById('confirm-end-btn');
 
-				function resetGame() {
-					ball = {
-						x: canvas.width / 2,
-						y: canvas.height / 2,
-						vx: 3,
-						vy: 2,
-						r: 6
-					};
-					paddleLeft = {
-						x: 10,
-						y: canvas.height / 2 - 25,
-						w: 8,
-						h: 50
-					};
-					paddleRight = {
-						x: canvas.width - 18,
-						y: canvas.height / 2 - 25,
-						w: 8,
-						h: 50
-					};
-				}
+  const recoveryModal   = document.getElementById('recovery-modal');
+  const recoveryExport  = document.getElementById('recovery-export-btn');
+  const recoveryDiscard = document.getElementById('recovery-discard-btn');
+  const recoveryClose   = document.getElementById('recovery-close-btn');
 
-				function draw() {
-					// clear
-					ctx.fillStyle = '#000';
-					ctx.fillRect(0, 0, canvas.width, canvas.height);
+  let collectedData         = [];
+  let dataCollectionInterval = null;
+  let runStartTime          = null;
 
-					// center line
-					ctx.strokeStyle = '#444';
-					ctx.setLineDash([5, 5]);
-					ctx.beginPath();
-					ctx.moveTo(canvas.width / 2, 0);
-					ctx.lineTo(canvas.width / 2, canvas.height);
-					ctx.stroke();
-					ctx.setLineDash([]);
+  // ---------- Autosave helpers ----------
+  function saveRunState() {
+    try {
+      const state = {
+        collectedData,
+        runStartTime: runStartTime ? runStartTime.toISOString() : null,
+        runName: localStorage.getItem('currentRunName') || null
+      };
+      localStorage.setItem(RUN_STATE_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.warn('Autosave failed:', e);
+    }
+  }
 
-					// paddles
-					ctx.fillStyle = '#fff';
-					ctx.fillRect(paddleLeft.x, paddleLeft.y, paddleLeft.w, paddleLeft.h);
-					ctx.fillRect(paddleRight.x, paddleRight.y, paddleRight.w, paddleRight.h);
+  function loadRunState() {
+    try {
+      const raw = localStorage.getItem(RUN_STATE_KEY);
+      if (!raw) return;
 
-					// ball
-					ctx.beginPath();
-					ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-					ctx.fill();
-				}
+      const state = JSON.parse(raw);
+      if (Array.isArray(state.collectedData)) {
+        collectedData = state.collectedData;
+      }
+      if (state.runStartTime) {
+        runStartTime = new Date(state.runStartTime);
+      }
+      console.log('Recovered autosaved run:', collectedData.length, 'rows restored');
+    } catch (e) {
+      console.warn('Failed to load autosaved run:', e);
+      localStorage.removeItem(RUN_STATE_KEY);
+    }
+  }
 
-				function update() {
-					// move player paddle
-					const speed = 4;
-					if (upPressed) paddleLeft.y -= speed;
-					if (downPressed) paddleLeft.y += speed;
-					paddleLeft.y = Math.max(0, Math.min(canvas.height - paddleLeft.h, paddleLeft.y));
+  // ---------- Data generation ----------
+  function generateSensorData() {
+    const timestamp = new Date().toISOString();
+    const temps = [];
 
-					// simple AI for right paddle
-					const target = ball.y - paddleRight.h / 2;
-					paddleRight.y += (target - paddleRight.y) * 0.06;
+    const csvTemps = window.getCurrentTemperatures ? window.getCurrentTemperatures() : null;
 
-					// move ball
-					ball.x += ball.vx;
-					ball.y += ball.vy;
+    for (let i = 1; i <= 6; i++) {
+      if (csvTemps && csvTemps[`temp${i}`] && csvTemps[`temp${i}`] !== '--') {
+        temps.push(csvTemps[`temp${i}`]);
+      } else {
+        const tempElement = document.getElementById(`temp-${i}`);
+        if (tempElement && tempElement.textContent !== '--') {
+          temps.push(tempElement.textContent);
+        } else {
+          temps.push((70 + Math.random() * 10).toFixed(1));
+        }
+      }
+    }
 
-					// bounce top/bottom
-					if (ball.y - ball.r < 0 || ball.y + ball.r > canvas.height) {
-						ball.vy *= -1;
-					}
+    const humidity = (60 + Math.random() * 20).toFixed(1);
+    const fans = [];
+    for (let i = 1; i <= 6; i++) {
+      fans.push(Math.random() > 0.5 ? 'On' : 'Off');
+    }
+    const notes = localStorage.getItem('currentNotes') || '';
 
-					// paddle collisions
-					if (ball.x - ball.r < paddleLeft.x + paddleLeft.w &&
-						ball.y > paddleLeft.y && ball.y < paddleLeft.y + paddleLeft.h) {
-						ball.vx = Math.abs(ball.vx);
-					}
+    return {
+      timestamp,
+      temp1: temps[0],
+      temp2: temps[1],
+      temp3: temps[2],
+      temp4: temps[3],
+      temp5: temps[4],
+      temp6: temps[5],
+      humidity,
+      fan1: fans[0],
+      fan2: fans[1],
+      fan3: fans[2],
+      fan4: fans[3],
+      fan5: fans[4],
+      fan6: fans[5],
+      notes: notes.replace(/[\r\n]/g, ' ')
+    };
+  }
 
-					if (ball.x + ball.r > paddleRight.x &&
-						ball.y > paddleRight.y && ball.y < paddleRight.y + paddleRight.h) {
-						ball.vx = -Math.abs(ball.vx);
-					}
+  // ---------- Start / stop collection ----------
+  function startDataCollection() {
+    collectedData = [];
+    runStartTime  = new Date();
 
-					// reset if ball goes out of bounds
-					if (ball.x < 0 || ball.x > canvas.width) {
-						resetGame();
-					}
-				}
+    localStorage.setItem(RUN_IN_PROGRESS_KEY, 'true');
 
-				function loop() {
-					update();
-					draw();
-					animationId = requestAnimationFrame(loop);
-				}
+    collectedData.push(generateSensorData());
+    saveRunState();
 
-				function openPong() {
-					resetGame();
-					pongModal.style.display = 'flex';
-					loop();
-					document.addEventListener('keydown', keyHandler);
-					document.addEventListener('keyup', keyUpHandler);
-				}
+    dataCollectionInterval = setInterval(function () {
+      collectedData.push(generateSensorData());
+      saveRunState();
+    }, 30000);
+  }
 
-				function closePong() {
-					pongModal.style.display = 'none';
-					if (animationId) cancelAnimationFrame(animationId);
-					animationId = null;
-					document.removeEventListener('keydown', keyHandler);
-					document.removeEventListener('keyup', keyUpHandler);
-				}
+  function stopDataCollectionAndExport(runName) {
+    if (dataCollectionInterval) {
+      clearInterval(dataCollectionInterval);
+      dataCollectionInterval = null;
+    }
 
-				function keyHandler(e) {
-					if (e.key === 'ArrowUp') {
-						upPressed = true;
-					} else if (e.key === 'ArrowDown') {
-						downPressed = true;
-					} else if (e.key === 'Escape') {
-						closePong();
-					}
-				}
+    if (collectedData.length > 0) {
+      collectedData.push(generateSensorData());
+    }
 
-				function keyUpHandler(e) {
-					if (e.key === 'ArrowUp') {
-						upPressed = false;
-					} else if (e.key === 'ArrowDown') {
-						downPressed = false;
-					}
-				}
+    let csvContent = 'Timestamp,Temp1,Temp2,Temp3,Temp4,Temp5,Temp6,Humidity,' +
+                     'Fan1,Fan2,Fan3,Fan4,Fan5,Fan6,Notes\n';
 
-				// Click the logo to open Pong
-				logo.addEventListener('click', openPong);
+    collectedData.forEach(function (data) {
+      csvContent += `${data.timestamp},${data.temp1},${data.temp2},${data.temp3},${data.temp4},` +
+                    `${data.temp5},${data.temp6},${data.humidity},${data.fan1},${data.fan2},` +
+                    `${data.fan3},${data.fan4},${data.fan5},${data.fan6},"${data.notes}"\n`;
+    });
 
-				// Close button and click outside
-				if (pongCloseBtn) {
-					pongCloseBtn.addEventListener('click', closePong);
-				}
-				pongModal.addEventListener('click', function (e) {
-					if (e.target === pongModal) {
-						closePong();
-					}
-				});
-			})();
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `${runName}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
 
-		</script>
+    collectedData = [];
+    localStorage.removeItem(RUN_STATE_KEY);
+    localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+
+    const notesInput = document.getElementById('notes-input');
+    if (notesInput) {
+      notesInput.value = '';
+      localStorage.removeItem('currentNotes');
+    }
+  }
+
+  // Expose for recovery export
+  window.sakeExportRecoveredRun = function () {
+    const currentRunName = localStorage.getItem('currentRunName') || 'RecoveredRun';
+
+    if (recoveryModal) {
+      recoveryModal.style.display = 'none';
+    }
+
+    stopDataCollectionAndExport(currentRunName);
+
+    if (window.stopTemperatureReading) {
+      window.stopTemperatureReading();
+    }
+    if (window.clearRunData) {
+      window.clearRunData();
+    }
+    localStorage.removeItem('currentNotes');
+
+    if (runNameDisplay) {
+      runNameDisplay.textContent = '';
+    }
+    localStorage.removeItem('currentRunName');
+
+    if (startBtn) {
+      startBtn.textContent = 'Start Run';
+      startBtn.classList.remove('end-run-btn-active');
+      startBtn.style.pointerEvents = 'auto';
+      startBtn.style.cursor = 'pointer';
+    }
+  };
+
+  // ---------- Load autosave & handle crash detection ----------
+  loadRunState();
+  const savedRunName = localStorage.getItem('currentRunName');
+  const rawState     = localStorage.getItem(RUN_STATE_KEY);
+  const inProgress   = localStorage.getItem(RUN_IN_PROGRESS_KEY) === 'true';
+
+  let hasData = false;
+  if (rawState) {
+    try {
+      const state = JSON.parse(rawState);
+      if (state && Array.isArray(state.collectedData) && state.collectedData.length > 0) {
+        hasData = true;
+      }
+    } catch (e) {
+      console.warn('Invalid autosave state detected, clearing:', e);
+      localStorage.removeItem(RUN_STATE_KEY);
+    }
+  }
+
+  const crashDetected = hasData && inProgress;
+
+  // Initialize UI state
+  if (runNameDisplay) {
+    runNameDisplay.textContent = crashDetected && savedRunName ? ('- ' + savedRunName) : '';
+  }
+  if (startBtn) {
+    startBtn.textContent = 'Start Run';
+    startBtn.classList.remove('end-run-btn-active');
+    startBtn.style.pointerEvents = 'auto';
+    startBtn.style.cursor = 'pointer';
+  }
+
+  if (crashDetected && recoveryModal && recoveryExport && recoveryDiscard) {
+    recoveryModal.style.display = 'flex';
+
+    recoveryExport.addEventListener('click', function () {
+      if (window.sakeExportRecoveredRun) {
+        window.sakeExportRecoveredRun();
+      }
+      localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+      if (recoveryModal) recoveryModal.style.display = 'none';
+    });
+
+    recoveryDiscard.addEventListener('click', function () {
+      localStorage.removeItem(RUN_STATE_KEY);
+      localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+      localStorage.removeItem('currentRunName');
+      if (runNameDisplay) runNameDisplay.textContent = '';
+      if (recoveryModal) recoveryModal.style.display = 'none';
+    });
+
+    if (recoveryClose) {
+      recoveryClose.addEventListener('click', function () {
+        localStorage.removeItem(RUN_STATE_KEY);
+        localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+        localStorage.removeItem('currentRunName');
+        if (runNameDisplay) runNameDisplay.textContent = '';
+        if (recoveryModal) recoveryModal.style.display = 'none';
+      });
+    }
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && recoveryModal.style.display === 'flex') {
+        localStorage.removeItem(RUN_STATE_KEY);
+        localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+        localStorage.removeItem('currentRunName');
+        if (runNameDisplay) runNameDisplay.textContent = '';
+        recoveryModal.style.display = 'none';
+      }
+    });
+  } else {
+    // no crash: normalize flags if no saved name
+    if (!savedRunName) {
+      localStorage.removeItem(RUN_STATE_KEY);
+      localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+    }
+  }
+
+  // ---------- Guard: if core elements are missing, stop here ----------
+  if (!startBtn || !startModal || !closeStartBtn || !enterBtn || !runNameInput) {
+    return;
+  }
+
+  // ---------- Start button (open start modal or end modal) ----------
+  startBtn.addEventListener('click', function () {
+    if (startBtn.classList.contains('end-run-btn-active')) {
+      if (endModal) endModal.style.display = 'flex';
+    } else {
+      const fileInput    = document.getElementById('target-csv-upload');
+      const uploadStatus = document.getElementById('upload-status');
+      if (fileInput)    fileInput.value = '';
+      if (uploadStatus) uploadStatus.textContent = '';
+
+      if (window.setupFileUploadHandler) {
+        window.setupFileUploadHandler();
+      }
+
+      startModal.style.display = 'flex';
+      runNameInput.focus();
+    }
+  });
+
+  // ---------- Start modal close ----------
+  closeStartBtn.addEventListener('click', function () {
+    startModal.style.display = 'none';
+  });
+
+  startModal.addEventListener('click', function (e) {
+    if (e.target === startModal) {
+      startModal.style.display = 'none';
+    }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && startModal.style.display === 'flex') {
+      startModal.style.display = 'none';
+    }
+  });
+
+  // ---------- Confirm Start Run ----------
+  enterBtn.addEventListener('click', function () {
+    const runName = runNameInput.value.trim();
+    if (!runName) return;
+
+    if (runNameDisplay) {
+      runNameDisplay.textContent = '- ' + runName;
+    }
+    localStorage.setItem('currentRunName', runName);
+
+    startDataCollection();
+    if (window.startTemperatureReading) {
+      window.startTemperatureReading();
+    }
+    if (window.setRunStartTime) {
+      window.setRunStartTime();
+    }
+
+    startBtn.textContent = 'End Run';
+    startBtn.classList.add('end-run-btn-active');
+    startBtn.style.pointerEvents = 'auto';
+    startBtn.style.cursor = 'pointer';
+
+    startModal.style.display = 'none';
+    runNameInput.value = '';
+  });
+
+  runNameInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      enterBtn.click();
+    }
+  });
+
+  // ---------- End Run modal ----------
+  if (endModal && closeEndBtn && cancelEndBtn && confirmEndBtn) {
+    closeEndBtn.addEventListener('click', function () {
+      endModal.style.display = 'none';
+    });
+
+    cancelEndBtn.addEventListener('click', function () {
+      endModal.style.display = 'none';
+    });
+
+    endModal.addEventListener('click', function (e) {
+      if (e.target === endModal) {
+        endModal.style.display = 'none';
+      }
+    });
+
+    confirmEndBtn.addEventListener('click', function () {
+      const currentRunName = localStorage.getItem('currentRunName') || 'UnknownRun';
+
+      stopDataCollectionAndExport(currentRunName);
+
+      if (window.stopTemperatureReading) {
+        window.stopTemperatureReading();
+      }
+      if (window.clearRunData) {
+        window.clearRunData();
+      }
+
+      localStorage.removeItem('currentNotes');
+
+      if (runNameDisplay) {
+        runNameDisplay.textContent = '';
+      }
+
+      localStorage.removeItem('currentRunName');
+      startBtn.textContent = 'Start Run';
+      startBtn.classList.remove('end-run-btn-active');
+      endModal.style.display = 'none';
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && endModal.style.display === 'flex') {
+        endModal.style.display = 'none';
+      }
+    });
+  }
+})();
+
+
+// Notes localStorage functionality
+(function () {
+  const notesInput = document.getElementById('notes-input');
+  if (!notesInput) return;
+
+  const savedNotes = localStorage.getItem('currentNotes');
+  if (savedNotes) {
+    notesInput.value = savedNotes;
+  }
+
+  let saveTimeout;
+  notesInput.addEventListener('input', function () {
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(function () {
+      localStorage.setItem('currentNotes', notesInput.value);
+    }, 500);
+  });
+
+  notesInput.addEventListener('blur', function () {
+    clearTimeout(saveTimeout);
+    localStorage.setItem('currentNotes', notesInput.value);
+  });
+})();
+
+
+// Live temperature readings from CSV file
+(function () {
+  const CSV_FILE_PATH = 'data/temperature_readings.csv';
+
+  let currentTemperatures = {
+    temp1: '--', temp2: '--', temp3: '--',
+    temp4: '--', temp5: '--', temp6: '--'
+  };
+
+  let temperatureReadingActive = false;
+
+  function parseCSVData(csvText) {
+    const lines = csvText.trim().split('\n');
+    if (lines.length < 2) return null;
+
+    const lastLine = lines[lines.length - 1];
+    const values = lastLine.split(',');
+
+    if (values.length >= 7) {
+      return {
+        temp1: parseFloat(values[1]).toFixed(1),
+        temp2: parseFloat(values[2]).toFixed(1),
+        temp3: parseFloat(values[3]).toFixed(1),
+        temp4: parseFloat(values[4]).toFixed(1),
+        temp5: parseFloat(values[5]).toFixed(1),
+        temp6: parseFloat(values[6]).toFixed(1)
+      };
+    }
+    return null;
+  }
+
+  async function readCSVFile() {
+    if (!temperatureReadingActive) return;
+
+    try {
+      const response = await fetch(CSV_FILE_PATH);
+      if (!response.ok) {
+        console.warn('Could not read CSV file:', response.statusText);
+        return;
+      }
+
+      const csvText = await response.text();
+      const temperatures = parseCSVData(csvText);
+
+      if (temperatures) {
+        currentTemperatures = temperatures;
+        updateTemperatureDisplay();
+      }
+    } catch (error) {
+      console.warn('Error reading CSV file:', error);
+      generateFallbackTemperatures();
+    }
+  }
+
+  function generateFallbackTemperatures() {
+    if (!temperatureReadingActive) return;
+
+    for (let i = 1; i <= 6; i++) {
+      const temp = (70 + Math.random() * 10).toFixed(1);
+      currentTemperatures[`temp${i}`] = temp;
+    }
+    updateTemperatureDisplay();
+  }
+
+  function updateTemperatureDisplay() {
+    for (let i = 1; i <= 6; i++) {
+      const tempElement = document.getElementById(`temp-${i}`);
+      if (tempElement) {
+        tempElement.textContent = currentTemperatures[`temp${i}`] || '--';
+      }
+    }
+  }
+
+  function startTemperatureReading() {
+    temperatureReadingActive = true;
+    readCSVFile();
+  }
+
+  function stopTemperatureReading() {
+    temperatureReadingActive = false;
+    currentTemperatures = {
+      temp1: '--', temp2: '--', temp3: '--',
+      temp4: '--', temp5: '--', temp6: '--'
+    };
+    updateTemperatureDisplay();
+  }
+
+  function getCurrentTemperatures() {
+    return currentTemperatures;
+  }
+
+  window.getCurrentTemperatures = getCurrentTemperatures;
+  window.startTemperatureReading = startTemperatureReading;
+  window.stopTemperatureReading  = stopTemperatureReading;
+
+  const savedRunName = localStorage.getItem('currentRunName');
+  if (savedRunName) {
+    temperatureReadingActive = true;
+  }
+
+  setInterval(readCSVFile, 5000);
+})();
+
+
+// Target temperature CSV upload and deviation detection
+(function () {
+  let targetTemperatures = [];
+  let runStartTime = null;
+
+  function parseTargetCSV(csvText) {
+    const lines = csvText.trim().split('\n');
+    if (lines.length < 2) return [];
+
+    const targets = [];
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',');
+      if (values.length >= 7) {
+        targets.push({
+          time: parseFloat(values[0]),
+          temp1: parseFloat(values[1]),
+          temp2: parseFloat(values[2]),
+          temp3: parseFloat(values[3]),
+          temp4: parseFloat(values[4]),
+          temp5: parseFloat(values[5]),
+          temp6: parseFloat(values[6])
+        });
+      }
+    }
+    return targets.sort((a, b) => a.time - b.time);
+  }
+
+  function getCurrentTargets() {
+    if (!runStartTime || targetTemperatures.length === 0) return null;
+
+    const elapsedMinutes = (Date.now() - runStartTime) / (1000 * 60);
+    let currentTarget = null;
+
+    for (let i = 0; i < targetTemperatures.length; i++) {
+      if (targetTemperatures[i].time <= elapsedMinutes) {
+        currentTarget = targetTemperatures[i];
+      } else {
+        break;
+      }
+    }
+    return currentTarget;
+  }
+
+  function applyDeviationColors() {
+    const currentTargets = getCurrentTargets();
+    const currentTemps = window.getCurrentTemperatures ? window.getCurrentTemperatures() : null;
+
+    for (let i = 1; i <= 6; i++) {
+      const tempElement = document.getElementById(`temp-${i}`);
+      if (!tempElement) continue;
+
+      tempElement.classList.remove(
+        'temp-good',
+        'temp-warning',
+        'temp-danger',
+        'temp-too-hot',
+        'temp-too-cold'
+      );
+
+      if (currentTargets && currentTemps && currentTemps[`temp${i}`] !== '--') {
+        const actualTemp = parseFloat(currentTemps[`temp${i}`]);
+        const targetTemp = currentTargets[`temp${i}`];
+
+        if (!isNaN(actualTemp) && !isNaN(targetTemp)) {
+          const deviation = actualTemp - targetTemp;
+
+          if (deviation >= 5.0) {
+            tempElement.classList.add('temp-too-hot');
+          } else if (deviation <= -5.0) {
+            tempElement.classList.add('temp-too-cold');
+          } else {
+            tempElement.classList.add('temp-good');
+          }
+        }
+      }
+    }
+  }
+
+  function setRunStartTime() {
+    runStartTime = Date.now();
+  }
+
+  function clearRunData() {
+    runStartTime = null;
+    for (let i = 1; i <= 6; i++) {
+      const tempElement = document.getElementById(`temp-${i}`);
+      if (tempElement) {
+        tempElement.classList.remove(
+          'temp-good',
+          'temp-warning',
+          'temp-danger',
+          'temp-too-hot',
+          'temp-too-cold'
+        );
+      }
+    }
+  }
+
+  function setupFileUploadHandler() {
+    const fileInput    = document.getElementById('target-csv-upload');
+    const uploadStatus = document.getElementById('upload-status');
+
+    if (fileInput && !fileInput.hasAttribute('data-handler-added')) {
+      fileInput.setAttribute('data-handler-added', 'true');
+      fileInput.addEventListener('change', function (e) {
+        const file = e.target.files[0];
+        if (!file) {
+          if (uploadStatus) uploadStatus.textContent = '';
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function (event) {
+          try {
+            targetTemperatures = parseTargetCSV(event.target.result);
+            if (targetTemperatures.length > 0) {
+              if (uploadStatus) {
+                uploadStatus.textContent = `✓ Loaded ${targetTemperatures.length} target points`;
+                uploadStatus.style.color = '#28a745';
+              }
+            } else {
+              if (uploadStatus) {
+                uploadStatus.textContent = '⚠ No valid data found';
+                uploadStatus.style.color = '#ffc107';
+              }
+            }
+          } catch (error) {
+            if (uploadStatus) {
+              uploadStatus.textContent = '✗ Error parsing CSV';
+              uploadStatus.style.color = '#dc3545';
+            }
+          }
+        };
+        reader.readAsText(file);
+      });
+    }
+  }
+
+  window.setRunStartTime       = setRunStartTime;
+  window.clearRunData          = clearRunData;
+  window.applyDeviationColors  = applyDeviationColors;
+  window.setupFileUploadHandler = setupFileUploadHandler;
+
+  setInterval(applyDeviationColors, 5000);
+})();
+
+
+// Easter egg: Pong game when clicking the logo (with more random CPU + forgiving collisions)
+(function () {
+  const logo       = document.getElementById('sake-logo-egg');
+  const pongModal  = document.getElementById('pong-modal');
+  const pongClose  = document.getElementById('pong-close-btn');
+  const canvas     = document.getElementById('pong-canvas');
+
+  if (!logo || !pongModal || !canvas) return;
+
+  const ctx = canvas.getContext('2d');
+
+  let animationId = null;
+  let ball, paddleLeft, paddleRight;
+  let upPressed = false;
+  let downPressed = false;
+
+  const HITBOX_PADDING = 3;
+  const PLAYER_SPEED   = 4;
+  const AI_MAX_SPEED   = 3;
+  const AI_NOISE_RANGE = 25;
+
+  function resetGame() {
+    ball = {
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      vx: 3 * (Math.random() > 0.5 ? 1 : -1),
+      vy: (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1),
+      r: 6
+    };
+    paddleLeft = {
+      x: 10,
+      y: canvas.height / 2 - 25,
+      w: 8,
+      h: 50
+    };
+    paddleRight = {
+      x: canvas.width - 18,
+      y: canvas.height / 2 - 25,
+      w: 8,
+      h: 50
+    };
+  }
+
+  function draw() {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.strokeStyle = '#444';
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.moveTo(canvas.width / 2, 0);
+    ctx.lineTo(canvas.width / 2, canvas.height);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(paddleLeft.x,  paddleLeft.y,  paddleLeft.w,  paddleLeft.h);
+    ctx.fillRect(paddleRight.x, paddleRight.y, paddleRight.w, paddleRight.h);
+
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function update() {
+    // player paddle
+    if (upPressed)   paddleLeft.y -= PLAYER_SPEED;
+    if (downPressed) paddleLeft.y += PLAYER_SPEED;
+    paddleLeft.y = Math.max(0, Math.min(canvas.height - paddleLeft.h, paddleLeft.y));
+
+    // CPU paddle
+    let aiTargetY;
+    if (ball.x > canvas.width * 0.4) {
+      const noise = (Math.random() - 0.5) * AI_NOISE_RANGE;
+      aiTargetY = ball.y + noise - paddleRight.h / 2;
+    } else {
+      aiTargetY = canvas.height / 2 - paddleRight.h / 2;
+    }
+
+    if (aiTargetY > paddleRight.y) {
+      paddleRight.y = Math.min(paddleRight.y + AI_MAX_SPEED, aiTargetY);
+    } else {
+      paddleRight.y = Math.max(paddleRight.y - AI_MAX_SPEED, aiTargetY);
+    }
+    paddleRight.y = Math.max(0, Math.min(canvas.height - paddleRight.h, paddleRight.y));
+
+    // ball motion
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+
+    // top/bottom bounce
+    if (ball.y - ball.r < 0) {
+      ball.y = ball.r;
+      ball.vy *= -1;
+    } else if (ball.y + ball.r > canvas.height) {
+      ball.y = canvas.height - ball.r;
+      ball.vy *= -1;
+    }
+
+    // left paddle collision (forgiving hitbox)
+    if (
+      ball.x - ball.r <= paddleLeft.x + paddleLeft.w + HITBOX_PADDING &&
+      ball.x - ball.r >= paddleLeft.x - HITBOX_PADDING &&
+      ball.y >= paddleLeft.y - HITBOX_PADDING &&
+      ball.y <= paddleLeft.y + paddleLeft.h + HITBOX_PADDING
+    ) {
+      ball.x = paddleLeft.x + paddleLeft.w + ball.r + HITBOX_PADDING;
+      ball.vx = Math.abs(ball.vx);
+
+      const offset = (ball.y - (paddleLeft.y + paddleLeft.h / 2)) / (paddleLeft.h / 2);
+      ball.vy += offset * 1.5;
+    }
+
+    // right paddle collision (CPU)
+    if (
+      ball.x + ball.r >= paddleRight.x - HITBOX_PADDING &&
+      ball.x + ball.r <= paddleRight.x + paddleRight.w + HITBOX_PADDING &&
+      ball.y >= paddleRight.y - HITBOX_PADDING &&
+      ball.y <= paddleRight.y + paddleRight.h + HITBOX_PADDING
+    ) {
+      ball.x = paddleRight.x - ball.r - HITBOX_PADDING;
+      ball.vx = -Math.abs(ball.vx);
+
+      const offset = (ball.y - (paddleRight.y + paddleRight.h / 2)) / (paddleRight.h / 2);
+      ball.vy += offset * 1.5;
+    }
+
+    // reset if out of bounds
+    if (ball.x < -30 || ball.x > canvas.width + 30) {
+      resetGame();
+    }
+  }
+
+  function loop() {
+    update();
+    draw();
+    animationId = requestAnimationFrame(loop);
+  }
+
+  function keyDownHandler(e) {
+    if (e.key === 'ArrowUp') {
+      upPressed = true;
+    } else if (e.key === 'ArrowDown') {
+      downPressed = true;
+    } else if (e.key === 'Escape') {
+      closePong();
+    }
+  }
+
+  function keyUpHandler(e) {
+    if (e.key === 'ArrowUp') {
+      upPressed = false;
+    } else if (e.key === 'ArrowDown') {
+      downPressed = false;
+    }
+  }
+
+  function openPong() {
+    resetGame();
+    pongModal.style.display = 'flex';
+    loop();
+    document.addEventListener('keydown', keyDownHandler);
+    document.addEventListener('keyup',   keyUpHandler);
+  }
+
+  function closePong() {
+    pongModal.style.display = 'none';
+    if (animationId) cancelAnimationFrame(animationId);
+    animationId = null;
+    document.removeEventListener('keydown', keyDownHandler);
+    document.removeEventListener('keyup',   keyUpHandler);
+  }
+
+  logo.addEventListener('click', openPong);
+
+  if (pongClose) {
+    pongClose.addEventListener('click', closePong);
+  }
+  pongModal.addEventListener('click', function (e) {
+    if (e.target === pongModal) {
+      closePong();
+    }
+  });
+})();
+</script>
+
 
 	</div> <!-- end page-wrapper -->
 </body>
