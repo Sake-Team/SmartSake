@@ -928,22 +928,25 @@ header {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
-/* row for dry or wet bulb readout */
+/* each line (dry, wet) */
 .temp__row {
   display: flex;
   align-items: baseline;
   gap: 4px;
-  font-size: 0.9em;
+  font-size: 1em;  /* same as parent — NO shrinking */
 }
 
+/* small gray text like (Dry), (Wet Bulb) */
 .temp__note {
   color: #888;
-  font-size: 0.75em;
+  font-size: 0.75em; 
 }
+
+/* Wet bulb number — SAME size as dry bulb */
 .temp__num--wb {
-  font-weight: bold;
-  font-size: 1.05em;
+  font-weight: 600;  /* optional: remove if you don't want bold */
+  font-size: 1em;    /* exactly same size */
 }
