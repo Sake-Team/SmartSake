@@ -63,7 +63,11 @@
 							<canvas id="humidity-chart" class="metric-chart"></canvas>
 						</div>
 
-						<div class="long long--top-left">Fans on/off over time</div>
+						<div class="long long--top-left">
+							<span>Fans on/off over time</span>
+							<canvas id="fans-chart"></canvas>
+						</div>
+
 					</div>
 
 				</section>
@@ -817,12 +821,18 @@
 			})();
 			*/
 
-			// Simulated live temperature readings (20–50 °C) + humidity
+			// Simulated live temperature readings (20–50 °C) + humidity + fans
 			(function () {
-				// Store the latest temperature readings
+				// Latest temperature readings
 				let currentTemperatures = {
 					temp1: '--', temp2: '--', temp3: '--',
 					temp4: '--', temp5: '--', temp6: '--'
+				};
+
+				// Latest fan states (1 = on, 0 = off)
+				let currentFans = {
+					fan1: 0, fan2: 0, fan3: 0,
+					fan4: 0, fan5: 0, fan6: 0
 				};
 
 				let currentHumidity = null;
@@ -838,13 +848,16 @@
 					}
 				}
 
-				// Generate random temperatures between 20–50 °C and random humidity
+				// Generate random sample: temps 20–50 °C, humidity 40–80%, fans on if temp > 40 °C
 				function generateRandomSample() {
 					if (!temperatureReadingActive) return;
 
 					for (let i = 1; i <= 6; i++) {
 						const tempC = 20 + Math.random() * 30; // 20–50 °C
 						currentTemperatures[`temp${i}`] = tempC.toFixed(1);
+
+						// Fan ON when zone temp > 40 °C
+						currentFans[`fan${i}`] = tempC > 40 ? 1 : 0;
 					}
 
 					currentHumidity = (40 + Math.random() * 40).toFixed(1); // 40–80 % RH
@@ -856,7 +869,8 @@
 						window.pushSensorSample({
 							time: new Date(),
 							temps: { ...currentTemperatures },
-							humidity: currentHumidity
+							humidity: currentHumidity,
+							fans: { ...currentFans }
 						});
 					}
 				}
@@ -884,6 +898,12 @@
 						temp4: '--', temp5: '--', temp6: '--'
 					};
 					currentHumidity = null;
+
+					currentFans = {
+						fan1: 0, fan2: 0, fan3: 0,
+						fan4: 0, fan5: 0, fan6: 0
+					};
+
 					updateTemperatureDisplay();
 				}
 
@@ -891,30 +911,113 @@
 					return currentTemperatures;
 				}
 
-				// Expose globally for the rest of your code
+				// Expose globally for other code
 				window.getCurrentTemperatures = getCurrentTemperatures;
 				window.startTemperatureReading = startTemperatureReading;
 				window.stopTemperatureReading = stopTemperatureReading;
 
-				// 🔸 Always start simulated readings on page load
-				startTemperatureReading();
+				// If you ever want it to auto-start on page load, you can call:
+				// startTemperatureReading();
+			})();
+
+			// Store the latest temperature readings
+			let currentTemperatures = {
+				temp1: '--', temp2: '--', temp3: '--',
+				temp4: '--', temp5: '--', temp6: '--'
+			};
+
+			let currentHumidity = null;
+			let temperatureReadingActive = false;
+			let simIntervalId = null;
+
+			function updateTemperatureDisplay() {
+				for (let i = 1; i <= 6; i++) {
+					const tempElement = document.getElementById(`temp-${i}`);
+					if (tempElement) {
+						tempElement.textContent = currentTemperatures[`temp${i}`] || '--';
+					}
+				}
+			}
+
+			// Generate random temperatures between 20–50 °C and random humidity
+			function generateRandomSample() {
+				if (!temperatureReadingActive) return;
+
+				for (let i = 1; i <= 6; i++) {
+					const tempC = 20 + Math.random() * 30; // 20–50 °C
+					currentTemperatures[`temp${i}`] = tempC.toFixed(1);
+				}
+
+				currentHumidity = (40 + Math.random() * 40).toFixed(1); // 40–80 % RH
+
+				updateTemperatureDisplay();
+
+				// Push to charts if chart logic is present
+				if (window.pushSensorSample) {
+					window.pushSensorSample({
+						time: new Date(),
+						temps: { ...currentTemperatures },
+						humidity: currentHumidity
+					});
+				}
+			}
+
+			function startTemperatureReading() {
+				if (temperatureReadingActive) return;
+				temperatureReadingActive = true;
+
+				// Immediate first sample
+				generateRandomSample();
+
+				// Then update every 5 seconds
+				simIntervalId = setInterval(generateRandomSample, 5000);
+			}
+
+			function stopTemperatureReading() {
+				temperatureReadingActive = false;
+				if (simIntervalId) {
+					clearInterval(simIntervalId);
+					simIntervalId = null;
+				}
+
+				currentTemperatures = {
+					temp1: '--', temp2: '--', temp3: '--',
+					temp4: '--', temp5: '--', temp6: '--'
+				};
+				currentHumidity = null;
+				updateTemperatureDisplay();
+			}
+
+			function getCurrentTemperatures() {
+				return currentTemperatures;
+			}
+
+			// Expose globally for the rest of your code
+			window.getCurrentTemperatures = getCurrentTemperatures;
+			window.startTemperatureReading = startTemperatureReading;
+			window.stopTemperatureReading = stopTemperatureReading;
+
+			// 🔸 Always start simulated readings on page load
+			startTemperatureReading();
 
 				// If you want it to auto-run when a run name exists, you can uncomment:
 				// const savedRunName = localStorage.getItem('currentRunName');
 				// if (savedRunName) {
 				//     startTemperatureReading();
 				// }
-			})();
+			}) ();
 
-			// Live-updating charts for temperature and humidity
+			// Live-updating charts for temperature, humidity, and fans
 			(function () {
 				const tempCanvas = document.getElementById('temp-chart');
 				const humCanvas = document.getElementById('humidity-chart');
+				const fansCanvas = document.getElementById('fans-chart');
 
-				if (!tempCanvas || !humCanvas || !window.Chart) return;
+				if (!tempCanvas || !humCanvas || !fansCanvas || !window.Chart) return;
 
 				const tempCtx = tempCanvas.getContext('2d');
 				const humCtx = humCanvas.getContext('2d');
+				const fansCtx = fansCanvas.getContext('2d');
 
 				const maxPoints = 60; // keep last 60 samples (~5 min if 5s interval)
 				const labels = [];
@@ -927,6 +1030,15 @@
 					temp4: [],
 					temp5: [],
 					temp6: []
+				};
+
+				const fansSeries = {
+					fan1: [],
+					fan2: [],
+					fan3: [],
+					fan4: [],
+					fan5: [],
+					fan6: []
 				};
 
 				const tempChart = new Chart(tempCtx, {
@@ -951,7 +1063,7 @@
 								ticks: { autoSkip: true, maxTicksLimit: 6 }
 							},
 							y: {
-								title: { display: true, text: 'Temperature (°F)' }
+								title: { display: true, text: 'Temperature (°C)' } // label says °C now
 							}
 						},
 						plugins: {
@@ -986,30 +1098,84 @@
 					}
 				});
 
-				// This gets called from the CSV reader IIFE
+				const fansChart = new Chart(fansCtx, {
+					type: 'line',
+					data: {
+						labels,
+						datasets: [
+							{ label: 'Fan 1', data: fansSeries.fan1, borderWidth: 1, pointRadius: 0, stepped: true },
+							{ label: 'Fan 2', data: fansSeries.fan2, borderWidth: 1, pointRadius: 0, stepped: true },
+							{ label: 'Fan 3', data: fansSeries.fan3, borderWidth: 1, pointRadius: 0, stepped: true },
+							{ label: 'Fan 4', data: fansSeries.fan4, borderWidth: 1, pointRadius: 0, stepped: true },
+							{ label: 'Fan 5', data: fansSeries.fan5, borderWidth: 1, pointRadius: 0, stepped: true },
+							{ label: 'Fan 6', data: fansSeries.fan6, borderWidth: 1, pointRadius: 0, stepped: true }
+						]
+					},
+					options: {
+						animation: false,
+						responsive: true,
+						maintainAspectRatio: false,
+						scales: {
+							x: {
+								ticks: { autoSkip: true, maxTicksLimit: 6 }
+							},
+							y: {
+								min: -0.1,
+								max: 1.1,
+								ticks: {
+									stepSize: 1,
+									callback: v => (v === 0 ? 'Off' : v === 1 ? 'On' : '')
+								},
+								title: { display: true, text: 'Fan state' }
+							}
+						},
+						plugins: {
+							legend: { position: 'bottom' }
+						}
+					}
+				});
+
+				// This gets called from the simulator or CSV reader
 				window.pushSensorSample = function (sample) {
 					const t = sample.time instanceof Date ? sample.time : new Date(sample.time);
 					const label = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
 					labels.push(label);
+
+					// temps
 					for (let i = 1; i <= 6; i++) {
 						const key = `temp${i}`;
 						const val = parseFloat(sample.temps[key]);
 						tempSeries[key].push(isNaN(val) ? null : val);
 					}
 
+					// humidity
 					const humVal = parseFloat(sample.humidity);
 					humidityData.push(isNaN(humVal) ? null : humVal);
 
-					// keep array lengths bounded
+					// fans (optional, in case older code calls pushSensorSample without fans)
+					if (sample.fans) {
+						for (let i = 1; i <= 6; i++) {
+							const key = `fan${i}`;
+							const v = parseFloat(sample.fans[key]);
+							fansSeries[key].push(isNaN(v) ? null : v);
+						}
+					} else {
+						// pad with nulls so arrays stay aligned
+						Object.values(fansSeries).forEach(arr => arr.push(null));
+					}
+
+					// keep arrays bounded
 					if (labels.length > maxPoints) {
 						labels.shift();
 						Object.values(tempSeries).forEach(arr => arr.shift());
 						humidityData.shift();
+						Object.values(fansSeries).forEach(arr => arr.shift());
 					}
 
 					tempChart.update('none');
 					humChart.update('none');
+					fansChart.update('none');
 				};
 
 				// ---------- Full-page chart modal logic ----------
@@ -1036,7 +1202,7 @@
 						modalChart = new Chart(ctx, {
 							type: 'line',
 							data: {
-								labels: labels,
+								labels,
 								datasets: tempChart.data.datasets
 							},
 							options: {
@@ -1048,13 +1214,12 @@
 										ticks: { autoSkip: true, maxTicksLimit: 10 }
 									},
 									y: {
-										title: { display: true, text: 'Temperature (°F)' }
+										title: { display: true, text: 'Temperature (°C)' }
 									}
 								},
 								plugins: {
 									legend: {
-										position: 'bottom',
-										// default behavior: click legend to show/hide series
+										position: 'bottom'
 									}
 								}
 							}
@@ -1064,7 +1229,7 @@
 						modalChart = new Chart(ctx, {
 							type: 'line',
 							data: {
-								labels: labels,
+								labels,
 								datasets: humChart.data.datasets
 							},
 							options: {
@@ -1080,9 +1245,38 @@
 									}
 								},
 								plugins: {
-									legend: {
-										position: 'bottom'
+									legend: { position: 'bottom' }
+								}
+							}
+						});
+					} else if (type === 'fans') {
+						chartModalTitle.textContent = 'Fans on/off over time';
+						modalChart = new Chart(ctx, {
+							type: 'line',
+							data: {
+								labels,
+								datasets: fansChart.data.datasets
+							},
+							options: {
+								animation: false,
+								responsive: true,
+								maintainAspectRatio: false,
+								scales: {
+									x: {
+										ticks: { autoSkip: true, maxTicksLimit: 10 }
+									},
+									y: {
+										min: -0.1,
+										max: 1.1,
+										ticks: {
+											stepSize: 1,
+											callback: v => (v === 0 ? 'Off' : v === 1 ? 'On' : '')
+										},
+										title: { display: true, text: 'Fan state' }
 									}
+								},
+								plugins: {
+									legend: { position: 'bottom' }
 								}
 							}
 						});
@@ -1110,6 +1304,10 @@
 					openChartModal('humidity');
 				});
 
+				fansCanvas.addEventListener('click', function () {
+					openChartModal('fans');
+				});
+
 				if (chartModalClose) {
 					chartModalClose.addEventListener('click', closeChartModal);
 				}
@@ -1127,10 +1325,7 @@
 						closeChartModal();
 					}
 				});
-
-
 			})();
-
 
 			// Target temperature CSV upload and deviation detection
 			(function () {
