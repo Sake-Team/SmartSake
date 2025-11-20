@@ -200,6 +200,8 @@
 
 		// 🔸 FAILSAFE AUTOSAVE SYSTEM ---------------------------
 		const RUN_STATE_KEY = 'sakeRunState';
+		const RUN_IN_PROGRESS_KEY = 'sakeRunInProgress';
+
 
 		function saveRunState(){
 			try{
@@ -325,6 +327,7 @@
 			// Clear data
 			collectedData = [];
 			localStorage.removeItem(RUN_STATE_KEY);  // 🔸 clear autosave
+			localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');  // 🔸 mark run as finished
 
 			// Reset notes
 			const notesInput = document.getElementById('notes-input');
@@ -332,6 +335,7 @@
 				notesInput.value='';
 				localStorage.removeItem('currentNotes');
 			}
+
 		}
 
 		// ---------------- Rest of your modal code unchanged ------------------
@@ -552,6 +556,9 @@
 		function startDataCollection(){
 			collectedData = [];
 			runStartTime = new Date();
+			
+			// mark that a run is active in this session
+			localStorage.setItem(RUN_IN_PROGRESS_KEY, 'true');
 			
 			// Collect initial data point
 			collectedData.push(generateSensorData());
