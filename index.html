@@ -1,215 +1,213 @@
 
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <title>Sake Table - Dashboard</title>
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <link rel="stylesheet" href="styles.css">
-  </head>
+	<head>
+		<meta charset="utf-8">
+		<title>Sake Table - Dashboard</title>
+		<meta name="viewport" content="width=device-width,initial-scale=1">
+		<link rel="stylesheet" href="styles.css">
+	</head>
 
+	<body>
+		<div class="page-wrapper">
 
-<body>
-	<div class="page-wrapper">
+			<header class="header">
+				<div class="header-inner">
+					<img
+						src="images/VoidSakeLogo.jpg"
+						alt="Smart Sake logo"
+						id="sake-logo-egg"
+						class="sake-logo-egg" />
 
-<header class="header">
-  <div class="header-inner">
-    <img
-      src="images/VoidSakeLogo.jpg"
-      alt="Smart Sake logo"
-      id="sake-logo-egg"
-      class="sake-logo-egg"
-    />
+					<h1 class="header-title">
+						Home <span id="run-name-display" class="run-name-header"></span>
+					</h1>
+				</div>
 
-    <h1 class="header-title">
-      Home <span id="run-name-display" class="run-name-header"></span>
-    </h1>
-  </div>
+				<div class="header-meta">
+					<div class="header-start-btn-wrap">
+					</div>
+				</div>
 
-    <div class="header-meta">
-    <div class="header-start-btn-wrap">
-    </div>
-  </div>
+			</header>
 
-</header>
+			<main>
+				<div class="stage">
+					<section class="layout">
+						<section class="zones">
+							<a class="zone" href="zone1.html" role="button"
+								aria-label="Zone 1">Zone 1</a>
+							<a class="zone" href="zone2.html" role="button"
+								aria-label="Zone 2">Zone 2</a>
+							<a class="zone" href="zone3.html" role="button"
+								aria-label="Zone 3">Zone 3</a>
+							<a class="zone" href="zone4.html" role="button"
+								aria-label="Zone 4">Zone 4</a>
+							<a class="zone" href="zone5.html" role="button"
+								aria-label="Zone 5">Zone 5</a>
+							<a class="zone" href="zone6.html" role="button"
+								aria-label="Zone 6">Zone 6</a>
+						</section>
 
-    <main>
-      <div class="stage">
-        <section class="layout">
-          <section class="zones">
-            <a class="zone" href="zone1.html" role="button"
-              aria-label="Zone 1">Zone 1</a>
-            <a class="zone" href="zone2.html" role="button"
-              aria-label="Zone 2">Zone 2</a>
-            <a class="zone" href="zone3.html" role="button"
-              aria-label="Zone 3">Zone 3</a>
-            <a class="zone" href="zone4.html" role="button"
-              aria-label="Zone 4">Zone 4</a>
-            <a class="zone" href="zone5.html" role="button"
-              aria-label="Zone 5">Zone 5</a>
-            <a class="zone" href="zone6.html" role="button"
-              aria-label="Zone 6">Zone 6</a>
-          </section>
+						<div class="notes-wrap">
+							<div class="notes__meta" id="notes-meta" aria-live="polite">Date,
+								Time</div>
+							<div class="notes" aria-label="Notes">
+								<label class="sr-only" for="notes-input">Notes</label>
+								<textarea id="notes-input" class="notes__input"
+									placeholder="Enter notes..."
+									aria-label="Notes input"></textarea>
+							</div>
+						</div>
 
-          <div class="notes-wrap">
-            <div class="notes__meta" id="notes-meta" aria-live="polite">Date,
-              Time</div>
-            <div class="notes" aria-label="Notes">
-              <label class="sr-only" for="notes-input">Notes</label>
-              <textarea id="notes-input" class="notes__input"
-                placeholder="Enter notes..."
-                aria-label="Notes input"></textarea>
-            </div>
-          </div>
+						<div class="left">
+							<div class="long long--top-left">
+								Temperature over time
+								<button type="button" class="temp-overlay-btn"
+									id="start-run-btn">Start Run</button>
+							</div>
+							<div class="long long--top-left">Humidity over time</div>
+							<div class="long long--top-left">Fans on/off over time</div>
+						</div>
+					</section>
 
-          <div class="left">
-            <div class="long long--top-left">
-              Temperature over time
-              <button type="button" class="temp-overlay-btn"
-                id="start-run-btn">Start Run</button>
-            </div>
-            <div class="long long--top-left">Humidity over time</div>
-            <div class="long long--top-left">Fans on/off over time</div>
-          </div>
-        </section>
+					<section class="temp-row" aria-label="Temperature readings">
+						<div class="temp">
+							<span class="temp__label">Temp 1</span>
+							<span class="temp__value"><span class="temp__num"
+									id="temp-1">--</span><span class="temp__unit">°F</span></span>
+						</div>
+						<div class="temp">
+							<span class="temp__label">Temp 2</span>
+							<span class="temp__value"><span class="temp__num"
+									id="temp-2">--</span><span class="temp__unit">°F</span></span>
+						</div>
+						<div class="temp">
+							<span class="temp__label">Temp 3</span>
+							<span class="temp__value"><span class="temp__num"
+									id="temp-3">--</span><span class="temp__unit">°F</span></span>
+						</div>
+						<div class="temp">
+							<span class="temp__label">Temp 4</span>
+							<span class="temp__value"><span class="temp__num"
+									id="temp-4">--</span><span class="temp__unit">°F</span></span>
+						</div>
+						<div class="temp">
+							<span class="temp__label">Temp 5</span>
+							<span class="temp__value"><span class="temp__num"
+									id="temp-5">--</span><span class="temp__unit">°F</span></span>
+						</div>
+						<div class="temp">
+							<span class="temp__label">Temp 6</span>
+							<span class="temp__value"><span class="temp__num"
+									id="temp-6">--</span><span class="temp__unit">°F</span></span>
+						</div>
+					</section>
+				</div>
+			</main>
 
-        <section class="temp-row" aria-label="Temperature readings">
-          <div class="temp">
-            <span class="temp__label">Temp 1</span>
-            <span class="temp__value"><span class="temp__num"
-                id="temp-1">--</span><span class="temp__unit">°F</span></span>
-          </div>
-          <div class="temp">
-            <span class="temp__label">Temp 2</span>
-            <span class="temp__value"><span class="temp__num"
-                id="temp-2">--</span><span class="temp__unit">°F</span></span>
-          </div>
-          <div class="temp">
-            <span class="temp__label">Temp 3</span>
-            <span class="temp__value"><span class="temp__num"
-                id="temp-3">--</span><span class="temp__unit">°F</span></span>
-          </div>
-          <div class="temp">
-            <span class="temp__label">Temp 4</span>
-            <span class="temp__value"><span class="temp__num"
-                id="temp-4">--</span><span class="temp__unit">°F</span></span>
-          </div>
-          <div class="temp">
-            <span class="temp__label">Temp 5</span>
-            <span class="temp__value"><span class="temp__num"
-                id="temp-5">--</span><span class="temp__unit">°F</span></span>
-          </div>
-          <div class="temp">
-            <span class="temp__label">Temp 6</span>
-            <span class="temp__value"><span class="temp__num"
-                id="temp-6">--</span><span class="temp__unit">°F</span></span>
-          </div>
-        </section>
-      </div>
-    </main>
+			<!-- Modal popup for Start run -->
+			<div id="start-run-modal" class="modal-overlay">
+				<div class="modal-popup">
+					<div class="modal-header">
+						<h3 class="modal-title">Start New Run</h3>
+						<button type="button" class="modal-close" id="close-modal"
+							aria-label="Close modal">&times;</button>
+					</div>
+					<div class="modal-content">
+						<p>This will begin collecting data from all temperature sensors and
+							start the monitoring process.</p>
 
-    <!-- Modal popup for Start run -->
-    <div id="start-run-modal" class="modal-overlay">
-      <div class="modal-popup">
-        <div class="modal-header">
-          <h3 class="modal-title">Start New Run</h3>
-          <button type="button" class="modal-close" id="close-modal"
-            aria-label="Close modal">&times;</button>
-        </div>
-        <div class="modal-content">
-          <p>This will begin collecting data from all temperature sensors and
-            start the monitoring process.</p>
+						<div class="modal-input-section">
+							<label for="run-name">Run Name:</label>
+							<input type="text" id="run-name" name="run-name"
+								placeholder="Enter run name..." />
+						</div>
 
-          <div class="modal-input-section">
-            <label for="run-name">Run Name:</label>
-            <input type="text" id="run-name" name="run-name"
-              placeholder="Enter run name..." />
-          </div>
+						<div class="modal-input-section">
+							<label for="target-csv-upload">Select Koji Strain:</label>
+							<input type="file" id="target-csv-upload" accept=".csv"
+								class="upload-input">
+							<div id="upload-status" class="upload-status"></div>
+							<small class="help-text">Upload a CSV with target temperatures over
+								time</small>
+						</div>
 
-          <div class="modal-input-section">
-            <label for="target-csv-upload">Select Koji Strain:</label>
-            <input type="file" id="target-csv-upload" accept=".csv"
-              class="upload-input">
-            <div id="upload-status" class="upload-status"></div>
-            <small class="help-text">Upload a CSV with target temperatures over
-              time</small>
-          </div>
+						<div class="modal-input-section">
+							<button type="button" class="modal-enter-btn"
+								id="enter-run-btn">Start</button>
+						</div>
+					</div>
+				</div>
+			</div>
 
-          <div class="modal-input-section">
-            <button type="button" class="modal-enter-btn"
-              id="enter-run-btn">Start</button>
-          </div>
-        </div>
-      </div>
-    </div>
+			<!-- Modal popup for End run confirmation -->
+			<div id="end-run-modal" class="modal-overlay">
+				<div class="modal-popup">
+					<div class="modal-header">
+						<h3 class="modal-title">End Current Run</h3>
+						<button type="button" class="modal-close" id="close-end-modal"
+							aria-label="Close modal">&times;</button>
+					</div>
+					<div class="modal-content">
+						<p>Are you sure you would like to end the run?</p>
+						<p>This will stop data collection and finalize the current monitoring
+							session.</p>
 
-    <!-- Modal popup for End run confirmation -->
-    <div id="end-run-modal" class="modal-overlay">
-      <div class="modal-popup">
-        <div class="modal-header">
-          <h3 class="modal-title">End Current Run</h3>
-          <button type="button" class="modal-close" id="close-end-modal"
-            aria-label="Close modal">&times;</button>
-        </div>
-        <div class="modal-content">
-          <p>Are you sure you would like to end the run?</p>
-          <p>This will stop data collection and finalize the current monitoring
-            session.</p>
+						<div class="modal-button-section">
+							<button type="button" class="modal-cancel-btn"
+								id="cancel-end-btn">Cancel</button>
+							<button type="button" class="modal-confirm-btn"
+								id="confirm-end-btn">End Run</button>
+						</div>
+					</div>
+				</div>
+			</div>
 
-          <div class="modal-button-section">
-            <button type="button" class="modal-cancel-btn"
-              id="cancel-end-btn">Cancel</button>
-            <button type="button" class="modal-confirm-btn"
-              id="confirm-end-btn">End Run</button>
-          </div>
-        </div>
-      </div>
-    </div>
+			<!-- Recovery popup for crashed / unfinished runs -->
+			<div id="recovery-modal" class="modal-overlay">
+				<div class="modal-popup">
+					<div class="modal-header">
+						<h3 class="modal-title">Recovered Run Detected</h3>
+						<button type="button" class="modal-close" id="recovery-close-btn"
+							aria-label="Close recovery popup">&times;</button>
+					</div>
+					<div class="modal-content">
+						<p>We detected autosaved data from a previous session that didn't end
+							cleanly.</p>
+						<p>You can export the recovered run as a CSV or discard it and start
+							fresh.</p>
 
-	    <!-- Recovery popup for crashed / unfinished runs -->
-    <div id="recovery-modal" class="modal-overlay">
-      <div class="modal-popup">
-        <div class="modal-header">
-          <h3 class="modal-title">Recovered Run Detected</h3>
-          <button type="button" class="modal-close" id="recovery-close-btn"
-            aria-label="Close recovery popup">&times;</button>
-        </div>
-        <div class="modal-content">
-          <p>We detected autosaved data from a previous session that didn't end cleanly.</p>
-          <p>You can export the recovered run as a CSV or discard it and start fresh.</p>
+						<div class="modal-button-section">
+							<button type="button" class="modal-cancel-btn"
+								id="recovery-discard-btn">Discard</button>
+							<button type="button" class="modal-confirm-btn"
+								id="recovery-export-btn">Export recovered CSV</button>
+						</div>
+					</div>
+				</div>
+			</div>
 
-          <div class="modal-button-section">
-            <button type="button" class="modal-cancel-btn"
-              id="recovery-discard-btn">Discard</button>
-            <button type="button" class="modal-confirm-btn"
-              id="recovery-export-btn">Export recovered CSV</button>
-          </div>
-        </div>
-      </div>
-    </div>
+			<!-- Easter egg Pong modal -->
+			<div id="pong-modal" class="modal-overlay">
+				<div class="modal-popup pong-modal-popup">
+					<div class="modal-header">
+						<h3 class="modal-title">Pong Mode</h3>
+						<button type="button" class="modal-close" id="pong-close-btn"
+							aria-label="Close Pong">&times;</button>
+					</div>
+					<div class="modal-content">
+						<canvas id="pong-canvas" width="500" height="300"
+							aria-label="Pong game"></canvas>
+						<p class="pong-help-text">
+							Use ↑ and ↓ arrows to move your paddle. Press ESC to exit.
+						</p>
+					</div>
+				</div>
+			</div>
 
-
-	    <!-- Easter egg Pong modal -->
-    <div id="pong-modal" class="modal-overlay">
-      <div class="modal-popup pong-modal-popup">
-        <div class="modal-header">
-          <h3 class="modal-title">Pong Mode</h3>
-          <button type="button" class="modal-close" id="pong-close-btn"
-            aria-label="Close Pong">&times;</button>
-        </div>
-        <div class="modal-content">
-          <canvas id="pong-canvas" width="500" height="300"
-            aria-label="Pong game"></canvas>
-          <p class="pong-help-text">
-            Use ↑ and ↓ arrows to move your paddle. Press ESC to exit.
-          </p>
-        </div>
-      </div>
-    </div>
-
-
-    <!-- Live Date/Time script: updates the .notes__meta element each minute -->
-    <script>
+			<!-- Live Date/Time script: updates the .notes__meta element each minute -->
+			<script>
 // Live Date/Time script: updates notes meta and header datetime each minute
 (function(){
   const notesMeta   = document.getElementById('notes-meta');
@@ -894,57 +892,6 @@
     }
 })();
 
-		const runNameDisplay = document.getElementById('run-name-display');
-		const startBtn = document.getElementById('start-run-btn');
-
-		const savedRunName = localStorage.getItem('currentRunName');
-		const rawState = localStorage.getItem('sakeRunState'); // same key used in failsafe
-
-		let runActive = false;
-
-		if(rawState){
-			try {
-				const state = JSON.parse(rawState);
-				// Treat as active only if we have at least one data row
-				if(state && Array.isArray(state.collectedData) && state.collectedData.length > 0){
-					runActive = true;
-				}
-			} catch(e){
-				console.warn('Invalid autosave state detected, clearing:', e);
-				localStorage.removeItem('sakeRunState');
-			}
-		}
-
-		if(savedRunName && runActive){
-			// Active run recovered → show name + END RUN
-			if(runNameDisplay){
-				runNameDisplay.textContent = '- ' + savedRunName;
-			}
-			if(startBtn){
-				startBtn.textContent = 'End Run';
-				startBtn.classList.add('end-run-btn-active');
-				startBtn.style.pointerEvents = 'auto';
-				startBtn.style.cursor = 'pointer';
-			}
-		} else {
-			// No valid active run → normalize everything to START RUN state
-			if(runNameDisplay){
-				runNameDisplay.textContent = '';
-			}
-			if(startBtn){
-				startBtn.textContent = 'Start Run';
-				startBtn.classList.remove('end-run-btn-active');
-				startBtn.style.pointerEvents = 'auto';
-				startBtn.style.cursor = 'pointer';
-			}
-
-			// If there's no run name, clear any stray autosave so it can't “interfere”
-			if(!savedRunName){
-				localStorage.removeItem('sakeRunState');
-			}
-		}
-	})();
-
 	// Notes localStorage functionality
 	(function(){
 		const notesInput = document.getElementById('notes-input');
@@ -1401,6 +1348,6 @@
 
 	</script>
 
-	</div> <!-- end page-wrapper -->
-</body>
+		</div> <!-- end page-wrapper -->
+	</body>
 </html>
