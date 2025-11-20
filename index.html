@@ -24,9 +24,9 @@
 				<div class="header-start-btn-wrap">
 					<button id="start-run-btn" class="header-start-btn">Start Run</button>
 				</div>
-				<div id="header-datetime" class="header-datetime">Date, Time</div>
 			</div>
 		</header>
+
 
 
 		<main>
@@ -307,7 +307,8 @@
 			// Live Date/Time script: updates notes meta and header datetime each minute
 			(function () {
 				const notesMeta = document.getElementById('notes-meta');
-				const headerMeta = document.getElementById('header-datetime');
+				if (!notesMeta) return;
+
 
 				if (!notesMeta && !headerMeta) return;
 
@@ -326,9 +327,9 @@
 
 				function update() {
 					const text = formatNow(new Date());
-					if (notesMeta) notesMeta.textContent = text;
-					if (headerMeta) headerMeta.textContent = text;
+					notesMeta.textContent = text;
 				}
+
 
 				// initial update
 				update();
