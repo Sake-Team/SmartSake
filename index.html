@@ -210,7 +210,46 @@
 
     <!-- Live Date/Time script: updates the .notes__meta element each minute -->
     <script>
-	(function(){
+// Live Date/Time script: updates notes meta and header datetime each minute
+(function(){
+  const notesMeta   = document.getElementById('notes-meta');
+  const headerMeta  = document.getElementById('header-datetime');
+
+  // If neither exists, bail out
+  if(!notesMeta && !headerMeta) return;
+
+  function formatNow(d){
+    const date = d.toLocaleDateString(undefined,{
+      month: 'short', day: 'numeric', year: 'numeric'
+    });
+    const time = d.toLocaleTimeString(undefined,{
+      hour: '2-digit', minute: '2-digit'
+    });
+    return `${date} — ${time}`;
+  }
+
+  function update(){
+    const text = formatNow(new Date());
+    if(notesMeta)  notesMeta.textContent  = text;
+    if(headerMeta) headerMeta.textContent = text;
+  }
+
+  // initial update
+  update();
+
+  // align with start of next minute, then every 60s
+  const msToNext = 60000 - (Date.now() % 60000);
+  let timer = setTimeout(function(){
+    update();
+    timer = setInterval(update, 60000);
+  }, msToNext);
+
+  // update when user returns to tab
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState === 'visible') update();
+  });
+})();
+
 		const el = document.getElementById('notes-meta');
 		if(!el) return;
 
