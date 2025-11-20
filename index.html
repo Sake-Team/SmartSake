@@ -9,8 +9,15 @@
   </head>
   <body>
     <header>
-      <h1>Home <span id="run-name-di splay" class="run-name-header"></span></h1>
+      <h1>Home <span id="run-name-display" class="run-name-header"></span></h1>
     </header>
+
+    <!-- Recovery banner for autosaved runs -->
+    <div id="recovery-banner" class="recovery-banner" hidden>
+      <span id="recovery-banner-text">Recovered autosaved run data from a previous session.</span>
+      <button type="button" id="export-recovered-btn">Export recovered CSV</button>
+    </div>
+
 
     <main>
       <div class="stage">
@@ -177,9 +184,280 @@
 		});
 
 	})();
-
-	// Modal functionality script
+	
+		// Modal functionality script
 	(function(){
+		const startBtn = document.getElementById('start-run-btn');
+		const modal = document.getElementById('start-run-modal');
+		const closeBtn = document.getElementById('close-modal');
+		const enterBtn = document.getElementById('enter-run-btn');
+		const runNameInput = document.getElementById('run-name');
+
+		// Data collection variables
+		let dataCollectionInterval;
+		let collectedData = [];
+		let runStartTime;
+
+		// 🔸 FAILSAFE AUTOSAVE SYSTEM ---------------------------
+		const RUN_STATE_KEY = 'sakeRunState';
+
+		function saveRunState(){
+			try{
+				const state = {
+					collectedData,
+					runStartTime: runStartTime ? runStartTime.toISOString() : null,
+					runName: localStorage.getItem('currentRunName') || null
+				};
+				localStorage.setItem(RUN_STATE_KEY, JSON.stringify(state));
+			} catch(e){
+				console.warn("Autosave failed:", e);
+			}
+		}
+
+		function loadRunState(){
+			try{
+				const raw = localStorage.getItem(RUN_STATE_KEY);
+				if(!raw) return;
+
+				const state = JSON.parse(raw);
+
+				if(Array.isArray(state.collectedData)){
+					collectedData = state.collectedData;
+				}
+				if(state.runStartTime){
+					runStartTime = new Date(state.runStartTime);
+				}
+
+				console.log("Recovered autosaved run:", collectedData.length, "rows restored");
+			} catch(e){
+				console.warn("Failed to load autosaved run:", e);
+			}
+		}
+
+		// Load any autosaved run BEFORE evaluating UI state
+		loadRunState();
+		// --------------------------------------------------------
+
+		if(!startBtn || !modal || !closeBtn || !enterBtn || !runNameInput) return;
+
+		// Function to generate sensor data (unchanged)
+		function generateSensorData(){
+			const timestamp = new Date().toISOString();
+			const temps = [];
+
+			const csvTemps = window.getCurrentTemperatures ? window.getCurrentTemperatures() : null;
+
+			for(let i = 1; i <= 6; i++){
+				if(csvTemps && csvTemps[`temp${i}`] && csvTemps[`temp${i}`] !== '--'){
+					temps.push(csvTemps[`temp${i}`]);
+				} else {
+					const tempElement = document.getElementById(`temp-${i}`);
+					if(tempElement && tempElement.textContent !== '--'){
+						temps.push(tempElement.textContent);
+					} else {
+						temps.push((70 + Math.random() * 10).toFixed(1));
+					}
+				}
+			}
+
+			const humidity = (60 + Math.random() * 20).toFixed(1);
+			const fans = [];
+			for(let i = 1; i <= 6; i++){
+				fans.push(Math.random() > 0.5 ? 'On' : 'Off');
+			}
+			const notes = localStorage.getItem('currentNotes') || '';
+
+			return {
+				timestamp,
+				temp1: temps[0], temp2: temps[1], temp3: temps[2],
+				temp4: temps[3], temp5: temps[4], temp6: temps[5],
+				humidity,
+				fan1: fans[0], fan2: fans[1], fan3: fans[2],
+				fan4: fans[3], fan5: fans[4], fan6: fans[5],
+				notes: notes.replace(/[\r\n]/g, ' ')
+			};
+		}
+
+		// 🔸 MODIFIED: Start data collection with autosave
+		function startDataCollection(){
+			collectedData = [];
+			runStartTime = new Date();
+
+			collectedData.push(generateSensorData());
+			saveRunState();  // autosave initial row
+
+			dataCollectionInterval = setInterval(function(){
+				collectedData.push(generateSensorData());
+				saveRunState();  // autosave every row
+			}, 30000);
+		}
+
+		// 🔸 MODIFIED: Stop collection & clear autosave
+		function stopDataCollectionAndExport(runName){
+			if(dataCollectionInterval){
+				clearInterval(dataCollectionInterval);
+				dataCollectionInterval = null;
+			}
+
+			if(collectedData.length > 0){
+				collectedData.push(generateSensorData());
+			}
+
+			// Build CSV
+			let csvContent = 'Timestamp,Temp1,Temp2,Temp3,Temp4,Temp5,Temp6,Humidity,Fan1,Fan2,Fan3,Fan4,Fan5,Fan6,Notes\n';
+			collectedData.forEach(function(data){
+				csvContent += `${data.timestamp},${data.temp1},${data.temp2},${data.temp3},${data.temp4},${data.temp5},${data.temp6},${data.humidity},${data.fan1},${data.fan2},${data.fan3},${data.fan4},${data.fan5},${data.fan6},"${data.notes}"\n`;
+			});
+
+			// Download CSV
+			const blob = new Blob([csvContent], { type:'text/csv;charset=utf-8;' });
+			const link = document.createElement('a');
+			if(link.download !== undefined){
+				const url = URL.createObjectURL(blob);
+				link.setAttribute('href', url);
+				link.setAttribute('download', `${runName}.csv`);
+				link.style.visibility='hidden';
+				document.body.appendChild(link);
+				link.click();
+				document.body.removeChild(link);
+			}
+
+			// Clear data
+			collectedData = [];
+			localStorage.removeItem(RUN_STATE_KEY);  // 🔸 clear autosave
+
+			// Reset notes
+			const notesInput = document.getElementById('notes-input');
+			if(notesInput){
+				notesInput.value='';
+				localStorage.removeItem('currentNotes');
+			}
+		}
+
+		// ---------------- Rest of your modal code unchanged ------------------
+
+		startBtn.addEventListener('click', function(){
+			if(startBtn.classList.contains('end-run-btn-active')){
+				const endModal = document.getElementById('end-run-modal');
+				if(endModal){
+					endModal.style.display='flex';
+				}
+			} else {
+				const fileInput = document.getElementById('target-csv-upload');
+				const uploadStatus = document.getElementById('upload-status');
+				if(fileInput) fileInput.value='';
+				if(uploadStatus) uploadStatus.textContent='';
+
+				if(window.setupFileUploadHandler){
+					window.setupFileUploadHandler();
+				}
+
+				modal.style.display='flex';
+				runNameInput.focus();
+			}
+		});
+
+		closeBtn.addEventListener('click', function(){
+			modal.style.display='none';
+		});
+
+		modal.addEventListener('click', function(e){
+			if(e.target === modal){
+				modal.style.display='none';
+			}
+		});
+
+		document.addEventListener('keydown', function(e){
+			if(e.key === 'Escape' && modal.style.display === 'flex'){
+				modal.style.display='none';
+			}
+		});
+
+		enterBtn.addEventListener('click', function(){
+			const runName = runNameInput.value.trim();
+			if(runName){
+				const runNameDisplay = document.getElementById('run-name-display');
+				if(runNameDisplay){
+					runNameDisplay.textContent='- ' + runName;
+				}
+				localStorage.setItem('currentRunName', runName);
+
+				startDataCollection();
+				if(window.startTemperatureReading){
+					window.startTemperatureReading();
+				}
+				if(window.setRunStartTime){
+					window.setRunStartTime();
+				}
+
+				startBtn.textContent='End Run';
+				startBtn.classList.add('end-run-btn-active');
+				startBtn.style.pointerEvents='auto';
+				startBtn.style.cursor='pointer';
+				modal.style.display='none';
+				runNameInput.value='';
+			}
+		});
+
+		runNameInput.addEventListener('keydown', function(e){
+			if(e.key === 'Enter'){
+				enterBtn.click();
+			}
+		});
+
+		const endModal = document.getElementById('end-run-modal');
+		const closeEndBtn = document.getElementById('close-end-modal');
+		const cancelEndBtn = document.getElementById('cancel-end-btn');
+		const confirmEndBtn = document.getElementById('confirm-end-btn');
+
+		if(endModal && closeEndBtn && cancelEndBtn && confirmEndBtn){
+			closeEndBtn.addEventListener('click', function(){
+				endModal.style.display='none';
+			});
+
+			cancelEndBtn.addEventListener('click', function(){
+				endModal.style.display='none';
+			});
+
+			endModal.addEventListener('click', function(e){
+				if(e.target === endModal){
+					endModal.style.display='none';
+				}
+			});
+
+			confirmEndBtn.addEventListener('click', function(){
+				const currentRunName = localStorage.getItem('currentRunName') || 'UnknownRun';
+
+				stopDataCollectionAndExport(currentRunName);
+
+				if(window.stopTemperatureReading){
+					window.stopTemperatureReading();
+				}
+
+				if(window.clearRunData){
+					window.clearRunData();
+				}
+
+				localStorage.removeItem('currentNotes');
+
+				const runNameDisplay = document.getElementById('run-name-display');
+				if(runNameDisplay){
+					runNameDisplay.textContent='';
+				}
+				localStorage.removeItem('currentRunName');
+				startBtn.textContent='Start Run';
+				startBtn.classList.remove('end-run-btn-active');
+				endModal.style.display='none';
+			});
+
+			document.addEventListener('keydown', function(e){
+				if(e.key === 'Escape' && endModal.style.display === 'flex'){
+					endModal.style.display='none';
+				}
+			});
+		}
+	})();
+
 		const startBtn = document.getElementById('start-run-btn');
 		const modal = document.getElementById('start-run-modal');
 		const closeBtn = document.getElementById('close-modal');
@@ -191,6 +469,44 @@
 		let collectedData = [];
 		let runStartTime;
 		
+		    // Expose a helper to export a recovered run and reset the UI
+    window.sakeExportRecoveredRun = function(){
+        const currentRunName = localStorage.getItem('currentRunName') || 'RecoveredRun';
+
+        // Export CSV and clear autosave + notes
+        stopDataCollectionAndExport(currentRunName);
+
+        if(window.stopTemperatureReading){
+            window.stopTemperatureReading();
+        }
+        if(window.clearRunData){
+            window.clearRunData();
+        }
+        localStorage.removeItem('currentNotes');
+
+        // Reset UI to "no active run"
+        const runNameDisplay = document.getElementById('run-name-display');
+        if(runNameDisplay){
+            runNameDisplay.textContent = '';
+        }
+        localStorage.removeItem('currentRunName');
+
+        const startBtn = document.getElementById('start-run-btn');
+        if(startBtn){
+            startBtn.textContent = 'Start Run';
+            startBtn.classList.remove('end-run-btn-active');
+            startBtn.style.pointerEvents = 'auto';
+            startBtn.style.cursor = 'pointer';
+        }
+
+        // Hide recovery banner if present
+        const banner = document.getElementById('recovery-banner');
+        if(banner){
+            banner.hidden = true;
+        }
+    };
+
+
 		// Function to generate sensor readings (using CSV temperatures + simulated other data)
 		function generateSensorData(){
 			const timestamp = new Date().toISOString();
@@ -443,21 +759,55 @@
 		}
 	})();
 
-	// Initialize run name display from localStorage
+		// Initialize run name display and Start/End button from localStorage + autosave
 	(function(){
+		const runNameDisplay = document.getElementById('run-name-display');
+		const startBtn = document.getElementById('start-run-btn');
+
 		const savedRunName = localStorage.getItem('currentRunName');
-		if(savedRunName){
-			const runNameDisplay = document.getElementById('run-name-display');
+		const rawState = localStorage.getItem('sakeRunState'); // same key used in failsafe
+
+		let runActive = false;
+
+		if(rawState){
+			try {
+				const state = JSON.parse(rawState);
+				// Treat as active only if we have at least one data row
+				if(state && Array.isArray(state.collectedData) && state.collectedData.length > 0){
+					runActive = true;
+				}
+			} catch(e){
+				console.warn('Invalid autosave state detected, clearing:', e);
+				localStorage.removeItem('sakeRunState');
+			}
+		}
+
+		if(savedRunName && runActive){
+			// Active run recovered → show name + END RUN
 			if(runNameDisplay){
 				runNameDisplay.textContent = '- ' + savedRunName;
 			}
-			// Update button state if run is active
-			const startBtn = document.getElementById('start-run-btn');
 			if(startBtn){
 				startBtn.textContent = 'End Run';
 				startBtn.classList.add('end-run-btn-active');
 				startBtn.style.pointerEvents = 'auto';
 				startBtn.style.cursor = 'pointer';
+			}
+		} else {
+			// No valid active run → normalize everything to START RUN state
+			if(runNameDisplay){
+				runNameDisplay.textContent = '';
+			}
+			if(startBtn){
+				startBtn.textContent = 'Start Run';
+				startBtn.classList.remove('end-run-btn-active');
+				startBtn.style.pointerEvents = 'auto';
+				startBtn.style.cursor = 'pointer';
+			}
+
+			// If there's no run name, clear any stray autosave so it can't “interfere”
+			if(!savedRunName){
+				localStorage.removeItem('sakeRunState');
 			}
 		}
 	})();

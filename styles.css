@@ -782,3 +782,24 @@ a.button{display:inline-block;margin-top:16px;padding:8px 12px;border-radius:6px
 	padding: 2px 4px;
 	border-radius: 3px;
 }
+
+.recovery-banner {
+  background: #fff3cd;
+  color: #664d03;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #ffeeba;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.9rem;
+}
+
+.recovery-banner button {
+  border: none;
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  background: #856404;
+  color: #fff;
+  cursor: pointer;
+}
