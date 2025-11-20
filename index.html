@@ -195,6 +195,8 @@
 			</div>
 		</div>
 
+		<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 		<!-- Live Date/Time script: updates the .notes__meta element each minute -->
 		<script>
 			// Live Date/Time script: updates notes meta and header datetime each minute
@@ -662,6 +664,7 @@
 
 
 			// Live temperature readings from CSV file
+			// Live temperature readings from CSV file
 			(function () {
 				const CSV_FILE_PATH = 'data/temperature_readings.csv';
 
@@ -669,7 +672,7 @@
 					temp1: '--', temp2: '--', temp3: '--',
 					temp4: '--', temp5: '--', temp6: '--'
 				};
-
+				let currentHumidity = null;
 				let temperatureReadingActive = false;
 
 				function parseCSVData(csvText) {
@@ -679,15 +682,19 @@
 					const lastLine = lines[lines.length - 1];
 					const values = lastLine.split(',');
 
-					if (values.length >= 7) {
-						return {
-							temp1: parseFloat(values[1]).toFixed(1),
-							temp2: parseFloat(values[2]).toFixed(1),
-							temp3: parseFloat(values[3]).toFixed(1),
-							temp4: parseFloat(values[4]).toFixed(1),
-							temp5: parseFloat(values[5]).toFixed(1),
-							temp6: parseFloat(values[6]).toFixed(1)
+					// Expected: timestamp,temp1,...,temp6,humidity,...
+					if (values.length >= 8) {
+						const sample = {
+							timestamp: values[0],
+							temp1: parseFloat(values[1]),
+							temp2: parseFloat(values[2]),
+							temp3: parseFloat(values[3]),
+							temp4: parseFloat(values[4]),
+							temp5: parseFloat(values[5]),
+							temp6: parseFloat(values[6]),
+							humidity: parseFloat(values[7])
 						};
+						return sample;
 					}
 					return null;
 				}
@@ -703,11 +710,29 @@
 						}
 
 						const csvText = await response.text();
-						const temperatures = parseCSVData(csvText);
+						const sample = parseCSVData(csvText);
 
-						if (temperatures) {
-							currentTemperatures = temperatures;
+						if (sample) {
+							currentTemperatures = {
+								temp1: sample.temp1.toFixed(1),
+								temp2: sample.temp2.toFixed(1),
+								temp3: sample.temp3.toFixed(1),
+								temp4: sample.temp4.toFixed(1),
+								temp5: sample.temp5.toFixed(1),
+								temp6: sample.temp6.toFixed(1)
+							};
+							currentHumidity = isNaN(sample.humidity) ? null : sample.humidity;
+
 							updateTemperatureDisplay();
+
+							// 🔴 NEW: push data point to charts, if chart code is loaded
+							if (window.pushSensorSample) {
+								window.pushSensorSample({
+									time: sample.timestamp ? new Date(sample.timestamp) : new Date(),
+									temps: { ...currentTemperatures },
+									humidity: currentHumidity
+								});
+							}
 						}
 					} catch (error) {
 						console.warn('Error reading CSV file:', error);
@@ -722,7 +747,17 @@
 						const temp = (70 + Math.random() * 10).toFixed(1);
 						currentTemperatures[`temp${i}`] = temp;
 					}
+					currentHumidity = 60 + Math.random() * 20;
+
 					updateTemperatureDisplay();
+
+					if (window.pushSensorSample) {
+						window.pushSensorSample({
+							time: new Date(),
+							temps: { ...currentTemperatures },
+							humidity: currentHumidity
+						});
+					}
 				}
 
 				function updateTemperatureDisplay() {
@@ -745,6 +780,7 @@
 						temp1: '--', temp2: '--', temp3: '--',
 						temp4: '--', temp5: '--', temp6: '--'
 					};
+					currentHumidity = null;
 					updateTemperatureDisplay();
 				}
 
@@ -762,6 +798,113 @@
 				}
 
 				setInterval(readCSVFile, 5000);
+			})();
+
+			// Live-updating charts for temperature and humidity
+			(function () {
+				const tempCanvas = document.getElementById('temp-chart');
+				const humCanvas = document.getElementById('humidity-chart');
+
+				if (!tempCanvas || !humCanvas || !window.Chart) return;
+
+				const tempCtx = tempCanvas.getContext('2d');
+				const humCtx = humCanvas.getContext('2d');
+
+				const maxPoints = 60; // keep last 60 samples (~5 min if 5s interval)
+				const labels = [];
+				const humidityData = [];
+
+				const tempSeries = {
+					temp1: [],
+					temp2: [],
+					temp3: [],
+					temp4: [],
+					temp5: [],
+					temp6: []
+				};
+
+				const tempChart = new Chart(tempCtx, {
+					type: 'line',
+					data: {
+						labels,
+						datasets: [
+							{ label: 'Temp 1', data: tempSeries.temp1, borderWidth: 1, pointRadius: 0 },
+							{ label: 'Temp 2', data: tempSeries.temp2, borderWidth: 1, pointRadius: 0 },
+							{ label: 'Temp 3', data: tempSeries.temp3, borderWidth: 1, pointRadius: 0 },
+							{ label: 'Temp 4', data: tempSeries.temp4, borderWidth: 1, pointRadius: 0 },
+							{ label: 'Temp 5', data: tempSeries.temp5, borderWidth: 1, pointRadius: 0 },
+							{ label: 'Temp 6', data: tempSeries.temp6, borderWidth: 1, pointRadius: 0 }
+						]
+					},
+					options: {
+						animation: false,
+						responsive: true,
+						maintainAspectRatio: false,
+						scales: {
+							x: {
+								ticks: { autoSkip: true, maxTicksLimit: 6 }
+							},
+							y: {
+								title: { display: true, text: 'Temperature (°F)' }
+							}
+						},
+						plugins: {
+							legend: { position: 'bottom' }
+						}
+					}
+				});
+
+				const humChart = new Chart(humCtx, {
+					type: 'line',
+					data: {
+						labels,
+						datasets: [
+							{ label: 'Humidity', data: humidityData, borderWidth: 1, pointRadius: 0 }
+						]
+					},
+					options: {
+						animation: false,
+						responsive: true,
+						maintainAspectRatio: false,
+						scales: {
+							x: {
+								ticks: { autoSkip: true, maxTicksLimit: 6 }
+							},
+							y: {
+								title: { display: true, text: 'Humidity (%)' }
+							}
+						},
+						plugins: {
+							legend: { display: false }
+						}
+					}
+				});
+
+				// This gets called from the CSV reader IIFE
+				window.pushSensorSample = function (sample) {
+					const t = sample.time instanceof Date ? sample.time : new Date(sample.time);
+					const label = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+					labels.push(label);
+					for (let i = 1; i <= 6; i++) {
+						const key = `temp${i}`;
+						const val = parseFloat(sample.temps[key]);
+						tempSeries[key].push(isNaN(val) ? null : val);
+					}
+
+					const humVal = parseFloat(sample.humidity);
+					humidityData.push(isNaN(humVal) ? null : humVal);
+
+					// keep array lengths bounded
+					if (labels.length > maxPoints) {
+						labels.shift();
+						Object.values(tempSeries).forEach(arr => arr.shift());
+						humidityData.shift();
+					}
+
+					tempChart.update('none');
+					humChart.update('none');
+				};
 			})();
 
 
