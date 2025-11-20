@@ -14,7 +14,6 @@
 		<header class="header">
 			<div class="header-inner">
 				<img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" id="sake-logo-egg" class="sake-logo-egg" />
-
 				<h1 class="header-title">
 					Home <span id="run-name-display" class="run-name-header"></span>
 				</h1>
@@ -23,27 +22,6 @@
 
 		<div class="run-box">
 			<button id="start-run-btn" class="start-run-btn">Start Run</button>
-		</div>
-
-		<header class="header">
-			<div class="header-inner">
-				<img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" id="sake-logo-egg" class="sake-logo-egg" />
-
-				<h1 class="header-title">
-					Home <span id="run-name-display" class="run-name-header"></span>
-				</h1>
-			</div>
-
-			<div class="header-meta">
-				<div class="header-start-btn-wrap">
-					<!-- intentionally empty now -->
-				</div>
-			</div>
-		</header>
-
-		<!-- NEW: timestamp card separated from header -->
-		<div class="timestamp-card">
-			<span id="header-datetime" class="timestamp-text"></span>
 		</div>
 
 		<main>
@@ -325,16 +303,13 @@
 
 			<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-			<!-- Live Date/Time script: updates the .notes__meta element each minute -->
 			<script>
 				// Live Date/Time script: updates notes meta and header datetime each minute
-				// Live Date/Time script: updates notes meta and header datetime each minute
+
+				// Live Date/Time script: updates ONLY the notes-meta field
 				(function () {
 					const notesMeta = document.getElementById('notes-meta');
-					const headerMeta = document.getElementById('header-datetime');
-
-					// if neither exists, do nothing
-					if (!notesMeta && !headerMeta) return;
+					if (!notesMeta) return;
 
 					function formatNow(d) {
 						const date = d.toLocaleDateString(undefined, {
@@ -350,28 +325,23 @@
 					}
 
 					function update() {
-						const text = formatNow(new Date());
-						if (notesMeta) notesMeta.textContent = text;
-						if (headerMeta) headerMeta.textContent = text;
+						notesMeta.textContent = formatNow(new Date());
 					}
 
 					// initial update
 					update();
 
-					// align with start of next minute, then every 60s
+					// align with next minute
 					const msToNext = 60000 - (Date.now() % 60000);
 					let timer = setTimeout(function () {
 						update();
 						timer = setInterval(update, 60000);
 					}, msToNext);
 
-					// update when user returns to tab
 					document.addEventListener('visibilitychange', function () {
 						if (document.visibilityState === 'visible') update();
 					});
 				})();
-
-
 
 				// Modal + run state + autosave + recovery
 				(function () {
@@ -444,21 +414,9 @@
 							if (csvTemps && csvTemps[`temp${i}`] && csvTemps[`temp${i}`] !== '--') {
 								temps.push(csvTemps[`temp${i}`]);
 							} else {
-								for (let i = 1; i <= 6; i++) {
-									if (csvTemps && csvTemps[`temp${i}`] && csvTemps[`temp${i}`] !== '--') {
-										temps.push(csvTemps[`temp${i}`]);
-									} else {
-										const wetEl = document.getElementById(`temp-${i}-wet`);
-										if (wetEl && wetEl.textContent !== '--') {
-											temps.push(wetEl.textContent);
-										} else {
-											temps.push((70 + Math.random() * 10).toFixed(1));
-										}
-									}
-								}
-
-								if (tempElement && tempElement.textContent !== '--') {
-									temps.push(tempElement.textContent);
+								const wetEl = document.getElementById(`temp-${i}-wet`);
+								if (wetEl && wetEl.textContent !== '--') {
+									temps.push(wetEl.textContent);
 								} else {
 									temps.push((70 + Math.random() * 10).toFixed(1));
 								}
@@ -490,6 +448,7 @@
 							notes: notes.replace(/[\r\n]/g, ' ')
 						};
 					}
+
 
 					// ---------- Start / stop collection ----------
 					function startDataCollection() {
