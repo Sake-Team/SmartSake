@@ -25,693 +25,523 @@
 			<button id="start-run-btn" class="start-run-btn">Start Run</button>
 		</div>
 
+		<header class="header">
+			<div class="header-inner">
+				<img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" id="sake-logo-egg" class="sake-logo-egg" />
 
+				<h1 class="header-title">
+					Home <span id="run-name-display" class="run-name-header"></span>
+				</h1>
+			</div>
 
+			<div class="header-meta">
+				<div class="header-start-btn-wrap">
+					<!-- intentionally empty now -->
+				</div>
+			</div>
+		</header>
+
+		<!-- NEW: timestamp card separated from header -->
+		<div class="timestamp-card">
+			<span id="header-datetime" class="timestamp-text"></span>
+		</div>
 
 		<main>
-			<div class="stage">
-				<section class="layout">
-					<section class="zones">
-						<a class="zone" href="zone1.html" role="button" aria-label="Zone 1">Zone 1</a>
-						<a class="zone" href="zone2.html" role="button" aria-label="Zone 2">Zone 2</a>
-						<a class="zone" href="zone3.html" role="button" aria-label="Zone 3">Zone 3</a>
-						<a class="zone" href="zone4.html" role="button" aria-label="Zone 4">Zone 4</a>
-						<a class="zone" href="zone5.html" role="button" aria-label="Zone 5">Zone 5</a>
-						<a class="zone" href="zone6.html" role="button" aria-label="Zone 6">Zone 6</a>
+
+
+
+			<main>
+				<div class="stage">
+					<section class="layout">
+						<section class="zones">
+							<a class="zone" href="zone1.html" role="button" aria-label="Zone 1">Zone 1</a>
+							<a class="zone" href="zone2.html" role="button" aria-label="Zone 2">Zone 2</a>
+							<a class="zone" href="zone3.html" role="button" aria-label="Zone 3">Zone 3</a>
+							<a class="zone" href="zone4.html" role="button" aria-label="Zone 4">Zone 4</a>
+							<a class="zone" href="zone5.html" role="button" aria-label="Zone 5">Zone 5</a>
+							<a class="zone" href="zone6.html" role="button" aria-label="Zone 6">Zone 6</a>
+						</section>
+
+						<div class="notes-wrap">
+							<div class="notes__meta" id="notes-meta" aria-live="polite">Date,
+								Time</div>
+							<div class="notes" aria-label="Notes">
+								<label class="sr-only" for="notes-input">Notes</label>
+								<textarea id="notes-input" class="notes__input" placeholder="Enter notes..."
+									aria-label="Notes input"></textarea>
+							</div>
+						</div>
+
+						<div class="left">
+							<div class="long long--top-left">
+								<div class="chart-header">
+									<span>Temperature over time</span>
+								</div>
+								<canvas id="temp-chart" class="metric-chart"></canvas>
+							</div>
+
+							<div class="long long--top-left">
+								<span>Humidity over time</span>
+								<canvas id="humidity-chart" class="metric-chart"></canvas>
+							</div>
+
+							<div class="long long--top-left">
+								<span>Fans on/off over time</span>
+								<canvas id="fans-chart" class="metric-chart"></canvas>
+							</div>
+
+						</div>
+
 					</section>
 
-					<div class="notes-wrap">
-						<div class="notes__meta" id="notes-meta" aria-live="polite">Date,
-							Time</div>
-						<div class="notes" aria-label="Notes">
-							<label class="sr-only" for="notes-input">Notes</label>
-							<textarea id="notes-input" class="notes__input" placeholder="Enter notes..."
-								aria-label="Notes input"></textarea>
-						</div>
-					</div>
+					<section class="temp-row" aria-label="Temperature readings">
 
-					<div class="left">
-						<div class="long long--top-left">
-							<div class="chart-header">
-								<span>Temperature over time</span>
-							</div>
-							<canvas id="temp-chart" class="metric-chart"></canvas>
-						</div>
-
-						<div class="long long--top-left">
-							<span>Humidity over time</span>
-							<canvas id="humidity-chart" class="metric-chart"></canvas>
-						</div>
-
-						<div class="long long--top-left">
-							<span>Fans on/off over time</span>
-							<canvas id="fans-chart" class="metric-chart"></canvas>
-						</div>
-
-					</div>
-
-				</section>
-
-				<section class="temp-row" aria-label="Temperature readings">
-
-					<div class="temp">
-						<span class="temp__label">Temp 1</span>
-						<div class="temp__value-column">
-							<div class="temp__row">
-								<span class="temp__num" id="temp-1-dry">--</span>
-								<span class="temp__unit">°C</span>
-								<span class="temp__note">(Dry)</span>
-							</div>
-							<div class="temp__row">
-								<span class="temp__num temp__num--wb" id="temp-1-wet">--</span>
-								<span class="temp__unit">°C</span>
-								<span class="temp__note">(Wet Bulb)</span>
+						<div class="temp">
+							<span class="temp__label">Temp 1</span>
+							<div class="temp__value-column">
+								<div class="temp__row">
+									<span class="temp__num" id="temp-1-dry">--</span>
+									<span class="temp__unit">°C</span>
+									<span class="temp__note">(Dry)</span>
+								</div>
+								<div class="temp__row">
+									<span class="temp__num temp__num--wb" id="temp-1-wet">--</span>
+									<span class="temp__unit">°C</span>
+									<span class="temp__note">(Wet Bulb)</span>
+								</div>
 							</div>
 						</div>
-					</div>
 
-					<div class="temp">
-						<span class="temp__label">Temp 2</span>
-						<div class="temp__value-column">
-							<div class="temp__row">
-								<span class="temp__num" id="temp-2-dry">--</span>
-								<span class="temp__unit">°C</span>
-								<span class="temp__note">(Dry)</span>
-							</div>
-							<div class="temp__row">
-								<span class="temp__num temp__num--wb" id="temp-2-wet">--</span>
-								<span class="temp__unit">°C</span>
-								<span class="temp__note">(Wet Bulb)</span>
+						<div class="temp">
+							<span class="temp__label">Temp 2</span>
+							<div class="temp__value-column">
+								<div class="temp__row">
+									<span class="temp__num" id="temp-2-dry">--</span>
+									<span class="temp__unit">°C</span>
+									<span class="temp__note">(Dry)</span>
+								</div>
+								<div class="temp__row">
+									<span class="temp__num temp__num--wb" id="temp-2-wet">--</span>
+									<span class="temp__unit">°C</span>
+									<span class="temp__note">(Wet Bulb)</span>
+								</div>
 							</div>
 						</div>
-					</div>
 
-					<div class="temp">
-						<span class="temp__label">Temp 3</span>
-						<div class="temp__value-column">
-							<div class="temp__row">
-								<span class="temp__num" id="temp-3-dry">--</span>
-								<span class="temp__unit">°C</span>
-								<span class="temp__note">(Dry)</span>
-							</div>
-							<div class="temp__row">
-								<span class="temp__num temp__num--wb" id="temp-3-wet">--</span>
-								<span class="temp__unit">°C</span>
-								<span class="temp__note">(Wet Bulb)</span>
+						<div class="temp">
+							<span class="temp__label">Temp 3</span>
+							<div class="temp__value-column">
+								<div class="temp__row">
+									<span class="temp__num" id="temp-3-dry">--</span>
+									<span class="temp__unit">°C</span>
+									<span class="temp__note">(Dry)</span>
+								</div>
+								<div class="temp__row">
+									<span class="temp__num temp__num--wb" id="temp-3-wet">--</span>
+									<span class="temp__unit">°C</span>
+									<span class="temp__note">(Wet Bulb)</span>
+								</div>
 							</div>
 						</div>
-					</div>
 
-					<div class="temp">
-						<span class="temp__label">Temp 4</span>
-						<div class="temp__value-column">
-							<div class="temp__row">
-								<span class="temp__num" id="temp-4-dry">--</span>
-								<span class="temp__unit">°C</span>
-								<span class="temp__note">(Dry)</span>
-							</div>
-							<div class="temp__row">
-								<span class="temp__num temp__num--wb" id="temp-4-wet">--</span>
-								<span class="temp__unit">°C</span>
-								<span class="temp__note">(Wet Bulb)</span>
-							</div>
-						</div>
-					</div>
-
-					<div class="temp">
-						<span class="temp__label">Temp 5</span>
-						<div class="temp__value-column">
-							<div class="temp__row">
-								<span class="temp__num" id="temp-5-dry">--</span>
-								<span class="temp__unit">°C</span>
-								<span class="temp__note">(Dry)</span>
-							</div>
-							<div class="temp__row">
-								<span class="temp__num temp__num--wb" id="temp-5-wet">--</span>
-								<span class="temp__unit">°C</span>
-								<span class="temp__note">(Wet Bulb)</span>
+						<div class="temp">
+							<span class="temp__label">Temp 4</span>
+							<div class="temp__value-column">
+								<div class="temp__row">
+									<span class="temp__num" id="temp-4-dry">--</span>
+									<span class="temp__unit">°C</span>
+									<span class="temp__note">(Dry)</span>
+								</div>
+								<div class="temp__row">
+									<span class="temp__num temp__num--wb" id="temp-4-wet">--</span>
+									<span class="temp__unit">°C</span>
+									<span class="temp__note">(Wet Bulb)</span>
+								</div>
 							</div>
 						</div>
-					</div>
 
-					<div class="temp">
-						<span class="temp__label">Temp 6</span>
-						<div class="temp__value-column">
-							<div class="temp__row">
-								<span class="temp__num" id="temp-6-dry">--</span>
-								<span class="temp__unit">°C</span>
-								<span class="temp__note">(Dry)</span>
-							</div>
-							<div class="temp__row">
-								<span class="temp__num temp__num--wb" id="temp-6-wet">--</span>
-								<span class="temp__unit">°C</span>
-								<span class="temp__note">(Wet Bulb)</span>
+						<div class="temp">
+							<span class="temp__label">Temp 5</span>
+							<div class="temp__value-column">
+								<div class="temp__row">
+									<span class="temp__num" id="temp-5-dry">--</span>
+									<span class="temp__unit">°C</span>
+									<span class="temp__note">(Dry)</span>
+								</div>
+								<div class="temp__row">
+									<span class="temp__num temp__num--wb" id="temp-5-wet">--</span>
+									<span class="temp__unit">°C</span>
+									<span class="temp__note">(Wet Bulb)</span>
+								</div>
 							</div>
 						</div>
-					</div>
 
-				</section>
+						<div class="temp">
+							<span class="temp__label">Temp 6</span>
+							<div class="temp__value-column">
+								<div class="temp__row">
+									<span class="temp__num" id="temp-6-dry">--</span>
+									<span class="temp__unit">°C</span>
+									<span class="temp__note">(Dry)</span>
+								</div>
+								<div class="temp__row">
+									<span class="temp__num temp__num--wb" id="temp-6-wet">--</span>
+									<span class="temp__unit">°C</span>
+									<span class="temp__note">(Wet Bulb)</span>
+								</div>
+							</div>
+						</div>
 
-			</div>
-		</main>
+					</section>
 
-		<!-- Modal popup for Start run -->
-		<div id="start-run-modal" class="modal-overlay">
-			<div class="modal-popup">
-				<div class="modal-header">
-					<h3 class="modal-title">Start New Run</h3>
-					<button type="button" class="modal-close" id="close-modal" aria-label="Close modal">&times;</button>
 				</div>
-				<div class="modal-content">
-					<p>This will begin collecting data from all temperature sensors and
-						start the monitoring process.</p>
+			</main>
 
-					<div class="modal-input-section">
-						<label for="run-name">Run Name:</label>
-						<input type="text" id="run-name" name="run-name" placeholder="Enter run name..." />
+			<!-- Modal popup for Start run -->
+			<div id="start-run-modal" class="modal-overlay">
+				<div class="modal-popup">
+					<div class="modal-header">
+						<h3 class="modal-title">Start New Run</h3>
+						<button type="button" class="modal-close" id="close-modal"
+							aria-label="Close modal">&times;</button>
 					</div>
+					<div class="modal-content">
+						<p>This will begin collecting data from all temperature sensors and
+							start the monitoring process.</p>
 
-					<div class="modal-input-section">
-						<label for="target-csv-upload">Select Koji Strain:</label>
-						<input type="file" id="target-csv-upload" accept=".csv" class="upload-input">
-						<div id="upload-status" class="upload-status"></div>
-						<small class="help-text">Upload a CSV with target temperatures over
-							time</small>
-					</div>
+						<div class="modal-input-section">
+							<label for="run-name">Run Name:</label>
+							<input type="text" id="run-name" name="run-name" placeholder="Enter run name..." />
+						</div>
 
-					<div class="modal-input-section">
-						<button type="button" class="modal-enter-btn" id="enter-run-btn">Start</button>
+						<div class="modal-input-section">
+							<label for="target-csv-upload">Select Koji Strain:</label>
+							<input type="file" id="target-csv-upload" accept=".csv" class="upload-input">
+							<div id="upload-status" class="upload-status"></div>
+							<small class="help-text">Upload a CSV with target temperatures over
+								time</small>
+						</div>
+
+						<div class="modal-input-section">
+							<button type="button" class="modal-enter-btn" id="enter-run-btn">Start</button>
+						</div>
 					</div>
 				</div>
 			</div>
-		</div>
 
-		<!-- Modal popup for End run confirmation -->
-		<div id="end-run-modal" class="modal-overlay">
-			<div class="modal-popup">
-				<div class="modal-header">
-					<h3 class="modal-title">End Current Run</h3>
-					<button type="button" class="modal-close" id="close-end-modal"
-						aria-label="Close modal">&times;</button>
-				</div>
-				<div class="modal-content">
-					<p>Are you sure you would like to end the run?</p>
-					<p>This will stop data collection and finalize the current monitoring
-						session.</p>
-
-					<div class="modal-button-section">
-						<button type="button" class="modal-cancel-btn" id="cancel-end-btn">Cancel</button>
-						<button type="button" class="modal-confirm-btn" id="confirm-end-btn">End Run</button>
+			<!-- Modal popup for End run confirmation -->
+			<div id="end-run-modal" class="modal-overlay">
+				<div class="modal-popup">
+					<div class="modal-header">
+						<h3 class="modal-title">End Current Run</h3>
+						<button type="button" class="modal-close" id="close-end-modal"
+							aria-label="Close modal">&times;</button>
 					</div>
-				</div>
-			</div>
-		</div>
+					<div class="modal-content">
+						<p>Are you sure you would like to end the run?</p>
+						<p>This will stop data collection and finalize the current monitoring
+							session.</p>
 
-		<!-- Recovery popup for crashed / unfinished runs -->
-		<div id="recovery-modal" class="modal-overlay">
-			<div class="modal-popup">
-				<div class="modal-header">
-					<h3 class="modal-title">Recovered Run Detected</h3>
-					<button type="button" class="modal-close" id="recovery-close-btn"
-						aria-label="Close recovery popup">&times;</button>
-				</div>
-				<div class="modal-content">
-					<p>We detected autosaved data from a previous session that didn't end
-						cleanly.</p>
-					<p>You can export the recovered run as a CSV or discard it and start
-						fresh.</p>
-
-					<div class="modal-button-section">
-						<button type="button" class="modal-cancel-btn" id="recovery-discard-btn">Discard</button>
-						<button type="button" class="modal-confirm-btn" id="recovery-export-btn">Export recovered
-							CSV</button>
-					</div>
-				</div>
-			</div>
-		</div>
-
-		<!-- Easter egg Pong modal -->
-		<div id="pong-modal" class="modal-overlay">
-			<div class="modal-popup pong-modal-popup">
-				<div class="modal-header">
-					<h3 class="modal-title">Pong Mode</h3>
-					<button type="button" class="modal-close" id="pong-close-btn"
-						aria-label="Close Pong">&times;</button>
-				</div>
-				<div class="modal-content">
-					<canvas id="pong-canvas" width="500" height="300" aria-label="Pong game"></canvas>
-					<p class="pong-help-text">
-						Use ↑ and ↓ arrows to move your paddle. Press ESC to exit.
-					</p>
-				</div>
-			</div>
-		</div>
-
-		<!-- Full-page Chart Modal -->
-		<div id="chart-modal" class="modal-overlay">
-			<div class="modal-popup chart-modal-popup">
-				<div class="modal-header">
-					<h3 class="modal-title" id="chart-modal-title">Chart</h3>
-					<button type="button" class="modal-close" id="chart-modal-close"
-						aria-label="Close chart">&times;</button>
-				</div>
-				<div class="modal-content chart-modal-content">
-					<canvas id="chart-modal-canvas"></canvas>
-
-					<div class="chart-modal-controls">
-						<div class="chart-modal-control">
-							<label for="chart-window-range">Time window</label>
-							<input type="range" id="chart-window-range" min="0" max="0" value="0">
-						</div>
-						<div class="chart-modal-control">
-							<label for="chart-y-range">Y zoom</label>
-							<input type="range" id="chart-y-range" min="0" max="100" value="0">
+						<div class="modal-button-section">
+							<button type="button" class="modal-cancel-btn" id="cancel-end-btn">Cancel</button>
+							<button type="button" class="modal-confirm-btn" id="confirm-end-btn">End Run</button>
 						</div>
 					</div>
-
-					<p class="chart-modal-help">
-						Drag the sliders to scroll/zoom. Click legend items to toggle series. Press ESC or click outside
-						to close.
-					</p>
 				</div>
 			</div>
-		</div>
+
+			<!-- Recovery popup for crashed / unfinished runs -->
+			<div id="recovery-modal" class="modal-overlay">
+				<div class="modal-popup">
+					<div class="modal-header">
+						<h3 class="modal-title">Recovered Run Detected</h3>
+						<button type="button" class="modal-close" id="recovery-close-btn"
+							aria-label="Close recovery popup">&times;</button>
+					</div>
+					<div class="modal-content">
+						<p>We detected autosaved data from a previous session that didn't end
+							cleanly.</p>
+						<p>You can export the recovered run as a CSV or discard it and start
+							fresh.</p>
+
+						<div class="modal-button-section">
+							<button type="button" class="modal-cancel-btn" id="recovery-discard-btn">Discard</button>
+							<button type="button" class="modal-confirm-btn" id="recovery-export-btn">Export recovered
+								CSV</button>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Easter egg Pong modal -->
+			<div id="pong-modal" class="modal-overlay">
+				<div class="modal-popup pong-modal-popup">
+					<div class="modal-header">
+						<h3 class="modal-title">Pong Mode</h3>
+						<button type="button" class="modal-close" id="pong-close-btn"
+							aria-label="Close Pong">&times;</button>
+					</div>
+					<div class="modal-content">
+						<canvas id="pong-canvas" width="500" height="300" aria-label="Pong game"></canvas>
+						<p class="pong-help-text">
+							Use ↑ and ↓ arrows to move your paddle. Press ESC to exit.
+						</p>
+					</div>
+				</div>
+			</div>
+
+			<!-- Full-page Chart Modal -->
+			<div id="chart-modal" class="modal-overlay">
+				<div class="modal-popup chart-modal-popup">
+					<div class="modal-header">
+						<h3 class="modal-title" id="chart-modal-title">Chart</h3>
+						<button type="button" class="modal-close" id="chart-modal-close"
+							aria-label="Close chart">&times;</button>
+					</div>
+					<div class="modal-content chart-modal-content">
+						<canvas id="chart-modal-canvas"></canvas>
+
+						<div class="chart-modal-controls">
+							<div class="chart-modal-control">
+								<label for="chart-window-range">Time window</label>
+								<input type="range" id="chart-window-range" min="0" max="0" value="0">
+							</div>
+							<div class="chart-modal-control">
+								<label for="chart-y-range">Y zoom</label>
+								<input type="range" id="chart-y-range" min="0" max="100" value="0">
+							</div>
+						</div>
+
+						<p class="chart-modal-help">
+							Drag the sliders to scroll/zoom. Click legend items to toggle series. Press ESC or click
+							outside
+							to close.
+						</p>
+					</div>
+				</div>
+			</div>
 
 
 
-		<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+			<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-		<!-- Live Date/Time script: updates the .notes__meta element each minute -->
-		<script>
-			// Live Date/Time script: updates notes meta and header datetime each minute
-			(function () {
-				const notesMeta = document.getElementById('notes-meta');
-				if (!notesMeta) return;
-
-
-				if (!notesMeta && !headerMeta) return;
-
-				function formatNow(d) {
-					const date = d.toLocaleDateString(undefined, {
-						month: 'short',
-						day: 'numeric',
-						year: 'numeric'
-					});
-					const time = d.toLocaleTimeString(undefined, {
-						hour: '2-digit',
-						minute: '2-digit'
-					});
-					return `${date} — ${time}`;
-				}
-
-				function update() {
-					const text = formatNow(new Date());
-					notesMeta.textContent = text;
-				}
+			<!-- Live Date/Time script: updates the .notes__meta element each minute -->
+			<script>
+				// Live Date/Time script: updates notes meta and header datetime each minute
+				(function () {
+					const notesMeta = document.getElementById('notes-meta');
+					if (!notesMeta) return;
 
 
-				// initial update
-				update();
+					if (!notesMeta && !headerMeta) return;
 
-				// align with start of next minute, then every 60s
-				const msToNext = 60000 - (Date.now() % 60000);
-				let timer = setTimeout(function () {
+					function formatNow(d) {
+						const date = d.toLocaleDateString(undefined, {
+							month: 'short',
+							day: 'numeric',
+							year: 'numeric'
+						});
+						const time = d.toLocaleTimeString(undefined, {
+							hour: '2-digit',
+							minute: '2-digit'
+						});
+						return `${date} — ${time}`;
+					}
+
+					function update() {
+						const text = formatNow(new Date());
+						notesMeta.textContent = text;
+					}
+
+
+					// initial update
 					update();
-					timer = setInterval(update, 60000);
-				}, msToNext);
 
-				// update when user returns to tab
-				document.addEventListener('visibilitychange', function () {
-					if (document.visibilityState === 'visible') update();
-				});
-			})();
+					// align with start of next minute, then every 60s
+					const msToNext = 60000 - (Date.now() % 60000);
+					let timer = setTimeout(function () {
+						update();
+						timer = setInterval(update, 60000);
+					}, msToNext);
+
+					// update when user returns to tab
+					document.addEventListener('visibilitychange', function () {
+						if (document.visibilityState === 'visible') update();
+					});
+				})();
 
 
-			// Modal + run state + autosave + recovery
-			(function () {
-				const RUN_STATE_KEY = 'sakeRunState';
-				const RUN_IN_PROGRESS_KEY = 'sakeRunInProgress';
+				// Modal + run state + autosave + recovery
+				(function () {
+					const RUN_STATE_KEY = 'sakeRunState';
+					const RUN_IN_PROGRESS_KEY = 'sakeRunInProgress';
 
-				// DOM elements
-				const startBtn = document.getElementById('start-run-btn');
-				const startModal = document.getElementById('start-run-modal');
-				const closeStartBtn = document.getElementById('close-modal');
-				const enterBtn = document.getElementById('enter-run-btn');
-				const runNameInput = document.getElementById('run-name');
-				const runNameDisplay = document.getElementById('run-name-display');
+					// DOM elements
+					const startBtn = document.getElementById('start-run-btn');
+					const startModal = document.getElementById('start-run-modal');
+					const closeStartBtn = document.getElementById('close-modal');
+					const enterBtn = document.getElementById('enter-run-btn');
+					const runNameInput = document.getElementById('run-name');
+					const runNameDisplay = document.getElementById('run-name-display');
 
-				const endModal = document.getElementById('end-run-modal');
-				const closeEndBtn = document.getElementById('close-end-modal');
-				const cancelEndBtn = document.getElementById('cancel-end-btn');
-				const confirmEndBtn = document.getElementById('confirm-end-btn');
+					const endModal = document.getElementById('end-run-modal');
+					const closeEndBtn = document.getElementById('close-end-modal');
+					const cancelEndBtn = document.getElementById('cancel-end-btn');
+					const confirmEndBtn = document.getElementById('confirm-end-btn');
 
-				const recoveryModal = document.getElementById('recovery-modal');
-				const recoveryExport = document.getElementById('recovery-export-btn');
-				const recoveryDiscard = document.getElementById('recovery-discard-btn');
-				const recoveryClose = document.getElementById('recovery-close-btn');
+					const recoveryModal = document.getElementById('recovery-modal');
+					const recoveryExport = document.getElementById('recovery-export-btn');
+					const recoveryDiscard = document.getElementById('recovery-discard-btn');
+					const recoveryClose = document.getElementById('recovery-close-btn');
 
-				let collectedData = [];
-				let dataCollectionInterval = null;
-				let runStartTime = null;
+					let collectedData = [];
+					let dataCollectionInterval = null;
+					let runStartTime = null;
 
-				// ---------- Autosave helpers ----------
-				function saveRunState() {
-					try {
-						const state = {
-							collectedData,
-							runStartTime: runStartTime ? runStartTime.toISOString() : null,
-							runName: localStorage.getItem('currentRunName') || null
-						};
-						localStorage.setItem(RUN_STATE_KEY, JSON.stringify(state));
-					} catch (e) {
-						console.warn('Autosave failed:', e);
-					}
-				}
-
-				function loadRunState() {
-					try {
-						const raw = localStorage.getItem(RUN_STATE_KEY);
-						if (!raw) return;
-
-						const state = JSON.parse(raw);
-						if (Array.isArray(state.collectedData)) {
-							collectedData = state.collectedData;
+					// ---------- Autosave helpers ----------
+					function saveRunState() {
+						try {
+							const state = {
+								collectedData,
+								runStartTime: runStartTime ? runStartTime.toISOString() : null,
+								runName: localStorage.getItem('currentRunName') || null
+							};
+							localStorage.setItem(RUN_STATE_KEY, JSON.stringify(state));
+						} catch (e) {
+							console.warn('Autosave failed:', e);
 						}
-						if (state.runStartTime) {
-							runStartTime = new Date(state.runStartTime);
-						}
-						console.log('Recovered autosaved run:', collectedData.length, 'rows restored');
-					} catch (e) {
-						console.warn('Failed to load autosaved run:', e);
-						localStorage.removeItem(RUN_STATE_KEY);
 					}
-				}
 
-				// ---------- Data generation ----------
-				function generateSensorData() {
-					const timestamp = new Date().toISOString();
-					const temps = [];
+					function loadRunState() {
+						try {
+							const raw = localStorage.getItem(RUN_STATE_KEY);
+							if (!raw) return;
 
-					const csvTemps = window.getCurrentTemperatures ? window.getCurrentTemperatures() : null;
+							const state = JSON.parse(raw);
+							if (Array.isArray(state.collectedData)) {
+								collectedData = state.collectedData;
+							}
+							if (state.runStartTime) {
+								runStartTime = new Date(state.runStartTime);
+							}
+							console.log('Recovered autosaved run:', collectedData.length, 'rows restored');
+						} catch (e) {
+							console.warn('Failed to load autosaved run:', e);
+							localStorage.removeItem(RUN_STATE_KEY);
+						}
+					}
 
-					for (let i = 1; i <= 6; i++) {
-						if (csvTemps && csvTemps[`temp${i}`] && csvTemps[`temp${i}`] !== '--') {
-							temps.push(csvTemps[`temp${i}`]);
-						} else {
-							const tempElement = document.getElementById(`temp-${i}`);
-							if (tempElement && tempElement.textContent !== '--') {
-								temps.push(tempElement.textContent);
+					// ---------- Data generation ----------
+					function generateSensorData() {
+						const timestamp = new Date().toISOString();
+						const temps = [];
+
+						const csvTemps = window.getCurrentTemperatures ? window.getCurrentTemperatures() : null;
+
+						for (let i = 1; i <= 6; i++) {
+							if (csvTemps && csvTemps[`temp${i}`] && csvTemps[`temp${i}`] !== '--') {
+								temps.push(csvTemps[`temp${i}`]);
 							} else {
-								temps.push((70 + Math.random() * 10).toFixed(1));
+								const tempElement = document.getElementById(`temp-${i}`);
+								if (tempElement && tempElement.textContent !== '--') {
+									temps.push(tempElement.textContent);
+								} else {
+									temps.push((70 + Math.random() * 10).toFixed(1));
+								}
 							}
 						}
+
+						const humidity = (60 + Math.random() * 20).toFixed(1);
+						const fans = [];
+						for (let i = 1; i <= 6; i++) {
+							fans.push(Math.random() > 0.5 ? 'On' : 'Off');
+						}
+						const notes = localStorage.getItem('currentNotes') || '';
+
+						return {
+							timestamp,
+							temp1: temps[0],
+							temp2: temps[1],
+							temp3: temps[2],
+							temp4: temps[3],
+							temp5: temps[4],
+							temp6: temps[5],
+							humidity,
+							fan1: fans[0],
+							fan2: fans[1],
+							fan3: fans[2],
+							fan4: fans[3],
+							fan5: fans[4],
+							fan6: fans[5],
+							notes: notes.replace(/[\r\n]/g, ' ')
+						};
 					}
 
-					const humidity = (60 + Math.random() * 20).toFixed(1);
-					const fans = [];
-					for (let i = 1; i <= 6; i++) {
-						fans.push(Math.random() > 0.5 ? 'On' : 'Off');
-					}
-					const notes = localStorage.getItem('currentNotes') || '';
+					// ---------- Start / stop collection ----------
+					function startDataCollection() {
+						collectedData = [];
+						runStartTime = new Date();
 
-					return {
-						timestamp,
-						temp1: temps[0],
-						temp2: temps[1],
-						temp3: temps[2],
-						temp4: temps[3],
-						temp5: temps[4],
-						temp6: temps[5],
-						humidity,
-						fan1: fans[0],
-						fan2: fans[1],
-						fan3: fans[2],
-						fan4: fans[3],
-						fan5: fans[4],
-						fan6: fans[5],
-						notes: notes.replace(/[\r\n]/g, ' ')
-					};
-				}
+						localStorage.setItem(RUN_IN_PROGRESS_KEY, 'true');
 
-				// ---------- Start / stop collection ----------
-				function startDataCollection() {
-					collectedData = [];
-					runStartTime = new Date();
-
-					localStorage.setItem(RUN_IN_PROGRESS_KEY, 'true');
-
-					collectedData.push(generateSensorData());
-					saveRunState();
-
-					dataCollectionInterval = setInterval(function () {
 						collectedData.push(generateSensorData());
 						saveRunState();
-					}, 30000);
-				}
 
-				function stopDataCollectionAndExport(runName) {
-					if (dataCollectionInterval) {
-						clearInterval(dataCollectionInterval);
-						dataCollectionInterval = null;
+						dataCollectionInterval = setInterval(function () {
+							collectedData.push(generateSensorData());
+							saveRunState();
+						}, 30000);
 					}
 
-					if (collectedData.length > 0) {
-						collectedData.push(generateSensorData());
-					}
-
-					let csvContent = 'Timestamp,Temp1,Temp2,Temp3,Temp4,Temp5,Temp6,Humidity,' +
-						'Fan1,Fan2,Fan3,Fan4,Fan5,Fan6,Notes\n';
-
-					collectedData.forEach(function (data) {
-						csvContent += `${data.timestamp},${data.temp1},${data.temp2},${data.temp3},${data.temp4},` +
-							`${data.temp5},${data.temp6},${data.humidity},${data.fan1},${data.fan2},` +
-							`${data.fan3},${data.fan4},${data.fan5},${data.fan6},"${data.notes}"\n`;
-					});
-
-					const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-					const link = document.createElement('a');
-					if (link.download !== undefined) {
-						const url = URL.createObjectURL(blob);
-						link.setAttribute('href', url);
-						link.setAttribute('download', `${runName}.csv`);
-						link.style.visibility = 'hidden';
-						document.body.appendChild(link);
-						link.click();
-						document.body.removeChild(link);
-					}
-
-					collectedData = [];
-					localStorage.removeItem(RUN_STATE_KEY);
-					localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
-
-					const notesInput = document.getElementById('notes-input');
-					if (notesInput) {
-						notesInput.value = '';
-						localStorage.removeItem('currentNotes');
-					}
-				}
-
-				// Expose for recovery export
-				window.sakeExportRecoveredRun = function () {
-					const currentRunName = localStorage.getItem('currentRunName') || 'RecoveredRun';
-
-					if (recoveryModal) {
-						recoveryModal.style.display = 'none';
-					}
-
-					stopDataCollectionAndExport(currentRunName);
-
-					if (window.stopTemperatureReading) {
-						window.stopTemperatureReading();
-					}
-					if (window.clearRunData) {
-						window.clearRunData();
-					}
-					localStorage.removeItem('currentNotes');
-
-					if (runNameDisplay) {
-						runNameDisplay.textContent = '';
-					}
-					localStorage.removeItem('currentRunName');
-
-					if (startBtn) {
-						startBtn.textContent = 'Start Run';
-						startBtn.classList.remove('end-run-btn-active');
-						startBtn.style.pointerEvents = 'auto';
-						startBtn.style.cursor = 'pointer';
-					}
-				};
-
-				// ---------- Load autosave & handle crash detection ----------
-				loadRunState();
-				const savedRunName = localStorage.getItem('currentRunName');
-				const rawState = localStorage.getItem(RUN_STATE_KEY);
-				const inProgress = localStorage.getItem(RUN_IN_PROGRESS_KEY) === 'true';
-
-				let hasData = false;
-				if (rawState) {
-					try {
-						const state = JSON.parse(rawState);
-						if (state && Array.isArray(state.collectedData) && state.collectedData.length > 0) {
-							hasData = true;
+					function stopDataCollectionAndExport(runName) {
+						if (dataCollectionInterval) {
+							clearInterval(dataCollectionInterval);
+							dataCollectionInterval = null;
 						}
-					} catch (e) {
-						console.warn('Invalid autosave state detected, clearing:', e);
-						localStorage.removeItem(RUN_STATE_KEY);
-					}
-				}
 
-				const crashDetected = hasData && inProgress;
-
-				// Initialize UI state
-				if (runNameDisplay) {
-					runNameDisplay.textContent = crashDetected && savedRunName ? ('- ' + savedRunName) : '';
-				}
-				if (startBtn) {
-					startBtn.textContent = 'Start Run';
-					startBtn.classList.remove('end-run-btn-active');
-					startBtn.style.pointerEvents = 'auto';
-					startBtn.style.cursor = 'pointer';
-				}
-
-				if (crashDetected && recoveryModal && recoveryExport && recoveryDiscard) {
-					recoveryModal.style.display = 'flex';
-
-					recoveryExport.addEventListener('click', function () {
-						if (window.sakeExportRecoveredRun) {
-							window.sakeExportRecoveredRun();
+						if (collectedData.length > 0) {
+							collectedData.push(generateSensorData());
 						}
-						localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
-						if (recoveryModal) recoveryModal.style.display = 'none';
-					});
 
-					recoveryDiscard.addEventListener('click', function () {
-						localStorage.removeItem(RUN_STATE_KEY);
-						localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
-						localStorage.removeItem('currentRunName');
-						if (runNameDisplay) runNameDisplay.textContent = '';
-						if (recoveryModal) recoveryModal.style.display = 'none';
-					});
+						let csvContent = 'Timestamp,Temp1,Temp2,Temp3,Temp4,Temp5,Temp6,Humidity,' +
+							'Fan1,Fan2,Fan3,Fan4,Fan5,Fan6,Notes\n';
 
-					if (recoveryClose) {
-						recoveryClose.addEventListener('click', function () {
-							localStorage.removeItem(RUN_STATE_KEY);
-							localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
-							localStorage.removeItem('currentRunName');
-							if (runNameDisplay) runNameDisplay.textContent = '';
-							if (recoveryModal) recoveryModal.style.display = 'none';
+						collectedData.forEach(function (data) {
+							csvContent += `${data.timestamp},${data.temp1},${data.temp2},${data.temp3},${data.temp4},` +
+								`${data.temp5},${data.temp6},${data.humidity},${data.fan1},${data.fan2},` +
+								`${data.fan3},${data.fan4},${data.fan5},${data.fan6},"${data.notes}"\n`;
 						});
+
+						const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+						const link = document.createElement('a');
+						if (link.download !== undefined) {
+							const url = URL.createObjectURL(blob);
+							link.setAttribute('href', url);
+							link.setAttribute('download', `${runName}.csv`);
+							link.style.visibility = 'hidden';
+							document.body.appendChild(link);
+							link.click();
+							document.body.removeChild(link);
+						}
+
+						collectedData = [];
+						localStorage.removeItem(RUN_STATE_KEY);
+						localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+
+						const notesInput = document.getElementById('notes-input');
+						if (notesInput) {
+							notesInput.value = '';
+							localStorage.removeItem('currentNotes');
+						}
 					}
 
-					document.addEventListener('keydown', function (e) {
-						if (e.key === 'Escape' && recoveryModal.style.display === 'flex') {
-							localStorage.removeItem(RUN_STATE_KEY);
-							localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
-							localStorage.removeItem('currentRunName');
-							if (runNameDisplay) runNameDisplay.textContent = '';
+					// Expose for recovery export
+					window.sakeExportRecoveredRun = function () {
+						const currentRunName = localStorage.getItem('currentRunName') || 'RecoveredRun';
+
+						if (recoveryModal) {
 							recoveryModal.style.display = 'none';
 						}
-					});
-				} else {
-					// no crash: normalize flags if no saved name
-					if (!savedRunName) {
-						localStorage.removeItem(RUN_STATE_KEY);
-						localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
-					}
-				}
-
-				// ---------- Guard: if core elements are missing, stop here ----------
-				if (!startBtn || !startModal || !closeStartBtn || !enterBtn || !runNameInput) {
-					return;
-				}
-
-				// ---------- Start button (open start modal or end modal) ----------
-				startBtn.addEventListener('click', function () {
-					if (startBtn.classList.contains('end-run-btn-active')) {
-						if (endModal) endModal.style.display = 'flex';
-					} else {
-						const fileInput = document.getElementById('target-csv-upload');
-						const uploadStatus = document.getElementById('upload-status');
-						if (fileInput) fileInput.value = '';
-						if (uploadStatus) uploadStatus.textContent = '';
-
-						if (window.setupFileUploadHandler) {
-							window.setupFileUploadHandler();
-						}
-
-						startModal.style.display = 'flex';
-						runNameInput.focus();
-					}
-				});
-
-				// ---------- Start modal close ----------
-				closeStartBtn.addEventListener('click', function () {
-					startModal.style.display = 'none';
-				});
-
-				startModal.addEventListener('click', function (e) {
-					if (e.target === startModal) {
-						startModal.style.display = 'none';
-					}
-				});
-
-				document.addEventListener('keydown', function (e) {
-					if (e.key === 'Escape' && startModal.style.display === 'flex') {
-						startModal.style.display = 'none';
-					}
-				});
-
-				// ---------- Confirm Start Run ----------
-				enterBtn.addEventListener('click', function () {
-					const runName = runNameInput.value.trim();
-					if (!runName) return;
-
-					if (runNameDisplay) {
-						runNameDisplay.textContent = '- ' + runName;
-					}
-					localStorage.setItem('currentRunName', runName);
-
-					startDataCollection();
-					if (window.startTemperatureReading) {
-						window.startTemperatureReading();
-					}
-					if (window.setRunStartTime) {
-						window.setRunStartTime();
-					}
-
-					startBtn.textContent = 'End Run';
-					startBtn.classList.add('end-run-btn-active');
-					startBtn.style.pointerEvents = 'auto';
-					startBtn.style.cursor = 'pointer';
-
-					startModal.style.display = 'none';
-					runNameInput.value = '';
-				});
-
-				runNameInput.addEventListener('keydown', function (e) {
-					if (e.key === 'Enter') {
-						enterBtn.click();
-					}
-				});
-
-				// ---------- End Run modal ----------
-				if (endModal && closeEndBtn && cancelEndBtn && confirmEndBtn) {
-					closeEndBtn.addEventListener('click', function () {
-						endModal.style.display = 'none';
-					});
-
-					cancelEndBtn.addEventListener('click', function () {
-						endModal.style.display = 'none';
-					});
-
-					endModal.addEventListener('click', function (e) {
-						if (e.target === endModal) {
-							endModal.style.display = 'none';
-						}
-					});
-
-					confirmEndBtn.addEventListener('click', function () {
-						const currentRunName = localStorage.getItem('currentRunName') || 'UnknownRun';
 
 						stopDataCollectionAndExport(currentRunName);
 
@@ -721,654 +551,583 @@
 						if (window.clearRunData) {
 							window.clearRunData();
 						}
-
 						localStorage.removeItem('currentNotes');
 
 						if (runNameDisplay) {
 							runNameDisplay.textContent = '';
 						}
-
 						localStorage.removeItem('currentRunName');
+
+						if (startBtn) {
+							startBtn.textContent = 'Start Run';
+							startBtn.classList.remove('end-run-btn-active');
+							startBtn.style.pointerEvents = 'auto';
+							startBtn.style.cursor = 'pointer';
+						}
+					};
+
+					// ---------- Load autosave & handle crash detection ----------
+					loadRunState();
+					const savedRunName = localStorage.getItem('currentRunName');
+					const rawState = localStorage.getItem(RUN_STATE_KEY);
+					const inProgress = localStorage.getItem(RUN_IN_PROGRESS_KEY) === 'true';
+
+					let hasData = false;
+					if (rawState) {
+						try {
+							const state = JSON.parse(rawState);
+							if (state && Array.isArray(state.collectedData) && state.collectedData.length > 0) {
+								hasData = true;
+							}
+						} catch (e) {
+							console.warn('Invalid autosave state detected, clearing:', e);
+							localStorage.removeItem(RUN_STATE_KEY);
+						}
+					}
+
+					const crashDetected = hasData && inProgress;
+
+					// Initialize UI state
+					if (runNameDisplay) {
+						runNameDisplay.textContent = crashDetected && savedRunName ? ('- ' + savedRunName) : '';
+					}
+					if (startBtn) {
 						startBtn.textContent = 'Start Run';
 						startBtn.classList.remove('end-run-btn-active');
-						endModal.style.display = 'none';
+						startBtn.style.pointerEvents = 'auto';
+						startBtn.style.cursor = 'pointer';
+					}
+
+					if (crashDetected && recoveryModal && recoveryExport && recoveryDiscard) {
+						recoveryModal.style.display = 'flex';
+
+						recoveryExport.addEventListener('click', function () {
+							if (window.sakeExportRecoveredRun) {
+								window.sakeExportRecoveredRun();
+							}
+							localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+							if (recoveryModal) recoveryModal.style.display = 'none';
+						});
+
+						recoveryDiscard.addEventListener('click', function () {
+							localStorage.removeItem(RUN_STATE_KEY);
+							localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+							localStorage.removeItem('currentRunName');
+							if (runNameDisplay) runNameDisplay.textContent = '';
+							if (recoveryModal) recoveryModal.style.display = 'none';
+						});
+
+						if (recoveryClose) {
+							recoveryClose.addEventListener('click', function () {
+								localStorage.removeItem(RUN_STATE_KEY);
+								localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+								localStorage.removeItem('currentRunName');
+								if (runNameDisplay) runNameDisplay.textContent = '';
+								if (recoveryModal) recoveryModal.style.display = 'none';
+							});
+						}
+
+						document.addEventListener('keydown', function (e) {
+							if (e.key === 'Escape' && recoveryModal.style.display === 'flex') {
+								localStorage.removeItem(RUN_STATE_KEY);
+								localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+								localStorage.removeItem('currentRunName');
+								if (runNameDisplay) runNameDisplay.textContent = '';
+								recoveryModal.style.display = 'none';
+							}
+						});
+					} else {
+						// no crash: normalize flags if no saved name
+						if (!savedRunName) {
+							localStorage.removeItem(RUN_STATE_KEY);
+							localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+						}
+					}
+
+					// ---------- Guard: if core elements are missing, stop here ----------
+					if (!startBtn || !startModal || !closeStartBtn || !enterBtn || !runNameInput) {
+						return;
+					}
+
+					// ---------- Start button (open start modal or end modal) ----------
+					startBtn.addEventListener('click', function () {
+						if (startBtn.classList.contains('end-run-btn-active')) {
+							if (endModal) endModal.style.display = 'flex';
+						} else {
+							const fileInput = document.getElementById('target-csv-upload');
+							const uploadStatus = document.getElementById('upload-status');
+							if (fileInput) fileInput.value = '';
+							if (uploadStatus) uploadStatus.textContent = '';
+
+							if (window.setupFileUploadHandler) {
+								window.setupFileUploadHandler();
+							}
+
+							startModal.style.display = 'flex';
+							runNameInput.focus();
+						}
+					});
+
+					// ---------- Start modal close ----------
+					closeStartBtn.addEventListener('click', function () {
+						startModal.style.display = 'none';
+					});
+
+					startModal.addEventListener('click', function (e) {
+						if (e.target === startModal) {
+							startModal.style.display = 'none';
+						}
 					});
 
 					document.addEventListener('keydown', function (e) {
-						if (e.key === 'Escape' && endModal.style.display === 'flex') {
-							endModal.style.display = 'none';
+						if (e.key === 'Escape' && startModal.style.display === 'flex') {
+							startModal.style.display = 'none';
 						}
 					});
-				}
-			})();
 
+					// ---------- Confirm Start Run ----------
+					enterBtn.addEventListener('click', function () {
+						const runName = runNameInput.value.trim();
+						if (!runName) return;
 
-			// Notes localStorage functionality
-			(function () {
-				const notesInput = document.getElementById('notes-input');
-				if (!notesInput) return;
+						if (runNameDisplay) {
+							runNameDisplay.textContent = '- ' + runName;
+						}
+						localStorage.setItem('currentRunName', runName);
 
-				const savedNotes = localStorage.getItem('currentNotes');
-				if (savedNotes) {
-					notesInput.value = savedNotes;
-				}
-
-				let saveTimeout;
-				notesInput.addEventListener('input', function () {
-					clearTimeout(saveTimeout);
-					saveTimeout = setTimeout(function () {
-						localStorage.setItem('currentNotes', notesInput.value);
-					}, 500);
-				});
-
-				notesInput.addEventListener('blur', function () {
-					clearTimeout(saveTimeout);
-					localStorage.setItem('currentNotes', notesInput.value);
-				});
-			})();
-
-			/* FOR LATER Live temperature readings from CSV file
-			(function () {
-				const CSV_FILE_PATH = 'data/temperature_readings.csv';
-
-				let currentTemperatures = {
-					temp1: '--', temp2: '--', temp3: '--',
-					temp4: '--', temp5: '--', temp6: '--'
-				};
-				let currentHumidity = null;
-				let temperatureReadingActive = false;
-
-				function parseCSVData(csvText) {
-					const lines = csvText.trim().split('\n');
-					if (lines.length < 2) return null;
-
-					const lastLine = lines[lines.length - 1];
-					const values = lastLine.split(',');
-
-					// Expected: timestamp,temp1,...,temp6,humidity,...
-					if (values.length >= 8) {
-						const sample = {
-							timestamp: values[0],
-							temp1: parseFloat(values[1]),
-							temp2: parseFloat(values[2]),
-							temp3: parseFloat(values[3]),
-							temp4: parseFloat(values[4]),
-							temp5: parseFloat(values[5]),
-							temp6: parseFloat(values[6]),
-							humidity: parseFloat(values[7])
-						};
-						return sample;
-					}
-					return null;
-				}
-
-				async function readCSVFile() {
-					if (!temperatureReadingActive) return;
-
-					try {
-						const response = await fetch(CSV_FILE_PATH);
-						if (!response.ok) {
-							console.warn('Could not read CSV file:', response.statusText);
-							return;
+						startDataCollection();
+						if (window.startTemperatureReading) {
+							window.startTemperatureReading();
+						}
+						if (window.setRunStartTime) {
+							window.setRunStartTime();
 						}
 
-						const csvText = await response.text();
-						const sample = parseCSVData(csvText);
+						startBtn.textContent = 'End Run';
+						startBtn.classList.add('end-run-btn-active');
+						startBtn.style.pointerEvents = 'auto';
+						startBtn.style.cursor = 'pointer';
 
-						if (sample) {
-							currentTemperatures = {
-								temp1: sample.temp1.toFixed(1),
-								temp2: sample.temp2.toFixed(1),
-								temp3: sample.temp3.toFixed(1),
-								temp4: sample.temp4.toFixed(1),
-								temp5: sample.temp5.toFixed(1),
-								temp6: sample.temp6.toFixed(1)
+						startModal.style.display = 'none';
+						runNameInput.value = '';
+					});
+
+					runNameInput.addEventListener('keydown', function (e) {
+						if (e.key === 'Enter') {
+							enterBtn.click();
+						}
+					});
+
+					// ---------- End Run modal ----------
+					if (endModal && closeEndBtn && cancelEndBtn && confirmEndBtn) {
+						closeEndBtn.addEventListener('click', function () {
+							endModal.style.display = 'none';
+						});
+
+						cancelEndBtn.addEventListener('click', function () {
+							endModal.style.display = 'none';
+						});
+
+						endModal.addEventListener('click', function (e) {
+							if (e.target === endModal) {
+								endModal.style.display = 'none';
+							}
+						});
+
+						confirmEndBtn.addEventListener('click', function () {
+							const currentRunName = localStorage.getItem('currentRunName') || 'UnknownRun';
+
+							stopDataCollectionAndExport(currentRunName);
+
+							if (window.stopTemperatureReading) {
+								window.stopTemperatureReading();
+							}
+							if (window.clearRunData) {
+								window.clearRunData();
+							}
+
+							localStorage.removeItem('currentNotes');
+
+							if (runNameDisplay) {
+								runNameDisplay.textContent = '';
+							}
+
+							localStorage.removeItem('currentRunName');
+							startBtn.textContent = 'Start Run';
+							startBtn.classList.remove('end-run-btn-active');
+							endModal.style.display = 'none';
+						});
+
+						document.addEventListener('keydown', function (e) {
+							if (e.key === 'Escape' && endModal.style.display === 'flex') {
+								endModal.style.display = 'none';
+							}
+						});
+					}
+				})();
+
+
+				// Notes localStorage functionality
+				(function () {
+					const notesInput = document.getElementById('notes-input');
+					if (!notesInput) return;
+
+					const savedNotes = localStorage.getItem('currentNotes');
+					if (savedNotes) {
+						notesInput.value = savedNotes;
+					}
+
+					let saveTimeout;
+					notesInput.addEventListener('input', function () {
+						clearTimeout(saveTimeout);
+						saveTimeout = setTimeout(function () {
+							localStorage.setItem('currentNotes', notesInput.value);
+						}, 500);
+					});
+
+					notesInput.addEventListener('blur', function () {
+						clearTimeout(saveTimeout);
+						localStorage.setItem('currentNotes', notesInput.value);
+					});
+				})();
+
+				/* FOR LATER Live temperature readings from CSV file
+				(function () {
+					const CSV_FILE_PATH = 'data/temperature_readings.csv';
+	
+					let currentTemperatures = {
+						temp1: '--', temp2: '--', temp3: '--',
+						temp4: '--', temp5: '--', temp6: '--'
+					};
+					let currentHumidity = null;
+					let temperatureReadingActive = false;
+	
+					function parseCSVData(csvText) {
+						const lines = csvText.trim().split('\n');
+						if (lines.length < 2) return null;
+	
+						const lastLine = lines[lines.length - 1];
+						const values = lastLine.split(',');
+	
+						// Expected: timestamp,temp1,...,temp6,humidity,...
+						if (values.length >= 8) {
+							const sample = {
+								timestamp: values[0],
+								temp1: parseFloat(values[1]),
+								temp2: parseFloat(values[2]),
+								temp3: parseFloat(values[3]),
+								temp4: parseFloat(values[4]),
+								temp5: parseFloat(values[5]),
+								temp6: parseFloat(values[6]),
+								humidity: parseFloat(values[7])
 							};
-							currentHumidity = isNaN(sample.humidity) ? null : sample.humidity;
-
-							updateTemperatureDisplay();
-
-							// 🔴 NEW: push data point to charts, if chart code is loaded
-							if (window.pushSensorSample) {
-								window.pushSensorSample({
-									time: sample.timestamp ? new Date(sample.timestamp) : new Date(),
-									temps: { ...currentTemperatures },
-									humidity: currentHumidity
-								});
+							return sample;
+						}
+						return null;
+					}
+	
+					async function readCSVFile() {
+						if (!temperatureReadingActive) return;
+	
+						try {
+							const response = await fetch(CSV_FILE_PATH);
+							if (!response.ok) {
+								console.warn('Could not read CSV file:', response.statusText);
+								return;
+							}
+	
+							const csvText = await response.text();
+							const sample = parseCSVData(csvText);
+	
+							if (sample) {
+								currentTemperatures = {
+									temp1: sample.temp1.toFixed(1),
+									temp2: sample.temp2.toFixed(1),
+									temp3: sample.temp3.toFixed(1),
+									temp4: sample.temp4.toFixed(1),
+									temp5: sample.temp5.toFixed(1),
+									temp6: sample.temp6.toFixed(1)
+								};
+								currentHumidity = isNaN(sample.humidity) ? null : sample.humidity;
+	
+								updateTemperatureDisplay();
+	
+								// 🔴 NEW: push data point to charts, if chart code is loaded
+								if (window.pushSensorSample) {
+									window.pushSensorSample({
+										time: sample.timestamp ? new Date(sample.timestamp) : new Date(),
+										temps: { ...currentTemperatures },
+										humidity: currentHumidity
+									});
+								}
+							}
+						} catch (error) {
+							console.warn('Error reading CSV file:', error);
+							generateFallbackTemperatures();
+						}
+					}
+	
+					function generateFallbackTemperatures() {
+						if (!temperatureReadingActive) return;
+	
+						for (let i = 1; i <= 6; i++) {
+							const temp = (70 + Math.random() * 10).toFixed(1);
+							currentTemperatures[`temp${i}`] = temp;
+						}
+						currentHumidity = 60 + Math.random() * 20;
+	
+						updateTemperatureDisplay();
+	
+						if (window.pushSensorSample) {
+							window.pushSensorSample({
+								time: new Date(),
+								temps: { ...currentTemperatures },
+								humidity: currentHumidity
+							});
+						}
+					}
+	
+					function updateTemperatureDisplay() {
+						for (let i = 1; i <= 6; i++) {
+							const tempElement = document.getElementById(`temp-${i}`);
+							if (tempElement) {
+								tempElement.textContent = currentTemperatures[`temp${i}`] || '--';
 							}
 						}
-					} catch (error) {
-						console.warn('Error reading CSV file:', error);
-						generateFallbackTemperatures();
 					}
-				}
-
-				function generateFallbackTemperatures() {
-					if (!temperatureReadingActive) return;
-
-					for (let i = 1; i <= 6; i++) {
-						const temp = (70 + Math.random() * 10).toFixed(1);
-						currentTemperatures[`temp${i}`] = temp;
+	
+					function startTemperatureReading() {
+						temperatureReadingActive = true;
+						readCSVFile();
 					}
-					currentHumidity = 60 + Math.random() * 20;
-
-					updateTemperatureDisplay();
-
-					if (window.pushSensorSample) {
-						window.pushSensorSample({
-							time: new Date(),
-							temps: { ...currentTemperatures },
-							humidity: currentHumidity
-						});
+	
+					function stopTemperatureReading() {
+						temperatureReadingActive = false;
+						currentTemperatures = {
+							temp1: '--', temp2: '--', temp3: '--',
+							temp4: '--', temp5: '--', temp6: '--'
+						};
+						currentHumidity = null;
+						updateTemperatureDisplay();
 					}
-				}
-
-				function updateTemperatureDisplay() {
-					for (let i = 1; i <= 6; i++) {
-						const tempElement = document.getElementById(`temp-${i}`);
-						if (tempElement) {
-							tempElement.textContent = currentTemperatures[`temp${i}`] || '--';
-						}
+	
+					function getCurrentTemperatures() {
+						return currentTemperatures;
 					}
-				}
+	
+					window.getCurrentTemperatures = getCurrentTemperatures;
+					window.startTemperatureReading = startTemperatureReading;
+					window.stopTemperatureReading = stopTemperatureReading;
+	
+					const savedRunName = localStorage.getItem('currentRunName');
+					if (savedRunName) {
+						temperatureReadingActive = true;
+					}
+	
+					setInterval(readCSVFile, 5000);
+				})();
+				*/
 
-				function startTemperatureReading() {
-					temperatureReadingActive = true;
-					readCSVFile();
-				}
-
-				function stopTemperatureReading() {
-					temperatureReadingActive = false;
-					currentTemperatures = {
+				// Simulated live temperature readings (dry-bulb 20–50 °C) + humidity + fans,
+				// but DISPLAY wet-bulb temperature based on humidity.
+				(function () {
+					// Latest displayed temperatures (wet-bulb °C)
+					let currentTemperatures = {
 						temp1: '--', temp2: '--', temp3: '--',
 						temp4: '--', temp5: '--', temp6: '--'
 					};
-					currentHumidity = null;
-					updateTemperatureDisplay();
-				}
 
-				function getCurrentTemperatures() {
-					return currentTemperatures;
-				}
-
-				window.getCurrentTemperatures = getCurrentTemperatures;
-				window.startTemperatureReading = startTemperatureReading;
-				window.stopTemperatureReading = stopTemperatureReading;
-
-				const savedRunName = localStorage.getItem('currentRunName');
-				if (savedRunName) {
-					temperatureReadingActive = true;
-				}
-
-				setInterval(readCSVFile, 5000);
-			})();
-			*/
-
-			// Simulated live temperature readings (dry-bulb 20–50 °C) + humidity + fans,
-			// but DISPLAY wet-bulb temperature based on humidity.
-			(function () {
-				// Latest displayed temperatures (wet-bulb °C)
-				let currentTemperatures = {
-					temp1: '--', temp2: '--', temp3: '--',
-					temp4: '--', temp5: '--', temp6: '--'
-				};
-
-				// Internal dry-bulb temps (°C)
-				let currentDryBulb = {
-					temp1: null, temp2: null, temp3: null,
-					temp4: null, temp5: null, temp6: null
-				};
-
-				// Latest fan states (1 = on, 0 = off)
-				let currentFans = {
-					fan1: 0, fan2: 0, fan3: 0,
-					fan4: 0, fan5: 0, fan6: 0
-				};
-
-				let currentHumidity = null;
-				let temperatureReadingActive = false;
-				let simIntervalId = null;
-
-				function updateTemperatureDisplay() {
-					for (let i = 1; i <= 6; i++) {
-						const dryEl = document.getElementById(`temp-${i}-dry`);
-						const wetEl = document.getElementById(`temp-${i}-wet`);
-
-						if (dryEl) {
-							const dry = currentDryBulb[`temp${i}`];
-							dryEl.textContent =
-								(typeof dry === 'number' && !Number.isNaN(dry)) ? dry.toFixed(1) : '--';
-						}
-
-						if (wetEl) {
-							const wet = currentTemperatures[`temp${i}`];
-							wetEl.textContent = wet || '--';
-						}
-					}
-				}
-
-				// Approximate wet-bulb temperature (°C) from dry-bulb (°C) and RH (%)
-				// Using Stull (2011) empirical formula – good for 0–50 °C and 5–99% RH.
-				function computeWetBulbC(TdbC, RH) {
-					const R = Math.min(100, Math.max(1, RH)); // clamp 1–100
-					const T = TdbC;
-
-					const Tw =
-						T * Math.atan(0.151977 * Math.sqrt(R + 8.313659)) +
-						Math.atan(T + R) -
-						Math.atan(R - 1.676331) +
-						0.00391838 * Math.pow(R, 1.5) * Math.atan(0.023101 * R) -
-						4.686035;
-
-					return Tw;
-				}
-
-				// Generate random sample:
-				//   dry-bulb: 20–50 °C
-				//   RH: 40–80 %
-				//   wet-bulb: computed from Tdb & RH
-				//   fans ON when wet-bulb > 40 °C
-				function generateRandomSample() {
-					if (!temperatureReadingActive) return;
-
-					// One humidity value for this sample
-					currentHumidity = (40 + Math.random() * 40).toFixed(1); // 40–80 % RH
-					const RH = parseFloat(currentHumidity);
-
-					for (let i = 1; i <= 6; i++) {
-						// Dry-bulb temperature for this zone
-						const dryC = 20 + Math.random() * 30; // 20–50 °C
-						currentDryBulb[`temp${i}`] = dryC;
-
-						// Compute wet-bulb from dry-bulb + RH
-						const wetC = computeWetBulbC(dryC, RH);
-						currentTemperatures[`temp${i}`] = wetC.toFixed(1);
-
-						// Fan ON when *displayed* (wet-bulb) temp > 40 °C
-						currentFans[`fan${i}`] = wetC > 40 ? 1 : 0;
-					}
-
-					updateTemperatureDisplay();
-
-					// Push to charts if chart logic is present
-					if (window.pushSensorSample) {
-						window.pushSensorSample({
-							time: new Date(),
-							// charts see wet-bulb temps
-							temps: { ...currentTemperatures },
-							humidity: currentHumidity,
-							fans: { ...currentFans },
-							// dry-bulb available if you ever want it
-							dryBulb: { ...currentDryBulb }
-						});
-					}
-				}
-
-				function startTemperatureReading() {
-					if (temperatureReadingActive) return;
-					temperatureReadingActive = true;
-
-					// Immediate first sample
-					generateRandomSample();
-
-					// Then update every 5 seconds
-					simIntervalId = setInterval(generateRandomSample, 5000);
-				}
-
-				function stopTemperatureReading() {
-					temperatureReadingActive = false;
-					if (simIntervalId) {
-						clearInterval(simIntervalId);
-						simIntervalId = null;
-					}
-
-					currentTemperatures = {
-						temp1: '--', temp2: '--', temp3: '--',
-						temp4: '--', temp5: '--', temp6: '--'
-					};
-					currentDryBulb = {
+					// Internal dry-bulb temps (°C)
+					let currentDryBulb = {
 						temp1: null, temp2: null, temp3: null,
 						temp4: null, temp5: null, temp6: null
 					};
-					currentHumidity = null;
 
-					currentFans = {
+					// Latest fan states (1 = on, 0 = off)
+					let currentFans = {
 						fan1: 0, fan2: 0, fan3: 0,
 						fan4: 0, fan5: 0, fan6: 0
 					};
 
-					updateTemperatureDisplay();
-				}
+					let currentHumidity = null;
+					let temperatureReadingActive = false;
+					let simIntervalId = null;
 
-				function getCurrentTemperatures() {
-					return currentTemperatures; // wet-bulb
-				}
-
-				// Expose globally for other code
-				window.getCurrentTemperatures = getCurrentTemperatures;
-				window.startTemperatureReading = startTemperatureReading;
-				window.stopTemperatureReading = stopTemperatureReading;
-
-				// If you ever want it to auto-start on page load, you can call:
-				// startTemperatureReading();
-			})();
-
-			// Duplicate legacy simulator removed — using the wet-bulb simulator defined earlier.
-			// The active simulator above exposes startTemperatureReading/stopTemperatureReading/getCurrentTemperatures
-			// and will call startTemperatureReading() if you want readings to begin automatically.
-
-			// Live-updating charts for temperature, humidity, and fans + modal with scroll/zoom
-			(function () {
-				const tempCanvas = document.getElementById('temp-chart');
-				const humCanvas = document.getElementById('humidity-chart');
-				const fansCanvas = document.getElementById('fans-chart');
-
-				if (!tempCanvas || !humCanvas || !fansCanvas || !window.Chart) return;
-
-				const tempCtx = tempCanvas.getContext('2d');
-				const humCtx = humCanvas.getContext('2d');
-				const fansCtx = fansCanvas.getContext('2d');
-
-				const maxPoints = 60; // keep last 60 samples (~5 min if 5s interval)
-				const labels = [];
-				const humidityData = [];
-
-				const tempSeries = {
-					temp1: [],
-					temp2: [],
-					temp3: [],
-					temp4: [],
-					temp5: [],
-					temp6: []
-				};
-
-				const fansSeries = {
-					fan1: [],
-					fan2: [],
-					fan3: [],
-					fan4: [],
-					fan5: [],
-					fan6: []
-				};
-
-				// Small dashboard charts
-				const tempChart = new Chart(tempCtx, {
-					type: 'line',
-					data: {
-						labels,
-						datasets: [
-							{ label: 'Temp 1', data: tempSeries.temp1, borderWidth: 1, pointRadius: 0 },
-							{ label: 'Temp 2', data: tempSeries.temp2, borderWidth: 1, pointRadius: 0 },
-							{ label: 'Temp 3', data: tempSeries.temp3, borderWidth: 1, pointRadius: 0 },
-							{ label: 'Temp 4', data: tempSeries.temp4, borderWidth: 1, pointRadius: 0 },
-							{ label: 'Temp 5', data: tempSeries.temp5, borderWidth: 1, pointRadius: 0 },
-							{ label: 'Temp 6', data: tempSeries.temp6, borderWidth: 1, pointRadius: 0 }
-						]
-					},
-					options: {
-						animation: false,
-						responsive: true,
-						maintainAspectRatio: false,
-						scales: {
-							x: {
-								ticks: { autoSkip: true, maxTicksLimit: 6 }
-							},
-							y: {
-								title: { display: true, text: 'Temperature (°C)' }
-							}
-						},
-						plugins: {
-							legend: { position: 'bottom' }
-						}
-					}
-				});
-
-				const humChart = new Chart(humCtx, {
-					type: 'line',
-					data: {
-						labels,
-						datasets: [
-							{ label: 'Humidity', data: humidityData, borderWidth: 1, pointRadius: 0 }
-						]
-					},
-					options: {
-						animation: false,
-						responsive: true,
-						maintainAspectRatio: false,
-						scales: {
-							x: {
-								ticks: { autoSkip: true, maxTicksLimit: 6 }
-							},
-							y: {
-								title: { display: true, text: 'Humidity (%)' }
-							}
-						},
-						plugins: {
-							legend: { display: false }
-						}
-					}
-				});
-
-				const fansChart = new Chart(fansCtx, {
-					type: 'line',
-					data: {
-						labels,
-						datasets: [
-							{ label: 'Fan 1', data: fansSeries.fan1, borderWidth: 1, pointRadius: 0, stepped: true },
-							{ label: 'Fan 2', data: fansSeries.fan2, borderWidth: 1, pointRadius: 0, stepped: true },
-							{ label: 'Fan 3', data: fansSeries.fan3, borderWidth: 1, pointRadius: 0, stepped: true },
-							{ label: 'Fan 4', data: fansSeries.fan4, borderWidth: 1, pointRadius: 0, stepped: true },
-							{ label: 'Fan 5', data: fansSeries.fan5, borderWidth: 1, pointRadius: 0, stepped: true },
-							{ label: 'Fan 6', data: fansSeries.fan6, borderWidth: 1, pointRadius: 0, stepped: true }
-						]
-					},
-					options: {
-						animation: false,
-						responsive: true,
-						maintainAspectRatio: false,
-						scales: {
-							x: {
-								ticks: { autoSkip: true, maxTicksLimit: 6 }
-							},
-							y: {
-								min: -0.1,
-								max: 1.1,
-								ticks: {
-									stepSize: 1,
-									callback: v => (v === 0 ? 'Off' : v === 1 ? 'On' : '')
-								},
-								title: { display: true, text: 'Fan state' }
-							}
-						},
-						plugins: {
-							legend: { position: 'bottom' }
-						}
-					}
-				});
-
-				// This gets called from the simulator
-				window.pushSensorSample = function (sample) {
-					const t = sample.time instanceof Date ? sample.time : new Date(sample.time);
-					const label = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-					labels.push(label);
-
-					// temps
-					for (let i = 1; i <= 6; i++) {
-						const key = `temp${i}`;
-						const val = parseFloat(sample.temps[key]);
-						tempSeries[key].push(isNaN(val) ? null : val);
-					}
-
-					// humidity
-					const humVal = parseFloat(sample.humidity);
-					humidityData.push(isNaN(humVal) ? null : humVal);
-
-					// fans (optional)
-					if (sample.fans) {
+					function updateTemperatureDisplay() {
 						for (let i = 1; i <= 6; i++) {
-							const key = `fan${i}`;
-							const v = parseFloat(sample.fans[key]);
-							fansSeries[key].push(isNaN(v) ? null : v);
-						}
-					} else {
-						Object.values(fansSeries).forEach(arr => arr.push(null));
-					}
+							const dryEl = document.getElementById(`temp-${i}-dry`);
+							const wetEl = document.getElementById(`temp-${i}-wet`);
 
-					// keep arrays bounded
-					if (labels.length > maxPoints) {
-						labels.shift();
-						Object.values(tempSeries).forEach(arr => arr.shift());
-						humidityData.shift();
-						Object.values(fansSeries).forEach(arr => arr.shift());
-					}
+							if (dryEl) {
+								const dry = currentDryBulb[`temp${i}`];
+								dryEl.textContent =
+									(typeof dry === 'number' && !Number.isNaN(dry)) ? dry.toFixed(1) : '--';
+							}
 
-					tempChart.update('none');
-					humChart.update('none');
-					fansChart.update('none');
-
-					// If modal is open, update its data window too
-					if (chartModal && chartModal.style.display === 'flex') {
-						updateModalWindowFromSlider(); // keeps it in sync with new data
-					}
-				};
-
-				// ---------- Full-page chart modal + controls ----------
-				const chartModal = document.getElementById('chart-modal');
-				const chartModalClose = document.getElementById('chart-modal-close');
-				const chartModalTitle = document.getElementById('chart-modal-title');
-				const chartModalCanvas = document.getElementById('chart-modal-canvas');
-
-				const windowSlider = document.getElementById('chart-window-range');
-				const ySlider = document.getElementById('chart-y-range');
-
-				let modalChart = null;
-				let modalChartType = null;   // 'temp' | 'humidity' | 'fans'
-				let windowSize = 20;         // number of points visible in the modal
-
-				let yBaseMin = null;
-				let yBaseMax = null;
-
-				function computeYRange(type) {
-					let vals = [];
-					if (type === 'temp') {
-						Object.values(tempSeries).forEach(arr => {
-							vals = vals.concat(arr.filter(v => v != null));
-						});
-					} else if (type === 'humidity') {
-						vals = humidityData.filter(v => v != null);
-					} else if (type === 'fans') {
-						// fans are 0–1
-						return { min: -0.1, max: 1.1 };
-					}
-
-					if (!vals.length) {
-						return { min: 0, max: 1 };
-					}
-					const min = Math.min(...vals);
-					const max = Math.max(...vals);
-					const pad = (max - min) * 0.1 || 1;
-					return { min: min - pad, max: max + pad };
-				}
-
-				function getSlicedData(type, start) {
-					const total = labels.length;
-					const s = Math.max(0, Math.min(start, Math.max(0, total - 1)));
-					const e = Math.min(s + windowSize, total);
-
-					const labelSlice = labels.slice(s, e);
-					let datasets;
-
-					if (type === 'temp') {
-						datasets = Object.keys(tempSeries).map((key, idx) => ({
-							label: tempChart.data.datasets[idx].label,
-							borderWidth: 1,
-							pointRadius: 0,
-							data: tempSeries[key].slice(s, e)
-						}));
-					} else if (type === 'humidity') {
-						datasets = [{
-							label: 'Humidity',
-							borderWidth: 1,
-							pointRadius: 0,
-							data: humidityData.slice(s, e)
-						}];
-					} else if (type === 'fans') {
-						datasets = Object.keys(fansSeries).map((key, idx) => ({
-							label: fansChart.data.datasets[idx].label,
-							borderWidth: 1,
-							pointRadius: 0,
-							stepped: true,
-							data: fansSeries[key].slice(s, e)
-						}));
-					} else {
-						datasets = [];
-					}
-
-					return { labels: labelSlice, datasets };
-				}
-
-				function openChartModal(type) {
-					if (!chartModal || !chartModalCanvas) return;
-
-					modalChartType = type;
-
-					// Destroy any previous modal chart
-					if (modalChart) {
-						modalChart.destroy();
-						modalChart = null;
-					}
-
-					const ctx = chartModalCanvas.getContext('2d');
-
-					// Initial window: last windowSize points (or all if fewer)
-					const total = labels.length;
-					const maxStart = Math.max(0, total - windowSize);
-					const startIndex = Math.max(0, maxStart);
-
-					// Setup X slider
-					if (windowSlider) {
-						if (total <= windowSize) {
-							windowSlider.disabled = true;
-							windowSlider.min = '0';
-							windowSlider.max = '0';
-							windowSlider.value = '0';
-						} else {
-							windowSlider.disabled = false;
-							windowSlider.min = '0';
-							windowSlider.max = String(maxStart);
-							windowSlider.value = String(startIndex); // start pinned to the tail
+							if (wetEl) {
+								const wet = currentTemperatures[`temp${i}`];
+								wetEl.textContent = wet || '--';
+							}
 						}
 					}
 
-					// Setup Y range & slider
-					const { min, max } = computeYRange(type);
-					yBaseMin = min;
-					yBaseMax = max;
-					if (ySlider) {
-						ySlider.disabled = (type === 'fans'); // fans are fixed 0–1
-						ySlider.value = '0'; // no zoom initially
+					// Approximate wet-bulb temperature (°C) from dry-bulb (°C) and RH (%)
+					// Using Stull (2011) empirical formula – good for 0–50 °C and 5–99% RH.
+					function computeWetBulbC(TdbC, RH) {
+						const R = Math.min(100, Math.max(1, RH)); // clamp 1–100
+						const T = TdbC;
+
+						const Tw =
+							T * Math.atan(0.151977 * Math.sqrt(R + 8.313659)) +
+							Math.atan(T + R) -
+							Math.atan(R - 1.676331) +
+							0.00391838 * Math.pow(R, 1.5) * Math.atan(0.023101 * R) -
+							4.686035;
+
+						return Tw;
 					}
 
-					const sliced = getSlicedData(type, startIndex);
+					// Generate random sample:
+					//   dry-bulb: 20–50 °C
+					//   RH: 40–80 %
+					//   wet-bulb: computed from Tdb & RH
+					//   fans ON when wet-bulb > 40 °C
+					function generateRandomSample() {
+						if (!temperatureReadingActive) return;
 
-					let yTitle = '';
-					if (type === 'temp') {
-						chartModalTitle.textContent = 'Temperature over time';
-						yTitle = 'Temperature (°C)';
-					} else if (type === 'humidity') {
-						chartModalTitle.textContent = 'Humidity over time';
-						yTitle = 'Humidity (%)';
-					} else if (type === 'fans') {
-						chartModalTitle.textContent = 'Fans on/off over time';
-						yTitle = 'Fan state';
+						// One humidity value for this sample
+						currentHumidity = (40 + Math.random() * 40).toFixed(1); // 40–80 % RH
+						const RH = parseFloat(currentHumidity);
+
+						for (let i = 1; i <= 6; i++) {
+							// Dry-bulb temperature for this zone
+							const dryC = 20 + Math.random() * 30; // 20–50 °C
+							currentDryBulb[`temp${i}`] = dryC;
+
+							// Compute wet-bulb from dry-bulb + RH
+							const wetC = computeWetBulbC(dryC, RH);
+							currentTemperatures[`temp${i}`] = wetC.toFixed(1);
+
+							// Fan ON when *displayed* (wet-bulb) temp > 40 °C
+							currentFans[`fan${i}`] = wetC > 40 ? 1 : 0;
+						}
+
+						updateTemperatureDisplay();
+
+						// Push to charts if chart logic is present
+						if (window.pushSensorSample) {
+							window.pushSensorSample({
+								time: new Date(),
+								// charts see wet-bulb temps
+								temps: { ...currentTemperatures },
+								humidity: currentHumidity,
+								fans: { ...currentFans },
+								// dry-bulb available if you ever want it
+								dryBulb: { ...currentDryBulb }
+							});
+						}
 					}
 
-					modalChart = new Chart(ctx, {
+					function startTemperatureReading() {
+						if (temperatureReadingActive) return;
+						temperatureReadingActive = true;
+
+						// Immediate first sample
+						generateRandomSample();
+
+						// Then update every 5 seconds
+						simIntervalId = setInterval(generateRandomSample, 5000);
+					}
+
+					function stopTemperatureReading() {
+						temperatureReadingActive = false;
+						if (simIntervalId) {
+							clearInterval(simIntervalId);
+							simIntervalId = null;
+						}
+
+						currentTemperatures = {
+							temp1: '--', temp2: '--', temp3: '--',
+							temp4: '--', temp5: '--', temp6: '--'
+						};
+						currentDryBulb = {
+							temp1: null, temp2: null, temp3: null,
+							temp4: null, temp5: null, temp6: null
+						};
+						currentHumidity = null;
+
+						currentFans = {
+							fan1: 0, fan2: 0, fan3: 0,
+							fan4: 0, fan5: 0, fan6: 0
+						};
+
+						updateTemperatureDisplay();
+					}
+
+					function getCurrentTemperatures() {
+						return currentTemperatures; // wet-bulb
+					}
+
+					// Expose globally for other code
+					window.getCurrentTemperatures = getCurrentTemperatures;
+					window.startTemperatureReading = startTemperatureReading;
+					window.stopTemperatureReading = stopTemperatureReading;
+
+					// If you ever want it to auto-start on page load, you can call:
+					// startTemperatureReading();
+				})();
+
+				// Duplicate legacy simulator removed — using the wet-bulb simulator defined earlier.
+				// The active simulator above exposes startTemperatureReading/stopTemperatureReading/getCurrentTemperatures
+				// and will call startTemperatureReading() if you want readings to begin automatically.
+
+				// Live-updating charts for temperature, humidity, and fans + modal with scroll/zoom
+				(function () {
+					const tempCanvas = document.getElementById('temp-chart');
+					const humCanvas = document.getElementById('humidity-chart');
+					const fansCanvas = document.getElementById('fans-chart');
+
+					if (!tempCanvas || !humCanvas || !fansCanvas || !window.Chart) return;
+
+					const tempCtx = tempCanvas.getContext('2d');
+					const humCtx = humCanvas.getContext('2d');
+					const fansCtx = fansCanvas.getContext('2d');
+
+					const maxPoints = 60; // keep last 60 samples (~5 min if 5s interval)
+					const labels = [];
+					const humidityData = [];
+
+					const tempSeries = {
+						temp1: [],
+						temp2: [],
+						temp3: [],
+						temp4: [],
+						temp5: [],
+						temp6: []
+					};
+
+					const fansSeries = {
+						fan1: [],
+						fan2: [],
+						fan3: [],
+						fan4: [],
+						fan5: [],
+						fan6: []
+					};
+
+					// Small dashboard charts
+					const tempChart = new Chart(tempCtx, {
 						type: 'line',
 						data: {
-							labels: sliced.labels,
-							datasets: sliced.datasets
+							labels,
+							datasets: [
+								{ label: 'Temp 1', data: tempSeries.temp1, borderWidth: 1, pointRadius: 0 },
+								{ label: 'Temp 2', data: tempSeries.temp2, borderWidth: 1, pointRadius: 0 },
+								{ label: 'Temp 3', data: tempSeries.temp3, borderWidth: 1, pointRadius: 0 },
+								{ label: 'Temp 4', data: tempSeries.temp4, borderWidth: 1, pointRadius: 0 },
+								{ label: 'Temp 5', data: tempSeries.temp5, borderWidth: 1, pointRadius: 0 },
+								{ label: 'Temp 6', data: tempSeries.temp6, borderWidth: 1, pointRadius: 0 }
+							]
 						},
 						options: {
 							animation: false,
@@ -1376,18 +1135,10 @@
 							maintainAspectRatio: false,
 							scales: {
 								x: {
-									ticks: { autoSkip: true, maxTicksLimit: 10 }
+									ticks: { autoSkip: true, maxTicksLimit: 6 }
 								},
 								y: {
-									min: (type === 'fans') ? -0.1 : yBaseMin,
-									max: (type === 'fans') ? 1.1 : yBaseMax,
-									ticks: type === 'fans'
-										? {
-											stepSize: 1,
-											callback: v => (v === 0 ? 'Off' : v === 1 ? 'On' : '')
-										}
-										: {},
-									title: { display: true, text: yTitle }
+									title: { display: true, text: 'Temperature (°C)' }
 								}
 							},
 							plugins: {
@@ -1396,180 +1147,417 @@
 						}
 					});
 
-					chartModal.style.display = 'flex';
-				}
-
-				function closeChartModal() {
-					if (modalChart) {
-						modalChart.destroy();
-						modalChart = null;
-					}
-					if (chartModal) {
-						chartModal.style.display = 'none';
-					}
-				}
-
-				function updateModalWindowFromSlider() {
-					if (!modalChart || !modalChartType || !windowSlider) return;
-
-					const start = parseInt(windowSlider.value || '0', 10) || 0;
-					const sliced = getSlicedData(modalChartType, start);
-					modalChart.data.labels = sliced.labels;
-					modalChart.data.datasets.forEach((ds, i) => {
-						ds.data = sliced.datasets[i].data;
+					const humChart = new Chart(humCtx, {
+						type: 'line',
+						data: {
+							labels,
+							datasets: [
+								{ label: 'Humidity', data: humidityData, borderWidth: 1, pointRadius: 0 }
+							]
+						},
+						options: {
+							animation: false,
+							responsive: true,
+							maintainAspectRatio: false,
+							scales: {
+								x: {
+									ticks: { autoSkip: true, maxTicksLimit: 6 }
+								},
+								y: {
+									title: { display: true, text: 'Humidity (%)' }
+								}
+							},
+							plugins: {
+								legend: { display: false }
+							}
+						}
 					});
-					modalChart.update('none');
-				}
 
-				function updateModalYZoomFromSlider() {
-					if (!modalChart || !modalChartType || !ySlider) return;
-					if (modalChartType === 'fans') {
-						// fans have fixed 0–1 range
-						return;
+					const fansChart = new Chart(fansCtx, {
+						type: 'line',
+						data: {
+							labels,
+							datasets: [
+								{ label: 'Fan 1', data: fansSeries.fan1, borderWidth: 1, pointRadius: 0, stepped: true },
+								{ label: 'Fan 2', data: fansSeries.fan2, borderWidth: 1, pointRadius: 0, stepped: true },
+								{ label: 'Fan 3', data: fansSeries.fan3, borderWidth: 1, pointRadius: 0, stepped: true },
+								{ label: 'Fan 4', data: fansSeries.fan4, borderWidth: 1, pointRadius: 0, stepped: true },
+								{ label: 'Fan 5', data: fansSeries.fan5, borderWidth: 1, pointRadius: 0, stepped: true },
+								{ label: 'Fan 6', data: fansSeries.fan6, borderWidth: 1, pointRadius: 0, stepped: true }
+							]
+						},
+						options: {
+							animation: false,
+							responsive: true,
+							maintainAspectRatio: false,
+							scales: {
+								x: {
+									ticks: { autoSkip: true, maxTicksLimit: 6 }
+								},
+								y: {
+									min: -0.1,
+									max: 1.1,
+									ticks: {
+										stepSize: 1,
+										callback: v => (v === 0 ? 'Off' : v === 1 ? 'On' : '')
+									},
+									title: { display: true, text: 'Fan state' }
+								}
+							},
+							plugins: {
+								legend: { position: 'bottom' }
+							}
+						}
+					});
+
+					// This gets called from the simulator
+					window.pushSensorSample = function (sample) {
+						const t = sample.time instanceof Date ? sample.time : new Date(sample.time);
+						const label = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+						labels.push(label);
+
+						// temps
+						for (let i = 1; i <= 6; i++) {
+							const key = `temp${i}`;
+							const val = parseFloat(sample.temps[key]);
+							tempSeries[key].push(isNaN(val) ? null : val);
+						}
+
+						// humidity
+						const humVal = parseFloat(sample.humidity);
+						humidityData.push(isNaN(humVal) ? null : humVal);
+
+						// fans (optional)
+						if (sample.fans) {
+							for (let i = 1; i <= 6; i++) {
+								const key = `fan${i}`;
+								const v = parseFloat(sample.fans[key]);
+								fansSeries[key].push(isNaN(v) ? null : v);
+							}
+						} else {
+							Object.values(fansSeries).forEach(arr => arr.push(null));
+						}
+
+						// keep arrays bounded
+						if (labels.length > maxPoints) {
+							labels.shift();
+							Object.values(tempSeries).forEach(arr => arr.shift());
+							humidityData.shift();
+							Object.values(fansSeries).forEach(arr => arr.shift());
+						}
+
+						tempChart.update('none');
+						humChart.update('none');
+						fansChart.update('none');
+
+						// If modal is open, update its data window too
+						if (chartModal && chartModal.style.display === 'flex') {
+							updateModalWindowFromSlider(); // keeps it in sync with new data
+						}
+					};
+
+					// ---------- Full-page chart modal + controls ----------
+					const chartModal = document.getElementById('chart-modal');
+					const chartModalClose = document.getElementById('chart-modal-close');
+					const chartModalTitle = document.getElementById('chart-modal-title');
+					const chartModalCanvas = document.getElementById('chart-modal-canvas');
+
+					const windowSlider = document.getElementById('chart-window-range');
+					const ySlider = document.getElementById('chart-y-range');
+
+					let modalChart = null;
+					let modalChartType = null;   // 'temp' | 'humidity' | 'fans'
+					let windowSize = 20;         // number of points visible in the modal
+
+					let yBaseMin = null;
+					let yBaseMax = null;
+
+					function computeYRange(type) {
+						let vals = [];
+						if (type === 'temp') {
+							Object.values(tempSeries).forEach(arr => {
+								vals = vals.concat(arr.filter(v => v != null));
+							});
+						} else if (type === 'humidity') {
+							vals = humidityData.filter(v => v != null);
+						} else if (type === 'fans') {
+							// fans are 0–1
+							return { min: -0.1, max: 1.1 };
+						}
+
+						if (!vals.length) {
+							return { min: 0, max: 1 };
+						}
+						const min = Math.min(...vals);
+						const max = Math.max(...vals);
+						const pad = (max - min) * 0.1 || 1;
+						return { min: min - pad, max: max + pad };
 					}
 
-					const v = parseInt(ySlider.value || '0', 10) || 0; // 0–100
-					const span = yBaseMax - yBaseMin;
-					if (!span || span <= 0) return;
+					function getSlicedData(type, start) {
+						const total = labels.length;
+						const s = Math.max(0, Math.min(start, Math.max(0, total - 1)));
+						const e = Math.min(s + windowSize, total);
 
-					// zoomFactor: 1x to 4x
-					const zoomFactor = 1 + (v / 100) * 3;
-					const mid = (yBaseMax + yBaseMin) / 2;
-					const halfSpan = span / (2 * zoomFactor);
+						const labelSlice = labels.slice(s, e);
+						let datasets;
 
-					modalChart.options.scales.y.min = mid - halfSpan;
-					modalChart.options.scales.y.max = mid + halfSpan;
-					modalChart.update('none');
-				}
+						if (type === 'temp') {
+							datasets = Object.keys(tempSeries).map((key, idx) => ({
+								label: tempChart.data.datasets[idx].label,
+								borderWidth: 1,
+								pointRadius: 0,
+								data: tempSeries[key].slice(s, e)
+							}));
+						} else if (type === 'humidity') {
+							datasets = [{
+								label: 'Humidity',
+								borderWidth: 1,
+								pointRadius: 0,
+								data: humidityData.slice(s, e)
+							}];
+						} else if (type === 'fans') {
+							datasets = Object.keys(fansSeries).map((key, idx) => ({
+								label: fansChart.data.datasets[idx].label,
+								borderWidth: 1,
+								pointRadius: 0,
+								stepped: true,
+								data: fansSeries[key].slice(s, e)
+							}));
+						} else {
+							datasets = [];
+						}
 
-				// Slider event hooks
-				if (windowSlider) {
-					windowSlider.addEventListener('input', updateModalWindowFromSlider);
-				}
-				if (ySlider) {
-					ySlider.addEventListener('input', updateModalYZoomFromSlider);
-				}
+						return { labels: labelSlice, datasets };
+					}
 
-				// Click small charts to expand
-				tempCanvas.addEventListener('click', function () {
-					openChartModal('temp');
-				});
+					function openChartModal(type) {
+						if (!chartModal || !chartModalCanvas) return;
 
-				humCanvas.addEventListener('click', function () {
-					openChartModal('humidity');
-				});
+						modalChartType = type;
 
-				fansCanvas.addEventListener('click', function () {
-					openChartModal('fans');
-				});
+						// Destroy any previous modal chart
+						if (modalChart) {
+							modalChart.destroy();
+							modalChart = null;
+						}
 
-				if (chartModalClose) {
-					chartModalClose.addEventListener('click', closeChartModal);
-				}
+						const ctx = chartModalCanvas.getContext('2d');
 
-				if (chartModal) {
-					chartModal.addEventListener('click', function (e) {
-						if (e.target === chartModal) {
+						// Initial window: last windowSize points (or all if fewer)
+						const total = labels.length;
+						const maxStart = Math.max(0, total - windowSize);
+						const startIndex = Math.max(0, maxStart);
+
+						// Setup X slider
+						if (windowSlider) {
+							if (total <= windowSize) {
+								windowSlider.disabled = true;
+								windowSlider.min = '0';
+								windowSlider.max = '0';
+								windowSlider.value = '0';
+							} else {
+								windowSlider.disabled = false;
+								windowSlider.min = '0';
+								windowSlider.max = String(maxStart);
+								windowSlider.value = String(startIndex); // start pinned to the tail
+							}
+						}
+
+						// Setup Y range & slider
+						const { min, max } = computeYRange(type);
+						yBaseMin = min;
+						yBaseMax = max;
+						if (ySlider) {
+							ySlider.disabled = (type === 'fans'); // fans are fixed 0–1
+							ySlider.value = '0'; // no zoom initially
+						}
+
+						const sliced = getSlicedData(type, startIndex);
+
+						let yTitle = '';
+						if (type === 'temp') {
+							chartModalTitle.textContent = 'Temperature over time';
+							yTitle = 'Temperature (°C)';
+						} else if (type === 'humidity') {
+							chartModalTitle.textContent = 'Humidity over time';
+							yTitle = 'Humidity (%)';
+						} else if (type === 'fans') {
+							chartModalTitle.textContent = 'Fans on/off over time';
+							yTitle = 'Fan state';
+						}
+
+						modalChart = new Chart(ctx, {
+							type: 'line',
+							data: {
+								labels: sliced.labels,
+								datasets: sliced.datasets
+							},
+							options: {
+								animation: false,
+								responsive: true,
+								maintainAspectRatio: false,
+								scales: {
+									x: {
+										ticks: { autoSkip: true, maxTicksLimit: 10 }
+									},
+									y: {
+										min: (type === 'fans') ? -0.1 : yBaseMin,
+										max: (type === 'fans') ? 1.1 : yBaseMax,
+										ticks: type === 'fans'
+											? {
+												stepSize: 1,
+												callback: v => (v === 0 ? 'Off' : v === 1 ? 'On' : '')
+											}
+											: {},
+										title: { display: true, text: yTitle }
+									}
+								},
+								plugins: {
+									legend: { position: 'bottom' }
+								}
+							}
+						});
+
+						chartModal.style.display = 'flex';
+					}
+
+					function closeChartModal() {
+						if (modalChart) {
+							modalChart.destroy();
+							modalChart = null;
+						}
+						if (chartModal) {
+							chartModal.style.display = 'none';
+						}
+					}
+
+					function updateModalWindowFromSlider() {
+						if (!modalChart || !modalChartType || !windowSlider) return;
+
+						const start = parseInt(windowSlider.value || '0', 10) || 0;
+						const sliced = getSlicedData(modalChartType, start);
+						modalChart.data.labels = sliced.labels;
+						modalChart.data.datasets.forEach((ds, i) => {
+							ds.data = sliced.datasets[i].data;
+						});
+						modalChart.update('none');
+					}
+
+					function updateModalYZoomFromSlider() {
+						if (!modalChart || !modalChartType || !ySlider) return;
+						if (modalChartType === 'fans') {
+							// fans have fixed 0–1 range
+							return;
+						}
+
+						const v = parseInt(ySlider.value || '0', 10) || 0; // 0–100
+						const span = yBaseMax - yBaseMin;
+						if (!span || span <= 0) return;
+
+						// zoomFactor: 1x to 4x
+						const zoomFactor = 1 + (v / 100) * 3;
+						const mid = (yBaseMax + yBaseMin) / 2;
+						const halfSpan = span / (2 * zoomFactor);
+
+						modalChart.options.scales.y.min = mid - halfSpan;
+						modalChart.options.scales.y.max = mid + halfSpan;
+						modalChart.update('none');
+					}
+
+					// Slider event hooks
+					if (windowSlider) {
+						windowSlider.addEventListener('input', updateModalWindowFromSlider);
+					}
+					if (ySlider) {
+						ySlider.addEventListener('input', updateModalYZoomFromSlider);
+					}
+
+					// Click small charts to expand
+					tempCanvas.addEventListener('click', function () {
+						openChartModal('temp');
+					});
+
+					humCanvas.addEventListener('click', function () {
+						openChartModal('humidity');
+					});
+
+					fansCanvas.addEventListener('click', function () {
+						openChartModal('fans');
+					});
+
+					if (chartModalClose) {
+						chartModalClose.addEventListener('click', closeChartModal);
+					}
+
+					if (chartModal) {
+						chartModal.addEventListener('click', function (e) {
+							if (e.target === chartModal) {
+								closeChartModal();
+							}
+						});
+					}
+
+					document.addEventListener('keydown', function (e) {
+						if (e.key === 'Escape' && chartModal && chartModal.style.display === 'flex') {
 							closeChartModal();
 						}
 					});
-				}
-
-				document.addEventListener('keydown', function (e) {
-					if (e.key === 'Escape' && chartModal && chartModal.style.display === 'flex') {
-						closeChartModal();
-					}
-				});
-			})();
+				})();
 
 
-			// Target temperature CSV upload and deviation detection
-			(function () {
-				let targetTemperatures = [];
-				let runStartTime = null;
+				// Target temperature CSV upload and deviation detection
+				(function () {
+					let targetTemperatures = [];
+					let runStartTime = null;
 
-				function parseTargetCSV(csvText) {
-					const lines = csvText.trim().split('\n');
-					if (lines.length < 2) return [];
+					function parseTargetCSV(csvText) {
+						const lines = csvText.trim().split('\n');
+						if (lines.length < 2) return [];
 
-					const targets = [];
-					for (let i = 1; i < lines.length; i++) {
-						const values = lines[i].split(',');
-						if (values.length >= 7) {
-							targets.push({
-								time: parseFloat(values[0]),
-								temp1: parseFloat(values[1]),
-								temp2: parseFloat(values[2]),
-								temp3: parseFloat(values[3]),
-								temp4: parseFloat(values[4]),
-								temp5: parseFloat(values[5]),
-								temp6: parseFloat(values[6])
-							});
-						}
-					}
-					return targets.sort((a, b) => a.time - b.time);
-				}
-
-				function getCurrentTargets() {
-					if (!runStartTime || targetTemperatures.length === 0) return null;
-
-					const elapsedMinutes = (Date.now() - runStartTime) / (1000 * 60);
-					let currentTarget = null;
-
-					for (let i = 0; i < targetTemperatures.length; i++) {
-						if (targetTemperatures[i].time <= elapsedMinutes) {
-							currentTarget = targetTemperatures[i];
-						} else {
-							break;
-						}
-					}
-					return currentTarget;
-				}
-
-				function applyDeviationColors() {
-					const currentTargets = getCurrentTargets();
-					const currentTemps = window.getCurrentTemperatures ? window.getCurrentTemperatures() : null;
-
-					for (let i = 1; i <= 6; i++) {
-						const tempElement = document.getElementById(`temp-${i}-wet`);
-						if (!tempElement) continue;
-
-						tempElement.classList.remove(
-							'temp-good',
-							'temp-warning',
-							'temp-danger',
-							'temp-too-hot',
-							'temp-too-cold'
-						);
-
-						if (currentTargets && currentTemps && currentTemps[`temp${i}`] !== '--') {
-							const actualTemp = parseFloat(currentTemps[`temp${i}`]);
-							const targetTemp = currentTargets[`temp${i}`];
-
-							if (!isNaN(actualTemp) && !isNaN(targetTemp)) {
-								const deviation = actualTemp - targetTemp;
-
-								if (deviation >= 5.0) {
-									tempElement.classList.add('temp-too-hot');
-								} else if (deviation <= -5.0) {
-									tempElement.classList.add('temp-too-cold');
-								} else {
-									tempElement.classList.add('temp-good');
-								}
+						const targets = [];
+						for (let i = 1; i < lines.length; i++) {
+							const values = lines[i].split(',');
+							if (values.length >= 7) {
+								targets.push({
+									time: parseFloat(values[0]),
+									temp1: parseFloat(values[1]),
+									temp2: parseFloat(values[2]),
+									temp3: parseFloat(values[3]),
+									temp4: parseFloat(values[4]),
+									temp5: parseFloat(values[5]),
+									temp6: parseFloat(values[6])
+								});
 							}
 						}
+						return targets.sort((a, b) => a.time - b.time);
 					}
-				}
 
-				function setRunStartTime() {
-					runStartTime = Date.now();
-				}
+					function getCurrentTargets() {
+						if (!runStartTime || targetTemperatures.length === 0) return null;
 
-				function clearRunData() {
-					runStartTime = null;
-					for (let i = 1; i <= 6; i++) {
-						const tempElement = document.getElementById(`temp-${i}-wet`);
-						if (tempElement) {
+						const elapsedMinutes = (Date.now() - runStartTime) / (1000 * 60);
+						let currentTarget = null;
+
+						for (let i = 0; i < targetTemperatures.length; i++) {
+							if (targetTemperatures[i].time <= elapsedMinutes) {
+								currentTarget = targetTemperatures[i];
+							} else {
+								break;
+							}
+						}
+						return currentTarget;
+					}
+
+					function applyDeviationColors() {
+						const currentTargets = getCurrentTargets();
+						const currentTemps = window.getCurrentTemperatures ? window.getCurrentTemperatures() : null;
+
+						for (let i = 1; i <= 6; i++) {
+							const tempElement = document.getElementById(`temp-${i}-wet`);
+							if (!tempElement) continue;
+
 							tempElement.classList.remove(
 								'temp-good',
 								'temp-warning',
@@ -1577,245 +1565,281 @@
 								'temp-too-hot',
 								'temp-too-cold'
 							);
+
+							if (currentTargets && currentTemps && currentTemps[`temp${i}`] !== '--') {
+								const actualTemp = parseFloat(currentTemps[`temp${i}`]);
+								const targetTemp = currentTargets[`temp${i}`];
+
+								if (!isNaN(actualTemp) && !isNaN(targetTemp)) {
+									const deviation = actualTemp - targetTemp;
+
+									if (deviation >= 5.0) {
+										tempElement.classList.add('temp-too-hot');
+									} else if (deviation <= -5.0) {
+										tempElement.classList.add('temp-too-cold');
+									} else {
+										tempElement.classList.add('temp-good');
+									}
+								}
+							}
 						}
 					}
 
-				}
+					function setRunStartTime() {
+						runStartTime = Date.now();
+					}
 
-				function setupFileUploadHandler() {
-					const fileInput = document.getElementById('target-csv-upload');
-					const uploadStatus = document.getElementById('upload-status');
-
-					if (fileInput && !fileInput.hasAttribute('data-handler-added')) {
-						fileInput.setAttribute('data-handler-added', 'true');
-						fileInput.addEventListener('change', function (e) {
-							const file = e.target.files[0];
-							if (!file) {
-								if (uploadStatus) uploadStatus.textContent = '';
-								return;
+					function clearRunData() {
+						runStartTime = null;
+						for (let i = 1; i <= 6; i++) {
+							const tempElement = document.getElementById(`temp-${i}-wet`);
+							if (tempElement) {
+								tempElement.classList.remove(
+									'temp-good',
+									'temp-warning',
+									'temp-danger',
+									'temp-too-hot',
+									'temp-too-cold'
+								);
 							}
+						}
 
-							const reader = new FileReader();
-							reader.onload = function (event) {
-								try {
-									targetTemperatures = parseTargetCSV(event.target.result);
-									if (targetTemperatures.length > 0) {
-										if (uploadStatus) {
-											uploadStatus.textContent = `✓ Loaded ${targetTemperatures.length} target points`;
-											uploadStatus.style.color = '#28a745';
-										}
-									} else {
-										if (uploadStatus) {
-											uploadStatus.textContent = '⚠ No valid data found';
-											uploadStatus.style.color = '#ffc107';
-										}
-									}
-								} catch (error) {
-									if (uploadStatus) {
-										uploadStatus.textContent = '✗ Error parsing CSV';
-										uploadStatus.style.color = '#dc3545';
-									}
+					}
+
+					function setupFileUploadHandler() {
+						const fileInput = document.getElementById('target-csv-upload');
+						const uploadStatus = document.getElementById('upload-status');
+
+						if (fileInput && !fileInput.hasAttribute('data-handler-added')) {
+							fileInput.setAttribute('data-handler-added', 'true');
+							fileInput.addEventListener('change', function (e) {
+								const file = e.target.files[0];
+								if (!file) {
+									if (uploadStatus) uploadStatus.textContent = '';
+									return;
 								}
-							};
-							reader.readAsText(file);
-						});
-					}
-				}
 
-				window.setRunStartTime = setRunStartTime;
-				window.clearRunData = clearRunData;
-				window.applyDeviationColors = applyDeviationColors;
-				window.setupFileUploadHandler = setupFileUploadHandler;
-
-				setInterval(applyDeviationColors, 5000);
-			})();
-
-
-			// Easter egg: Pong game when clicking the logo (with more random CPU + forgiving collisions)
-			(function () {
-				const logo = document.getElementById('sake-logo-egg');
-				const pongModal = document.getElementById('pong-modal');
-				const pongClose = document.getElementById('pong-close-btn');
-				const canvas = document.getElementById('pong-canvas');
-
-				if (!logo || !pongModal || !canvas) return;
-
-				const ctx = canvas.getContext('2d');
-
-				let animationId = null;
-				let ball, paddleLeft, paddleRight;
-				let upPressed = false;
-				let downPressed = false;
-
-				const HITBOX_PADDING = 3;
-				const PLAYER_SPEED = 4;
-				const AI_MAX_SPEED = 3;
-				const AI_NOISE_RANGE = 25;
-
-				function resetGame() {
-					ball = {
-						x: canvas.width / 2,
-						y: canvas.height / 2,
-						vx: 3 * (Math.random() > 0.5 ? 1 : -1),
-						vy: (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1),
-						r: 6
-					};
-					paddleLeft = {
-						x: 10,
-						y: canvas.height / 2 - 25,
-						w: 8,
-						h: 50
-					};
-					paddleRight = {
-						x: canvas.width - 18,
-						y: canvas.height / 2 - 25,
-						w: 8,
-						h: 50
-					};
-				}
-
-				function draw() {
-					ctx.fillStyle = '#000';
-					ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-					ctx.strokeStyle = '#444';
-					ctx.setLineDash([5, 5]);
-					ctx.beginPath();
-					ctx.moveTo(canvas.width / 2, 0);
-					ctx.lineTo(canvas.width / 2, canvas.height);
-					ctx.stroke();
-					ctx.setLineDash([]);
-
-					ctx.fillStyle = '#fff';
-					ctx.fillRect(paddleLeft.x, paddleLeft.y, paddleLeft.w, paddleLeft.h);
-					ctx.fillRect(paddleRight.x, paddleRight.y, paddleRight.w, paddleRight.h);
-
-					ctx.beginPath();
-					ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-					ctx.fill();
-				}
-
-				function update() {
-					// player paddle
-					if (upPressed) paddleLeft.y -= PLAYER_SPEED;
-					if (downPressed) paddleLeft.y += PLAYER_SPEED;
-					paddleLeft.y = Math.max(0, Math.min(canvas.height - paddleLeft.h, paddleLeft.y));
-
-					// CPU paddle
-					let aiTargetY;
-					if (ball.x > canvas.width * 0.4) {
-						const noise = (Math.random() - 0.5) * AI_NOISE_RANGE;
-						aiTargetY = ball.y + noise - paddleRight.h / 2;
-					} else {
-						aiTargetY = canvas.height / 2 - paddleRight.h / 2;
+								const reader = new FileReader();
+								reader.onload = function (event) {
+									try {
+										targetTemperatures = parseTargetCSV(event.target.result);
+										if (targetTemperatures.length > 0) {
+											if (uploadStatus) {
+												uploadStatus.textContent = `✓ Loaded ${targetTemperatures.length} target points`;
+												uploadStatus.style.color = '#28a745';
+											}
+										} else {
+											if (uploadStatus) {
+												uploadStatus.textContent = '⚠ No valid data found';
+												uploadStatus.style.color = '#ffc107';
+											}
+										}
+									} catch (error) {
+										if (uploadStatus) {
+											uploadStatus.textContent = '✗ Error parsing CSV';
+											uploadStatus.style.color = '#dc3545';
+										}
+									}
+								};
+								reader.readAsText(file);
+							});
+						}
 					}
 
-					if (aiTargetY > paddleRight.y) {
-						paddleRight.y = Math.min(paddleRight.y + AI_MAX_SPEED, aiTargetY);
-					} else {
-						paddleRight.y = Math.max(paddleRight.y - AI_MAX_SPEED, aiTargetY);
+					window.setRunStartTime = setRunStartTime;
+					window.clearRunData = clearRunData;
+					window.applyDeviationColors = applyDeviationColors;
+					window.setupFileUploadHandler = setupFileUploadHandler;
+
+					setInterval(applyDeviationColors, 5000);
+				})();
+
+
+				// Easter egg: Pong game when clicking the logo (with more random CPU + forgiving collisions)
+				(function () {
+					const logo = document.getElementById('sake-logo-egg');
+					const pongModal = document.getElementById('pong-modal');
+					const pongClose = document.getElementById('pong-close-btn');
+					const canvas = document.getElementById('pong-canvas');
+
+					if (!logo || !pongModal || !canvas) return;
+
+					const ctx = canvas.getContext('2d');
+
+					let animationId = null;
+					let ball, paddleLeft, paddleRight;
+					let upPressed = false;
+					let downPressed = false;
+
+					const HITBOX_PADDING = 3;
+					const PLAYER_SPEED = 4;
+					const AI_MAX_SPEED = 3;
+					const AI_NOISE_RANGE = 25;
+
+					function resetGame() {
+						ball = {
+							x: canvas.width / 2,
+							y: canvas.height / 2,
+							vx: 3 * (Math.random() > 0.5 ? 1 : -1),
+							vy: (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1),
+							r: 6
+						};
+						paddleLeft = {
+							x: 10,
+							y: canvas.height / 2 - 25,
+							w: 8,
+							h: 50
+						};
+						paddleRight = {
+							x: canvas.width - 18,
+							y: canvas.height / 2 - 25,
+							w: 8,
+							h: 50
+						};
 					}
-					paddleRight.y = Math.max(0, Math.min(canvas.height - paddleRight.h, paddleRight.y));
 
-					// ball motion
-					ball.x += ball.vx;
-					ball.y += ball.vy;
+					function draw() {
+						ctx.fillStyle = '#000';
+						ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-					// top/bottom bounce
-					if (ball.y - ball.r < 0) {
-						ball.y = ball.r;
-						ball.vy *= -1;
-					} else if (ball.y + ball.r > canvas.height) {
-						ball.y = canvas.height - ball.r;
-						ball.vy *= -1;
+						ctx.strokeStyle = '#444';
+						ctx.setLineDash([5, 5]);
+						ctx.beginPath();
+						ctx.moveTo(canvas.width / 2, 0);
+						ctx.lineTo(canvas.width / 2, canvas.height);
+						ctx.stroke();
+						ctx.setLineDash([]);
+
+						ctx.fillStyle = '#fff';
+						ctx.fillRect(paddleLeft.x, paddleLeft.y, paddleLeft.w, paddleLeft.h);
+						ctx.fillRect(paddleRight.x, paddleRight.y, paddleRight.w, paddleRight.h);
+
+						ctx.beginPath();
+						ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+						ctx.fill();
 					}
 
-					// left paddle collision (forgiving hitbox)
-					if (
-						ball.x - ball.r <= paddleLeft.x + paddleLeft.w + HITBOX_PADDING &&
-						ball.x - ball.r >= paddleLeft.x - HITBOX_PADDING &&
-						ball.y >= paddleLeft.y - HITBOX_PADDING &&
-						ball.y <= paddleLeft.y + paddleLeft.h + HITBOX_PADDING
-					) {
-						ball.x = paddleLeft.x + paddleLeft.w + ball.r + HITBOX_PADDING;
-						ball.vx = Math.abs(ball.vx);
+					function update() {
+						// player paddle
+						if (upPressed) paddleLeft.y -= PLAYER_SPEED;
+						if (downPressed) paddleLeft.y += PLAYER_SPEED;
+						paddleLeft.y = Math.max(0, Math.min(canvas.height - paddleLeft.h, paddleLeft.y));
 
-						const offset = (ball.y - (paddleLeft.y + paddleLeft.h / 2)) / (paddleLeft.h / 2);
-						ball.vy += offset * 1.5;
+						// CPU paddle
+						let aiTargetY;
+						if (ball.x > canvas.width * 0.4) {
+							const noise = (Math.random() - 0.5) * AI_NOISE_RANGE;
+							aiTargetY = ball.y + noise - paddleRight.h / 2;
+						} else {
+							aiTargetY = canvas.height / 2 - paddleRight.h / 2;
+						}
+
+						if (aiTargetY > paddleRight.y) {
+							paddleRight.y = Math.min(paddleRight.y + AI_MAX_SPEED, aiTargetY);
+						} else {
+							paddleRight.y = Math.max(paddleRight.y - AI_MAX_SPEED, aiTargetY);
+						}
+						paddleRight.y = Math.max(0, Math.min(canvas.height - paddleRight.h, paddleRight.y));
+
+						// ball motion
+						ball.x += ball.vx;
+						ball.y += ball.vy;
+
+						// top/bottom bounce
+						if (ball.y - ball.r < 0) {
+							ball.y = ball.r;
+							ball.vy *= -1;
+						} else if (ball.y + ball.r > canvas.height) {
+							ball.y = canvas.height - ball.r;
+							ball.vy *= -1;
+						}
+
+						// left paddle collision (forgiving hitbox)
+						if (
+							ball.x - ball.r <= paddleLeft.x + paddleLeft.w + HITBOX_PADDING &&
+							ball.x - ball.r >= paddleLeft.x - HITBOX_PADDING &&
+							ball.y >= paddleLeft.y - HITBOX_PADDING &&
+							ball.y <= paddleLeft.y + paddleLeft.h + HITBOX_PADDING
+						) {
+							ball.x = paddleLeft.x + paddleLeft.w + ball.r + HITBOX_PADDING;
+							ball.vx = Math.abs(ball.vx);
+
+							const offset = (ball.y - (paddleLeft.y + paddleLeft.h / 2)) / (paddleLeft.h / 2);
+							ball.vy += offset * 1.5;
+						}
+
+						// right paddle collision (CPU)
+						if (
+							ball.x + ball.r >= paddleRight.x - HITBOX_PADDING &&
+							ball.x + ball.r <= paddleRight.x + paddleRight.w + HITBOX_PADDING &&
+							ball.y >= paddleRight.y - HITBOX_PADDING &&
+							ball.y <= paddleRight.y + paddleRight.h + HITBOX_PADDING
+						) {
+							ball.x = paddleRight.x - ball.r - HITBOX_PADDING;
+							ball.vx = -Math.abs(ball.vx);
+
+							const offset = (ball.y - (paddleRight.y + paddleRight.h / 2)) / (paddleRight.h / 2);
+							ball.vy += offset * 1.5;
+						}
+
+						// reset if out of bounds
+						if (ball.x < -30 || ball.x > canvas.width + 30) {
+							resetGame();
+						}
 					}
 
-					// right paddle collision (CPU)
-					if (
-						ball.x + ball.r >= paddleRight.x - HITBOX_PADDING &&
-						ball.x + ball.r <= paddleRight.x + paddleRight.w + HITBOX_PADDING &&
-						ball.y >= paddleRight.y - HITBOX_PADDING &&
-						ball.y <= paddleRight.y + paddleRight.h + HITBOX_PADDING
-					) {
-						ball.x = paddleRight.x - ball.r - HITBOX_PADDING;
-						ball.vx = -Math.abs(ball.vx);
-
-						const offset = (ball.y - (paddleRight.y + paddleRight.h / 2)) / (paddleRight.h / 2);
-						ball.vy += offset * 1.5;
+					function loop() {
+						update();
+						draw();
+						animationId = requestAnimationFrame(loop);
 					}
 
-					// reset if out of bounds
-					if (ball.x < -30 || ball.x > canvas.width + 30) {
+					function keyDownHandler(e) {
+						if (e.key === 'ArrowUp') {
+							upPressed = true;
+						} else if (e.key === 'ArrowDown') {
+							downPressed = true;
+						} else if (e.key === 'Escape') {
+							closePong();
+						}
+					}
+
+					function keyUpHandler(e) {
+						if (e.key === 'ArrowUp') {
+							upPressed = false;
+						} else if (e.key === 'ArrowDown') {
+							downPressed = false;
+						}
+					}
+
+					function openPong() {
 						resetGame();
+						pongModal.style.display = 'flex';
+						loop();
+						document.addEventListener('keydown', keyDownHandler);
+						document.addEventListener('keyup', keyUpHandler);
 					}
-				}
 
-				function loop() {
-					update();
-					draw();
-					animationId = requestAnimationFrame(loop);
-				}
-
-				function keyDownHandler(e) {
-					if (e.key === 'ArrowUp') {
-						upPressed = true;
-					} else if (e.key === 'ArrowDown') {
-						downPressed = true;
-					} else if (e.key === 'Escape') {
-						closePong();
+					function closePong() {
+						pongModal.style.display = 'none';
+						if (animationId) cancelAnimationFrame(animationId);
+						animationId = null;
+						document.removeEventListener('keydown', keyDownHandler);
+						document.removeEventListener('keyup', keyUpHandler);
 					}
-				}
 
-				function keyUpHandler(e) {
-					if (e.key === 'ArrowUp') {
-						upPressed = false;
-					} else if (e.key === 'ArrowDown') {
-						downPressed = false;
+					logo.addEventListener('click', openPong);
+
+					if (pongClose) {
+						pongClose.addEventListener('click', closePong);
 					}
-				}
-
-				function openPong() {
-					resetGame();
-					pongModal.style.display = 'flex';
-					loop();
-					document.addEventListener('keydown', keyDownHandler);
-					document.addEventListener('keyup', keyUpHandler);
-				}
-
-				function closePong() {
-					pongModal.style.display = 'none';
-					if (animationId) cancelAnimationFrame(animationId);
-					animationId = null;
-					document.removeEventListener('keydown', keyDownHandler);
-					document.removeEventListener('keyup', keyUpHandler);
-				}
-
-				logo.addEventListener('click', openPong);
-
-				if (pongClose) {
-					pongClose.addEventListener('click', closePong);
-				}
-				pongModal.addEventListener('click', function (e) {
-					if (e.target === pongModal) {
-						closePong();
-					}
-				});
-			})();
-		</script>
+					pongModal.addEventListener('click', function (e) {
+						if (e.target === pongModal) {
+							closePong();
+						}
+					});
+				})();
+			</script>
 
 
 	</div> <!-- end page-wrapper -->

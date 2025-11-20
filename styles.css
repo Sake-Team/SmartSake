@@ -1064,3 +1064,20 @@ header {
   background: #111;
 }
 
+.timestamp-card {
+	margin: 0 1.5rem 1.5rem;
+	padding: 0.75rem 1rem;
+	border-radius: 0.75rem;
+	background: #111827;          /* dark slate-ish */
+	color: #e5e7eb;               /* light gray */
+	font-size: 0.9rem;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+}
+
+.timestamp-text {
+	letter-spacing: 0.03em;
+	opacity: 0.9;
+}
