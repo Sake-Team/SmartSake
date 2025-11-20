@@ -1064,20 +1064,21 @@ header {
   background: #111;
 }
 
+/* Smaller, lighter timestamp chip */
 .timestamp-card {
-	margin: 0 1.5rem 1.5rem;
-	padding: 0.75rem 1rem;
-	border-radius: 0.75rem;
-	background: #111827;          /* dark slate-ish */
-	color: #e5e7eb;               /* light gray */
-	font-size: 0.9rem;
+	margin: 0 1.5rem 1rem;
 	display: flex;
-	justify-content: center;
-	align-items: center;
-	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+	justify-content: flex-end;      /* push to the right */
 }
 
 .timestamp-text {
+	display: inline-block;
+	padding: 0.35rem 0.75rem;
+	border-radius: 999px;           /* pill shape */
+	background: rgba(17, 24, 39, 0.08); /* very light slate tint */
+	color: #111827;                 /* dark text */
+	font-size: 0.8rem;
 	letter-spacing: 0.03em;
 	opacity: 0.9;
+	border: 1px solid rgba(17, 24, 39, 0.15);
 }
