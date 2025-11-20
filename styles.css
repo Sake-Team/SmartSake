@@ -950,3 +950,50 @@ header {
   font-weight: 600;  /* optional: remove if you don't want bold */
   font-size: 1em;    /* exactly same size */
 }
+
+/* Layout for the left column of charts */
+.left {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+/* Each chart "block" card */
+.long {
+	position: relative;
+	box-sizing: border-box;
+	padding: 0.75rem 0.75rem 0.5rem;
+	border-radius: 8px;
+	overflow: hidden;          /* <- keeps the chart inside the box */
+	height: 220px;             /* <- controls how tall each chart block is */
+}
+
+/* If you have a more specific .long--top-left rule, you can override height there */
+.long--top-left {
+	height: 220px;             /* or 200–260px depending on how tall you want */
+}
+
+/* Header row inside the chart block */
+.chart-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 0.5rem;
+}
+
+/* Make canvases fill their box, not bleed out */
+.metric-chart {
+	display: block;
+	width: 100% !important;
+	height: 100% !important;
+}
+
+/* (Optional but nice) – full-page chart modal sizing */
+.chart-modal-content {
+	height: 60vh;
+}
+
+#chart-modal-canvas {
+	width: 100% !important;
+	height: 100% !important;
+}
