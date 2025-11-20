@@ -922,3 +922,28 @@ header {
   font-size: 0.85rem;
   opacity: 0.8;
 }
+
+/* stack layout container */
+.temp__value-column {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
+}
+
+/* row for dry or wet bulb readout */
+.temp__row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 0.9em;
+}
+
+.temp__note {
+  color: #888;
+  font-size: 0.75em;
+}
+.temp__num--wb {
+  font-weight: bold;
+  font-size: 1.05em;
+}
