@@ -132,7 +132,7 @@ header h1 { font-size: calc(3.2rem + 6pt); margin: 0; line-height: 1; color: #11
 @media (max-width: 480px) { header h1, .page-title { font-size: calc(1.8rem + 6pt); } }
 
 /* Main padding so content doesn't overlap the absolute header */
-main { padding: 64px 16px 16px; }
+main { padding: 8px 16px 16px; }
 
 /* Layout: left column (longs) + right column (zones) */
 .layout { display: flex; align-items: flex-start; gap: 16px; margin-top: 28px; padding-left: 0; }
