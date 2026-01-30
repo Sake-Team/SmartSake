@@ -1,3 +1,51 @@
+/* Combined Zone + Temp Buttons */
+.zones-combined {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	grid-template-rows: repeat(3, 1fr);
+	gap: 16px;
+	margin-top: 0;
+	align-items: start;
+	justify-items: center;
+}
+
+.zone-combined {
+	background: #fff;
+	border: 1px solid #e1e1e6;
+	box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+	border-radius: 8px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	width: 140px;
+	height: 84px;
+	text-decoration: none;
+	color: #222;
+	font-weight: 600;
+	font-size: 0.95rem;
+	position: relative;
+	transition: background-color 180ms ease, color 180ms ease, transform 180ms ease;
+	cursor: pointer;
+}
+
+.zone-combined:hover, .zone-combined:focus {
+	background: #e0e0e0;
+	color: #111;
+	transform: translateY(-2px);
+	outline: none;
+}
+
+.zone-combined__label {
+	position: absolute;
+	top: 10px;
+	left: 12px;
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: #222;
+	z-index: 2;
+	text-align: left;
+}
 /* Shared site styles extracted from dashboard */
 html, body { height: 100%; margin: 0; font-family: Arial, Helvetica, sans-serif; background: #e0e2e6; }
 
@@ -13,7 +61,7 @@ header {
 	z-index: 10;
 }
 
-header h1 { font-size: calc(3.2rem + 6pt); margin: 0; line-height: 1; color: #111; font-weight: 700; }
+header h1 { font-size: calc(3.2rem + 6pt); margin: 0; line-height: 1; color: #111; font-weight: 700; background: none !important; box-shadow: none !important; border: none !important; }
 
 /* Run name display in header */
 .run-name-header {
@@ -93,16 +141,16 @@ header h1 { font-size: calc(3.2rem + 6pt); margin: 0; line-height: 1; color: #11
 	justify-content: center;
 	width: 140px;
 	height: 64px;
-	background: #ffffff;
-	border: 1px solid #e1e1e6;
-	box-shadow: 0 2px 4px rgba(0,0,0,0.04);
-	border-radius: 8px;
 	color: #d40000; /* red text */
 	font-weight: 800;
 	font-size: 1.3rem; /* slightly bigger red text */
 	text-decoration: none;
 	cursor: pointer;
 	z-index: 12;
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	border-radius: 8px;
 }
 
 @media (max-width: 768px) {
@@ -135,7 +183,7 @@ header h1 { font-size: calc(3.2rem + 6pt); margin: 0; line-height: 1; color: #11
 main { padding: 8px 16px 16px; }
 
 /* Layout: left column (longs) + right column (zones) */
-.layout { display: flex; align-items: flex-start; gap: 16px; margin-top: 28px; padding-left: 0; }
+.layout { display: flex; align-items: flex-start; gap: 16px; margin-top: 0; padding-left: 0; }
 
 .left { display: flex; flex-direction: column; gap: 10px; width: 943px; order: 1; /* match notes height so bottoms align */ height: var(--notes-height); }
 
@@ -480,9 +528,9 @@ main { padding: 8px 16px 16px; }
 
 .temp-row { display: flex; gap: 16px; margin-top: 20px; align-items: stretch; }
 
-.temp { background: #ffffff; border: 1px solid #e1e1e6; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border-radius: 8px; flex: 1 1 0; display: flex; align-items: flex-start; justify-content: flex-start; padding: 12px; text-align: left; position: relative; font-weight: 600; color: #222; height: 84px; font-size: 0.95rem; }
+.temp { background: #ffffff; border: 1px solid #e1e1e6; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border-radius: 8px; flex: 1 1 0; display: flex; align-items: center; justify-content: center; padding: 12px; text-align: center; position: relative; font-weight: 600; color: #222; height: 84px; font-size: 0.95rem; position: relative; }
 
-.temp__label { font-size: 0.85rem; font-weight: 600; color: #222; z-index: 2; }
+.temp__label { font-size: 0.85rem; font-weight: 600; color: #222; z-index: 2; position: absolute; top: 10px; left: 12px; text-align: left; }
 
 .temp__value { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.8rem; font-weight: 700; color: #111; line-height: 1; z-index: 1; pointer-events: none; }
 
@@ -836,33 +884,46 @@ a.button{display:inline-block;margin-top:16px;padding:8px 12px;border-radius:6px
 
 /* Restore normal layout */
 header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1.5rem;
-  background: #fff;
-  border-bottom: 1px solid #ddd;
+	/* Remove background and border for transparent header */
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 0.75rem 1.5rem;
+	background: none !important;
+	border-bottom: none !important;
 }
 
 /* Keep logo small & aligned */
 .sake-logo-egg {
-  height: 38px;
-  width: auto;
-  cursor: pointer;
-  margin-right: 12px;
+	height: 64px;
+	width: auto;
+	cursor: pointer;
+	margin-right: 0.5rem;
+	margin-top: 0.1rem;
 }
 
 /* Main header layout */
 .header-inner {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
+	display: flex;
+	align-items: center;
+	gap: 0.3rem;
+	position: absolute;
+	top: 0.1rem;
+	left: 0.1rem;
+	padding: 0;
+	margin: 0;
+	background: none !important;
+	box-shadow: none !important;
+	border: none !important;
 }
 
 .header-title {
-  margin: 0;
-  font-size: 2rem;
-  font-weight: bold;
+	margin: 0;
+	font-size: 3.2rem;
+	font-weight: bold;
+	line-height: 1;
+	padding: 0;
+	vertical-align: middle;
 }
 
 /* Right side (datetime + start button) */
@@ -933,10 +994,12 @@ header {
 
 /* each line (dry, wet) */
 .temp__row {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
-  font-size: 1em;  /* same as parent — NO shrinking */
+	display: flex;
+	align-items: baseline;
+	gap: 4px;
+	font-size: 1em;  /* same as parent — NO shrinking */
+	justify-content: center;
+	width: 100%;
 }
 
 /* small gray text like (Dry), (Wet Bulb) */
@@ -1029,27 +1092,31 @@ header {
 }
 
 .run-box {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 16px 20px;
-  margin: 15px auto;
-  width: 280px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  display: flex;
-  justify-content: center;
-  align-items: center;
+	padding: 10px 16px;
+	margin: 0 auto 10px auto;
+	width: 260px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	background: transparent;
+	box-shadow: none;
+	border-radius: 0;
 }
 
 .start-run-btn {
-  background: #b22222;
-  color: white;
-  border: none;
-  border-radius: 10px;
-  padding: 10px 18px;
-  font-size: 1.1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s ease;
+	background: #b22222;
+	color: white;
+	border: none;
+	border-radius: 10px;
+	width: 100%;
+	min-height: 64px;
+	font-size: 1.6rem;
+	font-weight: 700;
+	cursor: pointer;
+	transition: background 0.2s ease;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
 .start-run-btn:hover {
