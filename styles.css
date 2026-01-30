@@ -36,6 +36,47 @@
 	outline: none;
 }
 
+/* Zone button temperature states (based on displayed value) */
+.zone-combined.zone-temp-cold {
+	background: #cfe8ff;
+	border-color: #7fb8ff;
+}
+
+.zone-combined.zone-temp-ok {
+	background: #c9f2d8;
+	border-color: #7fd1a0;
+}
+
+.zone-combined.zone-temp-warm {
+	background: #ffe0b3;
+	border-color: #ffb24d;
+}
+
+.zone-combined.zone-temp-hot {
+	background: #ffcccc;
+	border-color: #ff8080;
+}
+
+.zone-combined.zone-temp-cold:hover,
+.zone-combined.zone-temp-cold:focus {
+	background: #bcdcff;
+}
+
+.zone-combined.zone-temp-ok:hover,
+.zone-combined.zone-temp-ok:focus {
+	background: #b7eccc;
+}
+
+.zone-combined.zone-temp-warm:hover,
+.zone-combined.zone-temp-warm:focus {
+	background: #ffd699;
+}
+
+.zone-combined.zone-temp-hot:hover,
+.zone-combined.zone-temp-hot:focus {
+	background: #ffb3b3;
+}
+
 .zone-combined__label {
 	position: absolute;
 	top: 10px;
@@ -59,6 +100,13 @@ header {
 	left: 16px;
 	text-align: left;
 	z-index: 10;
+}
+
+/* Zone pages: align logo + title like Home header */
+.zone-page header {
+	display: flex;
+	align-items: center;
+	gap: 0.3rem;
 }
 
 header h1 { font-size: calc(3.2rem + 6pt); margin: 0; line-height: 1; color: #111; font-weight: 700; background: none !important; box-shadow: none !important; border: none !important; }
@@ -180,12 +228,53 @@ header h1 { font-size: calc(3.2rem + 6pt); margin: 0; line-height: 1; color: #11
 @media (max-width: 480px) { header h1, .page-title { font-size: calc(1.8rem + 6pt); } }
 
 /* Main padding so content doesn't overlap the absolute header */
-main { padding: 8px 16px 16px; }
+main { padding: 8px 16px 16px; transform: translateX(-8px); }
+
+/* Zone pages: push content below the large Zone header */
+.zone-page main { padding-top: 120px; }
+
+/* Zone pages: match Home header font size */
+.zone-page header h1 { font-size: 3.2rem; }
 
 /* Layout: left column (longs) + right column (zones) */
 .layout { display: flex; align-items: flex-start; gap: 16px; margin-top: 0; padding-left: 0; }
 
-.left { display: flex; flex-direction: column; gap: 10px; width: 943px; order: 1; /* match notes height so bottoms align */ height: var(--notes-height); }
+/* Home layout: zones on top-left, notes in bottom-left, charts on right */
+.layout--home {
+	display: grid;
+	grid-template-columns: max-content 1fr;
+	grid-template-rows: auto 1fr;
+	gap: 16px;
+	align-items: start;
+}
+
+.layout--home .zones-combined {
+	grid-column: 1;
+	grid-row: 1;
+}
+
+.layout--home .notes-wrap {
+	grid-column: 1;
+	grid-row: 2;
+	align-self: stretch;
+	height: 100%;
+}
+
+.layout--home .left {
+	grid-column: 2;
+	grid-row: 1 / span 2;
+}
+
+.layout--home .notes {
+	height: 100%;
+	min-height: calc(var(--notes-height) - 170px);
+}
+
+.layout--home .long {
+	min-height: 130px;
+}
+
+.left { display: flex; flex-direction: column; gap: 10px; width: 1020px; order: 1; /* match notes height so bottoms align */ height: var(--notes-height); position: relative; }
 
 /* Make long panels flexible so they can share the left column height with the mid-row
 	(preserves visual proportions while allowing zone pages with 2 x .long + .mid-row
@@ -255,7 +344,7 @@ main { padding: 8px 16px 16px; }
 	.mid-row { flex-direction: column; }
 }
 
-.notes { order: 2; width: 220px; background: #ffffff; border: 1px solid #e1e1e6; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border-radius: 8px; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; padding: 12px; box-sizing: border-box; color: #222; height: var(--notes-height); position: relative; }
+.notes { order: 2; width: 296px; background: #ffffff; border: 1px solid #e1e1e6; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border-radius: 8px; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; padding: 12px; box-sizing: border-box; color: #222; height: var(--notes-height); position: relative; }
 
 .sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
@@ -504,24 +593,28 @@ main { padding: 8px 16px 16px; }
 	padding: 0;
 }
 
-/* wrapper so we can position meta text above the notes box and align with .home-link */
-.notes-wrap { order: 2; width: 220px; position: relative; display: flex; flex-direction: column; align-items: stretch; }
+/* wrapper for notes box */
+.notes-wrap { order: 2; width: 296px; position: relative; display: flex; flex-direction: column; align-items: stretch; }
 
-.notes-wrap > .notes__meta {
+/* Live date/time displayed above the charts on the home layout */
+.left > .notes__meta {
 	position: absolute;
-	top: -76px; /* align vertically with header/home */
-	right: 12px; /* move inside the notes box to align with inner padding */
-	font-size: 1.3rem; /* larger label */
+	top: -86px;
+	right: 0;
+	margin: 0;
+	text-align: right;
+	font-size: 1.3rem;
 	font-weight: 600;
-	z-index: 11;
+	color: #6b6b6b;
+	white-space: pre-line;
 }
 
 @media (max-width: 768px) {
-	.notes-wrap > .notes__meta { top: -66px; right: 10px; font-size: 1.1rem; }
+	.left > .notes__meta { top: -74px; font-size: 1.15rem; }
 }
 
 @media (max-width: 480px) {
-	.notes-wrap > .notes__meta { top: -60px; right: 8px; font-size: 1rem; }
+	.left > .notes__meta { top: -66px; font-size: 1.05rem; }
 }
 
 .stage { display: inline-block; }
@@ -926,6 +1019,9 @@ header {
 	vertical-align: middle;
 }
 
+/* Zone pages: keep Zone X on one line */
+.zone-page .header-title { white-space: nowrap; }
+
 /* Right side (datetime + start button) */
 .header-meta {
   display: flex;
@@ -1093,7 +1189,7 @@ header {
 
 .run-box {
 	padding: 10px 16px;
-	margin: 0 auto 10px auto;
+	margin: 3px auto 10px auto;
 	width: 260px;
 	display: flex;
 	justify-content: center;
@@ -1101,6 +1197,7 @@ header {
 	background: transparent;
 	box-shadow: none;
 	border-radius: 0;
+	transform: translateX(-8px);
 }
 
 .start-run-btn {
@@ -1110,6 +1207,7 @@ header {
 	border-radius: 10px;
 	width: 100%;
 	min-height: 64px;
+	margin-top: 2px;
 	font-size: 1.6rem;
 	font-weight: 700;
 	cursor: pointer;

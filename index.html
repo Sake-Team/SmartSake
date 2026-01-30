@@ -26,7 +26,7 @@
 		<main>
 			<main>
 				<div class="stage">
-					<section class="layout">
+					<section class="layout layout--home">
 
 						<section class="zones-combined">
 							<a class="zone-combined" href="zone1.html" role="button" aria-label="Zone 1">
@@ -86,8 +86,6 @@
 						</section>
 
 						<div class="notes-wrap">
-							<div class="notes__meta" id="notes-meta" aria-live="polite">Date,
-								Time</div>
 							<div class="notes" aria-label="Notes">
 								<label class="sr-only" for="notes-input">Notes</label>
 								<textarea id="notes-input" class="notes__input" placeholder="Enter notes..."
@@ -96,6 +94,8 @@
 						</div>
 
 						<div class="left">
+							<div class="notes__meta" id="notes-meta" aria-live="polite">Date,
+								Time</div>
 							<div class="long long--top-left">
 								<div class="chart-header">
 									<span>Temperature over time</span>
@@ -113,10 +113,10 @@
 								<canvas id="fans-chart" class="metric-chart"></canvas>
 							</div>
 
+						<div class="long long--top-left">
+							<span>Weight over time</span>
+							<canvas id="weight-chart" class="metric-chart"></canvas>
 						</div>
-
-					</section>
-
 
 
 				</div>
@@ -268,7 +268,7 @@
 							hour: '2-digit',
 							minute: '2-digit'
 						});
-						return `${date} — ${time}`;
+						return `${date}\n${time}`;
 					}
 
 					function update() {
@@ -883,6 +883,28 @@
 								const dry = currentDryBulb[`temp${i}`];
 								dryEl.textContent =
 									(typeof dry === 'number' && !Number.isNaN(dry)) ? dry.toFixed(1) : '--';
+
+								const zoneButton = dryEl.closest('.zone-combined');
+								if (zoneButton) {
+									zoneButton.classList.remove(
+										'zone-temp-cold',
+										'zone-temp-ok',
+										'zone-temp-warm',
+										'zone-temp-hot'
+									);
+
+									if (typeof dry === 'number' && !Number.isNaN(dry)) {
+										if (dry >= 40) {
+											zoneButton.classList.add('zone-temp-hot');
+										} else if (dry >= 35) {
+											zoneButton.classList.add('zone-temp-warm');
+										} else if (dry >= 25) {
+											zoneButton.classList.add('zone-temp-ok');
+										} else {
+											zoneButton.classList.add('zone-temp-cold');
+										}
+									}
+								}
 							}
 
 							if (wetEl) {
@@ -1011,12 +1033,14 @@
 					const tempCanvas = document.getElementById('temp-chart');
 					const humCanvas = document.getElementById('humidity-chart');
 					const fansCanvas = document.getElementById('fans-chart');
+					const weightCanvas = document.getElementById('weight-chart');
 
-					if (!tempCanvas || !humCanvas || !fansCanvas || !window.Chart) return;
+					if (!tempCanvas || !humCanvas || !fansCanvas || !weightCanvas || !window.Chart) return;
 
 					const tempCtx = tempCanvas.getContext('2d');
 					const humCtx = humCanvas.getContext('2d');
 					const fansCtx = fansCanvas.getContext('2d');
+					const weightCtx = weightCanvas.getContext('2d');
 
 					const maxPoints = 60; // keep last 60 samples (~5 min if 5s interval)
 					const labels = [];
@@ -1039,6 +1063,8 @@
 						fan5: [],
 						fan6: []
 					};
+
+					const weightData = [];
 
 					// Small dashboard charts
 					const tempChart = new Chart(tempCtx, {
@@ -1135,6 +1161,32 @@
 						}
 					});
 
+					const weightChart = new Chart(weightCtx, {
+						type: 'line',
+						data: {
+							labels,
+							datasets: [
+								{ label: 'Weight', data: weightData, borderWidth: 2, pointRadius: 3, borderColor: 'rgb(75, 192, 192)', backgroundColor: 'rgba(75, 192, 192, 0.2)' }
+							]
+						},
+						options: {
+							animation: false,
+							responsive: true,
+							maintainAspectRatio: false,
+							scales: {
+								x: {
+									ticks: { autoSkip: true, maxTicksLimit: 6 }
+								},
+								y: {
+									title: { display: true, text: 'Weight (kg)' }
+								}
+							},
+							plugins: {
+								legend: { display: false }
+							}
+						}
+					});
+
 					// This gets called from the simulator
 					window.pushSensorSample = function (sample) {
 						const t = sample.time instanceof Date ? sample.time : new Date(sample.time);
@@ -1164,17 +1216,23 @@
 							Object.values(fansSeries).forEach(arr => arr.push(null));
 						}
 
+						// weight (generate sample data point)
+						const weightVal = 10 + Math.random() * 5; // Sample weight between 10-15 kg
+						weightData.push(weightVal);
+
 						// keep arrays bounded
 						if (labels.length > maxPoints) {
 							labels.shift();
 							Object.values(tempSeries).forEach(arr => arr.shift());
 							humidityData.shift();
 							Object.values(fansSeries).forEach(arr => arr.shift());
+							weightData.shift();
 						}
 
 						tempChart.update('none');
 						humChart.update('none');
 						fansChart.update('none');
+						weightChart.update('none');
 
 						// If modal is open, update its data window too
 						if (chartModal && chartModal.style.display === 'flex') {
