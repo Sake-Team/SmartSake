@@ -10,35 +10,82 @@
 
 <body>
 	<div class="page-wrapper">
-		<header class="header">
-			<div class="header-inner">
-				<img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" id="sake-logo-egg" class="sake-logo-egg" />
-				<h1 class="header-title">
-					Home <span id="run-name-display" class="run-name-header"></span>
-				</h1>
-			</div>
-		</header>
+		   <header class="header">
+			   <div class="header-inner">
+				   <img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" id="sake-logo-egg" class="sake-logo-egg" />
+				   <h1 class="header-title">
+					   Home <span id="run-name-display" class="run-name-header"></span>
+				   </h1>
+			   </div>
+		   </header>
 
-		<div class="run-box">
-			<button id="start-run-btn" class="start-run-btn">Start Run</button>
-		</div>
+		   <div class="run-box">
+			   <button id="start-run-btn" class="start-run-btn">Start Run</button>
+		   </div>
 
 		<main>
 			<main>
 				<div class="stage">
-					<section class="layout">
-						<section class="zones">
-							<a class="zone" href="zone1.html" role="button" aria-label="Zone 1">Zone 1</a>
-							<a class="zone" href="zone2.html" role="button" aria-label="Zone 2">Zone 2</a>
-							<a class="zone" href="zone3.html" role="button" aria-label="Zone 3">Zone 3</a>
-							<a class="zone" href="zone4.html" role="button" aria-label="Zone 4">Zone 4</a>
-							<a class="zone" href="zone5.html" role="button" aria-label="Zone 5">Zone 5</a>
-							<a class="zone" href="zone6.html" role="button" aria-label="Zone 6">Zone 6</a>
+					<section class="layout layout--home">
+
+						<section class="zones-combined">
+							<a class="zone-combined" href="zone1.html" role="button" aria-label="Zone 1">
+								<span class="zone-combined__label">Zone 1</span>
+								<div class="temp__value-column">
+									<div class="temp__row">
+										<span class="temp__num" id="temp-1-dry">--</span>
+										<span class="temp__unit">°C</span>
+									</div>
+								</div>
+							</a>
+							<a class="zone-combined" href="zone2.html" role="button" aria-label="Zone 2">
+								<span class="zone-combined__label">Zone 2</span>
+								<div class="temp__value-column">
+									<div class="temp__row">
+										<span class="temp__num" id="temp-2-dry">--</span>
+										<span class="temp__unit">°C</span>
+									</div>
+								</div>
+							</a>
+							<a class="zone-combined" href="zone3.html" role="button" aria-label="Zone 3">
+								<span class="zone-combined__label">Zone 3</span>
+								<div class="temp__value-column">
+									<div class="temp__row">
+										<span class="temp__num" id="temp-3-dry">--</span>
+										<span class="temp__unit">°C</span>
+									</div>
+								</div>
+							</a>
+							<a class="zone-combined" href="zone4.html" role="button" aria-label="Zone 4">
+								<span class="zone-combined__label">Zone 4</span>
+								<div class="temp__value-column">
+									<div class="temp__row">
+										<span class="temp__num" id="temp-4-dry">--</span>
+										<span class="temp__unit">°C</span>
+									</div>
+								</div>
+							</a>
+							<a class="zone-combined" href="zone5.html" role="button" aria-label="Zone 5">
+								<span class="zone-combined__label">Zone 5</span>
+								<div class="temp__value-column">
+									<div class="temp__row">
+										<span class="temp__num" id="temp-5-dry">--</span>
+										<span class="temp__unit">°C</span>
+									</div>
+								</div>
+							</a>
+							<a class="zone-combined" href="zone6.html" role="button" aria-label="Zone 6">
+								<span class="zone-combined__label">Zone 6</span>
+								<div class="temp__value-column">
+									<div class="temp__row">
+										<span class="temp__num" id="temp-6-dry">--</span>
+										<span class="temp__unit">°C</span>
+									</div>
+								</div>
+							</a>
 						</section>
 
 						<div class="notes-wrap">
-							<div class="notes__meta" id="notes-meta" aria-live="polite">Date,
-								Time</div>
 							<div class="notes" aria-label="Notes">
 								<label class="sr-only" for="notes-input">Notes</label>
 								<textarea id="notes-input" class="notes__input" placeholder="Enter notes..."
@@ -47,6 +94,8 @@
 						</div>
 
 						<div class="left">
+							<div class="notes__meta" id="notes-meta" aria-live="polite">Date,
+								Time</div>
 							<div class="long long--top-left">
 								<div class="chart-header">
 									<span>Temperature over time</span>
@@ -64,109 +113,11 @@
 								<canvas id="fans-chart" class="metric-chart"></canvas>
 							</div>
 
+						<div class="long long--top-left">
+							<span>Weight over time</span>
+							<canvas id="weight-chart" class="metric-chart"></canvas>
 						</div>
 
-					</section>
-
-					<section class="temp-row" aria-label="Temperature readings">
-
-						<div class="temp">
-							<span class="temp__label">Temp 1</span>
-							<div class="temp__value-column">
-								<div class="temp__row">
-									<span class="temp__num" id="temp-1-dry">--</span>
-									<span class="temp__unit">°C</span>
-									<span class="temp__note">(Dry)</span>
-								</div>
-								<div class="temp__row">
-									<span class="temp__num temp__num--wb" id="temp-1-wet">--</span>
-									<span class="temp__unit">°C</span>
-									<span class="temp__note">(Wet Bulb)</span>
-								</div>
-							</div>
-						</div>
-
-						<div class="temp">
-							<span class="temp__label">Temp 2</span>
-							<div class="temp__value-column">
-								<div class="temp__row">
-									<span class="temp__num" id="temp-2-dry">--</span>
-									<span class="temp__unit">°C</span>
-									<span class="temp__note">(Dry)</span>
-								</div>
-								<div class="temp__row">
-									<span class="temp__num temp__num--wb" id="temp-2-wet">--</span>
-									<span class="temp__unit">°C</span>
-									<span class="temp__note">(Wet Bulb)</span>
-								</div>
-							</div>
-						</div>
-
-						<div class="temp">
-							<span class="temp__label">Temp 3</span>
-							<div class="temp__value-column">
-								<div class="temp__row">
-									<span class="temp__num" id="temp-3-dry">--</span>
-									<span class="temp__unit">°C</span>
-									<span class="temp__note">(Dry)</span>
-								</div>
-								<div class="temp__row">
-									<span class="temp__num temp__num--wb" id="temp-3-wet">--</span>
-									<span class="temp__unit">°C</span>
-									<span class="temp__note">(Wet Bulb)</span>
-								</div>
-							</div>
-						</div>
-
-						<div class="temp">
-							<span class="temp__label">Temp 4</span>
-							<div class="temp__value-column">
-								<div class="temp__row">
-									<span class="temp__num" id="temp-4-dry">--</span>
-									<span class="temp__unit">°C</span>
-									<span class="temp__note">(Dry)</span>
-								</div>
-								<div class="temp__row">
-									<span class="temp__num temp__num--wb" id="temp-4-wet">--</span>
-									<span class="temp__unit">°C</span>
-									<span class="temp__note">(Wet Bulb)</span>
-								</div>
-							</div>
-						</div>
-
-						<div class="temp">
-							<span class="temp__label">Temp 5</span>
-							<div class="temp__value-column">
-								<div class="temp__row">
-									<span class="temp__num" id="temp-5-dry">--</span>
-									<span class="temp__unit">°C</span>
-									<span class="temp__note">(Dry)</span>
-								</div>
-								<div class="temp__row">
-									<span class="temp__num temp__num--wb" id="temp-5-wet">--</span>
-									<span class="temp__unit">°C</span>
-									<span class="temp__note">(Wet Bulb)</span>
-								</div>
-							</div>
-						</div>
-
-						<div class="temp">
-							<span class="temp__label">Temp 6</span>
-							<div class="temp__value-column">
-								<div class="temp__row">
-									<span class="temp__num" id="temp-6-dry">--</span>
-									<span class="temp__unit">°C</span>
-									<span class="temp__note">(Dry)</span>
-								</div>
-								<div class="temp__row">
-									<span class="temp__num temp__num--wb" id="temp-6-wet">--</span>
-									<span class="temp__unit">°C</span>
-									<span class="temp__note">(Wet Bulb)</span>
-								</div>
-							</div>
-						</div>
-
-					</section>
 
 				</div>
 			</main>
@@ -317,7 +268,7 @@
 							hour: '2-digit',
 							minute: '2-digit'
 						});
-						return `${date} — ${time}`;
+						return `${date}\n${time}`;
 					}
 
 					function update() {
@@ -932,6 +883,28 @@
 								const dry = currentDryBulb[`temp${i}`];
 								dryEl.textContent =
 									(typeof dry === 'number' && !Number.isNaN(dry)) ? dry.toFixed(1) : '--';
+
+								const zoneButton = dryEl.closest('.zone-combined');
+								if (zoneButton) {
+									zoneButton.classList.remove(
+										'zone-temp-cold',
+										'zone-temp-ok',
+										'zone-temp-warm',
+										'zone-temp-hot'
+									);
+
+									if (typeof dry === 'number' && !Number.isNaN(dry)) {
+										if (dry >= 40) {
+											zoneButton.classList.add('zone-temp-hot');
+										} else if (dry >= 35) {
+											zoneButton.classList.add('zone-temp-warm');
+										} else if (dry >= 25) {
+											zoneButton.classList.add('zone-temp-ok');
+										} else {
+											zoneButton.classList.add('zone-temp-cold');
+										}
+									}
+								}
 							}
 
 							if (wetEl) {
@@ -1060,12 +1033,14 @@
 					const tempCanvas = document.getElementById('temp-chart');
 					const humCanvas = document.getElementById('humidity-chart');
 					const fansCanvas = document.getElementById('fans-chart');
+					const weightCanvas = document.getElementById('weight-chart');
 
-					if (!tempCanvas || !humCanvas || !fansCanvas || !window.Chart) return;
+					if (!tempCanvas || !humCanvas || !fansCanvas || !weightCanvas || !window.Chart) return;
 
 					const tempCtx = tempCanvas.getContext('2d');
 					const humCtx = humCanvas.getContext('2d');
 					const fansCtx = fansCanvas.getContext('2d');
+					const weightCtx = weightCanvas.getContext('2d');
 
 					const maxPoints = 60; // keep last 60 samples (~5 min if 5s interval)
 					const labels = [];
@@ -1088,6 +1063,8 @@
 						fan5: [],
 						fan6: []
 					};
+
+					const weightData = [];
 
 					// Small dashboard charts
 					const tempChart = new Chart(tempCtx, {
@@ -1184,6 +1161,32 @@
 						}
 					});
 
+					const weightChart = new Chart(weightCtx, {
+						type: 'line',
+						data: {
+							labels,
+							datasets: [
+								{ label: 'Weight', data: weightData, borderWidth: 2, pointRadius: 3, borderColor: 'rgb(75, 192, 192)', backgroundColor: 'rgba(75, 192, 192, 0.2)' }
+							]
+						},
+						options: {
+							animation: false,
+							responsive: true,
+							maintainAspectRatio: false,
+							scales: {
+								x: {
+									ticks: { autoSkip: true, maxTicksLimit: 6 }
+								},
+								y: {
+									title: { display: true, text: 'Weight (kg)' }
+								}
+							},
+							plugins: {
+								legend: { display: false }
+							}
+						}
+					});
+
 					// This gets called from the simulator
 					window.pushSensorSample = function (sample) {
 						const t = sample.time instanceof Date ? sample.time : new Date(sample.time);
@@ -1213,17 +1216,23 @@
 							Object.values(fansSeries).forEach(arr => arr.push(null));
 						}
 
+						// weight (generate sample data point)
+						const weightVal = 10 + Math.random() * 5; // Sample weight between 10-15 kg
+						weightData.push(weightVal);
+
 						// keep arrays bounded
 						if (labels.length > maxPoints) {
 							labels.shift();
 							Object.values(tempSeries).forEach(arr => arr.shift());
 							humidityData.shift();
 							Object.values(fansSeries).forEach(arr => arr.shift());
+							weightData.shift();
 						}
 
 						tempChart.update('none');
 						humChart.update('none');
 						fansChart.update('none');
+						weightChart.update('none');
 
 						// If modal is open, update its data window too
 						if (chartModal && chartModal.style.display === 'flex') {
