@@ -957,6 +957,23 @@
 
 						updateTemperatureDisplay();
 
+						// Always publish latest sample for zone pages
+						try {
+							const latest = { timestamp: new Date().toISOString() };
+							for (let i = 1; i <= 6; i++) {
+								latest[`temp${i}`] = currentTemperatures[`temp${i}`];
+								latest[`fan${i}`] = currentFans[`fan${i}`];
+							}
+							latest.humidity = currentHumidity;
+							localStorage.setItem('sakeLatestSample', JSON.stringify(latest));
+							if (typeof BroadcastChannel !== 'undefined') {
+								const channel = window.__sakeBroadcast || (window.__sakeBroadcast = new BroadcastChannel('sake-sensor'));
+								channel.postMessage(latest);
+							}
+						} catch (e) {
+							// ignore storage errors
+						}
+
 						// Push to charts if chart logic is present
 						if (window.pushSensorSample) {
 							window.pushSensorSample({
@@ -1233,6 +1250,23 @@
 						humChart.update('none');
 						fansChart.update('none');
 						weightChart.update('none');
+
+						// Share latest sample for zone pages (live updates)
+						try {
+							const latest = {
+								timestamp: t.toISOString()
+							};
+							for (let i = 1; i <= 6; i++) {
+								const tempKey = `temp${i}`;
+								latest[tempKey] = sample.temps ? sample.temps[tempKey] : null;
+								const fanKey = `fan${i}`;
+								latest[fanKey] = sample.fans ? sample.fans[fanKey] : null;
+							}
+							latest.humidity = sample.humidity ?? null;
+							localStorage.setItem('sakeLatestSample', JSON.stringify(latest));
+						} catch (e) {
+							// ignore storage errors
+						}
 
 						// If modal is open, update its data window too
 						if (chartModal && chartModal.style.display === 'flex') {

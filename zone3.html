@@ -25,8 +25,18 @@
         </section>
 
         <div class="left">
-          <div class="long long--top-left">Zone 3 temperature</div>
-          <div class="long long--top-left">Zone 3 fan on/off</div>
+          <div class="long long--top-left">
+            <div class="chart-header">
+              <span>Zone 3 temperature over time</span>
+            </div>
+            <canvas id="zone-temp-chart" class="metric-chart"></canvas>
+          </div>
+          <div class="long long--top-left">
+            <div class="chart-header">
+              <span>Zone 3 fan on/off over time</span>
+            </div>
+            <canvas id="zone-fan-chart" class="metric-chart"></canvas>
+          </div>
           <div class="mid-row">
             <div class="mid" tabindex="0">Manual off for X hours</div>
             <div class="mid" tabindex="0">Manual on for X hours</div>
@@ -46,6 +56,7 @@
 
   <!-- placeholder card removed -->
   
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
   // Initialize run name display from localStorage
   (function(){
@@ -83,6 +94,233 @@
       clearTimeout(saveTimeout);
       localStorage.setItem('currentNotes', notesInput.value);
     });
+  })();
+
+  // Zone temperature + fan charts (Zone 3)
+  (function(){
+    const zoneNumber = 3;
+    const tempCanvas = document.getElementById('zone-temp-chart');
+    const fanCanvas = document.getElementById('zone-fan-chart');
+    if((!tempCanvas && !fanCanvas) || !window.Chart) return;
+
+    const labels = [];
+    const temps = [];
+    const fans = [];
+    const maxPoints = 60;
+
+    const tempChart = tempCanvas ? new Chart(tempCanvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: `Temp ${zoneNumber}`, data: temps, borderWidth: 1, pointRadius: 0 }
+        ]
+      },
+      options: {
+        animation: false,
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { ticks: { autoSkip: true, maxTicksLimit: 6 } },
+          y: { title: { display: true, text: 'Temperature (°C)' } }
+        },
+        plugins: { legend: { display: false } }
+      }
+    }) : null;
+
+    const fanChart = fanCanvas ? new Chart(fanCanvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: `Fan ${zoneNumber}`, data: fans, borderWidth: 1, pointRadius: 0, stepped: true }
+        ]
+      },
+      options: {
+        animation: false,
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { ticks: { autoSkip: true, maxTicksLimit: 6 } },
+          y: {
+            min: -0.1,
+            max: 1.1,
+            ticks: {
+              stepSize: 1,
+              callback: v => (v === 0 ? 'Off' : v === 1 ? 'On' : '')
+            },
+            title: { display: true, text: 'Fan state' }
+          }
+        },
+        plugins: { legend: { display: false } }
+      }
+    }) : null;
+
+    let lastCount = 0;
+    let lastLiveTimestamp = null;
+    let lastExternalUpdate = 0;
+    let localSimId = null;
+
+    function loadSamples() {
+      const raw = localStorage.getItem('sakeRunState');
+      if(!raw) return [];
+      try {
+        const state = JSON.parse(raw);
+        return Array.isArray(state.collectedData) ? state.collectedData : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function loadLatestSample() {
+      const raw = localStorage.getItem('sakeLatestSample');
+      if (!raw) return null;
+      try {
+        return JSON.parse(raw);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function toFanValue(raw) {
+      if (raw === null || raw === undefined) return null;
+      if (typeof raw === 'number') return raw;
+      const str = String(raw).toLowerCase();
+      if (str === 'on' || str === '1' || str === 'true') return 1;
+      if (str === 'off' || str === '0' || str === 'false') return 0;
+      const num = parseFloat(str);
+      return isNaN(num) ? null : num;
+    }
+
+    function markExternalUpdate() {
+      lastExternalUpdate = Date.now();
+      stopLocalSimulator();
+    }
+
+    function rebuildFromSamples(samples) {
+      labels.length = 0;
+      temps.length = 0;
+      fans.length = 0;
+      lastLiveTimestamp = null;
+
+      const slice = samples.slice(-maxPoints);
+      slice.forEach(sample => {
+        const t = new Date(sample.timestamp);
+        if (isNaN(t.getTime())) return;
+        labels.push(t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+        const tempVal = parseFloat(sample[`temp${zoneNumber}`]);
+        temps.push(isNaN(tempVal) ? null : tempVal);
+        fans.push(toFanValue(sample[`fan${zoneNumber}`]));
+        lastLiveTimestamp = t.toISOString();
+      });
+    }
+
+    function appendLatest(sample) {
+      const t = new Date(sample.timestamp);
+      if (isNaN(t.getTime())) return false;
+      const iso = t.toISOString();
+      if (iso === lastLiveTimestamp) return false;
+
+      labels.push(t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      const tempVal = parseFloat(sample[`temp${zoneNumber}`]);
+      temps.push(isNaN(tempVal) ? null : tempVal);
+      fans.push(toFanValue(sample[`fan${zoneNumber}`]));
+      lastLiveTimestamp = iso;
+
+      if (labels.length > maxPoints) {
+        labels.shift();
+        temps.shift();
+        fans.shift();
+      }
+      markExternalUpdate();
+      return true;
+    }
+
+    function computeWetBulbC(TdbC, RH) {
+      const R = Math.min(100, Math.max(1, RH));
+      const T = TdbC;
+      return (
+        T * Math.atan(0.151977 * Math.sqrt(R + 8.313659)) +
+        Math.atan(T + R) -
+        Math.atan(R - 1.676331) +
+        0.00391838 * Math.pow(R, 1.5) * Math.atan(0.023101 * R) -
+        4.686035
+      );
+    }
+
+    function generateLocalSample() {
+      const humidity = 40 + Math.random() * 40;
+      const dryC = 20 + Math.random() * 30;
+      const wetC = computeWetBulbC(dryC, humidity);
+      return {
+        timestamp: new Date().toISOString(),
+        [`temp${zoneNumber}`]: wetC.toFixed(1),
+        [`fan${zoneNumber}`]: wetC > 40 ? 1 : 0
+      };
+    }
+
+    function startLocalSimulator() {
+      if (localSimId) return;
+      localSimId = setInterval(() => {
+        const sample = generateLocalSample();
+        if (appendLatest(sample)) {
+          if (tempChart) tempChart.update('none');
+          if (fanChart) fanChart.update('none');
+        }
+      }, 5000);
+    }
+
+    function stopLocalSimulator() {
+      if (!localSimId) return;
+      clearInterval(localSimId);
+      localSimId = null;
+    }
+
+    function syncCharts(force) {
+      const samples = loadSamples();
+      let updated = false;
+
+      if (force || samples.length !== lastCount) {
+        rebuildFromSamples(samples);
+        lastCount = samples.length;
+        updated = true;
+      }
+
+      const latest = loadLatestSample();
+      if (latest) {
+        updated = appendLatest(latest) || updated;
+      }
+
+      if (!lastExternalUpdate || Date.now() - lastExternalUpdate > 8000) {
+        startLocalSimulator();
+      }
+
+      if (updated) {
+        if (tempChart) tempChart.update('none');
+        if (fanChart) fanChart.update('none');
+      }
+    }
+
+    syncCharts(true);
+    setInterval(syncCharts, 2000);
+    window.addEventListener('storage', function (event) {
+      if (event.key === 'sakeLatestSample') {
+        syncCharts(true);
+      }
+    });
+
+    if (typeof BroadcastChannel !== 'undefined') {
+      const channel = new BroadcastChannel('sake-sensor');
+      channel.addEventListener('message', function (event) {
+        if (event && event.data) {
+          const appended = appendLatest(event.data);
+          if (appended) {
+            if (tempChart) tempChart.update('none');
+            if (fanChart) fanChart.update('none');
+          }
+        }
+      });
+    }
   })();
   </script>
 </body>

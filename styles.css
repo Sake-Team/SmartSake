@@ -182,22 +182,22 @@ header h1 { font-size: calc(3.2rem + 6pt); margin: 0; line-height: 1; color: #11
 .notes > .home-link {
 	position: absolute;
 	/* place above the notes box and render like the zone buttons */
-	top: -76px;
+	top: -96px;
 	right: 12px; /* align inside the notes box padding */
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 140px;
-	height: 64px;
+	width: 150px;
+	height: 70px;
 	color: #d40000; /* red text */
 	font-weight: 800;
-	font-size: 1.3rem; /* slightly bigger red text */
+	font-size: 1.6rem; /* slightly bigger red text */
 	text-decoration: none;
 	cursor: pointer;
 	z-index: 12;
-	background: transparent;
-	border: none;
-	box-shadow: none;
+	background: #ffffff;
+	border: 1px solid #e1e1e6;
+	box-shadow: 0 2px 4px rgba(0,0,0,0.04);
 	border-radius: 8px;
 }
 
@@ -222,6 +222,13 @@ header h1 { font-size: calc(3.2rem + 6pt); margin: 0; line-height: 1; color: #11
 	color: #ffffff; /* white text for contrast */
 	border-color: #ff6b6b;
 	transform: translateY(-2px);
+}
+
+.notes > .home-link:active {
+	background: #d40000; /* red on click */
+	color: #ffffff;
+	border-color: #d40000;
+	transform: translateY(0);
 }
 
 /* Responsive scaling for small screens */
