@@ -96,26 +96,34 @@
 						<div class="left">
 							<div class="notes__meta" id="notes-meta" aria-live="polite">Date,
 								Time</div>
-							<div class="long long--top-left">
-								<div class="chart-header">
-									<span>Temperature over time</span>
+							<div class="long long--top-left home-temp-chart-card">
+								<span class="temp-chart-title-left chart-title--single-line">Temperature over time</span>
+								<div id="temp-chart-legend" class="temp-chart-legend" aria-label="Temperature legend"></div>
+								<div class="temp-chart-live-wrap">
+									<canvas id="temp-chart" class="metric-chart"></canvas>
 								</div>
-								<canvas id="temp-chart" class="metric-chart"></canvas>
 							</div>
 
-							<div class="long long--top-left">
-								<span>Humidity over time</span>
-								<canvas id="humidity-chart" class="metric-chart"></canvas>
+							<div class="long long--top-left home-side-title-chart-card home-humidity-chart-card">
+								<div class="home-chart-live-wrap">
+									<span class="home-humidity-title chart-title--single-line">Humidity over time</span>
+									<canvas id="humidity-chart" class="metric-chart"></canvas>
+								</div>
 							</div>
 
-							<div class="long long--top-left">
-								<span>Fans on/off over time</span>
-								<canvas id="fans-chart" class="metric-chart"></canvas>
+							<div class="long long--top-left home-temp-chart-card home-fans-chart-card">
+								<span class="temp-chart-title-left chart-title--single-line">Fans on/off over time</span>
+								<div id="fans-chart-legend" class="temp-chart-legend" aria-label="Fans legend"></div>
+								<div class="temp-chart-live-wrap">
+									<canvas id="fans-chart" class="metric-chart"></canvas>
+								</div>
 							</div>
 
-						<div class="long long--top-left">
-							<span>Weight over time</span>
-							<canvas id="weight-chart" class="metric-chart"></canvas>
+						<div class="long long--top-left home-side-title-chart-card home-humidity-chart-card">
+							<div class="home-chart-live-wrap">
+								<span class="home-humidity-title chart-title--single-line">Weight over time</span>
+								<canvas id="weight-chart" class="metric-chart"></canvas>
+							</div>
 						</div>
 
 
@@ -896,12 +904,6 @@
 									if (typeof dry === 'number' && !Number.isNaN(dry)) {
 										if (dry >= 40) {
 											zoneButton.classList.add('zone-temp-hot');
-										} else if (dry >= 35) {
-											zoneButton.classList.add('zone-temp-warm');
-										} else if (dry >= 25) {
-											zoneButton.classList.add('zone-temp-ok');
-										} else {
-											zoneButton.classList.add('zone-temp-cold');
 										}
 									}
 								}
@@ -956,6 +958,9 @@
 						}
 
 						updateTemperatureDisplay();
+						if (window.applyDeviationColors) {
+							window.applyDeviationColors();
+						}
 
 						// Always publish latest sample for zone pages
 						try {
@@ -1062,6 +1067,8 @@
 					const maxPoints = 60; // keep last 60 samples (~5 min if 5s interval)
 					const labels = [];
 					const humidityData = [];
+					const tempLegendContainer = document.getElementById('temp-chart-legend');
+					const fansLegendContainer = document.getElementById('fans-chart-legend');
 
 					const tempSeries = {
 						temp1: [],
@@ -1110,10 +1117,46 @@
 								}
 							},
 							plugins: {
-								legend: { position: 'bottom' }
+								legend: { display: false }
 							}
 						}
 					});
+
+					function renderTempLegend() {
+						if (!tempLegendContainer) return;
+						tempLegendContainer.innerHTML = '';
+
+						tempChart.data.datasets.forEach((_, index) => {
+							tempChart.setDatasetVisibility(index, true);
+						});
+
+						tempChart.data.datasets.forEach((dataset, index) => {
+							const item = document.createElement('button');
+							item.type = 'button';
+							item.className = 'temp-chart-legend__item';
+
+							const swatch = document.createElement('span');
+							swatch.className = 'temp-chart-legend__swatch';
+							swatch.style.backgroundColor = dataset.borderColor || '#555';
+
+							const label = document.createElement('span');
+							label.textContent = dataset.label;
+
+							item.appendChild(swatch);
+							item.appendChild(label);
+
+							item.addEventListener('click', function () {
+								const currentlyVisible = tempChart.isDatasetVisible(index);
+								tempChart.setDatasetVisibility(index, !currentlyVisible);
+								item.classList.toggle('is-hidden', currentlyVisible);
+								tempChart.update('none');
+							});
+
+							tempLegendContainer.appendChild(item);
+						});
+					}
+
+					renderTempLegend();
 
 					const humChart = new Chart(humCtx, {
 						type: 'line',
@@ -1173,10 +1216,46 @@
 								}
 							},
 							plugins: {
-								legend: { position: 'bottom' }
+								legend: { display: false }
 							}
 						}
 					});
+
+					function renderFansLegend() {
+						if (!fansLegendContainer) return;
+						fansLegendContainer.innerHTML = '';
+
+						fansChart.data.datasets.forEach((_, index) => {
+							fansChart.setDatasetVisibility(index, true);
+						});
+
+						fansChart.data.datasets.forEach((dataset, index) => {
+							const item = document.createElement('button');
+							item.type = 'button';
+							item.className = 'temp-chart-legend__item';
+
+							const swatch = document.createElement('span');
+							swatch.className = 'temp-chart-legend__swatch';
+							swatch.style.backgroundColor = dataset.borderColor || '#555';
+
+							const label = document.createElement('span');
+							label.textContent = dataset.label;
+
+							item.appendChild(swatch);
+							item.appendChild(label);
+
+							item.addEventListener('click', function () {
+								const currentlyVisible = fansChart.isDatasetVisible(index);
+								fansChart.setDatasetVisibility(index, !currentlyVisible);
+								item.classList.toggle('is-hidden', currentlyVisible);
+								fansChart.update('none');
+							});
+
+							fansLegendContainer.appendChild(item);
+						});
+					}
+
+					renderFansLegend();
 
 					const weightChart = new Chart(weightCtx, {
 						type: 'line',
@@ -1572,7 +1651,32 @@
 						const currentTemps = window.getCurrentTemperatures ? window.getCurrentTemperatures() : null;
 
 						for (let i = 1; i <= 6; i++) {
+							const dryElement = document.getElementById(`temp-${i}-dry`);
+							const zoneButton = dryElement ? dryElement.closest('.zone-combined') : null;
 							const tempElement = document.getElementById(`temp-${i}-wet`);
+							const targetTemp = currentTargets ? currentTargets[`temp${i}`] : NaN;
+							const displayTemp = dryElement ? parseFloat(dryElement.textContent) : NaN;
+
+							if (zoneButton) {
+								zoneButton.classList.remove(
+									'zone-temp-cold',
+									'zone-temp-ok',
+									'zone-temp-warm',
+									'zone-temp-hot'
+								);
+
+								if (!Number.isNaN(displayTemp)) {
+									if (!Number.isNaN(targetTemp)) {
+										const deviation = displayTemp - targetTemp;
+										if (deviation >= 5.0) {
+											zoneButton.classList.add('zone-temp-hot');
+										}
+									} else if (displayTemp >= 40) {
+										zoneButton.classList.add('zone-temp-hot');
+									}
+								}
+							}
+
 							if (!tempElement) continue;
 
 							tempElement.classList.remove(
@@ -1585,8 +1689,6 @@
 
 							if (currentTargets && currentTemps && currentTemps[`temp${i}`] !== '--') {
 								const actualTemp = parseFloat(currentTemps[`temp${i}`]);
-								const targetTemp = currentTargets[`temp${i}`];
-
 								if (!isNaN(actualTemp) && !isNaN(targetTemp)) {
 									const deviation = actualTemp - targetTemp;
 
@@ -1604,11 +1706,23 @@
 
 					function setRunStartTime() {
 						runStartTime = Date.now();
+						applyDeviationColors();
 					}
 
 					function clearRunData() {
 						runStartTime = null;
 						for (let i = 1; i <= 6; i++) {
+							const dryElement = document.getElementById(`temp-${i}-dry`);
+							const zoneButton = dryElement ? dryElement.closest('.zone-combined') : null;
+							if (zoneButton) {
+								zoneButton.classList.remove(
+									'zone-temp-cold',
+									'zone-temp-ok',
+									'zone-temp-warm',
+									'zone-temp-hot'
+								);
+							}
+
 							const tempElement = document.getElementById(`temp-${i}-wet`);
 							if (tempElement) {
 								tempElement.classList.remove(
@@ -1645,6 +1759,7 @@
 												uploadStatus.textContent = `✓ Loaded ${targetTemperatures.length} target points`;
 												uploadStatus.style.color = '#28a745';
 											}
+											applyDeviationColors();
 										} else {
 											if (uploadStatus) {
 												uploadStatus.textContent = '⚠ No valid data found';

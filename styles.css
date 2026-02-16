@@ -36,40 +36,10 @@
 	outline: none;
 }
 
-/* Zone button temperature states (based on displayed value) */
-.zone-combined.zone-temp-cold {
-	background: #cfe8ff;
-	border-color: #7fb8ff;
-}
-
-.zone-combined.zone-temp-ok {
-	background: #c9f2d8;
-	border-color: #7fd1a0;
-}
-
-.zone-combined.zone-temp-warm {
-	background: #ffe0b3;
-	border-color: #ffb24d;
-}
-
+/* Zone button temperature state (hot only) */
 .zone-combined.zone-temp-hot {
 	background: #ffcccc;
 	border-color: #ff8080;
-}
-
-.zone-combined.zone-temp-cold:hover,
-.zone-combined.zone-temp-cold:focus {
-	background: #bcdcff;
-}
-
-.zone-combined.zone-temp-ok:hover,
-.zone-combined.zone-temp-ok:focus {
-	background: #b7eccc;
-}
-
-.zone-combined.zone-temp-warm:hover,
-.zone-combined.zone-temp-warm:focus {
-	background: #ffd699;
 }
 
 .zone-combined.zone-temp-hot:hover,
@@ -1192,6 +1162,193 @@ header {
 
 .chart-modal-control input[type="range"] {
 	width: 100%;
+}
+
+.chart-title--single-line {
+	white-space: nowrap;
+	display: inline-block;
+}
+
+.temp-chart-legend {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 4px;
+	margin: 0 0 8px 0;
+}
+
+.temp-chart-legend__item {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 0;
+	border: none;
+	background: transparent;
+	cursor: pointer;
+	font-size: 0.72rem;
+	line-height: 1.1;
+	color: #222;
+}
+
+.temp-chart-legend__swatch {
+	width: 8px;
+	height: 8px;
+	border-radius: 2px;
+	display: inline-block;
+}
+
+.temp-chart-legend__item.is-hidden {
+	opacity: 0.45;
+}
+
+.home-temp-chart-card {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	column-gap: 12px;
+	align-items: stretch;
+	justify-content: stretch;
+	min-height: 0;
+}
+
+.home-temp-chart-card .temp-chart-legend {
+	grid-column: 1;
+	grid-row: 1;
+	margin-bottom: 0;
+	align-self: end;
+	padding-bottom: 7px;
+}
+
+.home-temp-chart-card .temp-chart-live-wrap {
+	grid-column: 2;
+	grid-row: 1;
+	position: relative;
+	min-height: 120px;
+}
+
+.home-temp-chart-card .metric-chart {
+	height: 100% !important;
+	min-height: 120px;
+}
+
+.temp-chart-title-left {
+	position: absolute;
+	top: 6px;
+	left: 8px;
+	z-index: 2;
+	font-size: 0.9rem;
+	font-weight: 600;
+	line-height: 1;
+	color: #111;
+	background: rgba(255, 255, 255, 0.7);
+	padding: 2px 6px;
+	border-radius: 4px;
+	pointer-events: none;
+}
+
+.home-side-title-chart-card {
+	position: relative;
+	display: grid;
+	grid-template-columns: 92px minmax(0, 1fr);
+	column-gap: 12px;
+	align-items: stretch;
+	justify-content: stretch;
+	min-height: 0;
+}
+
+.home-chart-title-left {
+	position: absolute;
+	top: 6px;
+	left: 8px;
+	z-index: 2;
+	font-size: 0.9rem;
+	font-weight: 600;
+	line-height: 1;
+	color: #111;
+	background: rgba(255, 255, 255, 0.7);
+	padding: 2px 6px;
+	border-radius: 4px;
+	pointer-events: none;
+	white-space: nowrap;
+}
+
+.home-chart-live-wrap {
+	grid-column: 2;
+	grid-row: 1;
+	min-height: 120px;
+	position: relative;
+}
+
+.home-side-title-chart-card .metric-chart {
+	height: 100% !important;
+	min-height: 120px;
+}
+
+.home-fans-chart-card .temp-chart-legend {
+	grid-column: 1;
+	grid-row: 1;
+	margin-bottom: 0;
+	align-self: end;
+	padding-bottom: 7px;
+}
+
+.home-humidity-chart-card {
+	grid-template-columns: minmax(0, 1fr);
+	column-gap: 0;
+}
+
+.home-humidity-chart-card .home-chart-live-wrap {
+	grid-column: 1;
+	min-height: 0;
+	height: 100%;
+}
+
+.home-humidity-chart-card .metric-chart {
+	min-height: 0;
+}
+
+.home-weight-chart-card {
+	grid-template-columns: minmax(0, 1fr);
+	column-gap: 0;
+}
+
+.home-weight-chart-card .home-chart-live-wrap {
+	grid-column: 1;
+	min-height: 0;
+	height: 100%;
+}
+
+.home-weight-chart-card .metric-chart {
+	min-height: 0;
+}
+
+.home-humidity-title {
+	position: absolute;
+	top: -6px;
+	left: -2px;
+	z-index: 2;
+	font-size: 0.9rem;
+	font-weight: 600;
+	line-height: 1;
+	color: #111;
+	background: rgba(255, 255, 255, 0.7);
+	padding: 2px 6px;
+	border-radius: 4px;
+	pointer-events: none;
+}
+
+.home-weight-title {
+	position: absolute;
+	top: -6px;
+	left: -2px;
+	z-index: 2;
+	font-size: 0.9rem;
+	font-weight: 600;
+	line-height: 1;
+	color: #111;
+	background: rgba(255, 255, 255, 0.7);
+	padding: 2px 6px;
+	border-radius: 4px;
+	pointer-events: none;
 }
 
 .run-box {
