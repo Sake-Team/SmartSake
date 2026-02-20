@@ -994,6 +994,7 @@ header {
 	line-height: 1;
 	padding: 0;
 	vertical-align: middle;
+	white-space: nowrap;
 }
 
 /* Zone pages: keep Zone X on one line */
