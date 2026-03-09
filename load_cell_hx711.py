@@ -41,8 +41,8 @@ HX711_CLK_PIN = 6   # GPIO 6  | Physical Pin 31
 #   2. Place known weight → calculate CALIBRATION_FACTOR
 #
 # Default values — MUST be updated after physical calibration!
-TARE_OFFSET        = 0         # Raw ADC value with no load (update after calibration)
-CALIBRATION_FACTOR = 1.0       # Raw units per gram (update after calibration)
+TARE_OFFSET        = 4519      # Raw ADC value with no load (update after calibration)
+CALIBRATION_FACTOR = 8084.2936       # Raw units per gram (update after calibration)
 UNITS              = "kg"      # Display units: "kg", "lbs", or "g"
 
 # ─────────────────────────────────────────────
@@ -50,7 +50,7 @@ UNITS              = "kg"      # Display units: "kg", "lbs", or "g"
 # ─────────────────────────────────────────────
 READ_INTERVAL_SEC  = 2         # Seconds between live readings
 SAMPLES_PER_READ   = 10        # Readings averaged per output (noise reduction)
-DATA_LOG_FILE      = "/home/pi/sake_system/scale_data.json"  # Shared data file
+DATA_LOG_FILE      = "/home/kojitable/MainCode/scale_data.json"  # Shared data file
 ENABLE_DATA_LOG    = True      # Set False to disable file logging
 
 
@@ -223,7 +223,9 @@ def log_weight(weight, units):
     if not ENABLE_DATA_LOG:
         return
 
-    os.makedirs(os.path.dirname(DATA_LOG_FILE), exist_ok=True)
+    log_dir = os.path.dirname(DATA_LOG_FILE)
+    if log_dir:
+        os.makedirs(log_dir, exist_ok=True)
 
     data = {
         "timestamp": datetime.now().isoformat(),
