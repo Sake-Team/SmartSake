@@ -1,0 +1,16 @@
+[Unit]
+Description=SmartSake Web Server (Flask)
+After=network.target
+
+[Service]
+Type=simple
+User=kojitable
+WorkingDirectory=/home/kojitable/ClaudeAgents
+ExecStart=/usr/bin/python3 /home/kojitable/ClaudeAgents/server.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
