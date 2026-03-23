@@ -36,26 +36,66 @@ def static_files(filename):
 
 @app.route("/api/latest")
 def api_latest():
-    """Merges sensor_latest.json + scale_data.json into one response."""
-    data = {}
+    """
+    Returns the latest sensor readings in a flat format matching DB column names:
+      tc1–tc6, sht_temp, humidity, weight_lbs, timestamp
+
+    Reads sensor_latest.json (written by WriteSensors.py) and scale_data.json,
+    then normalizes the nested sensor_latest structure into flat keys so the
+    dashboard and zone pages use the same key names as the historical readings API.
+    """
+    raw = {}
 
     if os.path.exists(SENSOR_JSON):
         try:
             with open(SENSOR_JSON) as f:
-                data.update(json.load(f))
+                loaded = json.load(f)
+            if isinstance(loaded, dict):
+                raw = loaded
         except Exception:
             pass
 
+    # Normalize sensor_latest.json nested structure → flat DB column names
+    result = {"timestamp": raw.get("timestamp")}
+
+    # Thermocouples: {"TC1": 28.4, "TC2": null, ...}
+    tcs = raw.get("thermocouples", {})
+    for i in range(1, 7):
+        val = tcs.get(f"TC{i}")
+        result[f"tc{i}"] = round(val, 2) if isinstance(val, (int, float)) else None
+
+    # Fan states — WriteSensors.py does not write these to sensor_latest.json yet;
+    # include as null so the response shape matches DB sensor_readings rows.
+    for i in range(1, 7):
+        result[f"fan{i}"] = None
+
+    # SHT30 environmental sensor
+    sht = raw.get("sht30", {})
+    sht_temp = sht.get("temp_c")
+    humidity  = sht.get("humidity_rh")
+    result["sht_temp"] = round(sht_temp, 2) if isinstance(sht_temp, (int, float)) else None
+    result["humidity"] = round(humidity,  2) if isinstance(humidity,  (int, float)) else None
+
+    # Scale data
     if os.path.exists(SCALE_JSON):
         try:
             with open(SCALE_JSON) as f:
                 scale = json.load(f)
-                data["weight_value"] = scale.get("weight_value")
-                data["weight_units"] = scale.get("weight_units")
+            weight_val   = scale.get("weight_value")
+            weight_units = scale.get("weight_units", "lbs")
+            if isinstance(weight_val, (int, float)):
+                # Convert to lbs if needed
+                if str(weight_units).lower() in ("kg", "kilogram", "kilograms"):
+                    weight_val = round(weight_val * 2.20462, 3)
+                result["weight_lbs"] = round(weight_val, 3)
+            else:
+                result["weight_lbs"] = None
         except Exception:
-            pass
+            result["weight_lbs"] = None
+    else:
+        result["weight_lbs"] = None
 
-    return jsonify(data)
+    return jsonify(result)
 
 
 # ── Runs ──────────────────────────────────────────────────────────────────────
