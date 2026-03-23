@@ -36,7 +36,7 @@
         </div>
 
         <div class="notes" aria-label="Notes">
-          <a class="home-link" href="index.html">Home</a>
+          <a class="home-link" href="home.html">Home</a>
           <label class="sr-only" for="notes-input">Notes</label>
           <textarea id="notes-input" class="notes__input" placeholder="Enter notes..." aria-label="Notes input"></textarea>
         </div>
@@ -46,44 +46,70 @@
 
   <!-- placeholder card removed -->
   
-  <script>
-  // Initialize run name display from localStorage
+    <script>
   (function(){
-    const savedRunName = localStorage.getItem('currentRunName');
-    if(savedRunName){
-      const runNameDisplay = document.getElementById('run-name-display');
-      if(runNameDisplay){
-        runNameDisplay.textContent = '- ' + savedRunName;
-      }
-    }
-  })();
+    'use strict';
+    const params = new URLSearchParams(location.search);
+    const runId  = parseInt(params.get('run'), 10) || null;
+    const mode   = params.get('mode') || 'live';
+    const ZONE   = 5;
 
-  // Notes localStorage functionality
-  (function(){
+    // Run name in header
+    const runNameDisplay = document.getElementById('run-name-display');
+    if (runId && runNameDisplay) {
+      fetch('/api/runs/' + runId)
+        .then(r => r.json())
+        .then(function(run){ runNameDisplay.textContent = '- ' + run.name; })
+        .catch(function(){});
+    }
+
+    // Notes
     const notesInput = document.getElementById('notes-input');
-    if(!notesInput) return;
+    if (!notesInput) return;
 
-    // Load saved notes on page load
-    const savedNotes = localStorage.getItem('currentNotes');
-    if(savedNotes){
-      notesInput.value = savedNotes;
+    if (mode === 'replay') {
+      notesInput.disabled = true;
+      notesInput.placeholder = 'Notes (read only)';
     }
 
-    // Save notes whenever user types (with debounce to avoid excessive saves)
-    let saveTimeout;
-    notesInput.addEventListener('input', function(){
-      clearTimeout(saveTimeout);
-      saveTimeout = setTimeout(function(){
-        localStorage.setItem('currentNotes', notesInput.value);
-      }, 500); // Save 500ms after user stops typing
-    });
+    // Load notes
+    if (runId) {
+      fetch('/api/runs/' + runId + '/zones/' + ZONE)
+        .then(r => r.json())
+        .then(function(data){ if(data.note) notesInput.value = data.note; })
+        .catch(function(){
+          const saved = localStorage.getItem('currentNotes');
+          if (saved) notesInput.value = saved;
+        });
+    } else {
+      const saved = localStorage.getItem('currentNotes');
+      if (saved) notesInput.value = saved;
+    }
 
-    // Save notes immediately when user leaves the input field
-    notesInput.addEventListener('blur', function(){
-      clearTimeout(saveTimeout);
+    if (mode === 'replay') return;
+
+    // Save notes (API + localStorage fallback)
+    let saveTimer;
+    function saveNote() {
+      if (runId) {
+        fetch('/api/runs/' + runId + '/zones/' + ZONE, {
+          method: 'PUT',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({note: notesInput.value})
+        }).catch(function(){});
+      }
       localStorage.setItem('currentNotes', notesInput.value);
+    }
+
+    notesInput.addEventListener('input', function(){
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveNote, 800);
+    });
+    notesInput.addEventListener('blur', function(){
+      clearTimeout(saveTimer);
+      saveNote();
     });
   })();
-  </script>
+  <\/script>
 </body>
 </html>

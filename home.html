@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SmartSake — Home</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .home-panels { display: flex; flex-direction: column; gap: 1.5rem; padding: 1.5rem; max-width: 720px; margin: 0 auto; }
+    .panel { background: var(--color-surface, #1a1a1a); border: 1px solid #333; border-radius: 8px; padding: 1.25rem 1.5rem; }
+    .panel h2 { margin: 0 0 .75rem; font-size: 1.1rem; text-transform: uppercase; letter-spacing: .05em; color: #aaa; }
+    .panel-badge { display: inline-block; padding: .2em .6em; border-radius: 4px; font-size: .8rem; font-weight: 700; margin-left: .5rem; vertical-align: middle; }
+    .badge-active  { background: #1a6b1a; color: #7fff7f; }
+    .badge-crashed { background: #6b1a1a; color: #ff9f9f; }
+    .run-row { display: flex; justify-content: space-between; align-items: center; padding: .5rem 0; border-bottom: 1px solid #2a2a2a; cursor: pointer; transition: background .15s; }
+    .run-row:last-child { border-bottom: none; }
+    .run-row:hover { background: #222; }
+    .run-row-info { flex: 1; }
+    .run-row-name { font-weight: 600; }
+    .run-row-meta { font-size: .8rem; color: #888; margin-top: .15rem; }
+    .run-row-actions { display: flex; gap: .5rem; }
+    .btn { padding: .45rem .9rem; border: none; border-radius: 5px; cursor: pointer; font-size: .875rem; font-weight: 600; }
+    .btn-primary  { background: #d40000; color: #fff; }
+    .btn-primary:hover { background: #b00; }
+    .btn-secondary { background: #333; color: #ddd; }
+    .btn-secondary:hover { background: #444; }
+    .btn-danger  { background: #5a1010; color: #ffaaaa; }
+    .btn-danger:hover { background: #7a1515; }
+    .btn-sm { padding: .3rem .6rem; font-size: .8rem; }
+    .input-row { display: flex; gap: .5rem; align-items: center; margin-top: .5rem; }
+    .input-row input[type=text] { flex: 1; padding: .45rem .7rem; background: #111; border: 1px solid #444; border-radius: 5px; color: #eee; font-size: .9rem; }
+    .input-row input[type=text]:focus { outline: none; border-color: #d40000; }
+    .upload-row { margin-top: .5rem; display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+    .upload-row label { font-size: .85rem; color: #aaa; white-space: nowrap; }
+    .upload-status { font-size: .8rem; }
+    .no-runs-msg { color: #666; font-style: italic; font-size: .9rem; }
+    .active-panel-header { display: flex; align-items: baseline; gap: .5rem; }
+    .active-run-detail { font-size: .85rem; color: #999; margin-bottom: .75rem; }
+    .active-run-btns { display: flex; gap: .75rem; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <div class="page-wrapper">
+    <header class="header">
+      <div class="header-inner">
+        <img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" class="sake-logo-egg">
+        <h1 class="header-title">SmartSake</h1>
+      </div>
+    </header>
+
+    <div class="home-panels">
+
+      <!-- Panel A: Active / Crashed run (hidden until API confirms one exists) -->
+      <div class="panel" id="active-panel" style="display:none">
+        <h2>
+          <span class="active-panel-header">
+            Current Run
+            <span class="panel-badge" id="active-badge"></span>
+          </span>
+        </h2>
+        <div class="active-run-detail" id="active-detail"></div>
+        <div class="active-run-btns">
+          <button class="btn btn-primary" id="resume-btn">Resume Run</button>
+          <button class="btn btn-secondary" id="mark-ended-btn">Mark as Ended</button>
+        </div>
+      </div>
+
+      <!-- Panel B: Start a new run -->
+      <div class="panel">
+        <h2>New Run</h2>
+        <div class="input-row">
+          <input type="text" id="new-run-name" placeholder="Enter run name…" maxlength="80">
+          <button class="btn btn-primary" id="start-btn">Start</button>
+        </div>
+        <div class="upload-row">
+          <label for="target-csv">Koji strain CSV (optional):</label>
+          <input type="file" id="target-csv" accept=".csv">
+          <span class="upload-status" id="csv-status"></span>
+        </div>
+      </div>
+
+      <!-- Panel C: Previous runs -->
+      <div class="panel">
+        <h2>Previous Runs</h2>
+        <div id="runs-list"><p class="no-runs-msg">Loading…</p></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+    function fmtDate(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) +
+             ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function duration(startIso, endIso) {
+      const s = new Date(startIso);
+      const e = endIso ? new Date(endIso) : new Date();
+      const mins = Math.round((e - s) / 60000);
+      if (mins < 60) return mins + ' min';
+      return Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm';
+    }
+
+    function secondsAgo(iso) {
+      if (!iso) return null;
+      return Math.round((Date.now() - new Date(iso)) / 1000);
+    }
+
+    // ── parsed target CSV (held until after run is created) ──────────────────
+    let parsedTargetRows = null;
+
+    document.getElementById('target-csv').addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      const statusEl = document.getElementById('csv-status');
+      if (!file) { parsedTargetRows = null; statusEl.textContent = ''; return; }
+
+      const reader = new FileReader();
+      reader.onload = function (ev) {
+        try {
+          const lines = ev.target.result.trim().split('\n');
+          if (lines.length < 2) throw new Error('empty');
+          const rows = [];
+          for (let i = 1; i < lines.length; i++) {
+            const v = lines[i].split(',');
+            if (v.length >= 7) {
+              rows.push({
+                elapsed_min: parseFloat(v[0]),
+                temp1_target: parseFloat(v[1]), temp2_target: parseFloat(v[2]),
+                temp3_target: parseFloat(v[3]), temp4_target: parseFloat(v[4]),
+                temp5_target: parseFloat(v[5]), temp6_target: parseFloat(v[6])
+              });
+            }
+          }
+          parsedTargetRows = rows;
+          statusEl.textContent = '✓ ' + rows.length + ' points';
+          statusEl.style.color = '#7fff7f';
+        } catch {
+          parsedTargetRows = null;
+          statusEl.textContent = '✗ invalid CSV';
+          statusEl.style.color = '#ff9f9f';
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // ── start new run ────────────────────────────────────────────────────────
+    document.getElementById('start-btn').addEventListener('click', async function () {
+      const name = document.getElementById('new-run-name').value.trim();
+      if (!name) { document.getElementById('new-run-name').focus(); return; }
+
+      this.disabled = true;
+      try {
+        const res = await fetch('/api/runs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name })
+        });
+        const run = await res.json();
+
+        // Upload target profile if provided
+        if (parsedTargetRows && parsedTargetRows.length > 0) {
+          await fetch('/api/runs/' + run.id + '/target', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(parsedTargetRows)
+          });
+        }
+
+        location.href = 'dashboard.html?run=' + run.id + '&mode=live';
+      } catch (err) {
+        alert('Failed to start run: ' + err.message);
+        this.disabled = false;
+      }
+    });
+
+    document.getElementById('new-run-name').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') document.getElementById('start-btn').click();
+    });
+
+    // ── active run panel ─────────────────────────────────────────────────────
+    async function loadActiveRun() {
+      try {
+        const res = await fetch('/api/runs/active');
+        if (!res.ok) return;
+        const run = await res.json();
+
+        const panel = document.getElementById('active-panel');
+        const badge = document.getElementById('active-badge');
+        const detail = document.getElementById('active-detail');
+
+        const age = secondsAgo(run.last_reading_at);
+        const isCrashed = run.status === 'crashed' || (age !== null && age > 120);
+
+        badge.textContent = isCrashed ? 'Crashed' : 'Active';
+        badge.className = 'panel-badge ' + (isCrashed ? 'badge-crashed' : 'badge-active');
+
+        const lastStr = run.last_reading_at
+          ? (isCrashed ? 'Last reading ' + Math.round(age / 60) + ' min ago' : 'Last reading ' + age + 's ago')
+          : 'No readings yet';
+        detail.textContent = run.name + ' — started ' + fmtDate(run.started_at) + ' — ' + lastStr;
+
+        document.getElementById('resume-btn').onclick = function () {
+          location.href = 'dashboard.html?run=' + run.id + '&mode=live';
+        };
+
+        document.getElementById('mark-ended-btn').onclick = async function () {
+          if (!confirm('Mark "' + run.name + '" as ended?')) return;
+          await fetch('/api/runs/' + run.id + '/end', { method: 'POST' });
+          panel.style.display = 'none';
+          loadRunsList();
+        };
+
+        panel.style.display = '';
+      } catch { /* no active run — panel stays hidden */ }
+    }
+
+    // ── previous runs list ───────────────────────────────────────────────────
+    async function loadRunsList() {
+      const container = document.getElementById('runs-list');
+      try {
+        const res = await fetch('/api/runs');
+        const runs = await res.json();
+        const finished = runs.filter(r => r.ended_at !== null || r.status === 'crashed');
+
+        if (finished.length === 0) {
+          container.innerHTML = '<p class="no-runs-msg">No completed runs yet.</p>';
+          return;
+        }
+
+        container.innerHTML = '';
+        finished.forEach(function (run) {
+          const row = document.createElement('div');
+          row.className = 'run-row';
+
+          const statusLabel = run.status === 'crashed' ? ' <span style="color:#ff9f9f;font-size:.75rem">[crashed]</span>' : '';
+          row.innerHTML = `
+            <div class="run-row-info">
+              <div class="run-row-name">${escHtml(run.name)}${statusLabel}</div>
+              <div class="run-row-meta">${fmtDate(run.started_at)} &mdash; ${duration(run.started_at, run.ended_at)}</div>
+            </div>
+            <div class="run-row-actions">
+              <button class="btn btn-secondary btn-sm view-btn">View</button>
+              <button class="btn btn-danger btn-sm delete-btn">Delete</button>
+            </div>
+          `;
+
+          row.querySelector('.view-btn').onclick = function (e) {
+            e.stopPropagation();
+            location.href = 'dashboard.html?run=' + run.id + '&mode=replay';
+          };
+
+          row.querySelector('.delete-btn').onclick = async function (e) {
+            e.stopPropagation();
+            if (!confirm('Delete run "' + run.name + '" and all its data?')) return;
+            await fetch('/api/runs/' + run.id, { method: 'DELETE' });
+            loadRunsList();
+          };
+
+          row.addEventListener('click', function () {
+            location.href = 'dashboard.html?run=' + run.id + '&mode=replay';
+          });
+
+          container.appendChild(row);
+        });
+      } catch (err) {
+        container.innerHTML = '<p class="no-runs-msg">Could not load runs.</p>';
+      }
+    }
+
+    function escHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    loadActiveRun();
+    loadRunsList();
+  })();
+  </script>
+</body>
+</html>
