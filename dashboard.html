@@ -1042,11 +1042,14 @@
 				*/
 
 
-			// ── Live sensor poller — replaces random simulator ────────────────────────
-			// Polls /api/latest every 3 s and feeds the same pushSensorSample() pipeline.
-			// Publishes to localStorage + BroadcastChannel so zone pages stay in sync.
+			// ── Live sensor poller ──────────────────────────────────────────────
+			// Polls /api/latest every 3 s, rounds temps to nearest 0.5 °C, feeds
+			// pushSensorSample() and publishes via BroadcastChannel + localStorage.
 			(function () {
 				'use strict';
+
+				// Round to nearest 0.5 for consistent, readable display values.
+				function roundHalf(v) { return Math.round(v * 2) / 2; }
 
 				let currentDryBulb = { temp1:null, temp2:null, temp3:null, temp4:null, temp5:null, temp6:null };
 				let currentFans    = { fan1:0, fan2:0, fan3:0, fan4:0, fan5:0, fan6:0 };
@@ -1064,19 +1067,11 @@
 						if (dryEl) {
 							dryEl.textContent = (val !== null && !Number.isNaN(val))
 								? val.toFixed(1) : '--';
-
-							const zoneBtn = dryEl.closest('.zone-combined');
-							if (zoneBtn) {
-								zoneBtn.classList.remove('zone-temp-cold','zone-temp-ok','zone-temp-warm','zone-temp-hot');
-								if (val !== null && !Number.isNaN(val)) {
-									if      (val >= 40) zoneBtn.classList.add('zone-temp-hot');
-									else if (val >= 35) zoneBtn.classList.add('zone-temp-warm');
-									else if (val >= 25) zoneBtn.classList.add('zone-temp-ok');
-									else                zoneBtn.classList.add('zone-temp-cold');
-								}
-							}
 						}
 					}
+					// Delegate all zone-button coloring to applyDeviationColors so there
+					// is one source of truth (avoids poller vs. setpoint oscillation).
+					if (window.applyDeviationColors) window.applyDeviationColors();
 				}
 
 				async function fetchAndApply() {
@@ -1089,25 +1084,24 @@
 						if (d.timestamp && d.timestamp === lastTimestamp) return;
 						lastTimestamp = d.timestamp;
 
-						// Map TC readings into currentDryBulb
+						// Store rounded values so display + coloring are consistent
 						for (let i = 1; i <= 6; i++) {
 							const val = d[`tc${i}`];
 							currentDryBulb[`temp${i}`] = (val !== null && val !== undefined)
-								? parseFloat(val) : null;
+								? roundHalf(parseFloat(val)) : null;
 						}
 
-						// Fan states (null until fan control is implemented)
 						for (let i = 1; i <= 6; i++) {
 							const v = d[`fan${i}`];
 							currentFans[`fan${i}`] = (v !== null && v !== undefined) ? Number(v) : 0;
 						}
 
 						currentHumidity = (d.humidity !== null && d.humidity !== undefined)
-							? parseFloat(d.humidity) : null;
+							? roundHalf(parseFloat(d.humidity)) : null;
 
 						updateTemperatureDisplay();
 
-						// Feed charts
+						// Feed charts — temps already rounded
 						if (window.pushSensorSample) {
 							const temps = {};
 							for (let i = 1; i <= 6; i++) {
@@ -1123,11 +1117,12 @@
 							});
 						}
 
-						// Publish to zone pages via BroadcastChannel + localStorage
+						// Publish rounded values so zone pages stay consistent
 						const sample = {
 							timestamp: d.timestamp || new Date().toISOString(),
-							tc1: d.tc1, tc2: d.tc2, tc3: d.tc3,
-							tc4: d.tc4, tc5: d.tc5, tc6: d.tc6,
+							tc1: currentDryBulb.temp1, tc2: currentDryBulb.temp2,
+							tc3: currentDryBulb.temp3, tc4: currentDryBulb.temp4,
+							tc5: currentDryBulb.temp5, tc6: currentDryBulb.temp6,
 							fan1: currentFans.fan1, fan2: currentFans.fan2,
 							fan3: currentFans.fan3, fan4: currentFans.fan4,
 							fan5: currentFans.fan5, fan6: currentFans.fan6,
@@ -1138,7 +1133,6 @@
 						if (bc) { try { bc.postMessage(sample); } catch(e) {} }
 
 					} catch (err) {
-						// Network/parse error — leave displays unchanged
 						console.warn('Sensor poll failed:', err);
 					}
 				}
@@ -1167,9 +1161,13 @@
 					return out;
 				}
 
+				// Expose raw numeric values for applyDeviationColors (avoids DOM text scraping)
+				function getLatestDryBulbNumeric() { return { ...currentDryBulb }; }
+
 				window.startTemperatureReading  = startTemperatureReading;
 				window.stopTemperatureReading   = stopTemperatureReading;
 				window.getCurrentTemperatures   = getCurrentTemperatures;
+				window.getLatestDryBulbNumeric  = getLatestDryBulbNumeric;
 				// NOTE: auto-start removed — the mode controller calls startTemperatureReading()
 				// after pre-populating historical data so charts don't get out-of-order points.
 			})();
@@ -1794,82 +1792,55 @@
 					}
 
 					function applyDeviationColors() {
-						if (!runStartTime) {
-							for (let i = 1; i <= 6; i++) {
-								const dryElement = document.getElementById(`temp-${i}-dry`);
-								const zoneButton = dryElement ? dryElement.closest('.zone-combined') : null;
-								if (zoneButton) {
-									zoneButton.classList.remove(
-										'zone-temp-cold',
-										'zone-temp-ok',
-										'zone-temp-warm',
-										'zone-temp-hot'
-									);
-								}
-
-								const tempElement = document.getElementById(`temp-${i}-wet`);
-								if (tempElement) {
-									tempElement.classList.remove(
-										'temp-good',
-										'temp-warning',
-										'temp-danger',
-										'temp-too-hot',
-										'temp-too-cold'
-									);
-								}
-							}
-							return;
-						}
+						// Read deviation allowance directly from localStorage so this function
+						// works without depending on the setTempModal IIFE's closure.
+						const dev = parseFloat(localStorage.getItem('sakeDeviationAllowanceC'));
+						const deviationAllowance = Number.isFinite(dev) ? dev : 5.0;
+						const half = deviationAllowance * 0.5;
 
 						const currentTargets = getCurrentTargets();
-						const currentTemps = window.getCurrentTemperatures ? window.getCurrentTemperatures() : null;
-						const deviationAllowance = getDeviationAllowance();
+						// Use numeric values from poller (not DOM text scraping)
+						const latestTemps = window.getLatestDryBulbNumeric
+							? window.getLatestDryBulbNumeric() : null;
 
 						for (let i = 1; i <= 6; i++) {
-							const dryElement = document.getElementById(`temp-${i}-dry`);
-							const zoneButton = dryElement ? dryElement.closest('.zone-combined') : null;
-							const tempElement = document.getElementById(`temp-${i}-wet`);
-							const targetTemp = currentTargets ? currentTargets[`temp${i}`] : NaN;
-							const displayTemp = dryElement ? parseFloat(dryElement.textContent) : NaN;
+							const dryEl   = document.getElementById(`temp-${i}-dry`);
+							const zoneBtn = dryEl ? dryEl.closest('.zone-combined') : null;
+							const wetEl   = document.getElementById(`temp-${i}-wet`);
 
-							if (zoneButton) {
-								zoneButton.classList.remove(
-									'zone-temp-cold',
-									'zone-temp-ok',
-									'zone-temp-warm',
-									'zone-temp-hot'
-								);
+							const actualTemp = latestTemps ? latestTemps[`temp${i}`] : null;
+							const targetTemp = currentTargets ? currentTargets[`temp${i}`] : null;
 
-								if (!Number.isNaN(displayTemp) && !Number.isNaN(targetTemp)) {
-									const thresholdTemp = targetTemp + deviationAllowance;
-									if (displayTemp > thresholdTemp) {
-										zoneButton.classList.add('zone-temp-hot');
+							// ── Zone button color ────────────────────────────────
+							if (zoneBtn) {
+								zoneBtn.classList.remove('zone-temp-cold','zone-temp-ok','zone-temp-warm','zone-temp-hot');
+								if (actualTemp !== null) {
+									if (Number.isFinite(targetTemp)) {
+										// Target set — colour relative to setpoint
+										const diff = actualTemp - targetTemp;
+										if      (diff >  deviationAllowance) zoneBtn.classList.add('zone-temp-hot');
+										else if (diff >  half)               zoneBtn.classList.add('zone-temp-warm');
+										else if (diff >= -half)              zoneBtn.classList.add('zone-temp-ok');
+										else                                 zoneBtn.classList.add('zone-temp-cold');
+									} else {
+										// No target — use absolute thresholds as visual fallback
+										if      (actualTemp >= 40) zoneBtn.classList.add('zone-temp-hot');
+										else if (actualTemp >= 35) zoneBtn.classList.add('zone-temp-warm');
+										else if (actualTemp >= 25) zoneBtn.classList.add('zone-temp-ok');
+										else                       zoneBtn.classList.add('zone-temp-cold');
 									}
 								}
 							}
 
-							if (!tempElement) continue;
-
-							tempElement.classList.remove(
-								'temp-good',
-								'temp-warning',
-								'temp-danger',
-								'temp-too-hot',
-								'temp-too-cold'
-							);
-
-							if (currentTargets && currentTemps && currentTemps[`temp${i}`] !== '--') {
-								const actualTemp = parseFloat(currentTemps[`temp${i}`]);
-								if (!isNaN(actualTemp) && !isNaN(targetTemp)) {
-									const deviation = actualTemp - targetTemp;
-
-									if (deviation >= deviationAllowance) {
-										tempElement.classList.add('temp-too-hot');
-									} else if (deviation <= -deviationAllowance) {
-										tempElement.classList.add('temp-too-cold');
-									} else {
-										tempElement.classList.add('temp-good');
-									}
+							// ── Wet-bulb element color ────────────────────────
+							if (wetEl) {
+								wetEl.classList.remove('temp-good','temp-warning','temp-danger','temp-too-hot','temp-too-cold');
+								if (actualTemp !== null && Number.isFinite(targetTemp)) {
+									const diff = actualTemp - targetTemp;
+									if      (diff >=  deviationAllowance) wetEl.classList.add('temp-too-hot');
+									else if (diff <= -deviationAllowance) wetEl.classList.add('temp-too-cold');
+									else if (Math.abs(diff) > half)      wetEl.classList.add('temp-warning');
+									else                                 wetEl.classList.add('temp-good');
 								}
 							}
 						}
@@ -2195,6 +2166,9 @@
 				if (disp) disp.textContent = '- ' + run.name;
 				const btn = document.getElementById('start-run-btn');
 				if (btn) { btn.textContent = 'End Run'; btn.classList.add('end-run-btn-active'); }
+				if (window.setRunStartTime && run.started_at) {
+					window.setRunStartTime(new Date(run.started_at).getTime());
+				}
 			}).catch(function(){});
 
 		fetch('/api/runs/' + runId + '/readings?n=300')
