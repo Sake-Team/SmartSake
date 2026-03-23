@@ -794,30 +794,34 @@
 					});
 
 					// ---------- Confirm Start Run ----------
-					enterBtn.addEventListener('click', function () {
+					enterBtn.addEventListener('click', async function () {
 						const runName = runNameInput.value.trim();
 						if (!runName) return;
 
-						if (runNameDisplay) {
-							runNameDisplay.textContent = '- ' + runName;
-						}
-						localStorage.setItem('currentRunName', runName);
+						enterBtn.disabled = true;
+						try {
+							const res = await fetch('/api/runs', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ name: runName })
+							});
+							const run = await res.json();
 
-						startDataCollection();
-						if (window.startTemperatureReading) {
-							window.startTemperatureReading();
-						}
-						if (window.setRunStartTime) {
-							window.setRunStartTime();
-						}
+							if (window._parsedTargetRows && window._parsedTargetRows.length > 0) {
+								await fetch('/api/runs/' + run.id + '/target', {
+									method: 'POST',
+									headers: { 'Content-Type': 'application/json' },
+									body: JSON.stringify(window._parsedTargetRows)
+								});
+							}
 
-						startBtn.textContent = 'End Run';
-						startBtn.classList.add('end-run-btn-active');
-						startBtn.style.pointerEvents = 'auto';
-						startBtn.style.cursor = 'pointer';
-
-						startModal.style.display = 'none';
-						runNameInput.value = '';
+							startModal.style.display = 'none';
+							runNameInput.value = '';
+							location.href = 'dashboard.html?run=' + run.id + '&mode=live';
+						} catch (err) {
+							alert('Failed to start run: ' + err.message);
+							enterBtn.disabled = false;
+						}
 					});
 
 					runNameInput.addEventListener('keydown', function (e) {
@@ -1036,228 +1040,138 @@
 				})();
 				*/
 
-				// Simulated live temperature readings (dry-bulb 20–50 °C) + humidity + fans,
-				// but DISPLAY wet-bulb temperature based on humidity.
-				(function () {
-					// Latest displayed temperatures (wet-bulb °C)
-					let currentTemperatures = {
-						temp1: '--', temp2: '--', temp3: '--',
-						temp4: '--', temp5: '--', temp6: '--'
-					};
 
-					// Internal dry-bulb temps (°C)
-					let currentDryBulb = {
-						temp1: null, temp2: null, temp3: null,
-						temp4: null, temp5: null, temp6: null
-					};
+			// ── Live sensor poller — replaces random simulator ────────────────────────
+			// Polls /api/latest every 3 s and feeds the same pushSensorSample() pipeline.
+			// Publishes to localStorage + BroadcastChannel so zone pages stay in sync.
+			(function () {
+				'use strict';
 
-					// Latest fan states (1 = on, 0 = off)
-					let currentFans = {
-						fan1: 0, fan2: 0, fan3: 0,
-						fan4: 0, fan5: 0, fan6: 0
-					};
+				let currentDryBulb = { temp1:null, temp2:null, temp3:null, temp4:null, temp5:null, temp6:null };
+				let currentFans    = { fan1:0, fan2:0, fan3:0, fan4:0, fan5:0, fan6:0 };
+				let currentHumidity = null;
+				let pollIntervalId  = null;
+				let lastTimestamp   = null;
 
-					let currentHumidity = null;
-					let temperatureReadingActive = false;
-					let simIntervalId = null;
+				const bc = (typeof BroadcastChannel !== 'undefined')
+					? new BroadcastChannel('sake-sensor') : null;
 
-					function updateFanStatesFromDryBulb() {
-						const ideal = window.getIdealTemperature ? window.getIdealTemperature() : null;
-						const allowance = window.getDeviationAllowance ? window.getDeviationAllowance() : 5.0;
-						const hasThreshold = Number.isFinite(ideal) && Number.isFinite(allowance);
+				function updateTemperatureDisplay() {
+					for (let i = 1; i <= 6; i++) {
+						const dryEl = document.getElementById(`temp-${i}-dry`);
+						const val   = currentDryBulb[`temp${i}`];
+						if (dryEl) {
+							dryEl.textContent = (val !== null && !Number.isNaN(val))
+								? val.toFixed(1) : '--';
 
-						for (let i = 1; i <= 6; i++) {
-							const dryC = currentDryBulb[`temp${i}`];
-							if (typeof dryC !== 'number' || Number.isNaN(dryC)) {
-								currentFans[`fan${i}`] = 0;
-								continue;
-							}
-
-							if (hasThreshold) {
-								currentFans[`fan${i}`] = dryC > (ideal + allowance) ? 1 : 0;
-							} else {
-								// Fallback behavior if no setpoint is configured yet.
-								currentFans[`fan${i}`] = 0;
-							}
-						}
-					}
-
-					function updateTemperatureDisplay() {
-						for (let i = 1; i <= 6; i++) {
-							const dryEl = document.getElementById(`temp-${i}-dry`);
-							const wetEl = document.getElementById(`temp-${i}-wet`);
-
-							if (dryEl) {
-								const dry = currentDryBulb[`temp${i}`];
-								dryEl.textContent =
-									(typeof dry === 'number' && !Number.isNaN(dry)) ? dry.toFixed(1) : '--';
-
-								const zoneButton = dryEl.closest('.zone-combined');
-								if (zoneButton) {
-									zoneButton.classList.remove(
-										'zone-temp-cold',
-										'zone-temp-ok',
-										'zone-temp-warm',
-										'zone-temp-hot'
-									);
-
-									if (typeof dry === 'number' && !Number.isNaN(dry)) {
-										if (dry >= 40) {
-											zoneButton.classList.add('zone-temp-hot');
-										}
-									}
+							const zoneBtn = dryEl.closest('.zone-combined');
+							if (zoneBtn) {
+								zoneBtn.classList.remove('zone-temp-cold','zone-temp-ok','zone-temp-warm','zone-temp-hot');
+								if (val !== null && !Number.isNaN(val)) {
+									if      (val >= 40) zoneBtn.classList.add('zone-temp-hot');
+									else if (val >= 35) zoneBtn.classList.add('zone-temp-warm');
+									else if (val >= 25) zoneBtn.classList.add('zone-temp-ok');
+									else                zoneBtn.classList.add('zone-temp-cold');
 								}
 							}
-
-							if (wetEl) {
-								const wet = currentTemperatures[`temp${i}`];
-								wetEl.textContent = wet || '--';
-							}
 						}
 					}
+				}
 
-					// Approximate wet-bulb temperature (°C) from dry-bulb (°C) and RH (%)
-					// Using Stull (2011) empirical formula – good for 0–50 °C and 5–99% RH.
-					function computeWetBulbC(TdbC, RH) {
-						const R = Math.min(100, Math.max(1, RH)); // clamp 1–100
-						const T = TdbC;
+				async function fetchAndApply() {
+					try {
+						const res = await fetch('/api/latest');
+						if (!res.ok) return;
+						const d = await res.json();
 
-						const Tw =
-							T * Math.atan(0.151977 * Math.sqrt(R + 8.313659)) +
-							Math.atan(T + R) -
-							Math.atan(R - 1.676331) +
-							0.00391838 * Math.pow(R, 1.5) * Math.atan(0.023101 * R) -
-							4.686035;
+						// Deduplicate — skip if timestamp unchanged
+						if (d.timestamp && d.timestamp === lastTimestamp) return;
+						lastTimestamp = d.timestamp;
 
-						return Tw;
-					}
-
-					// Generate random sample:
-					//   dry-bulb: 20–50 °C
-					//   RH: 40–80 %
-					//   wet-bulb: computed from Tdb & RH
-					//   fans ON when dry-bulb > ideal + deviation allowance
-					function generateRandomSample() {
-						if (!temperatureReadingActive) return;
-
-						// One humidity value for this sample
-						currentHumidity = (40 + Math.random() * 40).toFixed(1); // 40–80 % RH
-						const RH = parseFloat(currentHumidity);
-
+						// Map TC readings into currentDryBulb
 						for (let i = 1; i <= 6; i++) {
-							// Dry-bulb temperature for this zone
-							const dryC = 20 + Math.random() * 30; // 20–50 °C
-							currentDryBulb[`temp${i}`] = dryC;
-
-							// Compute wet-bulb from dry-bulb + RH
-							const wetC = computeWetBulbC(dryC, RH);
-							currentTemperatures[`temp${i}`] = wetC.toFixed(1);
+							const val = d[`tc${i}`];
+							currentDryBulb[`temp${i}`] = (val !== null && val !== undefined)
+								? parseFloat(val) : null;
 						}
 
-						updateFanStatesFromDryBulb();
+						// Fan states (null until fan control is implemented)
+						for (let i = 1; i <= 6; i++) {
+							const v = d[`fan${i}`];
+							currentFans[`fan${i}`] = (v !== null && v !== undefined) ? Number(v) : 0;
+						}
+
+						currentHumidity = (d.humidity !== null && d.humidity !== undefined)
+							? parseFloat(d.humidity) : null;
 
 						updateTemperatureDisplay();
-						if (window.applyDeviationColors) {
-							window.applyDeviationColors();
-						}
 
-						// Always publish latest sample for zone pages
-						try {
-							const latest = { timestamp: new Date().toISOString() };
-							for (let i = 1; i <= 6; i++) {
-								latest[`temp${i}`] = currentTemperatures[`temp${i}`];
-								latest[`fan${i}`] = currentFans[`fan${i}`];
-							}
-							latest.humidity = currentHumidity;
-							localStorage.setItem('sakeLatestSample', JSON.stringify(latest));
-							if (typeof BroadcastChannel !== 'undefined') {
-								const channel = window.__sakeBroadcast || (window.__sakeBroadcast = new BroadcastChannel('sake-sensor'));
-								channel.postMessage(latest);
-							}
-						} catch (e) {
-							// ignore storage errors
-						}
-
-						// Push to charts if chart logic is present
+						// Feed charts
 						if (window.pushSensorSample) {
+							const temps = {};
+							for (let i = 1; i <= 6; i++) {
+								const v = currentDryBulb[`temp${i}`];
+								temps[`temp${i}`] = (v !== null) ? v.toFixed(1) : '--';
+							}
 							window.pushSensorSample({
-								time: new Date(),
-								// charts see wet-bulb temps
-								temps: { ...currentTemperatures },
+								time:     d.timestamp ? new Date(d.timestamp) : new Date(),
+								temps,
 								humidity: currentHumidity,
-								fans: { ...currentFans },
-								// dry-bulb available if you ever want it
-								dryBulb: { ...currentDryBulb }
+								fans:     { ...currentFans },
+								weight:   d.weight_lbs
 							});
 						}
-					}
 
-					function startTemperatureReading() {
-						if (temperatureReadingActive) return;
-						temperatureReadingActive = true;
-
-						// Immediate first sample
-						generateRandomSample();
-
-						// Then update every 5 seconds
-						simIntervalId = setInterval(generateRandomSample, 5000);
-					}
-
-					function stopTemperatureReading() {
-						temperatureReadingActive = false;
-						if (simIntervalId) {
-							clearInterval(simIntervalId);
-							simIntervalId = null;
-						}
-
-						currentTemperatures = {
-							temp1: '--', temp2: '--', temp3: '--',
-							temp4: '--', temp5: '--', temp6: '--'
+						// Publish to zone pages via BroadcastChannel + localStorage
+						const sample = {
+							timestamp: d.timestamp || new Date().toISOString(),
+							tc1: d.tc1, tc2: d.tc2, tc3: d.tc3,
+							tc4: d.tc4, tc5: d.tc5, tc6: d.tc6,
+							fan1: currentFans.fan1, fan2: currentFans.fan2,
+							fan3: currentFans.fan3, fan4: currentFans.fan4,
+							fan5: currentFans.fan5, fan6: currentFans.fan6,
+							humidity: currentHumidity,
+							weight_lbs: d.weight_lbs
 						};
-						currentDryBulb = {
-							temp1: null, temp2: null, temp3: null,
-							temp4: null, temp5: null, temp6: null
-						};
-						currentHumidity = null;
+						try { localStorage.setItem('sakeLatestSample', JSON.stringify(sample)); } catch(e) {}
+						if (bc) { try { bc.postMessage(sample); } catch(e) {} }
 
-						currentFans = {
-							fan1: 0, fan2: 0, fan3: 0,
-							fan4: 0, fan5: 0, fan6: 0
-						};
-
-						updateTemperatureDisplay();
+					} catch (err) {
+						// Network/parse error — leave displays unchanged
+						console.warn('Sensor poll failed:', err);
 					}
+				}
 
-					function getCurrentTemperatures() {
-						return currentTemperatures; // wet-bulb
+				function startTemperatureReading() {
+					if (pollIntervalId) return;
+					fetchAndApply();
+					pollIntervalId = setInterval(fetchAndApply, 3000);
+				}
+
+				function stopTemperatureReading() {
+					if (pollIntervalId) { clearInterval(pollIntervalId); pollIntervalId = null; }
+					currentDryBulb  = { temp1:null, temp2:null, temp3:null, temp4:null, temp5:null, temp6:null };
+					currentFans     = { fan1:0, fan2:0, fan3:0, fan4:0, fan5:0, fan6:0 };
+					currentHumidity = null;
+					lastTimestamp   = null;
+					updateTemperatureDisplay();
+				}
+
+				function getCurrentTemperatures() {
+					const out = {};
+					for (let i = 1; i <= 6; i++) {
+						const v = currentDryBulb[`temp${i}`];
+						out[`temp${i}`] = (v !== null) ? v.toFixed(1) : '--';
 					}
+					return out;
+				}
 
-					function getCurrentFans() {
-						return currentFans;
-					}
-
-					// Expose globally for other code
-					window.getCurrentTemperatures = getCurrentTemperatures;
-					window.getCurrentFans = getCurrentFans;
-					window.startTemperatureReading = startTemperatureReading;
-					window.stopTemperatureReading = stopTemperatureReading;
-
-					window.addEventListener('sake-ideal-temp-updated', function () {
-						if (!temperatureReadingActive) return;
-						updateFanStatesFromDryBulb();
-					});
-
-					// Auto-start simulator on page load
-					window.addEventListener("load", startTemperatureReading);
-
-
-					// If you ever want it to auto-start on page load, you can call:
-					// startTemperatureReading();
-				})();
-
-				// Duplicate legacy simulator removed — using the wet-bulb simulator defined earlier.
-				// The active simulator above exposes startTemperatureReading/stopTemperatureReading/getCurrentTemperatures
-				// and will call startTemperatureReading() if you want readings to begin automatically.
+				window.startTemperatureReading  = startTemperatureReading;
+				window.stopTemperatureReading   = stopTemperatureReading;
+				window.getCurrentTemperatures   = getCurrentTemperatures;
+				// NOTE: auto-start removed — the mode controller calls startTemperatureReading()
+				// after pre-populating historical data so charts don't get out-of-order points.
+			})();
 
 				// Live-updating charts for temperature, humidity, and fans + modal with scroll/zoom
 				(function () {
@@ -2287,7 +2201,9 @@
 			.then(function (readings) {
 				if (!readings || !readings.length) return;
 				if (window.stopTemperatureReading) window.stopTemperatureReading();
-				readings.forEach(function (row) {
+				// Downsample to max 300 points for chart performance
+				const step = Math.max(1, Math.floor(readings.length / 300));
+				readings.filter((_, i) => i % step === 0).forEach(function (row) {
 					if (!window.pushSensorSample) return;
 					window.pushSensorSample({
 						time: new Date(row.recorded_at),
