@@ -2,17 +2,20 @@ import glob
 import time
 import csv
 import os
+import signal
 import board
 import adafruit_sht31d
 from datetime import datetime
-from http.server import HTTPServer, SimpleHTTPRequestHandler
-import threading
+import db as sakedb
 
 # Base directory for 1-Wire devices
 W1_BASE = "/sys/bus/w1/devices"
 MAX_THERMOCOUPLES = 6
 CSV_FILE = "sensor_data.csv"
 JSON_FILE = "sensor_latest.json"
+
+# Active run id — set at startup
+_active_run_id = None
 
 def init_sht30():
     i2c = board.I2C()
@@ -70,17 +73,33 @@ def write_json(timestamp, sht_temp, sht_humidity, tc_readings):
     with open(JSON_FILE, "w") as f:
         json.dump(data, f)
 
-def start_web_server(port=8080):
-    """Serve the current directory over HTTP in a background thread."""
-    handler = SimpleHTTPRequestHandler
-    httpd = HTTPServer(("", port), handler)
-    print(f"Web server running at http://<pi-ip>:{port}")
-    httpd.serve_forever()
+def _handle_shutdown(signum, frame):
+    """Mark active run as completed on clean shutdown."""
+    if _active_run_id is not None:
+        try:
+            sakedb.end_run(_active_run_id)
+            print(f"Run {_active_run_id} marked as completed.")
+        except Exception as e:
+            print(f"Could not end run cleanly: {e}")
+    raise SystemExit(0)
+
 
 if __name__ == "__main__":
-    # Start web server in background
-    server_thread = threading.Thread(target=start_web_server, daemon=True)
-    server_thread.start()
+    signal.signal(signal.SIGTERM, _handle_shutdown)
+    signal.signal(signal.SIGINT, _handle_shutdown)
+
+    # Init DB and resolve active run
+    sakedb.init_db()
+    stale = sakedb.get_active_run()
+    if stale:
+        sakedb.mark_crashed(stale["id"])
+        print(f"Previous run '{stale['name']}' (id={stale['id']}) marked as crashed.")
+
+    # Note: server.py handles the web server / API.
+    # WriteSensors.py only collects sensor data.
+    # Run server.py separately: python server.py
+    print("Sensor collector started. Run 'python server.py' for the web interface.")
+    print("A new run will be created via the web UI; sensor data will attach to it.")
 
     # Initialize SHT30
     try:
@@ -135,6 +154,22 @@ if __name__ == "__main__":
         # Write outputs
         write_csv(timestamp, sht_temp, sht_humidity, tc_readings)
         write_json(timestamp, sht_temp, sht_humidity, tc_readings)
+
+        # Write to database if a run is active
+        active = sakedb.get_active_run()
+        if active:
+            _active_run_id = active["id"]
+            reading = {
+                "recorded_at": timestamp,
+                "sht_temp": round(sht_temp, 2) if sht_temp is not None else None,
+                "humidity": round(sht_humidity, 2) if sht_humidity is not None else None,
+            }
+            for ch, temp in tc_readings:
+                reading[f"tc{ch}"] = round(temp, 2) if temp is not None else None
+            try:
+                sakedb.insert_reading(_active_run_id, reading)
+            except Exception as e:
+                print(f"DB write failed: {e}")
 
         print("-" * 40)
         time.sleep(2)
