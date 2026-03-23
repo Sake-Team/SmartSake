@@ -36,40 +36,10 @@
 	outline: none;
 }
 
-/* Zone button temperature states (based on displayed value) */
-.zone-combined.zone-temp-cold {
-	background: #cfe8ff;
-	border-color: #7fb8ff;
-}
-
-.zone-combined.zone-temp-ok {
-	background: #c9f2d8;
-	border-color: #7fd1a0;
-}
-
-.zone-combined.zone-temp-warm {
-	background: #ffe0b3;
-	border-color: #ffb24d;
-}
-
+/* Zone button temperature state (hot only) */
 .zone-combined.zone-temp-hot {
 	background: #ffcccc;
 	border-color: #ff8080;
-}
-
-.zone-combined.zone-temp-cold:hover,
-.zone-combined.zone-temp-cold:focus {
-	background: #bcdcff;
-}
-
-.zone-combined.zone-temp-ok:hover,
-.zone-combined.zone-temp-ok:focus {
-	background: #b7eccc;
-}
-
-.zone-combined.zone-temp-warm:hover,
-.zone-combined.zone-temp-warm:focus {
-	background: #ffd699;
 }
 
 .zone-combined.zone-temp-hot:hover,
@@ -173,6 +143,40 @@ header h1 { font-size: calc(3.2rem + 6pt); margin: 0; line-height: 1; color: #11
 	text-decoration: underline;
 }
 
+.set-temp-btn {
+	position: absolute;
+	top: -96px;
+	right: 0;
+	display: none;
+	align-items: center;
+	justify-content: center;
+	min-width: 189px;
+	height: 64px;
+	padding: 0 18px;
+	background: #ffffff;
+	color: #b22222;
+	border: 1px solid #e1e1e6;
+	border-radius: 8px;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+	font-size: 1.5rem;
+	font-weight: 700;
+	cursor: pointer;
+	transition: background-color 160ms ease, color 160ms ease, transform 120ms ease;
+	z-index: 11;
+}
+
+.set-temp-btn:hover,
+.set-temp-btn:focus-visible {
+	background: #ff6b6b;
+	color: #ffffff;
+	transform: translateY(-2px);
+	outline: none;
+}
+
+body:has(#start-run-btn.end-run-btn-active) .set-temp-btn {
+	display: inline-flex;
+}
+
 @media (max-width: 480px) {
 	.home-link { font-size: calc(1.8rem + 6pt); }
 }
@@ -182,22 +186,22 @@ header h1 { font-size: calc(3.2rem + 6pt); margin: 0; line-height: 1; color: #11
 .notes > .home-link {
 	position: absolute;
 	/* place above the notes box and render like the zone buttons */
-	top: -76px;
+	top: -96px;
 	right: 12px; /* align inside the notes box padding */
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 140px;
-	height: 64px;
+	width: 150px;
+	height: 70px;
 	color: #d40000; /* red text */
 	font-weight: 800;
-	font-size: 1.3rem; /* slightly bigger red text */
+	font-size: 1.6rem; /* slightly bigger red text */
 	text-decoration: none;
 	cursor: pointer;
 	z-index: 12;
-	background: transparent;
-	border: none;
-	box-shadow: none;
+	background: #ffffff;
+	border: 1px solid #e1e1e6;
+	box-shadow: 0 2px 4px rgba(0,0,0,0.04);
 	border-radius: 8px;
 }
 
@@ -222,6 +226,13 @@ header h1 { font-size: calc(3.2rem + 6pt); margin: 0; line-height: 1; color: #11
 	color: #ffffff; /* white text for contrast */
 	border-color: #ff6b6b;
 	transform: translateY(-2px);
+}
+
+.notes > .home-link:active {
+	background: #d40000; /* red on click */
+	color: #ffffff;
+	border-color: #d40000;
+	transform: translateY(0);
 }
 
 /* Responsive scaling for small screens */
@@ -460,6 +471,48 @@ main { padding: 8px 16px 16px; transform: translateX(-8px); }
 	line-height: 1.5;
 }
 
+.ideal-temp-current {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	margin: 2px 0 16px 0;
+}
+
+.ideal-temp-current__label {
+	font-size: 1.3rem;
+	font-weight: 700;
+	color: #111111;
+	line-height: 1.2;
+}
+
+.ideal-temp-current__value {
+	font-size: 1.55rem;
+	font-weight: 800;
+	color: #d40000;
+	line-height: 1.1;
+}
+
+.deviation-current {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	margin: 0 0 16px 0;
+}
+
+.deviation-current__label {
+	font-size: 1.15rem;
+	font-weight: 700;
+	color: #111111;
+	line-height: 1.2;
+}
+
+.deviation-current__value {
+	font-size: 1.45rem;
+	font-weight: 800;
+	color: #d40000;
+	line-height: 1.1;
+}
+
 /* Modal form elements */
 .modal-input-section {
 	display: flex;
@@ -607,6 +660,11 @@ main { padding: 8px 16px 16px; transform: translateX(-8px); }
 	font-weight: 600;
 	color: #6b6b6b;
 	white-space: pre-line;
+}
+
+/* Shift date/time left only while a run is active */
+body:has(#start-run-btn.end-run-btn-active) .left > .notes__meta {
+	right: 200px;
 }
 
 @media (max-width: 768px) {
@@ -1017,6 +1075,7 @@ header {
 	line-height: 1;
 	padding: 0;
 	vertical-align: middle;
+	white-space: nowrap;
 }
 
 /* Zone pages: keep Zone X on one line */
@@ -1185,6 +1244,193 @@ header {
 
 .chart-modal-control input[type="range"] {
 	width: 100%;
+}
+
+.chart-title--single-line {
+	white-space: nowrap;
+	display: inline-block;
+}
+
+.temp-chart-legend {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 4px;
+	margin: 0 0 8px 0;
+}
+
+.temp-chart-legend__item {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 0;
+	border: none;
+	background: transparent;
+	cursor: pointer;
+	font-size: 0.72rem;
+	line-height: 1.1;
+	color: #222;
+}
+
+.temp-chart-legend__swatch {
+	width: 8px;
+	height: 8px;
+	border-radius: 2px;
+	display: inline-block;
+}
+
+.temp-chart-legend__item.is-hidden {
+	opacity: 0.45;
+}
+
+.home-temp-chart-card {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	column-gap: 12px;
+	align-items: stretch;
+	justify-content: stretch;
+	min-height: 0;
+}
+
+.home-temp-chart-card .temp-chart-legend {
+	grid-column: 1;
+	grid-row: 1;
+	margin-bottom: 0;
+	align-self: end;
+	padding-bottom: 7px;
+}
+
+.home-temp-chart-card .temp-chart-live-wrap {
+	grid-column: 2;
+	grid-row: 1;
+	position: relative;
+	min-height: 120px;
+}
+
+.home-temp-chart-card .metric-chart {
+	height: 100% !important;
+	min-height: 120px;
+}
+
+.temp-chart-title-left {
+	position: absolute;
+	top: 6px;
+	left: 8px;
+	z-index: 2;
+	font-size: 0.9rem;
+	font-weight: 600;
+	line-height: 1;
+	color: #111;
+	background: rgba(255, 255, 255, 0.7);
+	padding: 2px 6px;
+	border-radius: 4px;
+	pointer-events: none;
+}
+
+.home-side-title-chart-card {
+	position: relative;
+	display: grid;
+	grid-template-columns: 92px minmax(0, 1fr);
+	column-gap: 12px;
+	align-items: stretch;
+	justify-content: stretch;
+	min-height: 0;
+}
+
+.home-chart-title-left {
+	position: absolute;
+	top: 6px;
+	left: 8px;
+	z-index: 2;
+	font-size: 0.9rem;
+	font-weight: 600;
+	line-height: 1;
+	color: #111;
+	background: rgba(255, 255, 255, 0.7);
+	padding: 2px 6px;
+	border-radius: 4px;
+	pointer-events: none;
+	white-space: nowrap;
+}
+
+.home-chart-live-wrap {
+	grid-column: 2;
+	grid-row: 1;
+	min-height: 120px;
+	position: relative;
+}
+
+.home-side-title-chart-card .metric-chart {
+	height: 100% !important;
+	min-height: 120px;
+}
+
+.home-fans-chart-card .temp-chart-legend {
+	grid-column: 1;
+	grid-row: 1;
+	margin-bottom: 0;
+	align-self: end;
+	padding-bottom: 7px;
+}
+
+.home-humidity-chart-card {
+	grid-template-columns: minmax(0, 1fr);
+	column-gap: 0;
+}
+
+.home-humidity-chart-card .home-chart-live-wrap {
+	grid-column: 1;
+	min-height: 0;
+	height: 100%;
+}
+
+.home-humidity-chart-card .metric-chart {
+	min-height: 0;
+}
+
+.home-weight-chart-card {
+	grid-template-columns: minmax(0, 1fr);
+	column-gap: 0;
+}
+
+.home-weight-chart-card .home-chart-live-wrap {
+	grid-column: 1;
+	min-height: 0;
+	height: 100%;
+}
+
+.home-weight-chart-card .metric-chart {
+	min-height: 0;
+}
+
+.home-humidity-title {
+	position: absolute;
+	top: -6px;
+	left: -2px;
+	z-index: 2;
+	font-size: 0.9rem;
+	font-weight: 600;
+	line-height: 1;
+	color: #111;
+	background: rgba(255, 255, 255, 0.7);
+	padding: 2px 6px;
+	border-radius: 4px;
+	pointer-events: none;
+}
+
+.home-weight-title {
+	position: absolute;
+	top: -6px;
+	left: -2px;
+	z-index: 2;
+	font-size: 0.9rem;
+	font-weight: 600;
+	line-height: 1;
+	color: #111;
+	background: rgba(255, 255, 255, 0.7);
+	padding: 2px 6px;
+	border-radius: 4px;
+	pointer-events: none;
 }
 
 .run-box {
