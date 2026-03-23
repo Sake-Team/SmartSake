@@ -57,76 +57,173 @@
   <!-- placeholder card removed -->
   
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-  (function(){
-    'use strict';
-    const params = new URLSearchParams(location.search);
-    const runId  = parseInt(params.get('run'), 10) || null;
-    const mode   = params.get('mode') || 'live';
-    const ZONE   = 2;
+  <script>
+(function () {
+  'use strict';
+  const params = new URLSearchParams(location.search);
+  const runId  = parseInt(params.get('run'), 10) || null;
+  const mode   = params.get('mode') || 'live';
+  const ZONE   = 2;
 
-    // Run name in header
-    const runNameDisplay = document.getElementById('run-name-display');
-    if (runId && runNameDisplay) {
-      fetch('/api/runs/' + runId)
-        .then(r => r.json())
-        .then(function(run){ runNameDisplay.textContent = '- ' + run.name; })
-        .catch(function(){
-          const saved = localStorage.getItem('currentRunName');
-          if (saved && runNameDisplay) runNameDisplay.textContent = '- ' + saved;
-        });
-    } else {
-      const saved = localStorage.getItem('currentRunName');
-      if (saved && runNameDisplay) runNameDisplay.textContent = '- ' + saved;
-    }
+  // \u2500\u2500 Nav: propagate ?run=&mode= to zone links + change "Home" \u2192 "\u2190 Dashboard" \u2500\u2500
+  document.querySelectorAll('.zones a').forEach(function (a) {
+    if (runId) a.href = a.getAttribute('href').split('?')[0] + '?run=' + runId + '&mode=' + mode;
+  });
+  const homeLink = document.querySelector('.home-link');
+  if (homeLink && runId) {
+    homeLink.href = 'dashboard.html?run=' + runId + '&mode=' + mode;
+    homeLink.textContent = '\u2190 Dashboard';
+  }
 
-    // Notes
-    const notesInput = document.getElementById('notes-input');
-    if (!notesInput) return;
+  // \u2500\u2500 Run name \u2500\u2500
+  const runNameDisplay = document.getElementById('run-name-display');
+  if (runId) {
+    fetch('/api/runs/' + runId)
+      .then(r => r.json())
+      .then(function (run) { if (runNameDisplay) runNameDisplay.textContent = '- ' + run.name; })
+      .catch(function () {
+        const s = localStorage.getItem('currentRunName');
+        if (s && runNameDisplay) runNameDisplay.textContent = '- ' + s;
+      });
+  } else {
+    const s = localStorage.getItem('currentRunName');
+    if (s && runNameDisplay) runNameDisplay.textContent = '- ' + s;
+  }
 
+  // \u2500\u2500 Charts \u2500\u2500
+  const tempCanvas = document.getElementById('zone-temp-chart');
+  const fanCanvas  = document.getElementById('zone-fan-chart');
+  if (!tempCanvas || !fanCanvas || !window.Chart) return;
+
+  const MAX_PTS = 120;
+  const labels   = [];
+  const tempData = [];
+  const fanData  = [];
+
+  const CHART_DEFAULTS = {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    scales: {
+      x: { display: false },
+      y: { ticks: { color: '#aaa' }, grid: { color: '#2a2a2a' } }
+    },
+    plugins: { legend: { labels: { color: '#ccc' } } }
+  };
+
+  const tempChart = new Chart(tempCanvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Zone ' + ZONE + ' Temp (\u00b0C)',
+        data: tempData,
+        borderColor: '#e05252', backgroundColor: 'rgba(224,82,82,0.1)',
+        borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: true
+      }]
+    },
+    options: CHART_DEFAULTS
+  });
+
+  const fanChart = new Chart(fanCanvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Zone ' + ZONE + ' Fan',
+        data: fanData,
+        borderColor: '#52a0e0', backgroundColor: 'rgba(82,160,224,0.1)',
+        borderWidth: 1.5, pointRadius: 0, stepped: true, fill: true
+      }]
+    },
+    options: { ...CHART_DEFAULTS, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, min: 0, max: 1 } } }
+  });
+
+  function pushSample(time, temp, fan) {
+    labels.push(new Date(time).toLocaleTimeString());
+    tempData.push(temp !== null && temp !== undefined ? parseFloat(temp) : null);
+    fanData.push(fan  !== null && fan  !== undefined ? Number(fan)       : null);
+    if (labels.length > MAX_PTS) { labels.shift(); tempData.shift(); fanData.shift(); }
+    tempChart.update('none');
+    fanChart.update('none');
+  }
+
+  // \u2500\u2500 Notes \u2500\u2500
+  const notesInput = document.getElementById('notes-input');
+  if (notesInput) {
     if (mode === 'replay') {
       notesInput.disabled = true;
       notesInput.placeholder = 'Notes (read only)';
+    } else {
+      let saveTimer;
+      notesInput.addEventListener('input', function () {
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(function () {
+          if (runId) fetch('/api/runs/' + runId + '/zones/' + ZONE, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ note: notesInput.value })
+          }).catch(function () {});
+          localStorage.setItem('currentNotes', notesInput.value);
+        }, 800);
+      });
     }
-
-    // Load notes
     if (runId) {
       fetch('/api/runs/' + runId + '/zones/' + ZONE)
         .then(r => r.json())
-        .then(function(data){ if(data.note) notesInput.value = data.note; })
-        .catch(function(){
-          const saved = localStorage.getItem('currentNotes');
-          if (saved) notesInput.value = saved;
+        .then(function (d) { if (d.note) notesInput.value = d.note; })
+        .catch(function () {
+          const s = localStorage.getItem('currentNotes');
+          if (s) notesInput.value = s;
         });
     } else {
-      const saved = localStorage.getItem('currentNotes');
-      if (saved) notesInput.value = saved;
+      const s = localStorage.getItem('currentNotes');
+      if (s) notesInput.value = s;
     }
+  }
 
-    if (mode === 'replay') return;
+  // \u2500\u2500 Historical load \u2500\u2500
+  function loadHistory(cb) {
+    if (!runId) { cb(); return; }
+    fetch('/api/runs/' + runId + '/readings?n=300')
+      .then(r => r.json())
+      .then(function (rows) {
+        if (rows && rows.length) {
+          rows.forEach(function (row) {
+            pushSample(row.recorded_at, row['tc' + ZONE], row['fan' + ZONE]);
+          });
+        }
+        cb();
+      })
+      .catch(cb);
+  }
 
-    // Save notes (API + localStorage fallback)
-    let saveTimer;
-    function saveNote() {
-      if (runId) {
-        fetch('/api/runs/' + runId + '/zones/' + ZONE, {
-          method: 'PUT',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({note: notesInput.value})
-        }).catch(function(){});
-      }
-      localStorage.setItem('currentNotes', notesInput.value);
+  if (mode === 'replay') { loadHistory(function () {}); return; }
+
+  // \u2500\u2500 Live mode \u2500\u2500
+  var lastTimestamp = null;
+
+  function applyLiveSample(d) {
+    if (!d || d.timestamp === lastTimestamp) return;
+    lastTimestamp = d.timestamp;
+    pushSample(d.timestamp, d['tc' + ZONE], d['fan' + ZONE]);
+  }
+
+  function startLive() {
+    // BroadcastChannel (same tab session as dashboard)
+    if (typeof BroadcastChannel !== 'undefined') {
+      var bc = new BroadcastChannel('sake-sensor');
+      bc.onmessage = function (e) { applyLiveSample(e.data); };
     }
+    // Direct poll fallback (works when zone is open standalone / BC silent)
+    setInterval(function () {
+      fetch('/api/latest')
+        .then(function (r) { return r.json(); })
+        .then(applyLiveSample)
+        .catch(function () {});
+    }, 3000);
+    fetch('/api/latest').then(function (r) { return r.json(); }).then(applyLiveSample).catch(function () {});
+  }
 
-    notesInput.addEventListener('input', function(){
-      clearTimeout(saveTimer);
-      saveTimer = setTimeout(saveNote, 800);
-    });
-    notesInput.addEventListener('blur', function(){
-      clearTimeout(saveTimer);
-      saveNote();
-    });
-  })();
+  loadHistory(startLive);
+})();
   </script>
 </body>
 </html>

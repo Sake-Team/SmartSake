@@ -164,6 +164,26 @@ def get_all_readings(run_id):
         return [dict(r) for r in rows]
 
 
+def get_readings_sampled(run_id, n=300):
+    """Return up to n evenly-strided readings for run_id."""
+    with get_conn() as conn:
+        total = conn.execute(
+            "SELECT COUNT(*) FROM sensor_readings WHERE run_id=?", (run_id,)
+        ).fetchone()[0]
+        if total == 0:
+            return []
+        stride = max(1, total // n)
+        rows = conn.execute("""
+            WITH rn AS (
+                SELECT *, (ROW_NUMBER() OVER (ORDER BY recorded_at ASC) - 1) AS rn
+                FROM sensor_readings WHERE run_id = ?
+            )
+            SELECT * FROM rn WHERE rn % ? = 0
+            ORDER BY recorded_at ASC
+        """, (run_id, stride)).fetchall()
+        return [dict(r) for r in rows]
+
+
 # ── Target profiles ───────────────────────────────────────────────────────────
 
 def save_target_profile(run_id, rows):

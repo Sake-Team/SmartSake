@@ -157,6 +157,9 @@ def api_delete_run(run_id):
 def api_readings(run_id):
     if not db.get_run(run_id):
         abort(404)
+    n = request.args.get('n', type=int)
+    if n and n > 0:
+        return jsonify(db.get_readings_sampled(run_id, n))
     return jsonify(db.get_all_readings(run_id))
 
 
