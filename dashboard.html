@@ -580,6 +580,7 @@
 
 					// ---------- Start / stop collection ----------
 					function startDataCollection() {
+						if (dataCollectionInterval) return;
 						collectedData = [];
 						runStartTime = new Date();
 
@@ -2199,21 +2200,25 @@
 		fetch('/api/runs/' + runId + '/readings')
 			.then(r => r.json())
 			.then(function (readings) {
-				if (!readings || !readings.length) return;
-				if (window.stopTemperatureReading) window.stopTemperatureReading();
-				// Downsample to max 300 points for chart performance
-				const step = Math.max(1, Math.floor(readings.length / 300));
-				readings.filter((_, i) => i % step === 0).forEach(function (row) {
-					if (!window.pushSensorSample) return;
-					window.pushSensorSample({
-						time: new Date(row.recorded_at),
-						temps: { temp1:row.tc1, temp2:row.tc2, temp3:row.tc3, temp4:row.tc4, temp5:row.tc5, temp6:row.tc6 },
-						humidity: row.humidity,
-						fans: { fan1:row.fan1||0, fan2:row.fan2||0, fan3:row.fan3||0, fan4:row.fan4||0, fan5:row.fan5||0, fan6:row.fan6||0 }
+				if (readings && readings.length) {
+					if (window.stopTemperatureReading) window.stopTemperatureReading();
+					// Downsample to max 300 points for chart performance
+					const step = Math.max(1, Math.floor(readings.length / 300));
+					readings.filter((_, i) => i % step === 0).forEach(function (row) {
+						if (!window.pushSensorSample) return;
+						window.pushSensorSample({
+							time: new Date(row.recorded_at),
+							temps: { temp1:row.tc1, temp2:row.tc2, temp3:row.tc3, temp4:row.tc4, temp5:row.tc5, temp6:row.tc6 },
+							humidity: row.humidity,
+							fans: { fan1:row.fan1||0, fan2:row.fan2||0, fan3:row.fan3||0, fan4:row.fan4||0, fan5:row.fan5||0, fan6:row.fan6||0 }
+						});
 					});
-				});
+				}
 				if (window.startTemperatureReading) window.startTemperatureReading();
-			}).catch(function(){});
+			})
+			.catch(function () {
+				if (window.startTemperatureReading) window.startTemperatureReading();
+			});
 
 		fetch('/api/runs/' + runId + '/zones/1')
 			.then(r => r.json())
