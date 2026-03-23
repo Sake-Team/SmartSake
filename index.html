@@ -92,6 +92,7 @@
 						</div>
 
 						<div class="left">
+							<button id="set-temp-btn" class="set-temp-btn" type="button">Set temp</button>
 							<div class="notes__meta" id="notes-meta" aria-live="polite">Date,
 								Time</div>
 							<div class="long long--top-left home-temp-chart-card">
@@ -146,14 +147,6 @@
 						</div>
 
 						<div class="modal-input-section">
-							<label for="target-csv-upload">Select Koji Strain:</label>
-							<input type="file" id="target-csv-upload" accept=".csv" class="upload-input">
-							<div id="upload-status" class="upload-status"></div>
-							<small class="help-text">Upload a CSV with target temperatures over
-								time</small>
-						</div>
-
-						<div class="modal-input-section">
 							<button type="button" class="modal-enter-btn" id="enter-run-btn">Start</button>
 						</div>
 					</div>
@@ -176,6 +169,44 @@
 						<div class="modal-button-section">
 							<button type="button" class="modal-cancel-btn" id="cancel-end-btn">Cancel</button>
 							<button type="button" class="modal-confirm-btn" id="confirm-end-btn">End Run</button>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Modal popup for setting ideal temperature -->
+			<div id="set-temp-modal" class="modal-overlay">
+				<div class="modal-popup">
+					<div class="modal-header">
+						<h3 class="modal-title">Set Temperature</h3>
+						<button type="button" class="modal-close" id="close-set-temp-modal"
+							aria-label="Close set temperature modal">&times;</button>
+					</div>
+					<div class="modal-content">
+						<p id="ideal-temp-current" class="ideal-temp-current">
+							<span class="ideal-temp-current__label">Current set point</span>
+							<span id="ideal-temp-current-value" class="ideal-temp-current__value">-- °C</span>
+						</p>
+						<p id="deviation-current" class="deviation-current">
+							<span class="deviation-current__label">The current deviation allowance is</span>
+							<span id="deviation-current-value" class="deviation-current__value">5.0 °C</span>
+						</p>
+
+						<div class="modal-input-section">
+							<label for="ideal-temp-input">Ideal Temperature (°C):</label>
+							<input type="number" id="ideal-temp-input" name="ideal-temp-input" step="0.1" min="0"
+								max="100" placeholder="e.g. 32.0" />
+						</div>
+
+						<div class="modal-input-section">
+							<label for="deviation-allowance-input">Deviation Allowance (°C):</label>
+							<input type="number" id="deviation-allowance-input" name="deviation-allowance-input" step="0.1"
+								min="0" max="30" placeholder="e.g. 5.0" />
+						</div>
+
+						<div class="modal-button-section">
+							<button type="button" class="modal-cancel-btn" id="cancel-set-temp-btn">Cancel</button>
+							<button type="button" class="modal-confirm-btn" id="save-set-temp-btn">Save</button>
 						</div>
 					</div>
 				</div>
@@ -296,6 +327,137 @@
 					});
 				})();
 
+				// Set temperature modal + ideal temperature storage
+				(function () {
+					const IDEAL_TEMP_KEY = 'sakeIdealTempC';
+					const DEVIATION_ALLOWANCE_KEY = 'sakeDeviationAllowanceC';
+
+					const setTempBtn = document.getElementById('set-temp-btn');
+					const setTempModal = document.getElementById('set-temp-modal');
+					const closeSetTempModalBtn = document.getElementById('close-set-temp-modal');
+					const cancelSetTempBtn = document.getElementById('cancel-set-temp-btn');
+					const saveSetTempBtn = document.getElementById('save-set-temp-btn');
+					const idealTempInput = document.getElementById('ideal-temp-input');
+					const deviationAllowanceInput = document.getElementById('deviation-allowance-input');
+					const idealTempCurrent = document.getElementById('ideal-temp-current');
+					const idealTempCurrentValue = document.getElementById('ideal-temp-current-value');
+					const deviationCurrent = document.getElementById('deviation-current');
+					const deviationCurrentValue = document.getElementById('deviation-current-value');
+
+					if (!setTempBtn || !setTempModal || !closeSetTempModalBtn || !cancelSetTempBtn || !saveSetTempBtn ||
+						!idealTempInput || !deviationAllowanceInput || !idealTempCurrent || !idealTempCurrentValue ||
+						!deviationCurrent || !deviationCurrentValue) {
+						return;
+					}
+
+					function getIdealTemp() {
+						const raw = localStorage.getItem(IDEAL_TEMP_KEY);
+						const parsed = raw === null ? NaN : parseFloat(raw);
+						return Number.isFinite(parsed) ? parsed : null;
+					}
+
+					function getDeviationAllowance() {
+						const raw = localStorage.getItem(DEVIATION_ALLOWANCE_KEY);
+						const parsed = raw === null ? NaN : parseFloat(raw);
+						return Number.isFinite(parsed) ? parsed : 5.0;
+					}
+
+					function updateCurrentLabel() {
+						const current = getIdealTemp();
+						idealTempCurrentValue.textContent = current === null
+							? '-- °C'
+							: `${current.toFixed(1)} °C`;
+
+						const deviation = getDeviationAllowance();
+						deviationCurrentValue.textContent = `${deviation.toFixed(1)} °C`;
+					}
+
+					function openSetTempModal() {
+						const current = getIdealTemp();
+						const deviation = getDeviationAllowance();
+						idealTempInput.value = current === null ? '' : current.toFixed(1);
+						deviationAllowanceInput.value = deviation.toFixed(1);
+						updateCurrentLabel();
+						setTempModal.style.display = 'flex';
+						idealTempInput.focus();
+						idealTempInput.select();
+					}
+
+					function closeSetTempModal() {
+						setTempModal.style.display = 'none';
+					}
+
+					function saveIdealTemp() {
+						const value = parseFloat(idealTempInput.value);
+						const deviationValue = parseFloat(deviationAllowanceInput.value);
+						if (!Number.isFinite(value) || value < 0 || value > 100) {
+							idealTempInput.setCustomValidity('Please enter a value between 0 and 100 °C.');
+							idealTempInput.reportValidity();
+							return;
+						}
+						if (!Number.isFinite(deviationValue) || deviationValue < 0 || deviationValue > 30) {
+							deviationAllowanceInput.setCustomValidity('Please enter a value between 0 and 30 °C.');
+							deviationAllowanceInput.reportValidity();
+							return;
+						}
+						idealTempInput.setCustomValidity('');
+						deviationAllowanceInput.setCustomValidity('');
+
+						localStorage.setItem(IDEAL_TEMP_KEY, value.toFixed(1));
+						localStorage.setItem(DEVIATION_ALLOWANCE_KEY, deviationValue.toFixed(1));
+						updateCurrentLabel();
+						window.dispatchEvent(new CustomEvent('sake-ideal-temp-updated', {
+							detail: {
+								value: value.toFixed(1),
+								deviationAllowance: deviationValue.toFixed(1)
+							}
+						}));
+						closeSetTempModal();
+					}
+
+					setTempBtn.addEventListener('click', openSetTempModal);
+					closeSetTempModalBtn.addEventListener('click', closeSetTempModal);
+					cancelSetTempBtn.addEventListener('click', closeSetTempModal);
+					saveSetTempBtn.addEventListener('click', saveIdealTemp);
+
+					idealTempInput.addEventListener('input', function () {
+						idealTempInput.setCustomValidity('');
+					});
+
+					deviationAllowanceInput.addEventListener('input', function () {
+						deviationAllowanceInput.setCustomValidity('');
+					});
+
+					idealTempInput.addEventListener('keydown', function (e) {
+						if (e.key === 'Enter') {
+							e.preventDefault();
+							saveIdealTemp();
+						}
+					});
+
+					setTempModal.addEventListener('click', function (e) {
+						if (e.target === setTempModal) {
+							closeSetTempModal();
+						}
+					});
+
+					document.addEventListener('keydown', function (e) {
+						if (e.key === 'Escape' && setTempModal.style.display === 'flex') {
+							closeSetTempModal();
+						}
+					});
+
+					window.getIdealTemperature = function () {
+						return getIdealTemp();
+					};
+
+					window.getDeviationAllowance = function () {
+						return getDeviationAllowance();
+					};
+
+					updateCurrentLabel();
+				})();
+
 				// Modal + run state + autosave + recovery
 				(function () {
 					const RUN_STATE_KEY = 'sakeRunState';
@@ -378,9 +540,14 @@
 
 						const humidity = (60 + Math.random() * 20).toFixed(1);
 
+						const liveFans = window.getCurrentFans ? window.getCurrentFans() : null;
 						const fans = [];
 						for (let i = 1; i <= 6; i++) {
-							fans.push(Math.random() > 0.5 ? 'On' : 'Off');
+							if (liveFans && (liveFans[`fan${i}`] === 1 || liveFans[`fan${i}`] === 0)) {
+								fans.push(liveFans[`fan${i}`] === 1 ? 'On' : 'Off');
+							} else {
+								fans.push('Off');
+							}
 						}
 
 						const notes = localStorage.getItem('currentNotes') || '';
@@ -412,6 +579,22 @@
 						localStorage.setItem(RUN_IN_PROGRESS_KEY, 'true');
 
 						collectedData.push(generateSensorData());
+						saveRunState();
+
+						dataCollectionInterval = setInterval(function () {
+							collectedData.push(generateSensorData());
+							saveRunState();
+						}, 30000);
+					}
+
+					function resumeDataCollection() {
+						if (dataCollectionInterval) return;
+
+						if (!runStartTime) {
+							runStartTime = new Date();
+						}
+
+						localStorage.setItem(RUN_IN_PROGRESS_KEY, 'true');
 						saveRunState();
 
 						dataCollectionInterval = setInterval(function () {
@@ -493,56 +676,62 @@
 						}
 					};
 
-					// ---------- Load autosave & handle crash detection ----------
+					// ---------- Load autosave and restore active run ----------
 					loadRunState();
 					const savedRunName = localStorage.getItem('currentRunName');
-					const rawState = localStorage.getItem(RUN_STATE_KEY);
 					const inProgress = localStorage.getItem(RUN_IN_PROGRESS_KEY) === 'true';
-
-					let hasData = false;
-					if (rawState) {
-						try {
-							const state = JSON.parse(rawState);
-							if (state && Array.isArray(state.collectedData) && state.collectedData.length > 0) {
-								hasData = true;
-							}
-						} catch (e) {
-							console.warn('Invalid autosave state detected, clearing:', e);
-							localStorage.removeItem(RUN_STATE_KEY);
-						}
-					}
-
-					const crashDetected = hasData && inProgress;
+					const activeRunDetected = inProgress && !!savedRunName;
 
 					// Initialize UI state
 					if (runNameDisplay) {
-						runNameDisplay.textContent = crashDetected && savedRunName ? ('- ' + savedRunName) : '';
+						runNameDisplay.textContent = activeRunDetected && savedRunName ? ('- ' + savedRunName) : '';
 					}
 					if (startBtn) {
-						startBtn.textContent = 'Start Run';
-						startBtn.classList.remove('end-run-btn-active');
+						startBtn.textContent = activeRunDetected ? 'End Run' : 'Start Run';
+						startBtn.classList.toggle('end-run-btn-active', activeRunDetected);
 						startBtn.style.pointerEvents = 'auto';
 						startBtn.style.cursor = 'pointer';
 					}
 
-					if (crashDetected && recoveryModal && recoveryExport && recoveryDiscard) {
-						recoveryModal.style.display = 'flex';
+					if (activeRunDetected) {
+						resumeDataCollection();
 
-						recoveryExport.addEventListener('click', function () {
-							if (window.sakeExportRecoveredRun) {
-								window.sakeExportRecoveredRun();
-							}
-							localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
-							if (recoveryModal) recoveryModal.style.display = 'none';
-						});
-
-						recoveryDiscard.addEventListener('click', function () {
+						if (window.startTemperatureReading) {
+							window.startTemperatureReading();
+						}
+						if (window.setRunStartTime) {
+							const resumeFrom = runStartTime ? runStartTime.getTime() : Date.now();
+							window.setRunStartTime(resumeFrom);
+						}
+					} else {
+						if (!savedRunName) {
 							localStorage.removeItem(RUN_STATE_KEY);
 							localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
-							localStorage.removeItem('currentRunName');
-							if (runNameDisplay) runNameDisplay.textContent = '';
-							if (recoveryModal) recoveryModal.style.display = 'none';
-						});
+						}
+
+						if (recoveryModal) {
+							recoveryModal.style.display = 'none';
+						}
+
+						if (recoveryExport) {
+							recoveryExport.addEventListener('click', function () {
+								if (window.sakeExportRecoveredRun) {
+									window.sakeExportRecoveredRun();
+								}
+								localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+								if (recoveryModal) recoveryModal.style.display = 'none';
+							});
+						}
+
+						if (recoveryDiscard) {
+							recoveryDiscard.addEventListener('click', function () {
+								localStorage.removeItem(RUN_STATE_KEY);
+								localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+								localStorage.removeItem('currentRunName');
+								if (runNameDisplay) runNameDisplay.textContent = '';
+								if (recoveryModal) recoveryModal.style.display = 'none';
+							});
+						}
 
 						if (recoveryClose) {
 							recoveryClose.addEventListener('click', function () {
@@ -555,7 +744,7 @@
 						}
 
 						document.addEventListener('keydown', function (e) {
-							if (e.key === 'Escape' && recoveryModal.style.display === 'flex') {
+							if (e.key === 'Escape' && recoveryModal && recoveryModal.style.display === 'flex') {
 								localStorage.removeItem(RUN_STATE_KEY);
 								localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
 								localStorage.removeItem('currentRunName');
@@ -563,12 +752,6 @@
 								recoveryModal.style.display = 'none';
 							}
 						});
-					} else {
-						// no crash: normalize flags if no saved name
-						if (!savedRunName) {
-							localStorage.removeItem(RUN_STATE_KEY);
-							localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
-						}
 					}
 
 					// ---------- Guard: if core elements are missing, stop here ----------
@@ -581,15 +764,6 @@
 						if (startBtn.classList.contains('end-run-btn-active')) {
 							if (endModal) endModal.style.display = 'flex';
 						} else {
-							const fileInput = document.getElementById('target-csv-upload');
-							const uploadStatus = document.getElementById('upload-status');
-							if (fileInput) fileInput.value = '';
-							if (uploadStatus) uploadStatus.textContent = '';
-
-							if (window.setupFileUploadHandler) {
-								window.setupFileUploadHandler();
-							}
-
 							startModal.style.display = 'flex';
 							runNameInput.focus();
 						}
@@ -880,6 +1054,27 @@
 					let temperatureReadingActive = false;
 					let simIntervalId = null;
 
+					function updateFanStatesFromDryBulb() {
+						const ideal = window.getIdealTemperature ? window.getIdealTemperature() : null;
+						const allowance = window.getDeviationAllowance ? window.getDeviationAllowance() : 5.0;
+						const hasThreshold = Number.isFinite(ideal) && Number.isFinite(allowance);
+
+						for (let i = 1; i <= 6; i++) {
+							const dryC = currentDryBulb[`temp${i}`];
+							if (typeof dryC !== 'number' || Number.isNaN(dryC)) {
+								currentFans[`fan${i}`] = 0;
+								continue;
+							}
+
+							if (hasThreshold) {
+								currentFans[`fan${i}`] = dryC > (ideal + allowance) ? 1 : 0;
+							} else {
+								// Fallback behavior if no setpoint is configured yet.
+								currentFans[`fan${i}`] = 0;
+							}
+						}
+					}
+
 					function updateTemperatureDisplay() {
 						for (let i = 1; i <= 6; i++) {
 							const dryEl = document.getElementById(`temp-${i}-dry`);
@@ -934,7 +1129,7 @@
 					//   dry-bulb: 20–50 °C
 					//   RH: 40–80 %
 					//   wet-bulb: computed from Tdb & RH
-					//   fans ON when wet-bulb > 40 °C
+					//   fans ON when dry-bulb > ideal + deviation allowance
 					function generateRandomSample() {
 						if (!temperatureReadingActive) return;
 
@@ -950,10 +1145,9 @@
 							// Compute wet-bulb from dry-bulb + RH
 							const wetC = computeWetBulbC(dryC, RH);
 							currentTemperatures[`temp${i}`] = wetC.toFixed(1);
-
-							// Fan ON when *displayed* (wet-bulb) temp > 40 °C
-							currentFans[`fan${i}`] = wetC > 40 ? 1 : 0;
 						}
+
+						updateFanStatesFromDryBulb();
 
 						updateTemperatureDisplay();
 						if (window.applyDeviationColors) {
@@ -1031,10 +1225,20 @@
 						return currentTemperatures; // wet-bulb
 					}
 
+					function getCurrentFans() {
+						return currentFans;
+					}
+
 					// Expose globally for other code
 					window.getCurrentTemperatures = getCurrentTemperatures;
+					window.getCurrentFans = getCurrentFans;
 					window.startTemperatureReading = startTemperatureReading;
 					window.stopTemperatureReading = stopTemperatureReading;
+
+					window.addEventListener('sake-ideal-temp-updated', function () {
+						if (!temperatureReadingActive) return;
+						updateFanStatesFromDryBulb();
+					});
 
 					// Auto-start simulator on page load
 					window.addEventListener("load", startTemperatureReading);
@@ -1603,8 +1807,15 @@
 
 				// Target temperature CSV upload and deviation detection
 				(function () {
+					const IDEAL_TEMP_KEY = 'sakeIdealTempC';
+					const DEVIATION_ALLOWANCE_KEY = 'sakeDeviationAllowanceC';
 					let targetTemperatures = [];
 					let runStartTime = null;
+
+					function getDeviationAllowance() {
+						const stored = parseFloat(localStorage.getItem(DEVIATION_ALLOWANCE_KEY) || '');
+						return Number.isFinite(stored) ? stored : 5.0;
+					}
 
 					function parseTargetCSV(csvText) {
 						const lines = csvText.trim().split('\n');
@@ -1629,7 +1840,23 @@
 					}
 
 					function getCurrentTargets() {
-						if (!runStartTime || targetTemperatures.length === 0) return null;
+						if (!runStartTime) return null;
+
+						if (targetTemperatures.length === 0) {
+							const storedIdeal = parseFloat(localStorage.getItem(IDEAL_TEMP_KEY) || '');
+							if (Number.isFinite(storedIdeal)) {
+								return {
+									time: 0,
+									temp1: storedIdeal,
+									temp2: storedIdeal,
+									temp3: storedIdeal,
+									temp4: storedIdeal,
+									temp5: storedIdeal,
+									temp6: storedIdeal
+								};
+							}
+							return null;
+						}
 
 						const elapsedMinutes = (Date.now() - runStartTime) / (1000 * 60);
 						let currentTarget = null;
@@ -1645,8 +1872,36 @@
 					}
 
 					function applyDeviationColors() {
+						if (!runStartTime) {
+							for (let i = 1; i <= 6; i++) {
+								const dryElement = document.getElementById(`temp-${i}-dry`);
+								const zoneButton = dryElement ? dryElement.closest('.zone-combined') : null;
+								if (zoneButton) {
+									zoneButton.classList.remove(
+										'zone-temp-cold',
+										'zone-temp-ok',
+										'zone-temp-warm',
+										'zone-temp-hot'
+									);
+								}
+
+								const tempElement = document.getElementById(`temp-${i}-wet`);
+								if (tempElement) {
+									tempElement.classList.remove(
+										'temp-good',
+										'temp-warning',
+										'temp-danger',
+										'temp-too-hot',
+										'temp-too-cold'
+									);
+								}
+							}
+							return;
+						}
+
 						const currentTargets = getCurrentTargets();
 						const currentTemps = window.getCurrentTemperatures ? window.getCurrentTemperatures() : null;
+						const deviationAllowance = getDeviationAllowance();
 
 						for (let i = 1; i <= 6; i++) {
 							const dryElement = document.getElementById(`temp-${i}-dry`);
@@ -1663,13 +1918,9 @@
 									'zone-temp-hot'
 								);
 
-								if (!Number.isNaN(displayTemp)) {
-									if (!Number.isNaN(targetTemp)) {
-										const deviation = displayTemp - targetTemp;
-										if (deviation >= 5.0) {
-											zoneButton.classList.add('zone-temp-hot');
-										}
-									} else if (displayTemp >= 40) {
+								if (!Number.isNaN(displayTemp) && !Number.isNaN(targetTemp)) {
+									const thresholdTemp = targetTemp + deviationAllowance;
+									if (displayTemp > thresholdTemp) {
 										zoneButton.classList.add('zone-temp-hot');
 									}
 								}
@@ -1690,9 +1941,9 @@
 								if (!isNaN(actualTemp) && !isNaN(targetTemp)) {
 									const deviation = actualTemp - targetTemp;
 
-									if (deviation >= 5.0) {
+									if (deviation >= deviationAllowance) {
 										tempElement.classList.add('temp-too-hot');
-									} else if (deviation <= -5.0) {
+									} else if (deviation <= -deviationAllowance) {
 										tempElement.classList.add('temp-too-cold');
 									} else {
 										tempElement.classList.add('temp-good');
@@ -1702,8 +1953,12 @@
 						}
 					}
 
-					function setRunStartTime() {
-						runStartTime = Date.now();
+					function setRunStartTime(startTimeMs) {
+						if (typeof startTimeMs === 'number' && Number.isFinite(startTimeMs)) {
+							runStartTime = startTimeMs;
+						} else {
+							runStartTime = Date.now();
+						}
 						applyDeviationColors();
 					}
 
@@ -1735,51 +1990,10 @@
 
 					}
 
-					function setupFileUploadHandler() {
-						const fileInput = document.getElementById('target-csv-upload');
-						const uploadStatus = document.getElementById('upload-status');
-
-						if (fileInput && !fileInput.hasAttribute('data-handler-added')) {
-							fileInput.setAttribute('data-handler-added', 'true');
-							fileInput.addEventListener('change', function (e) {
-								const file = e.target.files[0];
-								if (!file) {
-									if (uploadStatus) uploadStatus.textContent = '';
-									return;
-								}
-
-								const reader = new FileReader();
-								reader.onload = function (event) {
-									try {
-										targetTemperatures = parseTargetCSV(event.target.result);
-										if (targetTemperatures.length > 0) {
-											if (uploadStatus) {
-												uploadStatus.textContent = `✓ Loaded ${targetTemperatures.length} target points`;
-												uploadStatus.style.color = '#28a745';
-											}
-											applyDeviationColors();
-										} else {
-											if (uploadStatus) {
-												uploadStatus.textContent = '⚠ No valid data found';
-												uploadStatus.style.color = '#ffc107';
-											}
-										}
-									} catch (error) {
-										if (uploadStatus) {
-											uploadStatus.textContent = '✗ Error parsing CSV';
-											uploadStatus.style.color = '#dc3545';
-										}
-									}
-								};
-								reader.readAsText(file);
-							});
-						}
-					}
-
 					window.setRunStartTime = setRunStartTime;
 					window.clearRunData = clearRunData;
 					window.applyDeviationColors = applyDeviationColors;
-					window.setupFileUploadHandler = setupFileUploadHandler;
+					window.addEventListener('sake-ideal-temp-updated', applyDeviationColors);
 
 					setInterval(applyDeviationColors, 5000);
 				})();

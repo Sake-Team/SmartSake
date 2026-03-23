@@ -143,6 +143,40 @@ header h1 { font-size: calc(3.2rem + 6pt); margin: 0; line-height: 1; color: #11
 	text-decoration: underline;
 }
 
+.set-temp-btn {
+	position: absolute;
+	top: -96px;
+	right: 0;
+	display: none;
+	align-items: center;
+	justify-content: center;
+	min-width: 189px;
+	height: 64px;
+	padding: 0 18px;
+	background: #ffffff;
+	color: #b22222;
+	border: 1px solid #e1e1e6;
+	border-radius: 8px;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+	font-size: 1.5rem;
+	font-weight: 700;
+	cursor: pointer;
+	transition: background-color 160ms ease, color 160ms ease, transform 120ms ease;
+	z-index: 11;
+}
+
+.set-temp-btn:hover,
+.set-temp-btn:focus-visible {
+	background: #ff6b6b;
+	color: #ffffff;
+	transform: translateY(-2px);
+	outline: none;
+}
+
+body:has(#start-run-btn.end-run-btn-active) .set-temp-btn {
+	display: inline-flex;
+}
+
 @media (max-width: 480px) {
 	.home-link { font-size: calc(1.8rem + 6pt); }
 }
@@ -437,6 +471,48 @@ main { padding: 8px 16px 16px; transform: translateX(-8px); }
 	line-height: 1.5;
 }
 
+.ideal-temp-current {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	margin: 2px 0 16px 0;
+}
+
+.ideal-temp-current__label {
+	font-size: 1.3rem;
+	font-weight: 700;
+	color: #111111;
+	line-height: 1.2;
+}
+
+.ideal-temp-current__value {
+	font-size: 1.55rem;
+	font-weight: 800;
+	color: #d40000;
+	line-height: 1.1;
+}
+
+.deviation-current {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	margin: 0 0 16px 0;
+}
+
+.deviation-current__label {
+	font-size: 1.15rem;
+	font-weight: 700;
+	color: #111111;
+	line-height: 1.2;
+}
+
+.deviation-current__value {
+	font-size: 1.45rem;
+	font-weight: 800;
+	color: #d40000;
+	line-height: 1.1;
+}
+
 /* Modal form elements */
 .modal-input-section {
 	display: flex;
@@ -584,6 +660,11 @@ main { padding: 8px 16px 16px; transform: translateX(-8px); }
 	font-weight: 600;
 	color: #6b6b6b;
 	white-space: pre-line;
+}
+
+/* Shift date/time left only while a run is active */
+body:has(#start-run-btn.end-run-btn-active) .left > .notes__meta {
+	right: 200px;
 }
 
 @media (max-width: 768px) {
