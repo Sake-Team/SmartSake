@@ -36,15 +36,41 @@
 	outline: none;
 }
 
-/* Zone button temperature state (hot only) */
+/* Zone button temperature states */
 .zone-combined.zone-temp-hot {
 	background: #ffcccc;
 	border-color: #ff8080;
 }
-
 .zone-combined.zone-temp-hot:hover,
 .zone-combined.zone-temp-hot:focus {
 	background: #ffb3b3;
+}
+
+.zone-combined.zone-temp-warm {
+	background: #fff0cc;
+	border-color: #ffc040;
+}
+.zone-combined.zone-temp-warm:hover,
+.zone-combined.zone-temp-warm:focus {
+	background: #ffe8aa;
+}
+
+.zone-combined.zone-temp-ok {
+	background: #ccffcc;
+	border-color: #40c040;
+}
+.zone-combined.zone-temp-ok:hover,
+.zone-combined.zone-temp-ok:focus {
+	background: #aaffaa;
+}
+
+.zone-combined.zone-temp-cold {
+	background: #cce4ff;
+	border-color: #4088ee;
+}
+.zone-combined.zone-temp-cold:hover,
+.zone-combined.zone-temp-cold:focus {
+	background: #aad0ff;
 }
 
 .zone-combined__label {
