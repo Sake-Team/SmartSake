@@ -145,9 +145,11 @@
     options: { ...CHART_DEFAULTS, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, min: 0, max: 1 } } }
   });
 
+  function roundHalf(v) { return Math.round(v * 2) / 2; }
   function pushSample(time, temp, fan) {
+    const t = (temp !== null && temp !== undefined) ? roundHalf(parseFloat(temp)) : null;
     labels.push(new Date(time).toLocaleTimeString());
-    tempData.push(temp !== null && temp !== undefined ? parseFloat(temp) : null);
+    tempData.push(t !== null && !isNaN(t) ? t : null);
     fanData.push(fan  !== null && fan  !== undefined ? Number(fan)       : null);
     if (labels.length > MAX_PTS) { labels.shift(); tempData.shift(); fanData.shift(); }
     tempChart.update('none');
