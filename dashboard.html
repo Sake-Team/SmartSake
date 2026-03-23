@@ -2151,7 +2151,7 @@
 					if (disp) disp.textContent = '- ' + run.name;
 				}).catch(function(){});
 
-			fetch('/api/runs/' + runId + '/readings')
+			fetch('/api/runs/' + runId + '/readings?n=300')
 				.then(r => r.json())
 				.then(function (readings) {
 					if (!readings || !readings.length) return;
@@ -2197,14 +2197,12 @@
 				if (btn) { btn.textContent = 'End Run'; btn.classList.add('end-run-btn-active'); }
 			}).catch(function(){});
 
-		fetch('/api/runs/' + runId + '/readings')
+		fetch('/api/runs/' + runId + '/readings?n=300')
 			.then(r => r.json())
 			.then(function (readings) {
 				if (readings && readings.length) {
 					if (window.stopTemperatureReading) window.stopTemperatureReading();
-					// Downsample to max 300 points for chart performance
-					const step = Math.max(1, Math.floor(readings.length / 300));
-					readings.filter((_, i) => i % step === 0).forEach(function (row) {
+					readings.forEach(function (row) {
 						if (!window.pushSensorSample) return;
 						window.pushSensorSample({
 							time: new Date(row.recorded_at),
