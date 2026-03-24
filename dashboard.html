@@ -1776,7 +1776,8 @@
 					}
 
 					function applyYInputsToModal() {
-						if (!modalChart || modalChartType === 'fans') return;
+						if (!modalChart || modalChartType === 'fans' || modalChartType === 'env') return;
+						if (!modalChart.options.scales.y) return;
 						const mn = parseFloat(yMinInput ? yMinInput.value : '');
 						const mx = parseFloat(yMaxInput ? yMaxInput.value : '');
 						modalChart.options.scales.y.min = Number.isFinite(mn) ? mn : undefined;
@@ -1799,19 +1800,21 @@
 						// Preserve per-dataset visibility using Chart.js metadata
 						const hiddenState = modalChart.data.datasets.map(function (_, i) {
 							var meta = modalChart.getDatasetMeta(i);
-							return meta ? !meta.visible : false;
+							return meta ? meta.hidden === true : false;
 						});
 						modalChart.data.labels = sliceLabels;
 						modalChart.data.datasets = datasets;
 						// Re-apply hidden state after dataset replacement
 						datasets.forEach(function (ds, i) { if (hiddenState[i]) ds.hidden = true; });
-						// Auto-fit Y only if inputs are empty
+						// Auto-fit Y only if inputs are empty and chart has a single 'y' axis
 						const mnVal = parseFloat(yMinInput ? yMinInput.value : '');
 						const mxVal = parseFloat(yMaxInput ? yMaxInput.value : '');
-						if (!Number.isFinite(mnVal) && !Number.isFinite(mxVal)) {
+						if (modalChartType !== 'env' && !Number.isFinite(mnVal) && !Number.isFinite(mxVal)) {
 							const { min, max } = computeAutoYRange(modalChartType, s, e);
-							modalChart.options.scales.y.min = modalChartType === 'fans' ? -0.1 : min;
-							modalChart.options.scales.y.max = modalChartType === 'fans' ? 1.1 : max;
+							if (modalChart.options.scales.y) {
+								modalChart.options.scales.y.min = modalChartType === 'fans' ? -0.1 : min;
+								modalChart.options.scales.y.max = modalChartType === 'fans' ? 1.1 : max;
+							}
 						}
 						modalChart.update('none');
 					}
@@ -1903,7 +1906,8 @@
 					if (yMaxInput) yMaxInput.addEventListener('change', applyYInputsToModal);
 					if (yResetBtn) {
 						yResetBtn.addEventListener('click', function () {
-							if (!modalChart || !modalChartType) return;
+							if (!modalChart || !modalChartType || modalChartType === 'env') return;
+							if (!modalChart.options.scales.y) return;
 							const [s, e] = getRangeIndices();
 							const { min, max } = computeAutoYRange(modalChartType, s, e);
 							modalChart.options.scales.y.min = min;
@@ -2580,6 +2584,7 @@
 			const notesInput = document.getElementById('notes-input');
 			if (notesInput) { notesInput.disabled = true; notesInput.placeholder = 'Notes (read only)'; }
 
+			// Chain readings after run fetch so _runStartMs is set before elapsed labels
 			fetch('/api/runs/' + runId)
 				.then(r => r.json())
 				.then(function (run) {
@@ -2587,9 +2592,12 @@
 					if (el) el.textContent = run.name;
 					const disp = document.getElementById('run-name-display');
 					if (disp) disp.textContent = '- ' + run.name;
-				}).catch(function(){});
-
-			fetch('/api/runs/' + runId + '/readings?n=300')
+					// Set run start time BEFORE processing readings so elapsedLabels are correct
+					if (window.setRunStartTime && run.started_at) {
+						window.setRunStartTime(new Date(run.started_at).getTime());
+					}
+					return fetch('/api/runs/' + runId + '/readings?n=300');
+				})
 				.then(r => r.json())
 				.then(function (readings) {
 					if (!readings || !readings.length) return;
@@ -2627,6 +2635,7 @@
 		}
 
 		// ── LIVE mode ─────────────────────────────────────────────────────────
+		// Chain readings after run fetch so _runStartMs is set before elapsed labels
 		fetch('/api/runs/' + runId)
 			.then(r => r.json())
 			.then(function (run) {
@@ -2638,9 +2647,8 @@
 				if (window.setRunStartTime && run.started_at) {
 					window.setRunStartTime(new Date(run.started_at).getTime());
 				}
-			}).catch(function(){});
-
-		fetch('/api/runs/' + runId + '/readings?n=300')
+				return fetch('/api/runs/' + runId + '/readings?n=300');
+			})
 			.then(r => r.json())
 			.then(function (readings) {
 				if (readings && readings.length) {
