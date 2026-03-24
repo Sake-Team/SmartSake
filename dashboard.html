@@ -21,6 +21,7 @@
 			   <div class="header-inner">
 				   <img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" id="sake-logo-egg" class="sake-logo-egg" />
 				   <h1 class="header-title">Home <span id="run-name-display" class="run-name-header"></span></h1>
+				   <button id="settings-btn" class="settings-btn" type="button" aria-label="Open settings" title="Settings">&#9881;</button>
 			   </div>
 		   </header>
 
@@ -135,6 +136,46 @@
 
 				</div>
 			</main>
+
+			<!-- Settings modal -->
+			<div id="settings-modal" class="modal-overlay">
+				<div class="modal-popup settings-modal-popup">
+					<div class="modal-header">
+						<h3 class="modal-title">Settings</h3>
+						<button type="button" class="modal-close" id="settings-modal-close" aria-label="Close settings">&times;</button>
+					</div>
+					<div class="modal-content settings-modal-content">
+
+						<section class="settings-section">
+							<h4 class="settings-section__title">Zone chart colors</h4>
+							<div class="settings-colors-grid">
+								<label class="settings-color-row"><span>Zone 1</span><input type="color" class="settings-color-input" data-key="zoneColor1" value="#e05252"></label>
+								<label class="settings-color-row"><span>Zone 2</span><input type="color" class="settings-color-input" data-key="zoneColor2" value="#52a0e0"></label>
+								<label class="settings-color-row"><span>Zone 3</span><input type="color" class="settings-color-input" data-key="zoneColor3" value="#52e07c"></label>
+								<label class="settings-color-row"><span>Zone 4</span><input type="color" class="settings-color-input" data-key="zoneColor4" value="#e0c952"></label>
+								<label class="settings-color-row"><span>Zone 5</span><input type="color" class="settings-color-input" data-key="zoneColor5" value="#c052e0"></label>
+								<label class="settings-color-row"><span>Zone 6</span><input type="color" class="settings-color-input" data-key="zoneColor6" value="#e09052"></label>
+							</div>
+						</section>
+
+						<section class="settings-section">
+							<h4 class="settings-section__title">Theme</h4>
+							<div class="settings-colors-grid">
+								<label class="settings-color-row"><span>Background</span><input type="color" class="settings-color-input" data-key="themeBg" value="#111111"></label>
+								<label class="settings-color-row"><span>Surface</span><input type="color" class="settings-color-input" data-key="themeSurface" value="#181818"></label>
+								<label class="settings-color-row"><span>Border</span><input type="color" class="settings-color-input" data-key="themeBorder" value="#2e2e2e"></label>
+								<label class="settings-color-row"><span>Text</span><input type="color" class="settings-color-input" data-key="themeText" value="#dddddd"></label>
+								<label class="settings-color-row"><span>Accent</span><input type="color" class="settings-color-input" data-key="themeAccent" value="#52a0e0"></label>
+								<label class="settings-color-row"><span>Grid lines</span><input type="color" class="settings-color-input" data-key="themeGrid" value="#2a2a2a"></label>
+							</div>
+						</section>
+
+						<div class="settings-footer">
+							<button type="button" id="settings-reset-btn" class="settings-reset-btn">Reset to defaults</button>
+						</div>
+					</div>
+				</div>
+			</div>
 
 			<!-- Zone detail slide-in panel -->
 			<div id="zone-panel" class="zone-panel" role="dialog" aria-modal="true" aria-labelledby="zone-panel-title">
@@ -1249,17 +1290,21 @@
 					const weightData = [];
 
 					// Small dashboard charts
+					function getZoneColor(n) {
+						return getComputedStyle(document.documentElement).getPropertyValue('--zone-color-' + n).trim()
+							|| ['#e05252','#52a0e0','#52e07c','#e0c952','#c052e0','#e09052'][n - 1];
+					}
 					const tempChart = new Chart(tempCtx, {
 						type: 'line',
 						data: {
 							labels,
 							datasets: [
-								{ label: 'Temp 1', data: tempSeries.temp1, borderWidth: 1, pointRadius: 0 },
-								{ label: 'Temp 2', data: tempSeries.temp2, borderWidth: 1, pointRadius: 0 },
-								{ label: 'Temp 3', data: tempSeries.temp3, borderWidth: 1, pointRadius: 0 },
-								{ label: 'Temp 4', data: tempSeries.temp4, borderWidth: 1, pointRadius: 0 },
-								{ label: 'Temp 5', data: tempSeries.temp5, borderWidth: 1, pointRadius: 0 },
-								{ label: 'Temp 6', data: tempSeries.temp6, borderWidth: 1, pointRadius: 0 }
+								{ label: 'Zone 1', data: tempSeries.temp1, borderColor: getZoneColor(1), borderWidth: 1, pointRadius: 0 },
+								{ label: 'Zone 2', data: tempSeries.temp2, borderColor: getZoneColor(2), borderWidth: 1, pointRadius: 0 },
+								{ label: 'Zone 3', data: tempSeries.temp3, borderColor: getZoneColor(3), borderWidth: 1, pointRadius: 0 },
+								{ label: 'Zone 4', data: tempSeries.temp4, borderColor: getZoneColor(4), borderWidth: 1, pointRadius: 0 },
+								{ label: 'Zone 5', data: tempSeries.temp5, borderColor: getZoneColor(5), borderWidth: 1, pointRadius: 0 },
+								{ label: 'Zone 6', data: tempSeries.temp6, borderColor: getZoneColor(6), borderWidth: 1, pointRadius: 0 }
 							]
 						},
 						options: {
@@ -1527,6 +1572,14 @@
 					window._dashTempSeries = tempSeries;
 					window._dashFansSeries = fansSeries;
 
+					// Called by settings panel when zone colors change
+					window.updateChartColors = function () {
+						tempChart.data.datasets.forEach(function (ds, idx) {
+							ds.borderColor = getZoneColor(idx + 1);
+						});
+						tempChart.update('none');
+					};
+
 					// ---------- Full-page chart modal + controls ----------
 					const chartModal = document.getElementById('chart-modal');
 					const chartModalClose = document.getElementById('chart-modal-close');
@@ -1571,11 +1624,12 @@
 					}
 
 					function getDatasetColors(type, idx) {
-						const TEMP_COLORS = ['#e05252','#52a0e0','#52e07c','#e0c952','#c052e0','#e09052'];
-						const FAN_COLORS  = ['#52a0e0','#52e0c0','#a0e052','#e07c52','#9052e0','#e052a0'];
-						if (type === 'temp') return TEMP_COLORS[idx % TEMP_COLORS.length];
-						if (type === 'fans') return FAN_COLORS[idx % FAN_COLORS.length];
-						return '#52c0e0';
+						// Read from CSS vars (user-configurable via settings panel)
+						const style = getComputedStyle(document.documentElement);
+						const zoneColors = [1,2,3,4,5,6].map(n => style.getPropertyValue('--zone-color-' + n).trim() || ['#e05252','#52a0e0','#52e07c','#e0c952','#c052e0','#e09052'][n-1]);
+						if (type === 'temp') return zoneColors[idx % zoneColors.length];
+						if (type === 'fans') return zoneColors[idx % zoneColors.length];
+						return style.getPropertyValue('--theme-accent').trim() || '#52c0e0';
 					}
 
 					function buildDatasets(type, s, e) {
@@ -1802,8 +1856,9 @@
 						const zTempData = (window._dashTempSeries  || {})['temp' + zone] || [];
 						const zFanData  = (window._dashFansSeries  || {})['fan'  + zone] || [];
 						const zLabels   = window._dashLabels || [];
-						const ZONE_COLORS = ['#e05252','#52a0e0','#52e07c','#e0c952','#c052e0','#e09052'];
-						const color = ZONE_COLORS[(zone - 1) % ZONE_COLORS.length];
+						const style = getComputedStyle(document.documentElement);
+						const fallback = ['#e05252','#52a0e0','#52e07c','#e0c952','#c052e0','#e09052'];
+						const color = style.getPropertyValue('--zone-color-' + zone).trim() || fallback[zone - 1];
 
 						if (panelTempChart) { panelTempChart.destroy(); panelTempChart = null; }
 						if (panelFanChart)  { panelFanChart.destroy();  panelFanChart  = null; }
@@ -2274,6 +2329,102 @@
 	</div> <!-- end page-wrapper -->
 
 	<script>
+	// ── Settings panel ────────────────────────────────────────────────────────
+	(function () {
+		'use strict';
+
+		const DEFAULTS = {
+			zoneColor1: '#e05252', zoneColor2: '#52a0e0', zoneColor3: '#52e07c',
+			zoneColor4: '#e0c952', zoneColor5: '#c052e0', zoneColor6: '#e09052',
+			themeBg:      '#111111', themeSurface: '#181818', themeBorder: '#2e2e2e',
+			themeText:    '#dddddd', themeAccent:  '#52a0e0', themeGrid:   '#2a2a2a'
+		};
+		const STORAGE_KEY = 'sakeSettings';
+
+		function loadSettings() {
+			try { return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')); }
+			catch (e) { return Object.assign({}, DEFAULTS); }
+		}
+
+		function saveSettings(s) {
+			try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch (e) {}
+		}
+
+		function applyCSSVars(s) {
+			const root = document.documentElement;
+			root.style.setProperty('--zone-color-1', s.zoneColor1);
+			root.style.setProperty('--zone-color-2', s.zoneColor2);
+			root.style.setProperty('--zone-color-3', s.zoneColor3);
+			root.style.setProperty('--zone-color-4', s.zoneColor4);
+			root.style.setProperty('--zone-color-5', s.zoneColor5);
+			root.style.setProperty('--zone-color-6', s.zoneColor6);
+			root.style.setProperty('--theme-bg',      s.themeBg);
+			root.style.setProperty('--theme-surface', s.themeSurface);
+			root.style.setProperty('--theme-border',  s.themeBorder);
+			root.style.setProperty('--theme-text',    s.themeText);
+			root.style.setProperty('--theme-accent',  s.themeAccent);
+			root.style.setProperty('--theme-grid',    s.themeGrid);
+		}
+
+		// Apply on load
+		applyCSSVars(loadSettings());
+
+		const modal     = document.getElementById('settings-modal');
+		const openBtn   = document.getElementById('settings-btn');
+		const closeBtn  = document.getElementById('settings-modal-close');
+		const resetBtn  = document.getElementById('settings-reset-btn');
+		const colorInputs = document.querySelectorAll('.settings-color-input');
+
+		function populateInputs(s) {
+			colorInputs.forEach(function (inp) {
+				inp.value = s[inp.dataset.key] || DEFAULTS[inp.dataset.key] || '#000000';
+			});
+		}
+
+		function openSettings() {
+			if (!modal) return;
+			populateInputs(loadSettings());
+			modal.style.display = 'flex';
+		}
+
+		function closeSettings() {
+			if (modal) modal.style.display = 'none';
+		}
+
+		colorInputs.forEach(function (inp) {
+			inp.addEventListener('input', function () {
+				const s = loadSettings();
+				s[inp.dataset.key] = inp.value;
+				saveSettings(s);
+				applyCSSVars(s);
+				if (window.updateChartColors) window.updateChartColors();
+			});
+		});
+
+		if (resetBtn) {
+			resetBtn.addEventListener('click', function () {
+				saveSettings(Object.assign({}, DEFAULTS));
+				applyCSSVars(DEFAULTS);
+				populateInputs(DEFAULTS);
+			});
+		}
+
+		if (openBtn)  openBtn.addEventListener('click', openSettings);
+		if (closeBtn) closeBtn.addEventListener('click', closeSettings);
+		if (modal) {
+			modal.addEventListener('click', function (e) {
+				if (e.target === modal) closeSettings();
+			});
+		}
+		document.addEventListener('keydown', function (e) {
+			if (e.key === 'Escape' && modal && modal.style.display === 'flex') closeSettings();
+		});
+
+		// Expose so chart code can read current zone colors
+		window.getSakeSettings = loadSettings;
+	})();
+
+
 	// ── Dashboard mode controller ─────────────────────────────────────────────
 	(function () {
 		'use strict';
