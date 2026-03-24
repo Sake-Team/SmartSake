@@ -1254,22 +1254,94 @@ header {
 	height: 100% !important;
 }
 
-.chart-modal-controls {
+/* Chart modal toolbar */
+.chart-toolbar {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 1rem;
 	align-items: center;
-	font-size: 0.9rem;
+	gap: 0.75rem;
+	padding: 0.4rem 0;
+	border-bottom: 1px solid #2a2a2a;
+	margin-bottom: 0.25rem;
 }
 
-.chart-modal-control {
+/* Range selector button group */
+.chart-range-btns {
 	display: flex;
-	flex-direction: column;
-	min-width: 180px;
+	gap: 0;
+	border-radius: 6px;
+	overflow: hidden;
+	border: 1px solid #444;
 }
 
-.chart-modal-control input[type="range"] {
-	width: 100%;
+.chart-range-btn {
+	background: #1e1e1e;
+	color: #ccc;
+	border: none;
+	padding: 0.3rem 0.8rem;
+	font-size: 0.8rem;
+	cursor: pointer;
+	border-right: 1px solid #444;
+	transition: background 0.15s;
+}
+
+.chart-range-btn:last-child {
+	border-right: none;
+}
+
+.chart-range-btn:hover {
+	background: #2a2a2a;
+}
+
+.chart-range-btn.active {
+	background: #3a5a8a;
+	color: #fff;
+}
+
+/* Y-axis min/max controls */
+.chart-y-controls {
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+	font-size: 0.8rem;
+	color: #aaa;
+	margin-left: auto;
+}
+
+.chart-y-input {
+	width: 70px;
+	background: #1e1e1e;
+	border: 1px solid #444;
+	border-radius: 4px;
+	color: #eee;
+	padding: 0.25rem 0.4rem;
+	font-size: 0.8rem;
+}
+
+.chart-y-input:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.chart-y-reset-btn {
+	background: none;
+	border: 1px solid #444;
+	border-radius: 4px;
+	color: #aaa;
+	cursor: pointer;
+	font-size: 1rem;
+	padding: 0.2rem 0.4rem;
+	line-height: 1;
+}
+
+.chart-y-reset-btn:hover {
+	background: #2a2a2a;
+	color: #eee;
+}
+
+.chart-y-reset-btn:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
 }
 
 .chart-title--single-line {

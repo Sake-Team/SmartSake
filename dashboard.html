@@ -268,24 +268,22 @@
 							aria-label="Close chart">&times;</button>
 					</div>
 					<div class="modal-content chart-modal-content">
-						<canvas id="chart-modal-canvas"></canvas>
-
-						<div class="chart-modal-controls">
-							<div class="chart-modal-control">
-								<label for="chart-window-range">Time window</label>
-								<input type="range" id="chart-window-range" min="0" max="0" value="0">
+						<div class="chart-toolbar">
+							<div class="chart-range-btns" role="group" aria-label="Time range">
+								<button class="chart-range-btn" data-range="15">15 min</button>
+								<button class="chart-range-btn" data-range="60">1 hr</button>
+								<button class="chart-range-btn active" data-range="0">All</button>
 							</div>
-							<div class="chart-modal-control">
-								<label for="chart-y-range">Y zoom</label>
-								<input type="range" id="chart-y-range" min="0" max="100" value="0">
+							<div class="chart-y-controls">
+								<label for="chart-y-min">Y min</label>
+								<input type="number" id="chart-y-min" class="chart-y-input" step="0.5" placeholder="auto">
+								<label for="chart-y-max">Y max</label>
+								<input type="number" id="chart-y-max" class="chart-y-input" step="0.5" placeholder="auto">
+								<button id="chart-y-reset" class="chart-y-reset-btn" title="Reset Y axis">&#x21BA;</button>
 							</div>
 						</div>
-
-						<p class="chart-modal-help">
-							Drag the sliders to scroll/zoom. Click legend items to toggle series. Press ESC or click
-							outside
-							to close.
-						</p>
+						<canvas id="chart-modal-canvas"></canvas>
+						<p class="chart-modal-help">Click legend items to toggle series. Press ESC or click outside to close.</p>
 					</div>
 				</div>
 			</div>
@@ -1188,6 +1186,7 @@
 
 					const maxPoints = 60; // keep last 60 samples (~5 min if 5s interval)
 					const labels = [];
+					const sampleTimestamps = []; // parallel ms timestamps for time-range filtering
 					const humidityData = [];
 					const tempLegendContainer = document.getElementById('temp-chart-legend');
 					const fansLegendContainer = document.getElementById('fans-chart-legend');
@@ -1411,6 +1410,7 @@
 						const label = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
 						labels.push(label);
+						sampleTimestamps.push(t.getTime());
 
 						// temps
 						for (let i = 1; i <= 6; i++) {
@@ -1441,6 +1441,7 @@
 						// keep arrays bounded
 						if (labels.length > maxPoints) {
 							labels.shift();
+							sampleTimestamps.shift();
 							Object.values(tempSeries).forEach(arr => arr.shift());
 							humidityData.shift();
 							Object.values(fansSeries).forEach(arr => arr.shift());
@@ -1469,9 +1470,9 @@
 							// ignore storage errors
 						}
 
-						// If modal is open, update its data window too
+						// If modal is open, refresh it with the new data point
 						if (chartModal && chartModal.style.display === 'flex') {
-							updateModalWindowFromSlider(); // keeps it in sync with new data
+							refreshModalChart();
 						}
 					};
 
@@ -1480,160 +1481,173 @@
 					const chartModalClose = document.getElementById('chart-modal-close');
 					const chartModalTitle = document.getElementById('chart-modal-title');
 					const chartModalCanvas = document.getElementById('chart-modal-canvas');
-
-					const windowSlider = document.getElementById('chart-window-range');
-					const ySlider = document.getElementById('chart-y-range');
+					const chartRangeBtns = document.querySelectorAll('.chart-range-btn');
+					const yMinInput = document.getElementById('chart-y-min');
+					const yMaxInput = document.getElementById('chart-y-max');
+					const yResetBtn = document.getElementById('chart-y-reset');
 
 					let modalChart = null;
-					let modalChartType = null;   // 'temp' | 'humidity' | 'fans'
-					let windowSize = 20;         // number of points visible in the modal
+					let modalChartType = null; // 'temp' | 'humidity' | 'fans'
+					let activeRangeMinutes = 0; // 0 = All, 15 = 15 min, 60 = 1 hr
 
-					let yBaseMin = null;
-					let yBaseMax = null;
+					// Return indices [startIdx, endIdx) for the active time range
+					function getRangeIndices() {
+						const total = sampleTimestamps.length;
+						if (!total) return [0, 0];
+						if (activeRangeMinutes === 0) return [0, total];
+						const cutoff = sampleTimestamps[total - 1] - activeRangeMinutes * 60 * 1000;
+						let s = 0;
+						for (let i = 0; i < total; i++) {
+							if (sampleTimestamps[i] >= cutoff) { s = i; break; }
+						}
+						return [s, total];
+					}
 
-					function computeYRange(type) {
+					function computeAutoYRange(type, s, e) {
+						if (type === 'fans') return { min: -0.1, max: 1.1 };
 						let vals = [];
 						if (type === 'temp') {
 							Object.values(tempSeries).forEach(arr => {
-								vals = vals.concat(arr.filter(v => v != null));
+								vals = vals.concat(arr.slice(s, e).filter(v => v != null));
 							});
 						} else if (type === 'humidity') {
-							vals = humidityData.filter(v => v != null);
-						} else if (type === 'fans') {
-							// fans are 0–1
-							return { min: -0.1, max: 1.1 };
+							vals = humidityData.slice(s, e).filter(v => v != null);
 						}
-
-						if (!vals.length) {
-							return { min: 0, max: 1 };
-						}
-						const min = Math.min(...vals);
-						const max = Math.max(...vals);
-						const pad = (max - min) * 0.1 || 1;
-						return { min: min - pad, max: max + pad };
+						if (!vals.length) return { min: 0, max: 1 };
+						const mn = Math.min(...vals), mx = Math.max(...vals);
+						const pad = (mx - mn) * 0.1 || 1;
+						return { min: mn - pad, max: mx + pad };
 					}
 
-					function getSlicedData(type, start) {
-						const total = labels.length;
-						const s = Math.max(0, Math.min(start, Math.max(0, total - 1)));
-						const e = Math.min(s + windowSize, total);
+					function getDatasetColors(type, idx) {
+						const TEMP_COLORS = ['#e05252','#52a0e0','#52e07c','#e0c952','#c052e0','#e09052'];
+						const FAN_COLORS  = ['#52a0e0','#52e0c0','#a0e052','#e07c52','#9052e0','#e052a0'];
+						if (type === 'temp') return TEMP_COLORS[idx % TEMP_COLORS.length];
+						if (type === 'fans') return FAN_COLORS[idx % FAN_COLORS.length];
+						return '#52c0e0';
+					}
 
-						const labelSlice = labels.slice(s, e);
-						let datasets;
-
+					function buildDatasets(type, s, e) {
 						if (type === 'temp') {
-							datasets = Object.keys(tempSeries).map((key, idx) => ({
-								label: tempChart.data.datasets[idx].label,
-								borderWidth: 1,
+							return Object.keys(tempSeries).map((key, idx) => ({
+								label: tempChart.data.datasets[idx] ? tempChart.data.datasets[idx].label : ('Zone ' + (idx+1)),
+								borderColor: getDatasetColors('temp', idx),
+								backgroundColor: 'transparent',
+								borderWidth: 1.5,
 								pointRadius: 0,
+								tension: 0.3,
 								data: tempSeries[key].slice(s, e)
 							}));
 						} else if (type === 'humidity') {
-							datasets = [{
-								label: 'Humidity',
-								borderWidth: 1,
+							return [{
+								label: 'Humidity (%)',
+								borderColor: '#52c0e0',
+								backgroundColor: 'rgba(82,192,224,0.1)',
+								borderWidth: 1.5,
 								pointRadius: 0,
+								fill: true,
 								data: humidityData.slice(s, e)
 							}];
 						} else if (type === 'fans') {
-							datasets = Object.keys(fansSeries).map((key, idx) => ({
-								label: fansChart.data.datasets[idx].label,
-								borderWidth: 1,
+							return Object.keys(fansSeries).map((key, idx) => ({
+								label: fansChart.data.datasets[idx] ? fansChart.data.datasets[idx].label : ('Fan ' + (idx+1)),
+								borderColor: getDatasetColors('fans', idx),
+								backgroundColor: 'transparent',
+								borderWidth: 1.5,
 								pointRadius: 0,
 								stepped: true,
 								data: fansSeries[key].slice(s, e)
 							}));
-						} else {
-							datasets = [];
 						}
+						return [];
+					}
 
-						return { labels: labelSlice, datasets };
+					function applyYInputsToModal() {
+						if (!modalChart || modalChartType === 'fans') return;
+						const mn = parseFloat(yMinInput ? yMinInput.value : '');
+						const mx = parseFloat(yMaxInput ? yMaxInput.value : '');
+						modalChart.options.scales.y.min = Number.isFinite(mn) ? mn : undefined;
+						modalChart.options.scales.y.max = Number.isFinite(mx) ? mx : undefined;
+						modalChart.update('none');
+					}
+
+					function syncYInputsToChart() {
+						if (!modalChart) return;
+						const sc = modalChart.options.scales.y;
+						if (yMinInput) yMinInput.value = sc.min != null ? sc.min.toFixed(1) : '';
+						if (yMaxInput) yMaxInput.value = sc.max != null ? sc.max.toFixed(1) : '';
+					}
+
+					function refreshModalChart() {
+						if (!modalChart || !modalChartType) return;
+						const [s, e] = getRangeIndices();
+						const sliceLabels = labels.slice(s, e);
+						const datasets = buildDatasets(modalChartType, s, e);
+						// Preserve hidden state
+						const hidden = modalChart.data.datasets.map(ds => ds.hidden);
+						modalChart.data.labels = sliceLabels;
+						modalChart.data.datasets = datasets;
+						datasets.forEach((ds, i) => { if (hidden[i]) ds.hidden = true; });
+						// Auto-fit Y only if inputs are empty
+						const mnVal = parseFloat(yMinInput ? yMinInput.value : '');
+						const mxVal = parseFloat(yMaxInput ? yMaxInput.value : '');
+						if (!Number.isFinite(mnVal) && !Number.isFinite(mxVal)) {
+							const { min, max } = computeAutoYRange(modalChartType, s, e);
+							modalChart.options.scales.y.min = modalChartType === 'fans' ? -0.1 : min;
+							modalChart.options.scales.y.max = modalChartType === 'fans' ? 1.1 : max;
+						}
+						modalChart.update('none');
 					}
 
 					function openChartModal(type) {
 						if (!chartModal || !chartModalCanvas) return;
-
 						modalChartType = type;
 
-						// Destroy any previous modal chart
-						if (modalChart) {
-							modalChart.destroy();
-							modalChart = null;
-						}
+						if (modalChart) { modalChart.destroy(); modalChart = null; }
 
 						const ctx = chartModalCanvas.getContext('2d');
-
-						// Initial window: last windowSize points (or all if fewer)
-						const total = labels.length;
-						const maxStart = Math.max(0, total - windowSize);
-						const startIndex = Math.max(0, maxStart);
-
-						// Setup X slider
-						if (windowSlider) {
-							if (total <= windowSize) {
-								windowSlider.disabled = true;
-								windowSlider.min = '0';
-								windowSlider.max = '0';
-								windowSlider.value = '0';
-							} else {
-								windowSlider.disabled = false;
-								windowSlider.min = '0';
-								windowSlider.max = String(maxStart);
-								windowSlider.value = String(startIndex); // start pinned to the tail
-							}
-						}
-
-						// Setup Y range & slider
-						const { min, max } = computeYRange(type);
-						yBaseMin = min;
-						yBaseMax = max;
-						if (ySlider) {
-							ySlider.disabled = (type === 'fans'); // fans are fixed 0–1
-							ySlider.value = '0'; // no zoom initially
-						}
-
-						const sliced = getSlicedData(type, startIndex);
+						const [s, e] = getRangeIndices();
+						const { min: autoMin, max: autoMax } = computeAutoYRange(type, s, e);
 
 						let yTitle = '';
-						if (type === 'temp') {
-							chartModalTitle.textContent = 'Temperature over time';
-							yTitle = 'Temperature (°C)';
-						} else if (type === 'humidity') {
-							chartModalTitle.textContent = 'Humidity over time';
-							yTitle = 'Humidity (%)';
-						} else if (type === 'fans') {
-							chartModalTitle.textContent = 'Fans on/off over time';
-							yTitle = 'Fan state';
-						}
+						if (type === 'temp') { chartModalTitle.textContent = 'Temperature over time'; yTitle = 'Temp (°C)'; }
+						else if (type === 'humidity') { chartModalTitle.textContent = 'Humidity over time'; yTitle = 'Humidity (%)'; }
+						else if (type === 'fans') { chartModalTitle.textContent = 'Fans on/off over time'; yTitle = 'Fan state'; }
+
+						// Reset Y inputs to auto
+						if (yMinInput) yMinInput.value = type === 'fans' ? '' : autoMin.toFixed(1);
+						if (yMaxInput) yMaxInput.value = type === 'fans' ? '' : autoMax.toFixed(1);
+						if (yMinInput) yMinInput.disabled = (type === 'fans');
+						if (yMaxInput) yMaxInput.disabled = (type === 'fans');
+						if (yResetBtn) yResetBtn.disabled = (type === 'fans');
 
 						modalChart = new Chart(ctx, {
 							type: 'line',
 							data: {
-								labels: sliced.labels,
-								datasets: sliced.datasets
+								labels: labels.slice(s, e),
+								datasets: buildDatasets(type, s, e)
 							},
 							options: {
 								animation: false,
 								responsive: true,
 								maintainAspectRatio: false,
 								scales: {
-									x: {
-										ticks: { autoSkip: true, maxTicksLimit: 10 }
-									},
+									x: { ticks: { color: '#aaa', autoSkip: true, maxTicksLimit: 12 }, grid: { color: '#2a2a2a' } },
 									y: {
-										min: (type === 'fans') ? -0.1 : yBaseMin,
-										max: (type === 'fans') ? 1.1 : yBaseMax,
+										min: type === 'fans' ? -0.1 : autoMin,
+										max: type === 'fans' ? 1.1 : autoMax,
 										ticks: type === 'fans'
-											? {
-												stepSize: 1,
-												callback: v => (v === 0 ? 'Off' : v === 1 ? 'On' : '')
-											}
-											: {},
-										title: { display: true, text: yTitle }
+											? { color: '#aaa', stepSize: 1, callback: v => v === 0 ? 'Off' : v === 1 ? 'On' : '' }
+											: { color: '#aaa' },
+										grid: { color: '#2a2a2a' },
+										title: { display: true, text: yTitle, color: '#aaa' }
 									}
 								},
 								plugins: {
-									legend: { position: 'bottom' }
+									legend: {
+										position: 'bottom',
+										labels: { color: '#ccc', usePointStyle: true, boxWidth: 12 }
+									}
 								}
 							}
 						});
@@ -1642,85 +1656,49 @@
 					}
 
 					function closeChartModal() {
-						if (modalChart) {
-							modalChart.destroy();
-							modalChart = null;
-						}
-						if (chartModal) {
-							chartModal.style.display = 'none';
-						}
+						if (modalChart) { modalChart.destroy(); modalChart = null; }
+						if (chartModal) chartModal.style.display = 'none';
 					}
 
-					function updateModalWindowFromSlider() {
-						if (!modalChart || !modalChartType || !windowSlider) return;
-
-						const start = parseInt(windowSlider.value || '0', 10) || 0;
-						const sliced = getSlicedData(modalChartType, start);
-						modalChart.data.labels = sliced.labels;
-						modalChart.data.datasets.forEach((ds, i) => {
-							ds.data = sliced.datasets[i].data;
+					// Range button clicks
+					chartRangeBtns.forEach(function (btn) {
+						btn.addEventListener('click', function () {
+							chartRangeBtns.forEach(b => b.classList.remove('active'));
+							btn.classList.add('active');
+							activeRangeMinutes = parseInt(btn.dataset.range, 10) || 0;
+							refreshModalChart();
 						});
-						modalChart.update('none');
-					}
+					});
 
-					function updateModalYZoomFromSlider() {
-						if (!modalChart || !modalChartType || !ySlider) return;
-						if (modalChartType === 'fans') {
-							// fans have fixed 0–1 range
-							return;
-						}
-
-						const v = parseInt(ySlider.value || '0', 10) || 0; // 0–100
-						const span = yBaseMax - yBaseMin;
-						if (!span || span <= 0) return;
-
-						// zoomFactor: 1x to 4x
-						const zoomFactor = 1 + (v / 100) * 3;
-						const mid = (yBaseMax + yBaseMin) / 2;
-						const halfSpan = span / (2 * zoomFactor);
-
-						modalChart.options.scales.y.min = mid - halfSpan;
-						modalChart.options.scales.y.max = mid + halfSpan;
-						modalChart.update('none');
-					}
-
-					// Slider event hooks
-					if (windowSlider) {
-						windowSlider.addEventListener('input', updateModalWindowFromSlider);
-					}
-					if (ySlider) {
-						ySlider.addEventListener('input', updateModalYZoomFromSlider);
+					// Y-axis inputs
+					if (yMinInput) yMinInput.addEventListener('change', applyYInputsToModal);
+					if (yMaxInput) yMaxInput.addEventListener('change', applyYInputsToModal);
+					if (yResetBtn) {
+						yResetBtn.addEventListener('click', function () {
+							if (!modalChart || !modalChartType) return;
+							const [s, e] = getRangeIndices();
+							const { min, max } = computeAutoYRange(modalChartType, s, e);
+							modalChart.options.scales.y.min = min;
+							modalChart.options.scales.y.max = max;
+							if (yMinInput) yMinInput.value = min.toFixed(1);
+							if (yMaxInput) yMaxInput.value = max.toFixed(1);
+							modalChart.update('none');
+						});
 					}
 
 					// Click small charts to expand
-					tempCanvas.addEventListener('click', function () {
-						openChartModal('temp');
-					});
+					tempCanvas.addEventListener('click', function () { openChartModal('temp'); });
+					humCanvas.addEventListener('click', function () { openChartModal('humidity'); });
+					fansCanvas.addEventListener('click', function () { openChartModal('fans'); });
 
-					humCanvas.addEventListener('click', function () {
-						openChartModal('humidity');
-					});
-
-					fansCanvas.addEventListener('click', function () {
-						openChartModal('fans');
-					});
-
-					if (chartModalClose) {
-						chartModalClose.addEventListener('click', closeChartModal);
-					}
-
+					if (chartModalClose) chartModalClose.addEventListener('click', closeChartModal);
 					if (chartModal) {
 						chartModal.addEventListener('click', function (e) {
-							if (e.target === chartModal) {
-								closeChartModal();
-							}
+							if (e.target === chartModal) closeChartModal();
 						});
 					}
-
 					document.addEventListener('keydown', function (e) {
-						if (e.key === 'Escape' && chartModal && chartModal.style.display === 'flex') {
-							closeChartModal();
-						}
+						if (e.key === 'Escape' && chartModal && chartModal.style.display === 'flex') closeChartModal();
 					});
 				})();
 
