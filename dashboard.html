@@ -136,6 +136,43 @@
 				</div>
 			</main>
 
+			<!-- Zone detail slide-in panel -->
+			<div id="zone-panel" class="zone-panel" role="dialog" aria-modal="true" aria-labelledby="zone-panel-title">
+				<div class="zone-panel__header">
+					<h3 class="zone-panel__title" id="zone-panel-title">Zone</h3>
+					<div class="zone-panel__header-actions">
+						<a id="zone-panel-fullpage" class="zone-panel__fullpage-link" href="#" target="_blank">Open full page</a>
+						<button type="button" class="zone-panel__close" id="zone-panel-close" aria-label="Close zone panel">&times;</button>
+					</div>
+				</div>
+				<div class="zone-panel__body">
+					<div class="zone-panel__temp-row">
+						<span class="zone-panel__temp-val" id="zone-panel-temp">--</span>
+						<span class="zone-panel__temp-unit">&deg;C</span>
+						<span class="zone-panel__temp-label">(current)</span>
+					</div>
+					<div class="zone-panel__chart-wrap">
+						<div class="zone-panel__chart-label">Temperature over time</div>
+						<canvas id="zone-panel-temp-chart"></canvas>
+					</div>
+					<div class="zone-panel__chart-wrap">
+						<div class="zone-panel__chart-label">Fan on/off over time</div>
+						<canvas id="zone-panel-fan-chart"></canvas>
+					</div>
+					<div class="zone-panel__manual">
+						<button class="zone-panel__manual-btn" data-action="off-hours">Off for 1 hr</button>
+						<button class="zone-panel__manual-btn" data-action="on-hours">On for 1 hr</button>
+						<button class="zone-panel__manual-btn" data-action="off-run">Off until end of run</button>
+						<button class="zone-panel__manual-btn" data-action="on-run">On until end of run</button>
+					</div>
+					<div class="zone-panel__notes-section">
+						<label class="zone-panel__notes-label" for="zone-panel-notes">Notes</label>
+						<textarea id="zone-panel-notes" class="zone-panel__notes" placeholder="Enter notes..."></textarea>
+					</div>
+				</div>
+			</div>
+			<div id="zone-panel-backdrop" class="zone-panel-backdrop"></div>
+
 			<!-- Modal popup for Start run -->
 			<div id="start-run-modal" class="modal-overlay">
 				<div class="modal-popup">
@@ -1474,7 +1511,21 @@
 						if (chartModal && chartModal.style.display === 'flex') {
 							refreshModalChart();
 						}
+
+						// Push to zone panel if open
+						if (window._zonePanelPush) {
+							for (let i = 1; i <= 6; i++) {
+								const tVal = tempSeries['temp' + i][tempSeries['temp' + i].length - 1];
+								const fVal = fansSeries['fan'  + i][fansSeries['fan'  + i].length - 1];
+								window._zonePanelPush(i, label, tVal, fVal);
+							}
+						}
 					};
+
+					// Expose data arrays for zone panel
+					window._dashLabels     = labels;
+					window._dashTempSeries = tempSeries;
+					window._dashFansSeries = fansSeries;
 
 					// ---------- Full-page chart modal + controls ----------
 					const chartModal = document.getElementById('chart-modal');
@@ -1700,6 +1751,169 @@
 					document.addEventListener('keydown', function (e) {
 						if (e.key === 'Escape' && chartModal && chartModal.style.display === 'flex') closeChartModal();
 					});
+				})();
+
+
+				// ── Zone detail slide-in panel ────────────────────────────────────────
+				(function () {
+					'use strict';
+					const panel    = document.getElementById('zone-panel');
+					const backdrop = document.getElementById('zone-panel-backdrop');
+					const closeBtn = document.getElementById('zone-panel-close');
+					const titleEl  = document.getElementById('zone-panel-title');
+					const tempEl   = document.getElementById('zone-panel-temp');
+					const fullLink = document.getElementById('zone-panel-fullpage');
+					const notesTA  = document.getElementById('zone-panel-notes');
+					const tempCanvas = document.getElementById('zone-panel-temp-chart');
+					const fanCanvas  = document.getElementById('zone-panel-fan-chart');
+
+					let panelTempChart = null;
+					let panelFanChart  = null;
+					let activeZone     = null;
+					let notesSaveTimer = null;
+
+					const CHART_OPTS = {
+						animation: false, responsive: true, maintainAspectRatio: false,
+						scales: {
+							x: { display: false },
+							y: { ticks: { color: '#aaa' }, grid: { color: '#2a2a2a' } }
+						},
+						plugins: { legend: { display: false } }
+					};
+
+					function openPanel(zone) {
+						if (!panel) return;
+						activeZone = zone;
+						titleEl.textContent = 'Zone ' + zone;
+
+						// Update full-page link with current run/mode params
+						const params = new URLSearchParams(location.search);
+						const runId  = params.get('run');
+						const mode   = params.get('mode') || 'live';
+						let zoneHref = 'zone' + zone + '.html';
+						if (runId) zoneHref += '?run=' + runId + '&mode=' + mode;
+						if (fullLink) fullLink.href = zoneHref;
+
+						// Current temp
+						const dryEl = document.getElementById('temp-' + zone + '-dry');
+						tempEl.textContent = dryEl ? dryEl.textContent : '--';
+
+						// Build chart data from shared dashboard arrays
+						const zTempData = (window._dashTempSeries  || {})['temp' + zone] || [];
+						const zFanData  = (window._dashFansSeries  || {})['fan'  + zone] || [];
+						const zLabels   = window._dashLabels || [];
+						const ZONE_COLORS = ['#e05252','#52a0e0','#52e07c','#e0c952','#c052e0','#e09052'];
+						const color = ZONE_COLORS[(zone - 1) % ZONE_COLORS.length];
+
+						if (panelTempChart) { panelTempChart.destroy(); panelTempChart = null; }
+						if (panelFanChart)  { panelFanChart.destroy();  panelFanChart  = null; }
+
+						if (tempCanvas) {
+							panelTempChart = new Chart(tempCanvas.getContext('2d'), {
+								type: 'line',
+								data: {
+									labels: zLabels.slice(),
+									datasets: [{ label: 'Zone ' + zone + ' Temp (\xb0C)', data: zTempData.slice(),
+										borderColor: color, backgroundColor: color + '22',
+										borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: true }]
+								},
+								options: CHART_OPTS
+							});
+						}
+						if (fanCanvas) {
+							panelFanChart = new Chart(fanCanvas.getContext('2d'), {
+								type: 'line',
+								data: {
+									labels: zLabels.slice(),
+									datasets: [{ label: 'Zone ' + zone + ' Fan', data: zFanData.slice(),
+										borderColor: '#52a0e0', backgroundColor: 'rgba(82,160,224,0.1)',
+										borderWidth: 1.5, pointRadius: 0, stepped: true, fill: true }]
+								},
+								options: { ...CHART_OPTS, scales: { ...CHART_OPTS.scales,
+									y: { ...CHART_OPTS.scales.y, min: 0, max: 1 } } }
+							});
+						}
+
+						// Load notes
+						if (notesTA) {
+							notesTA.value = '';
+							if (runId) {
+								fetch('/api/runs/' + runId + '/zones/' + zone)
+									.then(r => r.json())
+									.then(function (d) { if (d.note) notesTA.value = d.note; })
+									.catch(function () {});
+							}
+						}
+
+						panel.classList.add('zone-panel--open');
+						if (backdrop) backdrop.classList.add('zone-panel-backdrop--visible');
+						document.body.classList.add('zone-panel-body-open');
+					}
+
+					function closePanel() {
+						if (!panel) return;
+						panel.classList.remove('zone-panel--open');
+						if (backdrop) backdrop.classList.remove('zone-panel-backdrop--visible');
+						document.body.classList.remove('zone-panel-body-open');
+						activeZone = null;
+					}
+
+					// Notes auto-save
+					if (notesTA) {
+						notesTA.addEventListener('input', function () {
+							clearTimeout(notesSaveTimer);
+							notesSaveTimer = setTimeout(function () {
+								const params = new URLSearchParams(location.search);
+								const runId = params.get('run');
+								if (runId && activeZone) {
+									fetch('/api/runs/' + runId + '/zones/' + activeZone, {
+										method: 'PUT', headers: { 'Content-Type': 'application/json' },
+										body: JSON.stringify({ note: notesTA.value })
+									}).catch(function () {});
+								}
+							}, 800);
+						});
+					}
+
+					// Intercept zone link clicks
+					document.querySelectorAll('.zone-combined').forEach(function (link) {
+						link.addEventListener('click', function (e) {
+							// Only intercept when a run is active (URL has ?run=)
+							const params = new URLSearchParams(location.search);
+							if (!params.get('run')) return; // let normal nav happen on home screen
+							e.preventDefault();
+							const zoneNum = parseInt(link.id.replace('zone-link-', ''), 10);
+							if (zoneNum >= 1 && zoneNum <= 6) openPanel(zoneNum);
+						});
+					});
+
+					// Close triggers
+					if (closeBtn) closeBtn.addEventListener('click', closePanel);
+					if (backdrop) backdrop.addEventListener('click', closePanel);
+					document.addEventListener('keydown', function (e) {
+						if (e.key === 'Escape' && activeZone) closePanel();
+					});
+
+					// Live update panel charts when new data arrives
+					window._zonePanelPush = function (zone, label, temp, fan) {
+						if (activeZone !== zone || !panelTempChart || !panelFanChart) return;
+						const MAX = 120;
+						panelTempChart.data.labels.push(label);
+						panelTempChart.data.datasets[0].data.push(temp);
+						panelFanChart.data.labels.push(label);
+						panelFanChart.data.datasets[0].data.push(fan);
+						if (panelTempChart.data.labels.length > MAX) {
+							panelTempChart.data.labels.shift();
+							panelTempChart.data.datasets[0].data.shift();
+							panelFanChart.data.labels.shift();
+							panelFanChart.data.datasets[0].data.shift();
+						}
+						panelTempChart.update('none');
+						panelFanChart.update('none');
+						// update current temp display
+						const dryEl = document.getElementById('temp-' + zone + '-dry');
+						if (dryEl) tempEl.textContent = dryEl.textContent;
+					};
 				})();
 
 
