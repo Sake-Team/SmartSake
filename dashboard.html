@@ -112,10 +112,11 @@
 							</div>
 
 							<div class="long long--top-left home-side-title-chart-card home-humidity-chart-card">
-								<div class="home-chart-live-wrap">
-									<span class="home-humidity-title chart-title--single-line">Humidity over time</span>
-									<canvas id="humidity-chart" class="metric-chart"></canvas>
+								<div class="env-chart-header">
+									<span class="home-humidity-title chart-title--single-line">Environment</span>
+									<button id="elapsed-toggle-btn" class="elapsed-toggle-btn" type="button" title="Toggle elapsed/clock time axis">Clock</button>
 								</div>
+								<canvas id="humidity-chart" class="metric-chart"></canvas>
 							</div>
 
 							<div class="long long--top-left home-temp-chart-card home-fans-chart-card">
@@ -1188,6 +1189,7 @@
 								time:     d.timestamp ? new Date(d.timestamp) : new Date(),
 								temps,
 								humidity: currentHumidity,
+								sht_temp: (d.sht_temp !== null && d.sht_temp !== undefined) ? roundHalf(parseFloat(d.sht_temp)) : null,
 								fans:     { ...currentFans },
 								weight:   d.weight_lbs
 							});
@@ -1266,6 +1268,9 @@
 					const labels = [];
 					const sampleTimestamps = []; // parallel ms timestamps for time-range filtering
 					const humidityData = [];
+					const shtTempData  = []; // SHT30 dry-bulb (probe)
+					const wetBulbData  = []; // calculated wet-bulb
+					const elapsedLabels = []; // HH:MM:SS from run start
 					const tempLegendContainer = document.getElementById('temp-chart-legend');
 					const fansLegendContainer = document.getElementById('fans-chart-legend');
 
@@ -1289,7 +1294,36 @@
 
 					const weightData = [];
 
+					// Wet-bulb formula (Stull 2011, accurate to ±1°C)
+					function calcWetBulb(T, RH) {
+						if (T == null || RH == null || isNaN(T) || isNaN(RH) || RH < 0 || RH > 100) return null;
+						var wb = T * Math.atan(0.151977 * Math.pow(RH + 8.313659, 0.5))
+						       + Math.atan(T + RH)
+						       - Math.atan(RH - 1.676331)
+						       + 0.00391838 * Math.pow(RH, 1.5) * Math.atan(0.023101 * RH)
+						       - 4.686035;
+						return Math.round(wb * 2) / 2; // round to 0.5
+					}
+
+					// Elapsed-time mode flag and helpers
+					var elapsedMode = false;
+					function fmtElapsed(ms) {
+						if (ms < 0) ms = 0;
+						var s = Math.floor(ms / 1000);
+						var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+						return (h > 0 ? h + 'h ' : '') + (m > 0 || h > 0 ? String(m).padStart(2,'0') + 'm ' : '') + String(sec).padStart(2,'0') + 's';
+					}
+					function getRunStartMs() {
+						// Read from the deviation-colors IIFE's exported value
+						return (window._runStartMs && Number.isFinite(window._runStartMs)) ? window._runStartMs : null;
+					}
+					function getDisplayLabels() { return elapsedMode ? elapsedLabels : labels; }
+
+					// Series-visibility state for env chart: bitmask: dry=1, wet=2, humidity=4
+					var envVisible = 7; // all on by default
+
 					// Small dashboard charts
+
 					function getZoneColor(n) {
 						return getComputedStyle(document.documentElement).getPropertyValue('--zone-color-' + n).trim()
 							|| ['#e05252','#52a0e0','#52e07c','#e0c952','#c052e0','#e09052'][n - 1];
@@ -1361,31 +1395,47 @@
 
 					renderTempLegend();
 
-					const humChart = new Chart(humCtx, {
+						// Environmental chart (dry bulb probe, wet bulb calculated, humidity)
+					const ENV_DRY_COLOR = '#f0a040'; // amber for dry bulb
+					const ENV_WET_COLOR = '#40c0d0'; // teal for wet bulb
+					const ENV_HUM_COLOR = '#7070e0'; // indigo for humidity
+					const envChart = new Chart(humCtx, {
 						type: 'line',
 						data: {
 							labels,
 							datasets: [
-								{ label: 'Humidity', data: humidityData, borderWidth: 1, pointRadius: 0 }
+								{ label: 'Dry Bulb (°C)', data: shtTempData, yAxisID: 'yTemp',
+								  borderColor: ENV_DRY_COLOR, backgroundColor: ENV_DRY_COLOR + '22',
+								  borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false },
+								{ label: 'Wet Bulb (°C)', data: wetBulbData, yAxisID: 'yTemp',
+								  borderColor: ENV_WET_COLOR, backgroundColor: ENV_WET_COLOR + '22',
+								  borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false },
+								{ label: 'Humidity (%)', data: humidityData, yAxisID: 'yHum',
+								  borderColor: ENV_HUM_COLOR, backgroundColor: ENV_HUM_COLOR + '22',
+								  borderWidth: 1, pointRadius: 0, tension: 0.3, fill: false,
+								  borderDash: [4, 3] }
 							]
 						},
 						options: {
-							animation: false,
-							responsive: true,
-							maintainAspectRatio: false,
+							animation: false, responsive: true, maintainAspectRatio: false,
 							scales: {
-								x: {
-									ticks: { autoSkip: true, maxTicksLimit: 6 }
-								},
-								y: {
-									title: { display: true, text: 'Humidity (%)' }
-								}
+								x: { ticks: { color: '#aaa', autoSkip: true, maxTicksLimit: 6 }, grid: { color: '#2a2a2a' } },
+								yTemp: { type: 'linear', position: 'left',
+									ticks: { color: '#aaa' }, grid: { color: '#2a2a2a' },
+									title: { display: true, text: 'Temp (°C)', color: '#aaa' } },
+								yHum: { type: 'linear', position: 'right', min: 0, max: 100,
+									ticks: { color: ENV_HUM_COLOR }, grid: { drawOnChartArea: false },
+									title: { display: true, text: 'Humidity (%)', color: ENV_HUM_COLOR } }
 							},
 							plugins: {
-								legend: { display: false }
+								legend: {
+									position: 'bottom',
+									labels: { color: '#ccc', usePointStyle: true, boxWidth: 10, font: { size: 11 } }
+								}
 							}
 						}
 					});
+					const humChart = envChart; // keep alias for existing references
 
 					const fansChart = new Chart(fansCtx, {
 						type: 'line',
@@ -1501,9 +1551,16 @@
 							tempSeries[key].push(isNaN(val) ? null : val);
 						}
 
-						// humidity
+						// humidity + env probe data
 						const humVal = parseFloat(sample.humidity);
 						humidityData.push(isNaN(humVal) ? null : humVal);
+						const shtVal = (sample.sht_temp != null) ? parseFloat(sample.sht_temp) : null;
+						shtTempData.push(shtVal !== null && !isNaN(shtVal) ? shtVal : null);
+						wetBulbData.push(calcWetBulb(shtVal, isNaN(humVal) ? null : humVal));
+
+						// elapsed time label
+						const runStart = getRunStartMs();
+						elapsedLabels.push(runStart ? fmtElapsed(t.getTime() - runStart) : label);
 
 						// fans (optional)
 						if (sample.fans) {
@@ -1516,16 +1573,19 @@
 							Object.values(fansSeries).forEach(arr => arr.push(null));
 						}
 
-						// weight (generate sample data point)
-						const weightVal = 10 + Math.random() * 5; // Sample weight between 10-15 kg
-						weightData.push(weightVal);
+						// weight (real sensor data)
+						const wRaw = sample.weight != null ? parseFloat(sample.weight) : null;
+						weightData.push(wRaw !== null && !isNaN(wRaw) ? wRaw : null);
 
 						// keep arrays bounded
 						if (labels.length > maxPoints) {
 							labels.shift();
 							sampleTimestamps.shift();
+							elapsedLabels.shift();
 							Object.values(tempSeries).forEach(arr => arr.shift());
 							humidityData.shift();
+							shtTempData.shift();
+							wetBulbData.shift();
 							Object.values(fansSeries).forEach(arr => arr.shift());
 							weightData.shift();
 						}
@@ -1580,6 +1640,41 @@
 						tempChart.update('none');
 					};
 
+					// ── Elapsed time toggle ─────────────────────────────────────────────
+					function applyElapsedMode(on) {
+						elapsedMode = on;
+						var dispLabels = on ? elapsedLabels : labels;
+						// Update all small charts
+						[tempChart, envChart, fansChart, weightChart].forEach(function (ch) {
+							ch.data.labels = dispLabels;
+							ch.update('none');
+						});
+						// Update open modal if any
+						if (chartModal && chartModal.style.display === 'flex' && modalChart) {
+							refreshModalChart();
+						}
+					}
+
+					var elapsedToggleBtn = document.getElementById('elapsed-toggle-btn');
+					if (elapsedToggleBtn) {
+						elapsedToggleBtn.addEventListener('click', function () {
+							elapsedMode = !elapsedMode;
+							elapsedToggleBtn.textContent = elapsedMode ? 'Elapsed' : 'Clock';
+							elapsedToggleBtn.classList.toggle('elapsed-toggle-btn--active', elapsedMode);
+							applyElapsedMode(elapsedMode);
+						});
+					}
+
+					// Expose so mode controller can set elapsed mode on run start
+					window.setElapsedMode = function (on) {
+						if (elapsedToggleBtn) {
+							elapsedMode = on;
+							elapsedToggleBtn.textContent = on ? 'Elapsed' : 'Clock';
+							elapsedToggleBtn.classList.toggle('elapsed-toggle-btn--active', on);
+						}
+						applyElapsedMode(on);
+					};
+
 					// ---------- Full-page chart modal + controls ----------
 					const chartModal = document.getElementById('chart-modal');
 					const chartModalClose = document.getElementById('chart-modal-close');
@@ -1609,6 +1704,7 @@
 
 					function computeAutoYRange(type, s, e) {
 						if (type === 'fans') return { min: -0.1, max: 1.1 };
+						if (type === 'env') return { min: 0, max: 100 }; // humidity axis; temp axis is auto
 						let vals = [];
 						if (type === 'temp') {
 							Object.values(tempSeries).forEach(arr => {
@@ -1663,6 +1759,18 @@
 								stepped: true,
 								data: fansSeries[key].slice(s, e)
 							}));
+						} else if (type === 'env') {
+							return [
+								{ label: 'Dry Bulb (°C)', data: shtTempData.slice(s, e), yAxisID: 'yTemp',
+								  borderColor: '#f0a040', backgroundColor: 'transparent',
+								  borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+								{ label: 'Wet Bulb (°C)', data: wetBulbData.slice(s, e), yAxisID: 'yTemp',
+								  borderColor: '#40c0d0', backgroundColor: 'transparent',
+								  borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+								{ label: 'Humidity (%)', data: humidityData.slice(s, e), yAxisID: 'yHum',
+								  borderColor: '#7070e0', backgroundColor: 'transparent',
+								  borderWidth: 1, pointRadius: 0, tension: 0.3, borderDash: [4, 3] }
+							];
 						}
 						return [];
 					}
@@ -1686,13 +1794,17 @@
 					function refreshModalChart() {
 						if (!modalChart || !modalChartType) return;
 						const [s, e] = getRangeIndices();
-						const sliceLabels = labels.slice(s, e);
+						const sliceLabels = (elapsedMode ? elapsedLabels : labels).slice(s, e);
 						const datasets = buildDatasets(modalChartType, s, e);
-						// Preserve hidden state
-						const hidden = modalChart.data.datasets.map(ds => ds.hidden);
+						// Preserve per-dataset visibility using Chart.js metadata
+						const hiddenState = modalChart.data.datasets.map(function (_, i) {
+							var meta = modalChart.getDatasetMeta(i);
+							return meta ? !meta.visible : false;
+						});
 						modalChart.data.labels = sliceLabels;
 						modalChart.data.datasets = datasets;
-						datasets.forEach((ds, i) => { if (hidden[i]) ds.hidden = true; });
+						// Re-apply hidden state after dataset replacement
+						datasets.forEach(function (ds, i) { if (hiddenState[i]) ds.hidden = true; });
 						// Auto-fit Y only if inputs are empty
 						const mnVal = parseFloat(yMinInput ? yMinInput.value : '');
 						const mxVal = parseFloat(yMaxInput ? yMaxInput.value : '');
@@ -1718,36 +1830,47 @@
 						if (type === 'temp') { chartModalTitle.textContent = 'Temperature over time'; yTitle = 'Temp (°C)'; }
 						else if (type === 'humidity') { chartModalTitle.textContent = 'Humidity over time'; yTitle = 'Humidity (%)'; }
 						else if (type === 'fans') { chartModalTitle.textContent = 'Fans on/off over time'; yTitle = 'Fan state'; }
+						else if (type === 'env') { chartModalTitle.textContent = 'Environment (Dry Bulb / Wet Bulb / Humidity)'; yTitle = ''; }
 
 						// Reset Y inputs to auto
 						if (yMinInput) yMinInput.value = type === 'fans' ? '' : autoMin.toFixed(1);
 						if (yMaxInput) yMaxInput.value = type === 'fans' ? '' : autoMax.toFixed(1);
-						if (yMinInput) yMinInput.disabled = (type === 'fans');
-						if (yMaxInput) yMaxInput.disabled = (type === 'fans');
-						if (yResetBtn) yResetBtn.disabled = (type === 'fans');
+						const yFixed = (type === 'fans' || type === 'env');
+						if (yMinInput) yMinInput.disabled = yFixed;
+						if (yMaxInput) yMaxInput.disabled = yFixed;
+						if (yResetBtn) yResetBtn.disabled = yFixed;
 
+						const sliceDisplayLabels = elapsedMode ? elapsedLabels.slice(s, e) : labels.slice(s, e);
+						const envScales = type === 'env' ? {
+							x: { ticks: { color: '#aaa', autoSkip: true, maxTicksLimit: 12 }, grid: { color: '#2a2a2a' } },
+							yTemp: { type: 'linear', position: 'left', ticks: { color: '#aaa' }, grid: { color: '#2a2a2a' },
+								title: { display: true, text: 'Temp (°C)', color: '#aaa' } },
+							yHum: { type: 'linear', position: 'right', min: 0, max: 100,
+								ticks: { color: '#7070e0' }, grid: { drawOnChartArea: false },
+								title: { display: true, text: 'Humidity (%)', color: '#7070e0' } }
+						} : {
+							x: { ticks: { color: '#aaa', autoSkip: true, maxTicksLimit: 12 }, grid: { color: '#2a2a2a' } },
+							y: {
+								min: type === 'fans' ? -0.1 : autoMin,
+								max: type === 'fans' ? 1.1 : autoMax,
+								ticks: type === 'fans'
+									? { color: '#aaa', stepSize: 1, callback: v => v === 0 ? 'Off' : v === 1 ? 'On' : '' }
+									: { color: '#aaa' },
+								grid: { color: '#2a2a2a' },
+								title: { display: !!yTitle, text: yTitle, color: '#aaa' }
+							}
+						};
 						modalChart = new Chart(ctx, {
 							type: 'line',
 							data: {
-								labels: labels.slice(s, e),
+								labels: sliceDisplayLabels,
 								datasets: buildDatasets(type, s, e)
 							},
 							options: {
 								animation: false,
 								responsive: true,
 								maintainAspectRatio: false,
-								scales: {
-									x: { ticks: { color: '#aaa', autoSkip: true, maxTicksLimit: 12 }, grid: { color: '#2a2a2a' } },
-									y: {
-										min: type === 'fans' ? -0.1 : autoMin,
-										max: type === 'fans' ? 1.1 : autoMax,
-										ticks: type === 'fans'
-											? { color: '#aaa', stepSize: 1, callback: v => v === 0 ? 'Off' : v === 1 ? 'On' : '' }
-											: { color: '#aaa' },
-										grid: { color: '#2a2a2a' },
-										title: { display: true, text: yTitle, color: '#aaa' }
-									}
-								},
+								scales: envScales,
 								plugins: {
 									legend: {
 										position: 'bottom',
@@ -1793,7 +1916,7 @@
 
 					// Click small charts to expand
 					tempCanvas.addEventListener('click', function () { openChartModal('temp'); });
-					humCanvas.addEventListener('click', function () { openChartModal('humidity'); });
+					humCanvas.addEventListener('click', function () { openChartModal('env'); });
 					fansCanvas.addEventListener('click', function () { openChartModal('fans'); });
 
 					if (chartModalClose) chartModalClose.addEventListener('click', closeChartModal);
@@ -2084,7 +2207,7 @@
 								wetEl.classList.remove('temp-good','temp-warning','temp-danger','temp-too-hot','temp-too-cold');
 								if (actualTemp !== null && Number.isFinite(targetTemp)) {
 									const diff = actualTemp - targetTemp;
-									if      (diff >=  deviationAllowance) wetEl.classList.add('temp-too-hot');
+									if      (diff >  deviationAllowance) wetEl.classList.add('temp-too-hot');
 									else if (diff <= -deviationAllowance) wetEl.classList.add('temp-too-cold');
 									else if (Math.abs(diff) > half)      wetEl.classList.add('temp-warning');
 									else                                 wetEl.classList.add('temp-good');
@@ -2099,6 +2222,7 @@
 						} else {
 							runStartTime = Date.now();
 						}
+						window._runStartMs = runStartTime; // expose for chart elapsed-time calc
 						applyDeviationColors();
 					}
 
@@ -2476,7 +2600,9 @@
 							time: new Date(row.recorded_at),
 							temps: { temp1:row.tc1, temp2:row.tc2, temp3:row.tc3, temp4:row.tc4, temp5:row.tc5, temp6:row.tc6 },
 							humidity: row.humidity,
-							fans: { fan1:row.fan1||0, fan2:row.fan2||0, fan3:row.fan3||0, fan4:row.fan4||0, fan5:row.fan5||0, fan6:row.fan6||0 }
+							sht_temp: row.sht_temp != null ? parseFloat(row.sht_temp) : null,
+							fans: { fan1:row.fan1||0, fan2:row.fan2||0, fan3:row.fan3||0, fan4:row.fan4||0, fan5:row.fan5||0, fan6:row.fan6||0 },
+							weight: row.weight_lbs
 						});
 					});
 					const last = readings[readings.length - 1];
@@ -2525,7 +2651,9 @@
 							time: new Date(row.recorded_at),
 							temps: { temp1:row.tc1, temp2:row.tc2, temp3:row.tc3, temp4:row.tc4, temp5:row.tc5, temp6:row.tc6 },
 							humidity: row.humidity,
-							fans: { fan1:row.fan1||0, fan2:row.fan2||0, fan3:row.fan3||0, fan4:row.fan4||0, fan5:row.fan5||0, fan6:row.fan6||0 }
+							sht_temp: row.sht_temp != null ? parseFloat(row.sht_temp) : null,
+							fans: { fan1:row.fan1||0, fan2:row.fan2||0, fan3:row.fan3||0, fan4:row.fan4||0, fan5:row.fan5||0, fan6:row.fan6||0 },
+							weight: row.weight_lbs
 						});
 					});
 				}
