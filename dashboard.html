@@ -1296,7 +1296,7 @@
 
 					// Wet-bulb formula (Stull 2011, accurate to ±1°C)
 					function calcWetBulb(T, RH) {
-						if (T == null || RH == null || isNaN(T) || isNaN(RH) || RH < 0 || RH > 100) return null;
+						if (T == null || RH == null || isNaN(T) || isNaN(RH) || RH < 0 || RH > 100 || T > 80) return null;
 						var wb = T * Math.atan(0.151977 * Math.pow(RH + 8.313659, 0.5))
 						       + Math.atan(T + RH)
 						       - Math.atan(RH - 1.676331)
@@ -1317,10 +1317,6 @@
 						// Read from the deviation-colors IIFE's exported value
 						return (window._runStartMs && Number.isFinite(window._runStartMs)) ? window._runStartMs : null;
 					}
-					function getDisplayLabels() { return elapsedMode ? elapsedLabels : labels; }
-
-					// Series-visibility state for env chart: bitmask: dry=1, wet=2, humidity=4
-					var envVisible = 7; // all on by default
 
 					// Small dashboard charts
 
@@ -1836,8 +1832,8 @@
 						else if (type === 'env') { chartModalTitle.textContent = 'Environment (Dry Bulb / Wet Bulb / Humidity)'; yTitle = ''; }
 
 						// Reset Y inputs to auto
-						if (yMinInput) yMinInput.value = type === 'fans' ? '' : autoMin.toFixed(1);
-						if (yMaxInput) yMaxInput.value = type === 'fans' ? '' : autoMax.toFixed(1);
+						if (yMinInput) yMinInput.value = (type === 'fans' || type === 'env') ? '' : autoMin.toFixed(1);
+						if (yMaxInput) yMaxInput.value = (type === 'fans' || type === 'env') ? '' : autoMax.toFixed(1);
 						const yFixed = (type === 'fans' || type === 'env');
 						if (yMinInput) yMinInput.disabled = yFixed;
 						if (yMaxInput) yMaxInput.disabled = yFixed;
