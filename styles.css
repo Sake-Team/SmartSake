@@ -1752,3 +1752,101 @@ header {
 .zone-panel-body-open {
 	overflow: hidden;
 }
+
+/* ── Settings panel ──────────────────────────────────────────────────────── */
+.settings-btn {
+	background: none;
+	border: none;
+	font-size: 1.4rem;
+	cursor: pointer;
+	color: #888;
+	margin-left: auto;
+	padding: 0.2rem 0.4rem;
+	line-height: 1;
+	transition: color 0.15s, transform 0.3s;
+}
+
+.settings-btn:hover {
+	color: #eee;
+	transform: rotate(45deg);
+}
+
+.settings-modal-popup {
+	max-width: 540px;
+	width: 95%;
+}
+
+.settings-modal-content {
+	display: flex;
+	flex-direction: column;
+	gap: 1.25rem;
+}
+
+.settings-section {
+	display: flex;
+	flex-direction: column;
+	gap: 0.6rem;
+}
+
+.settings-section__title {
+	margin: 0;
+	font-size: 0.85rem;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: #888;
+	border-bottom: 1px solid #2e2e2e;
+	padding-bottom: 0.3rem;
+}
+
+.settings-colors-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+	gap: 0.5rem;
+}
+
+.settings-color-row {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.85rem;
+	color: #ccc;
+	cursor: pointer;
+}
+
+.settings-color-input {
+	width: 36px;
+	height: 28px;
+	border: 1px solid #444;
+	border-radius: 4px;
+	cursor: pointer;
+	padding: 1px;
+	background: none;
+}
+
+.settings-footer {
+	display: flex;
+	justify-content: flex-end;
+	padding-top: 0.5rem;
+	border-top: 1px solid #2e2e2e;
+}
+
+.settings-reset-btn {
+	background: #2a2a2a;
+	border: 1px solid #444;
+	border-radius: 5px;
+	color: #ccc;
+	padding: 0.4rem 1rem;
+	font-size: 0.85rem;
+	cursor: pointer;
+}
+
+.settings-reset-btn:hover {
+	background: #3a3a3a;
+	color: #fff;
+}
+
+/* Apply CSS variables to themed elements */
+body {
+	background-color: var(--theme-bg, #111111);
+	color: var(--theme-text, #dddddd);
+}
