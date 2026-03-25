@@ -140,6 +140,25 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_refcurve_points ON reference_curve_points(curve_id);
         """)
         _seed_reference_curves(conn)
+        # Add weight/humidity target columns if upgrading from older schema
+        for col, default in [
+            ("weight_target_min", "NULL"),
+            ("weight_target_max", "NULL"),
+            ("humidity_target_min", "85.0"),
+            ("humidity_target_max", "95.0"),
+        ]:
+            try:
+                conn.execute(f"ALTER TABLE runs ADD COLUMN {col} REAL DEFAULT {default}")
+            except Exception:
+                pass  # column already exists
+        # Composite index for weight analytics rolling-window query
+        try:
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_readings_run_time "
+                "ON sensor_readings(run_id, recorded_at)"
+            )
+        except Exception:
+            pass
 
 
 def _seed_reference_curves(conn):
@@ -259,9 +278,12 @@ def get_active_run():
 
 def get_all_runs():
     with get_conn() as conn:
-        rows = conn.execute(
-            "SELECT * FROM runs ORDER BY started_at DESC"
-        ).fetchall()
+        rows = conn.execute("""
+            SELECT r.*, m.quality_score, m.koji_variety
+            FROM runs r
+            LEFT JOIN run_metadata m ON m.run_id = r.id
+            ORDER BY r.started_at DESC
+        """).fetchall()
         return [dict(r) for r in rows]
 
 
@@ -831,3 +853,132 @@ def get_zone_notes(run_id):
             "SELECT zone, note FROM zone_notes WHERE run_id=?", (run_id,)
         ).fetchall()
         return {str(r["zone"]): r["note"] for r in rows}
+
+
+# ── Phase 2: Completed runs, weight/humidity analytics ────────────────────────
+
+def get_completed_runs():
+    """Return completed/crashed runs joined with metadata quality_score."""
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT r.*, m.quality_score, m.koji_variety
+            FROM runs r
+            LEFT JOIN run_metadata m ON m.run_id = r.id
+            WHERE r.status IN ('completed', 'crashed')
+            ORDER BY r.started_at DESC
+        """).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_weight_analytics(run_id):
+    """Return weight analytics for run_id.
+
+    Returns dict with:
+        initial_lbs, current_lbs, loss_lbs, loss_pct,
+        rate_lbs_per_hr (loss rate over last 60 min),
+        samples: [{elapsed_min, weight_lbs}]  (max 120 points)
+    """
+    with get_conn() as conn:
+        run = conn.execute(
+            "SELECT started_at FROM runs WHERE id=?", (run_id,)
+        ).fetchone()
+        if not run:
+            return None
+
+        first = conn.execute("""
+            SELECT weight_lbs, recorded_at FROM sensor_readings
+            WHERE run_id=? AND weight_lbs IS NOT NULL
+            ORDER BY recorded_at ASC LIMIT 1
+        """, (run_id,)).fetchone()
+
+        last = conn.execute("""
+            SELECT weight_lbs, recorded_at FROM sensor_readings
+            WHERE run_id=? AND weight_lbs IS NOT NULL
+            ORDER BY recorded_at DESC LIMIT 1
+        """, (run_id,)).fetchone()
+
+        if not first or not last:
+            return {
+                "initial_lbs": None, "current_lbs": None,
+                "loss_lbs": None, "loss_pct": None,
+                "rate_lbs_per_hr": None, "samples": [],
+            }
+
+        initial_lbs = first["weight_lbs"]
+        current_lbs = last["weight_lbs"]
+        loss_lbs = round(initial_lbs - current_lbs, 3)
+        loss_pct = round(loss_lbs / initial_lbs * 100, 2) if initial_lbs else None
+
+        # Rate over last 60 minutes (first vs last point in window)
+        rate_lbs_per_hr = None
+        window = conn.execute("""
+            SELECT weight_lbs, recorded_at FROM sensor_readings
+            WHERE run_id=? AND weight_lbs IS NOT NULL
+              AND recorded_at >= datetime(
+                  (SELECT MAX(recorded_at) FROM sensor_readings
+                   WHERE run_id=? AND weight_lbs IS NOT NULL),
+                  '-60 minutes')
+            ORDER BY recorded_at ASC
+        """, (run_id, run_id)).fetchall()
+        if len(window) >= 2:
+            from datetime import datetime as _dt
+            t0 = _dt.fromisoformat(window[0]["recorded_at"])
+            t1 = _dt.fromisoformat(window[-1]["recorded_at"])
+            hr_diff = (t1 - t0).total_seconds() / 3600
+            if hr_diff > 0:
+                rate_lbs_per_hr = round(
+                    (window[0]["weight_lbs"] - window[-1]["weight_lbs"]) / hr_diff, 4
+                )
+
+        # Downsampled sparkline (max 120 points)
+        total = conn.execute(
+            "SELECT COUNT(*) FROM sensor_readings WHERE run_id=? AND weight_lbs IS NOT NULL",
+            (run_id,)
+        ).fetchone()[0]
+        stride = max(1, total // 120)
+        started_at = run["started_at"]
+        samples_raw = conn.execute("""
+            WITH rn AS (
+                SELECT weight_lbs, recorded_at,
+                       (ROW_NUMBER() OVER (ORDER BY recorded_at ASC) - 1) AS rn
+                FROM sensor_readings
+                WHERE run_id=? AND weight_lbs IS NOT NULL
+            )
+            SELECT weight_lbs, recorded_at FROM rn WHERE rn % ? = 0
+            ORDER BY recorded_at ASC
+        """, (run_id, stride)).fetchall()
+
+        from datetime import datetime as _dt
+        start_dt = _dt.fromisoformat(started_at)
+        samples = []
+        for s in samples_raw:
+            rec_dt = _dt.fromisoformat(s["recorded_at"])
+            elapsed = round((rec_dt - start_dt).total_seconds() / 60, 1)
+            samples.append({"elapsed_min": elapsed, "weight_lbs": s["weight_lbs"]})
+
+        return {
+            "initial_lbs": initial_lbs,
+            "current_lbs": current_lbs,
+            "loss_lbs": loss_lbs,
+            "loss_pct": loss_pct,
+            "rate_lbs_per_hr": rate_lbs_per_hr,
+            "samples": samples,
+        }
+
+
+def update_run_weight_targets(run_id, target_min, target_max):
+    """Set weight loss target band (lbs) on a run."""
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE runs SET weight_target_min=?, weight_target_max=? WHERE id=?",
+            (target_min, target_max, run_id)
+        )
+
+
+def update_run_humidity_targets(run_id, target_min, target_max):
+    """Set humidity target band (%RH) on a run."""
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE runs SET humidity_target_min=?, humidity_target_max=? WHERE id=?",
+            (target_min, target_max, run_id)
+        )

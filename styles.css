@@ -1908,3 +1908,186 @@ body {
 	border-color: #52a0e0;
 	color: #fff;
 }
+
+
+/* ── Phase 2: Stage markers ─────────────────────────────────────────────────── */
+.stage-marker-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	padding: 6px 0 4px;
+}
+
+.marker-btn {
+	font-size: 0.75rem;
+	padding: 2px 8px;
+	border-radius: 4px;
+	border: 1px solid currentColor;
+	background: #fff;
+	cursor: pointer;
+	color: #555;
+	transition: background 0.1s;
+}
+.marker-btn:hover { background: #f0f0f4; }
+
+.marker-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	min-height: 1.2rem;
+	padding-bottom: 4px;
+}
+
+.marker-list__empty {
+	font-size: 0.75rem;
+	color: #aaa;
+}
+
+.marker-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 0.72rem;
+	padding: 2px 6px;
+	border-radius: 4px;
+	border: 1px solid;
+	background: #fff;
+	color: #444;
+}
+
+.marker-chip__dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.marker-chip__del {
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: #999;
+	font-size: 0.85rem;
+	line-height: 1;
+	padding: 0 0 0 2px;
+}
+.marker-chip__del:hover { color: #c00; }
+
+/* ── Phase 2: Overlay comparison ─────────────────────────────────────────────── */
+.temp-chart-header-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.overlay-select {
+	font-size: 0.75rem;
+	padding: 2px 6px;
+	border-radius: 4px;
+	border: 1px solid #d0d0d8;
+	background: #fff;
+	color: #444;
+	cursor: pointer;
+	margin-left: auto;
+	max-width: 200px;
+}
+
+.overlay-chips-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	padding-bottom: 2px;
+}
+
+.overlay-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 0.72rem;
+	padding: 2px 6px;
+	border-radius: 4px;
+	border: 1px solid;
+	background: #fff;
+	color: #444;
+}
+
+.overlay-chip__dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.overlay-chip__del {
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: #999;
+	font-size: 0.85rem;
+	line-height: 1;
+	padding: 0 0 0 2px;
+}
+.overlay-chip__del:hover { color: #c00; }
+
+/* ── Phase 2: Weight analytics ──────────────────────────────────────────────── */
+.weight-chart-header-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.weight-stats-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	padding: 4px 0 2px;
+}
+
+.weight-stat {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+}
+
+.weight-stat label {
+	font-size: 0.68rem;
+	color: #999;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+}
+
+.weight-stat span {
+	font-size: 0.82rem;
+	font-weight: 600;
+	color: #333;
+}
+
+.weight-stat-target {
+	font-size: 0.72rem;
+	color: #82b366;
+	padding-bottom: 4px;
+}
+
+/* ── Phase 2: Target form (weight + humidity modals) ─────────────────────────── */
+.target-form {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.target-form__row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	font-size: 0.85rem;
+}
+
+.target-form__row input {
+	width: 110px;
+	padding: 4px 8px;
+	border-radius: 5px;
+	border: 1px solid #d0d0d8;
+	font-size: 0.85rem;
+}

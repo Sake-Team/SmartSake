@@ -507,6 +507,58 @@ def api_correlation():
                     "pearson_r": pearson_r, "points": points})
 
 
+# ── Phase 2: Completed runs, weight/humidity analytics ───────────────────────
+
+@app.route("/api/runs/completed", methods=["GET"])
+def api_runs_completed():
+    return jsonify(db.get_completed_runs())
+
+
+@app.route("/api/runs/<int:run_id>/weight-analytics", methods=["GET"])
+def api_weight_analytics(run_id):
+    run = db.get_run(run_id)
+    if not run:
+        abort(404)
+    data = db.get_weight_analytics(run_id)
+    # Include target band from runs table
+    data["weight_target_min"] = run.get("weight_target_min")
+    data["weight_target_max"] = run.get("weight_target_max")
+    return jsonify(data)
+
+
+@app.route("/api/runs/<int:run_id>/weight-targets", methods=["PUT"])
+def api_weight_targets(run_id):
+    if not db.get_run(run_id):
+        abort(404)
+    body = request.get_json(silent=True) or {}
+    t_min = body.get("target_min")
+    t_max = body.get("target_max")
+    if t_min is None or t_max is None:
+        return jsonify({"error": "target_min and target_max required"}), 400
+    if not (isinstance(t_min, (int, float)) and isinstance(t_max, (int, float))):
+        return jsonify({"error": "target_min and target_max must be numbers"}), 400
+    db.update_run_weight_targets(run_id, float(t_min), float(t_max))
+    return jsonify({"ok": True})
+
+
+@app.route("/api/runs/<int:run_id>/humidity-targets", methods=["PUT"])
+def api_humidity_targets(run_id):
+    if not db.get_run(run_id):
+        abort(404)
+    body = request.get_json(silent=True) or {}
+    t_min = body.get("target_min")
+    t_max = body.get("target_max")
+    if t_min is None or t_max is None:
+        return jsonify({"error": "target_min and target_max required"}), 400
+    if not (0 <= float(t_min) <= 100 and 0 <= float(t_max) <= 100):
+        return jsonify({"error": "target_min and target_max must be 0-100"}), 400
+    db.update_run_humidity_targets(run_id, float(t_min), float(t_max))
+    run = db.get_run(run_id)
+    return jsonify({"ok": True,
+                    "humidity_target_min": run.get("humidity_target_min"),
+                    "humidity_target_max": run.get("humidity_target_max")})
+
+
 # ── CSV export ────────────────────────────────────────────────────────────────
 
 @app.route("/api/runs/<int:run_id>/export.csv")

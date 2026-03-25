@@ -143,8 +143,14 @@
 							<div class="notes__meta" id="notes-meta" aria-live="polite">Date,
 								Time</div>
 							<div class="long long--top-left home-temp-chart-card">
-								<span class="temp-chart-title-left chart-title--single-line">Temperature over time</span>
+								<div class="temp-chart-header-row">
+									<span class="temp-chart-title-left chart-title--single-line">Temperature over time</span>
+									<select id="overlay-run-select" class="overlay-select" title="Overlay a past run"></select>
+								</div>
 								<div id="temp-chart-legend" class="temp-chart-legend" aria-label="Temperature legend"></div>
+								<div id="overlay-chips" class="overlay-chips-row"></div>
+								<div id="stage-marker-toolbar" class="stage-marker-toolbar"></div>
+								<div id="stage-marker-list" class="marker-list"></div>
 								<div class="temp-chart-live-wrap">
 									<canvas id="temp-chart" class="metric-chart"></canvas>
 								</div>
@@ -153,6 +159,7 @@
 							<div class="long long--top-left home-side-title-chart-card home-humidity-chart-card">
 								<div class="env-chart-header">
 									<span class="home-humidity-title chart-title--single-line">Environment</span>
+									<button id="hum-target-btn" class="elapsed-toggle-btn" type="button" title="Set humidity target band">Target</button>
 									<button id="elapsed-toggle-btn" class="elapsed-toggle-btn" type="button" title="Toggle elapsed/clock time axis">Clock</button>
 								</div>
 								<canvas id="humidity-chart" class="metric-chart"></canvas>
@@ -167,10 +174,19 @@
 							</div>
 
 						<div class="long long--top-left home-side-title-chart-card home-humidity-chart-card">
-							<div class="home-chart-live-wrap">
+							<div class="weight-chart-header-row">
 								<span class="home-humidity-title chart-title--single-line">Weight over time</span>
-								<canvas id="weight-chart" class="metric-chart"></canvas>
+								<button id="wt-target-open-btn" class="elapsed-toggle-btn" type="button" title="Set weight loss target band">Target</button>
 							</div>
+							<div class="weight-stats-row">
+								<span class="weight-stat"><label>Initial</label><span id="wt-initial">—</span></span>
+								<span class="weight-stat"><label>Current</label><span id="wt-current">—</span></span>
+								<span class="weight-stat"><label>Loss</label><span id="wt-loss-lbs">—</span></span>
+								<span class="weight-stat"><label>Loss %</label><span id="wt-loss-pct">—</span></span>
+								<span class="weight-stat"><label>Rate/hr</label><span id="wt-rate">—</span></span>
+							</div>
+							<div class="weight-stat-target" id="wt-target"></div>
+							<canvas id="weight-chart" class="metric-chart"></canvas>
 						</div>
 
 
@@ -1513,7 +1529,9 @@
 						data: {
 							labels,
 							datasets: [
-								{ label: 'Weight', data: weightData, borderWidth: 2, pointRadius: 3, borderColor: 'rgb(75, 192, 192)', backgroundColor: 'rgba(75, 192, 192, 0.2)' }
+								{ label: 'Weight (lbs)', data: weightData, borderWidth: 2, pointRadius: 2,
+								  borderColor: 'rgb(75, 192, 192)', backgroundColor: 'rgba(75, 192, 192, 0.15)',
+								  spanGaps: true }
 							]
 						},
 						options: {
@@ -1522,10 +1540,21 @@
 							maintainAspectRatio: false,
 							scales: {
 								x: {
-									ticks: { autoSkip: true, maxTicksLimit: 6 }
+									ticks: {
+										autoSkip: true,
+										maxTicksLimit: 6,
+										// Format numeric elapsed-min labels as "Xh Ym"
+										callback: function (val) {
+											if (typeof val === 'number') {
+												var h = Math.floor(val / 60), m = Math.round(val % 60);
+												return h > 0 ? h + 'h ' + String(m).padStart(2,'0') + 'm' : m + 'm';
+											}
+											return val;
+										}
+									}
 								},
 								y: {
-									title: { display: true, text: 'Weight (kg)' }
+									title: { display: true, text: 'Weight (lbs)' }
 								}
 							},
 							plugins: {
@@ -1560,6 +1589,11 @@
 						const runStart = getRunStartMs();
 						elapsedLabels.push(runStart ? fmtElapsed(t.getTime() - runStart) : label);
 
+						// Track numeric elapsed minutes for phase2 stage markers / overlays
+						var _elapsedMinNum = runStart ? (t.getTime() - runStart) / 60000 : 0;
+						window._sampleElapsedMin = _elapsedMinNum;
+						if (window._chartElapsedMins) window._chartElapsedMins.push(_elapsedMinNum);
+
 						// fans (optional)
 						if (sample.fans) {
 							for (let i = 1; i <= 6; i++) {
@@ -1586,6 +1620,7 @@
 							wetBulbData.shift();
 							Object.values(fansSeries).forEach(arr => arr.shift());
 							weightData.shift();
+							if (window._chartElapsedMins) window._chartElapsedMins.shift();
 						}
 
 						tempChart.update('none');
@@ -1629,6 +1664,15 @@
 					window._dashLabels     = labels;
 					window._dashTempSeries = tempSeries;
 					window._dashFansSeries = fansSeries;
+
+					// Expose chart instances + elapsed tracking for dashboard-phase2.js
+					window._tempChart        = tempChart;
+					window._envChart         = envChart;
+					window._weightChart      = weightChart;
+					window._fansChart        = fansChart;
+					window._chartLabels      = labels;
+					window._chartElapsedMins = [];   // parallel numeric elapsed-min per label
+					window._sampleElapsedMin = 0;
 
 					// Called by settings panel when zone colors change
 					window.updateChartColors = function () {
@@ -2657,6 +2701,9 @@
 
 		if (!runId) { location.href = 'home.html'; return; }
 
+		// Expose for dashboard-phase2.js IIFEs
+		window._runId = runId;
+
 		// Update zone links to carry run id + mode
 		for (let z = 1; z <= 6; z++) {
 			const a = document.getElementById('zone-link-' + z);
@@ -2672,6 +2719,7 @@
 					'<strong id="replay-run-name">Loading\u2026</strong>' +
 					'<span style="color:#888">\u2014 Read Only</span>' +
 					'<button class="replay-export-btn" id="replay-export-btn">Export CSV</button>' +
+					'<a href="history.html?run=' + runId + '" style="color:#aaffaa;text-decoration:underline;font-size:.85rem">\u2605 Rate this run</a>' +
 					'<a href="home.html" style="color:#aaffaa;text-decoration:underline;font-size:.85rem">\u2190 Home</a>';
 			}
 			const runBox = document.querySelector('.run-box');
@@ -2805,6 +2853,79 @@
 		}
 	})();
 	</script>
+
+	<!-- Phase 2: Weight target modal -->
+	<div id="wt-target-modal" class="modal-overlay" hidden>
+		<div class="modal-popup">
+			<div class="modal-header">
+				<h3 class="modal-title">Set Weight Loss Target Band</h3>
+				<button type="button" class="modal-close" id="wt-target-modal-close">&times;</button>
+			</div>
+			<div class="modal-content">
+				<p style="font-size:.85rem;color:#666;margin-bottom:1rem;">
+					A green band will be drawn on the weight chart between min and max target loss values.
+				</p>
+				<form id="wt-target-form" class="target-form">
+					<label class="target-form__row">
+						<span>Min loss (lbs)</span>
+						<input type="number" name="wt_min" step="0.01" required placeholder="0.00">
+					</label>
+					<label class="target-form__row">
+						<span>Max loss (lbs)</span>
+						<input type="number" name="wt_max" step="0.01" required placeholder="1.00">
+					</label>
+					<button type="submit" class="btn btn--primary" style="margin-top:.75rem;">Save</button>
+				</form>
+			</div>
+		</div>
+	</div>
+
+	<!-- Phase 2: Humidity target modal -->
+	<div id="hum-target-modal" class="modal-overlay" hidden>
+		<div class="modal-popup">
+			<div class="modal-header">
+				<h3 class="modal-title">Set Humidity Target Band</h3>
+				<button type="button" class="modal-close" id="hum-target-modal-close">&times;</button>
+			</div>
+			<div class="modal-content">
+				<p style="font-size:.85rem;color:#666;margin-bottom:1rem;">
+					A green band will be drawn on the environment chart for the ideal humidity range (typically 85&ndash;95 %RH for koji).
+				</p>
+				<form id="hum-target-form" class="target-form">
+					<label class="target-form__row">
+						<span>Min %RH</span>
+						<input type="number" name="hum_min" min="0" max="100" step="1" required value="85">
+					</label>
+					<label class="target-form__row">
+						<span>Max %RH</span>
+						<input type="number" name="hum_max" min="0" max="100" step="1" required value="95">
+					</label>
+					<button type="submit" class="btn btn--primary" style="margin-top:.75rem;">Save</button>
+				</form>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		// Phase 2 modal wiring (weight target + humidity target)
+		(function () {
+			function wireModal(openId, modalId, closeId) {
+				var openBtn = document.getElementById(openId);
+				var modal   = document.getElementById(modalId);
+				var closeBtn = document.getElementById(closeId);
+				if (!openBtn || !modal) return;
+				openBtn.addEventListener('click', function () { modal.hidden = false; });
+				if (closeBtn) closeBtn.addEventListener('click', function () { modal.hidden = true; });
+				modal.addEventListener('click', function (e) {
+					if (e.target === modal) modal.hidden = true;
+				});
+			}
+			wireModal('wt-target-open-btn', 'wt-target-modal', 'wt-target-modal-close');
+			wireModal('hum-target-btn', 'hum-target-modal', 'hum-target-modal-close');
+		})();
+	</script>
+
+	<script src="dashboard-phase2.js"></script>
 </body>
 
 </html>
