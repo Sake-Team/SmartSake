@@ -54,8 +54,19 @@ def init_db():
                 PRIMARY KEY (run_id, zone)
             );
 
+            CREATE TABLE IF NOT EXISTS fan_overrides (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id      INTEGER NOT NULL REFERENCES runs(id),
+                zone        INTEGER NOT NULL CHECK(zone BETWEEN 1 AND 6),
+                action      TEXT NOT NULL CHECK(action IN ('on','off')),
+                expires_at  DATETIME,
+                created_at  DATETIME NOT NULL,
+                UNIQUE(run_id, zone)
+            );
+
             CREATE INDEX IF NOT EXISTS idx_readings_run ON sensor_readings(run_id);
             CREATE INDEX IF NOT EXISTS idx_readings_time ON sensor_readings(recorded_at);
+            CREATE INDEX IF NOT EXISTS idx_overrides_run ON fan_overrides(run_id);
         """)
 
 
@@ -211,6 +222,60 @@ def get_target_profile(run_id):
             (run_id,)
         ).fetchall()
         return [dict(r) for r in rows]
+
+
+# ── Fan overrides ─────────────────────────────────────────────────────────
+
+def set_fan_override(run_id, zone, action, duration_minutes=None):
+    """Upsert a manual fan override for a zone.
+
+    duration_minutes=None means "until end of run" (expires_at stays NULL).
+    """
+    expires_at = None
+    if duration_minutes is not None:
+        from datetime import timedelta
+        expires_at = (datetime.now() + timedelta(minutes=duration_minutes)).isoformat()
+    with get_conn() as conn:
+        conn.execute("""
+            INSERT INTO fan_overrides (run_id, zone, action, expires_at, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(run_id, zone) DO UPDATE SET
+                action=excluded.action,
+                expires_at=excluded.expires_at,
+                created_at=excluded.created_at
+        """, (run_id, zone, action, expires_at, datetime.now().isoformat()))
+
+
+def get_fan_override(run_id, zone):
+    """Return the active override for a zone, or None if absent/expired."""
+    with get_conn() as conn:
+        row = conn.execute("""
+            SELECT * FROM fan_overrides
+            WHERE run_id=? AND zone=?
+              AND (expires_at IS NULL OR expires_at > ?)
+        """, (run_id, zone, datetime.now().isoformat())).fetchone()
+        return dict(row) if row else None
+
+
+def get_all_fan_overrides(run_id):
+    """Return {zone_int: {action, expires_at}} for all active overrides in a run."""
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT zone, action, expires_at FROM fan_overrides
+            WHERE run_id=?
+              AND (expires_at IS NULL OR expires_at > ?)
+        """, (run_id, datetime.now().isoformat())).fetchall()
+        return {r["zone"]: {"action": r["action"], "expires_at": r["expires_at"]}
+                for r in rows}
+
+
+def clear_fan_override(run_id, zone):
+    """Remove the manual override for a zone (return to automatic)."""
+    with get_conn() as conn:
+        conn.execute(
+            "DELETE FROM fan_overrides WHERE run_id=? AND zone=?",
+            (run_id, zone)
+        )
 
 
 # ── Zone notes ────────────────────────────────────────────────────────────────

@@ -219,6 +219,48 @@ def api_save_zone_note(run_id, zone):
     return jsonify({"ok": True})
 
 
+# ── Fan overrides ─────────────────────────────────────────────────────────
+
+@app.route("/api/runs/<int:run_id>/fan-overrides", methods=["GET"])
+def api_get_fan_overrides(run_id):
+    if not db.get_run(run_id):
+        abort(404)
+    return jsonify({"overrides": db.get_all_fan_overrides(run_id)})
+
+
+@app.route("/api/runs/<int:run_id>/zones/<int:zone>/fan", methods=["POST"])
+def api_set_fan_override(run_id, zone):
+    if not db.get_run(run_id):
+        abort(404)
+    if zone < 1 or zone > 6:
+        return jsonify({"error": "zone must be 1-6"}), 400
+    body = request.get_json(force=True, silent=True) or {}
+    action = body.get("action")
+    if action not in ("on", "off"):
+        return jsonify({"error": "action must be 'on' or 'off'"}), 400
+    duration = body.get("duration_minutes")
+    if duration is not None:
+        try:
+            duration = int(duration)
+            if duration <= 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            return jsonify({"error": "duration_minutes must be a positive integer or null"}), 400
+    db.set_fan_override(run_id, zone, action, duration)
+    override = db.get_fan_override(run_id, zone)
+    return jsonify({"ok": True, "override": override})
+
+
+@app.route("/api/runs/<int:run_id>/zones/<int:zone>/fan", methods=["DELETE"])
+def api_clear_fan_override(run_id, zone):
+    if not db.get_run(run_id):
+        abort(404)
+    if zone < 1 or zone > 6:
+        return jsonify({"error": "zone must be 1-6"}), 400
+    db.clear_fan_override(run_id, zone)
+    return jsonify({"ok": True})
+
+
 # ── CSV export ────────────────────────────────────────────────────────────────
 
 @app.route("/api/runs/<int:run_id>/export.csv")
