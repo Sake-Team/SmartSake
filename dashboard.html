@@ -91,6 +91,45 @@
 							</a>
 						</section>
 
+					<!-- Zone detail inline card (hidden until a zone button is clicked) -->
+					<div id="zone-detail-card" class="zone-detail-card" style="display:none;" role="region" aria-label="Zone detail">
+						<div class="zone-detail-card__header">
+							<h3 class="zone-detail-card__title" id="zdc-title">Zone</h3>
+							<div class="zone-detail-card__header-actions">
+								<a id="zdc-fullpage" class="zone-detail-card__fullpage-link" href="#" target="_blank">Open full page</a>
+								<button type="button" class="zone-detail-card__close" id="zdc-close" aria-label="Close zone detail">&times;</button>
+							</div>
+						</div>
+						<div class="zone-detail-card__temp-row">
+							<span class="zone-detail-card__temp-val" id="zdc-temp">--</span>
+							<span class="zone-detail-card__temp-unit">&deg;C</span>
+							<span class="zone-detail-card__temp-label">(current)</span>
+						</div>
+						<div class="zone-detail-card__chart-wrap">
+							<span class="zone-detail-card__chart-label">Temperature over time</span>
+							<canvas id="zdc-temp-chart"></canvas>
+						</div>
+						<div class="zone-detail-card__chart-wrap">
+							<span class="zone-detail-card__chart-label">Fan on/off over time</span>
+							<canvas id="zdc-fan-chart"></canvas>
+						</div>
+						<div class="zone-detail-card__fan-section">
+							<span class="zone-detail-card__fan-label">Manual Fan Control</span>
+							<span class="zone-detail-card__fan-status" id="zdc-fan-status"></span>
+							<div class="zone-detail-card__fan-btns">
+								<button class="zone-detail-card__fan-btn" data-action="off" data-duration="60">Off for 1 hr</button>
+								<button class="zone-detail-card__fan-btn" data-action="on" data-duration="60">On for 1 hr</button>
+								<button class="zone-detail-card__fan-btn" data-action="off" data-duration="">Off until end</button>
+								<button class="zone-detail-card__fan-btn" data-action="on" data-duration="">On until end</button>
+								<button class="zone-detail-card__fan-btn zone-detail-card__fan-btn--auto" id="zdc-fan-auto" style="display:none;">Return to automatic</button>
+							</div>
+						</div>
+						<div class="zone-detail-card__notes-section">
+							<label class="zone-detail-card__notes-label" for="zdc-notes">Notes</label>
+							<textarea id="zdc-notes" class="zone-detail-card__notes" placeholder="Enter notes..."></textarea>
+						</div>
+					</div>
+
 						<div class="notes-wrap">
 							<div class="notes" aria-label="Notes">
 								<label class="sr-only" for="notes-input">Notes</label>
@@ -177,43 +216,6 @@
 					</div>
 				</div>
 			</div>
-
-			<!-- Zone detail slide-in panel -->
-			<div id="zone-panel" class="zone-panel" role="dialog" aria-modal="true" aria-labelledby="zone-panel-title">
-				<div class="zone-panel__header">
-					<h3 class="zone-panel__title" id="zone-panel-title">Zone</h3>
-					<div class="zone-panel__header-actions">
-						<a id="zone-panel-fullpage" class="zone-panel__fullpage-link" href="#" target="_blank">Open full page</a>
-						<button type="button" class="zone-panel__close" id="zone-panel-close" aria-label="Close zone panel">&times;</button>
-					</div>
-				</div>
-				<div class="zone-panel__body">
-					<div class="zone-panel__temp-row">
-						<span class="zone-panel__temp-val" id="zone-panel-temp">--</span>
-						<span class="zone-panel__temp-unit">&deg;C</span>
-						<span class="zone-panel__temp-label">(current)</span>
-					</div>
-					<div class="zone-panel__chart-wrap">
-						<div class="zone-panel__chart-label">Temperature over time</div>
-						<canvas id="zone-panel-temp-chart"></canvas>
-					</div>
-					<div class="zone-panel__chart-wrap">
-						<div class="zone-panel__chart-label">Fan on/off over time</div>
-						<canvas id="zone-panel-fan-chart"></canvas>
-					</div>
-					<div class="zone-panel__manual">
-						<button class="zone-panel__manual-btn" data-action="off-hours">Off for 1 hr</button>
-						<button class="zone-panel__manual-btn" data-action="on-hours">On for 1 hr</button>
-						<button class="zone-panel__manual-btn" data-action="off-run">Off until end of run</button>
-						<button class="zone-panel__manual-btn" data-action="on-run">On until end of run</button>
-					</div>
-					<div class="zone-panel__notes-section">
-						<label class="zone-panel__notes-label" for="zone-panel-notes">Notes</label>
-						<textarea id="zone-panel-notes" class="zone-panel__notes" placeholder="Enter notes..."></textarea>
-					</div>
-				</div>
-			</div>
-			<div id="zone-panel-backdrop" class="zone-panel-backdrop"></div>
 
 			<!-- Modal popup for Start run -->
 			<div id="start-run-modal" class="modal-overlay">
@@ -1931,121 +1933,221 @@
 				})();
 
 
-				// ── Zone detail slide-in panel ────────────────────────────────────────
+				// ── Zone detail inline card ───────────────────────────────────────────
 				(function () {
 					'use strict';
-					const panel    = document.getElementById('zone-panel');
-					const backdrop = document.getElementById('zone-panel-backdrop');
-					const closeBtn = document.getElementById('zone-panel-close');
-					const titleEl  = document.getElementById('zone-panel-title');
-					const tempEl   = document.getElementById('zone-panel-temp');
-					const fullLink = document.getElementById('zone-panel-fullpage');
-					const notesTA  = document.getElementById('zone-panel-notes');
-					const tempCanvas = document.getElementById('zone-panel-temp-chart');
-					const fanCanvas  = document.getElementById('zone-panel-fan-chart');
 
-					let panelTempChart = null;
-					let panelFanChart  = null;
-					let activeZone     = null;
+					// Cached DOM refs
+					const card      = document.getElementById('zone-detail-card');
+					const titleEl   = document.getElementById('zdc-title');
+					const tempEl    = document.getElementById('zdc-temp');
+					const fullLink  = document.getElementById('zdc-fullpage');
+					const closeBtn  = document.getElementById('zdc-close');
+					const notesTA   = document.getElementById('zdc-notes');
+					const fanStatus = document.getElementById('zdc-fan-status');
+					const fanAutoBtn = document.getElementById('zdc-fan-auto');
+					const tempCanvas = document.getElementById('zdc-temp-chart');
+					const fanCanvas  = document.getElementById('zdc-fan-chart');
+					const fanBtns    = card ? card.querySelectorAll('.zone-detail-card__fan-btn[data-action]') : [];
+
+					if (!card) return; // not on dashboard page
+
+					let zdcTempChart = null;
+					let zdcFanChart  = null;
+					let activeZone   = null;
 					let notesSaveTimer = null;
+					let fanRequestPending = false;
 
+					// Chart options matching bubbly light style
 					const CHART_OPTS = {
-						animation: false, responsive: true, maintainAspectRatio: false,
+						animation: false,
+						responsive: true,
+						maintainAspectRatio: false,
 						scales: {
 							x: { display: false },
-							y: { ticks: { color: '#aaa' }, grid: { color: '#2a2a2a' } }
+							y: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: '#e8e8ec' } }
 						},
 						plugins: { legend: { display: false } }
 					};
 
-					function openPanel(zone) {
-						if (!panel) return;
+					function getRunId() {
+						return new URLSearchParams(location.search).get('run');
+					}
+
+					function openCard(zone) {
+						const runId = getRunId();
+						if (!runId) return; // no active run — let normal nav happen
+
+						// Toggle: clicking the same zone collapses the card
+						if (activeZone === zone) { closeCard(); return; }
+
 						activeZone = zone;
 						titleEl.textContent = 'Zone ' + zone;
 
-						// Update full-page link with current run/mode params
-						const params = new URLSearchParams(location.search);
-						const runId  = params.get('run');
-						const mode   = params.get('mode') || 'live';
-						let zoneHref = 'zone' + zone + '.html';
-						if (runId) zoneHref += '?run=' + runId + '&mode=' + mode;
-						if (fullLink) fullLink.href = zoneHref;
+						// Full-page link
+						const mode = new URLSearchParams(location.search).get('mode') || 'live';
+						fullLink.href = 'zone' + zone + '.html?run=' + runId + '&mode=' + mode;
 
-						// Current temp
+						// Current temp from dashboard display
 						const dryEl = document.getElementById('temp-' + zone + '-dry');
 						tempEl.textContent = dryEl ? dryEl.textContent : '--';
 
-						// Build chart data from shared dashboard arrays
-						const zTempData = (window._dashTempSeries  || {})['temp' + zone] || [];
-						const zFanData  = (window._dashFansSeries  || {})['fan'  + zone] || [];
-						const zLabels   = window._dashLabels || [];
-						const style = getComputedStyle(document.documentElement);
+						// Zone color
 						const fallback = ['#e05252','#52a0e0','#52e07c','#e0c952','#c052e0','#e09052'];
-						const color = style.getPropertyValue('--zone-color-' + zone).trim() || fallback[zone - 1];
+						const color = getComputedStyle(document.documentElement)
+							.getPropertyValue('--zone-color-' + zone).trim() || fallback[zone - 1];
 
-						if (panelTempChart) { panelTempChart.destroy(); panelTempChart = null; }
-						if (panelFanChart)  { panelFanChart.destroy();  panelFanChart  = null; }
+						// Destroy old charts before creating new ones (prevent memory leak)
+						if (zdcTempChart) { zdcTempChart.destroy(); zdcTempChart = null; }
+						if (zdcFanChart)  { zdcFanChart.destroy();  zdcFanChart  = null; }
 
-						if (tempCanvas) {
-							panelTempChart = new Chart(tempCanvas.getContext('2d'), {
-								type: 'line',
-								data: {
-									labels: zLabels.slice(),
-									datasets: [{ label: 'Zone ' + zone + ' Temp (\xb0C)', data: zTempData.slice(),
-										borderColor: color, backgroundColor: color + '22',
-										borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: true }]
-								},
-								options: CHART_OPTS
-							});
-						}
-						if (fanCanvas) {
-							panelFanChart = new Chart(fanCanvas.getContext('2d'), {
-								type: 'line',
-								data: {
-									labels: zLabels.slice(),
-									datasets: [{ label: 'Zone ' + zone + ' Fan', data: zFanData.slice(),
-										borderColor: '#52a0e0', backgroundColor: 'rgba(82,160,224,0.1)',
-										borderWidth: 1.5, pointRadius: 0, stepped: true, fill: true }]
-								},
-								options: { ...CHART_OPTS, scales: { ...CHART_OPTS.scales,
-									y: { ...CHART_OPTS.scales.y, min: 0, max: 1 } } }
-							});
-						}
+						// Slice shared dashboard data arrays — avoid holding extra references
+						const labels   = (window._dashLabels || []).slice();
+						const tempData = ((window._dashTempSeries || {})['temp' + zone] || []).slice();
+						const fanData  = ((window._dashFansSeries  || {})['fan'  + zone] || []).slice();
 
-						// Load notes
+						zdcTempChart = new Chart(tempCanvas.getContext('2d'), {
+							type: 'line',
+							data: {
+								labels: labels,
+								datasets: [{ data: tempData, borderColor: color, backgroundColor: color + '22',
+									borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: true }]
+							},
+							options: CHART_OPTS
+						});
+
+						zdcFanChart = new Chart(fanCanvas.getContext('2d'), {
+							type: 'line',
+							data: {
+								labels: labels.slice(), // fan chart owns its own label array
+								datasets: [{ data: fanData, borderColor: '#52a0e0',
+									backgroundColor: 'rgba(82,160,224,0.10)',
+									borderWidth: 1.5, pointRadius: 0, stepped: true, fill: true }]
+							},
+							options: Object.assign({}, CHART_OPTS, {
+								scales: Object.assign({}, CHART_OPTS.scales, {
+									y: Object.assign({}, CHART_OPTS.scales.y, { min: 0, max: 1 })
+								})
+							})
+						});
+
+						// Highlight active zone button
+						document.querySelectorAll('.zone-combined').forEach(function (el) {
+							el.classList.remove('zone-combined--active');
+						});
+						var activeLink = document.getElementById('zone-link-' + zone);
+						if (activeLink) activeLink.classList.add('zone-combined--active');
+
+						// Show card
+						card.style.display = 'flex';
+
+						// Load fan override state and notes in parallel
+						loadFanState(runId, zone);
 						if (notesTA) {
 							notesTA.value = '';
-							if (runId) {
-								fetch('/api/runs/' + runId + '/zones/' + zone)
-									.then(r => r.json())
-									.then(function (d) { if (d.note) notesTA.value = d.note; })
-									.catch(function () {});
-							}
+							fetch('/api/runs/' + runId + '/zones/' + zone)
+								.then(function (r) { return r.ok ? r.json() : {}; })
+								.then(function (d) { if (d.note) notesTA.value = d.note; })
+								.catch(function () {});
 						}
-
-						panel.classList.add('zone-panel--open');
-						if (backdrop) backdrop.classList.add('zone-panel-backdrop--visible');
-						document.body.classList.add('zone-panel-body-open');
 					}
 
-					function closePanel() {
-						if (!panel) return;
-						panel.classList.remove('zone-panel--open');
-						if (backdrop) backdrop.classList.remove('zone-panel-backdrop--visible');
-						document.body.classList.remove('zone-panel-body-open');
+					function closeCard() {
+						card.style.display = 'none';
+						if (zdcTempChart) { zdcTempChart.destroy(); zdcTempChart = null; }
+						if (zdcFanChart)  { zdcFanChart.destroy();  zdcFanChart  = null; }
+						document.querySelectorAll('.zone-combined').forEach(function (el) {
+							el.classList.remove('zone-combined--active');
+						});
 						activeZone = null;
 					}
 
-					// Notes auto-save
+					function loadFanState(runId, zone) {
+						fanStatus.textContent = '';
+						fanAutoBtn.style.display = 'none';
+						fanBtns.forEach(function (b) { b.classList.remove('zone-detail-card__fan-btn--active'); });
+
+						fetch('/api/runs/' + runId + '/fan-overrides')
+							.then(function (r) { return r.ok ? r.json() : { overrides: {} }; })
+							.then(function (d) {
+								var ov = (d.overrides || {})[zone];
+								if (!ov) { fanStatus.textContent = 'Automatic'; return; }
+								var expires = ov.expires_at
+									? ' (expires ' + new Date(ov.expires_at).toLocaleTimeString() + ')'
+									: ' (until end of run)';
+								fanStatus.textContent = 'Fan ' + ov.action.toUpperCase() + ' — manual override' + expires;
+								fanAutoBtn.style.display = '';
+								// Highlight matching button
+								fanBtns.forEach(function (b) {
+									var matchAction  = b.dataset.action === ov.action;
+									var matchDuration = ov.expires_at
+										? b.dataset.duration !== ''
+										: b.dataset.duration === '';
+									if (matchAction && matchDuration) {
+										b.classList.add('zone-detail-card__fan-btn--active');
+									}
+								});
+							})
+							.catch(function () { fanStatus.textContent = ''; });
+					}
+
+					// Fan override button clicks
+					fanBtns.forEach(function (btn) {
+						btn.addEventListener('click', function () {
+							var runId = getRunId();
+							if (!runId || !activeZone || fanRequestPending) return;
+							var action   = btn.dataset.action;
+							var duration = btn.dataset.duration !== '' ? parseInt(btn.dataset.duration, 10) : null;
+							if (!action) return;
+
+							fanRequestPending = true;
+							fanBtns.forEach(function (b) { b.disabled = true; });
+							fanStatus.textContent = 'Saving…';
+
+							fetch('/api/runs/' + runId + '/zones/' + activeZone + '/fan', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ action: action, duration_minutes: duration })
+							})
+								.then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+								.then(function () { loadFanState(runId, activeZone); })
+								.catch(function () { fanStatus.textContent = 'Error — try again'; })
+								.finally(function () {
+									fanRequestPending = false;
+									fanBtns.forEach(function (b) { b.disabled = false; });
+								});
+						});
+					});
+
+					// "Return to automatic" clears the override
+					if (fanAutoBtn) {
+						fanAutoBtn.addEventListener('click', function () {
+							var runId = getRunId();
+							if (!runId || !activeZone || fanRequestPending) return;
+							fanRequestPending = true;
+							fanAutoBtn.disabled = true;
+							fanStatus.textContent = 'Clearing…';
+
+							fetch('/api/runs/' + runId + '/zones/' + activeZone + '/fan', { method: 'DELETE' })
+								.then(function () { loadFanState(runId, activeZone); })
+								.catch(function () { fanStatus.textContent = 'Error — try again'; })
+								.finally(function () {
+									fanRequestPending = false;
+									fanAutoBtn.disabled = false;
+								});
+						});
+					}
+
+					// Notes auto-save (800ms debounce)
 					if (notesTA) {
 						notesTA.addEventListener('input', function () {
 							clearTimeout(notesSaveTimer);
 							notesSaveTimer = setTimeout(function () {
-								const params = new URLSearchParams(location.search);
-								const runId = params.get('run');
+								var runId = getRunId();
 								if (runId && activeZone) {
 									fetch('/api/runs/' + runId + '/zones/' + activeZone, {
-										method: 'PUT', headers: { 'Content-Type': 'application/json' },
+										method: 'PUT',
+										headers: { 'Content-Type': 'application/json' },
 										body: JSON.stringify({ note: notesTA.value })
 									}).catch(function () {});
 								}
@@ -2053,43 +2155,40 @@
 						});
 					}
 
-					// Intercept zone link clicks
+					// Intercept zone button clicks when a run is active
 					document.querySelectorAll('.zone-combined').forEach(function (link) {
 						link.addEventListener('click', function (e) {
-							// Only intercept when a run is active (URL has ?run=)
-							const params = new URLSearchParams(location.search);
-							if (!params.get('run')) return; // let normal nav happen on home screen
+							if (!getRunId()) return; // no run — normal navigation
 							e.preventDefault();
-							const zoneNum = parseInt(link.id.replace('zone-link-', ''), 10);
-							if (zoneNum >= 1 && zoneNum <= 6) openPanel(zoneNum);
+							var zoneNum = parseInt(link.id.replace('zone-link-', ''), 10);
+							if (zoneNum >= 1 && zoneNum <= 6) openCard(zoneNum);
 						});
 					});
 
 					// Close triggers
-					if (closeBtn) closeBtn.addEventListener('click', closePanel);
-					if (backdrop) backdrop.addEventListener('click', closePanel);
+					closeBtn.addEventListener('click', closeCard);
 					document.addEventListener('keydown', function (e) {
-						if (e.key === 'Escape' && activeZone) closePanel();
+						if (e.key === 'Escape' && activeZone) closeCard();
 					});
 
-					// Live update panel charts when new data arrives
+					// Live data push from polling loop
 					window._zonePanelPush = function (zone, label, temp, fan) {
-						if (activeZone !== zone || !panelTempChart || !panelFanChart) return;
-						const MAX = 120;
-						panelTempChart.data.labels.push(label);
-						panelTempChart.data.datasets[0].data.push(temp);
-						panelFanChart.data.labels.push(label);
-						panelFanChart.data.datasets[0].data.push(fan);
-						if (panelTempChart.data.labels.length > MAX) {
-							panelTempChart.data.labels.shift();
-							panelTempChart.data.datasets[0].data.shift();
-							panelFanChart.data.labels.shift();
-							panelFanChart.data.datasets[0].data.shift();
+						if (activeZone !== zone || !zdcTempChart || !zdcFanChart) return;
+						var MAX = 120;
+						zdcTempChart.data.labels.push(label);
+						zdcTempChart.data.datasets[0].data.push(temp);
+						zdcFanChart.data.labels.push(label);
+						zdcFanChart.data.datasets[0].data.push(fan);
+						if (zdcTempChart.data.labels.length > MAX) {
+							zdcTempChart.data.labels.shift();
+							zdcTempChart.data.datasets[0].data.shift();
+							zdcFanChart.data.labels.shift();
+							zdcFanChart.data.datasets[0].data.shift();
 						}
-						panelTempChart.update('none');
-						panelFanChart.update('none');
-						// update current temp display
-						const dryEl = document.getElementById('temp-' + zone + '-dry');
+						// update() with 'none' mode skips animation — critical for Pi 4B performance
+						zdcTempChart.update('none');
+						zdcFanChart.update('none');
+						var dryEl = document.getElementById('temp-' + zone + '-dry');
 						if (dryEl) tempEl.textContent = dryEl.textContent;
 					};
 				})();
