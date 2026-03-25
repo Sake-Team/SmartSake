@@ -73,7 +73,13 @@
           <button class="btn btn-primary" id="start-btn">Start</button>
         </div>
         <div class="upload-row">
-          <label for="target-csv">Koji strain CSV (optional):</label>
+          <label for="curve-select">Reference curve (optional):</label>
+          <select id="curve-select" style="font-size:.82rem;padding:2px 6px;border-radius:4px;border:1px solid #555;background:#2a2a2a;color:#ddd;">
+            <option value="">— None —</option>
+          </select>
+        </div>
+        <div class="upload-row">
+          <label for="target-csv">Or upload CSV (overrides curve):</label>
           <input type="file" id="target-csv" accept=".csv">
           <span class="upload-status" id="csv-status"></span>
         </div>
@@ -164,13 +170,16 @@
         });
         const run = await res.json();
 
-        // Upload target profile if provided
+        // Apply reference curve if selected (CSV takes priority)
+        const curveId = Number(document.getElementById('curve-select').value);
         if (parsedTargetRows && parsedTargetRows.length > 0) {
           await fetch('/api/runs/' + run.id + '/target', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(parsedTargetRows)
           });
+        } else if (curveId) {
+          await fetch('/api/runs/' + run.id + '/target/from-curve/' + curveId, { method: 'POST' });
         }
 
         location.href = 'dashboard.html?run=' + run.id + '&mode=live';
@@ -240,13 +249,18 @@
           row.className = 'run-row';
 
           const statusLabel = run.status === 'crashed' ? ' <span style="color:#ff9f9f;font-size:.75rem">[crashed]</span>' : '';
+          const starsHtml = run.quality_score
+            ? '<span style="color:#d79b00">' + '★'.repeat(run.quality_score) + '</span>'
+              + '<span style="color:#555">' + '★'.repeat(5 - run.quality_score) + '</span>'
+            : '';
           row.innerHTML = `
             <div class="run-row-info">
-              <div class="run-row-name">${escHtml(run.name)}${statusLabel}</div>
+              <div class="run-row-name">${escHtml(run.name)}${statusLabel} ${starsHtml}</div>
               <div class="run-row-meta">${fmtDate(run.started_at)} &mdash; ${duration(run.started_at, run.ended_at)}</div>
             </div>
             <div class="run-row-actions">
               <button class="btn btn-secondary btn-sm view-btn">View</button>
+              <button class="btn btn-secondary btn-sm details-btn">Details</button>
               <button class="btn btn-danger btn-sm delete-btn">Delete</button>
             </div>
           `;
@@ -254,6 +268,11 @@
           row.querySelector('.view-btn').onclick = function (e) {
             e.stopPropagation();
             location.href = 'dashboard.html?run=' + run.id + '&mode=replay';
+          };
+
+          row.querySelector('.details-btn').onclick = function (e) {
+            e.stopPropagation();
+            location.href = 'history.html?run=' + run.id;
           };
 
           row.querySelector('.delete-btn').onclick = async function (e) {
@@ -278,8 +297,24 @@
       return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
+    // ── reference curves ─────────────────────────────────────────────────────
+    async function loadReferenceCurves() {
+      try {
+        const res = await fetch('/api/reference-curves');
+        const curves = await res.json();
+        const sel = document.getElementById('curve-select');
+        curves.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = c.name;
+          sel.appendChild(opt);
+        });
+      } catch { /* non-fatal */ }
+    }
+
     loadActiveRun();
     loadRunsList();
+    loadReferenceCurves();
   })();
   </script>
 </body>
