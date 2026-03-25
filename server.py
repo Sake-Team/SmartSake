@@ -261,6 +261,252 @@ def api_clear_fan_override(run_id, zone):
     return jsonify({"ok": True})
 
 
+# ── Fan rules ─────────────────────────────────────────────────────────────────
+
+@app.route("/api/runs/<int:run_id>/fan-rules", methods=["GET"])
+def api_get_fan_rules(run_id):
+    if not db.get_run(run_id):
+        abort(404)
+    zone = request.args.get('zone', type=int)
+    return jsonify(db.get_fan_rules(run_id, zone))
+
+
+@app.route("/api/runs/<int:run_id>/fan-rules", methods=["POST"])
+def api_create_fan_rule(run_id):
+    if not db.get_run(run_id):
+        abort(404)
+    body = request.get_json(force=True, silent=True) or {}
+    zone = body.get('zone')
+    rule_type = body.get('rule_type')
+    fan_action = body.get('fan_action')
+
+    if zone not in range(1, 7):
+        return jsonify({"error": "zone must be 1-6"}), 400
+    if rule_type not in ('time_window', 'threshold'):
+        return jsonify({"error": "rule_type must be time_window or threshold"}), 400
+    if fan_action not in ('on', 'off'):
+        return jsonify({"error": "fan_action must be on or off"}), 400
+
+    kwargs = {}
+    if rule_type == 'time_window':
+        start = body.get('elapsed_min_start')
+        end = body.get('elapsed_min_end')
+        if start is None or end is None or not isinstance(start, int) or not isinstance(end, int):
+            return jsonify({"error": "time_window requires elapsed_min_start and elapsed_min_end (integers)"}), 400
+        if start >= end:
+            return jsonify({"error": "elapsed_min_start must be less than elapsed_min_end"}), 400
+        kwargs = {'elapsed_min_start': start, 'elapsed_min_end': end}
+    else:
+        temp = body.get('threshold_temp_c')
+        direction = body.get('threshold_dir')
+        dur = body.get('threshold_dur_min')
+        if temp is None or direction not in ('above', 'below') or not isinstance(dur, int) or dur <= 0:
+            return jsonify({"error": "threshold requires threshold_temp_c, threshold_dir (above/below), threshold_dur_min (int > 0)"}), 400
+        kwargs = {'threshold_temp_c': float(temp), 'threshold_dir': direction, 'threshold_dur_min': dur}
+
+    rule_id = db.create_fan_rule(run_id, zone, rule_type, fan_action, **kwargs)
+    return jsonify(db.get_fan_rules(run_id)[0] if False else
+                   next((r for r in db.get_fan_rules(run_id) if r['id'] == rule_id), {})), 201
+
+
+@app.route("/api/runs/<int:run_id>/fan-rules/<int:rule_id>", methods=["PATCH"])
+def api_toggle_fan_rule(run_id, rule_id):
+    if not db.get_run(run_id):
+        abort(404)
+    body = request.get_json(force=True, silent=True) or {}
+    enabled = body.get('enabled')
+    if enabled is None:
+        return jsonify({"error": "enabled required"}), 400
+    db.set_fan_rule_enabled(rule_id, bool(enabled))
+    return jsonify({"ok": True})
+
+
+@app.route("/api/runs/<int:run_id>/fan-rules/<int:rule_id>", methods=["DELETE"])
+def api_delete_fan_rule(run_id, rule_id):
+    if not db.get_run(run_id):
+        abort(404)
+    db.delete_fan_rule(rule_id)
+    return "", 204
+
+
+# ── Deviation events ───────────────────────────────────────────────────────────
+
+@app.route("/api/runs/<int:run_id>/deviations", methods=["GET"])
+def api_get_deviations(run_id):
+    if not db.get_run(run_id):
+        abort(404)
+    zone = request.args.get('zone', type=int)
+    return jsonify(db.get_deviation_events(run_id, zone))
+
+
+@app.route("/api/runs/<int:run_id>/deviations/active", methods=["GET"])
+def api_get_active_deviations(run_id):
+    if not db.get_run(run_id):
+        abort(404)
+    return jsonify(db.get_open_deviation_events(run_id))
+
+
+# ── Run events (stage markers) ─────────────────────────────────────────────────
+
+@app.route("/api/runs/<int:run_id>/events", methods=["GET"])
+def api_get_run_events(run_id):
+    if not db.get_run(run_id):
+        abort(404)
+    return jsonify(db.get_run_events(run_id))
+
+
+@app.route("/api/runs/<int:run_id>/events", methods=["POST"])
+def api_create_run_event(run_id):
+    run = db.get_run(run_id)
+    if not run:
+        abort(404)
+    body = request.get_json(force=True, silent=True) or {}
+    label = (body.get('label') or '').strip()
+    elapsed_min = body.get('elapsed_min')
+    if not label:
+        return jsonify({"error": "label required"}), 400
+    if elapsed_min is None:
+        # Auto-calculate from run start if not provided
+        from datetime import datetime as _dt
+        started = _dt.fromisoformat(run['started_at'])
+        elapsed_min = int((_dt.now() - started).total_seconds() / 60)
+    event_id = db.create_run_event(run_id, label, int(elapsed_min))
+    return jsonify({"id": event_id, "label": label, "elapsed_min": int(elapsed_min)}), 201
+
+
+@app.route("/api/runs/<int:run_id>/events/<int:event_id>", methods=["DELETE"])
+def api_delete_run_event(run_id, event_id):
+    if not db.get_run(run_id):
+        abort(404)
+    db.delete_run_event(event_id)
+    return "", 204
+
+
+# ── Run metadata ───────────────────────────────────────────────────────────────
+
+@app.route("/api/runs/<int:run_id>/metadata", methods=["GET"])
+def api_get_metadata(run_id):
+    if not db.get_run(run_id):
+        abort(404)
+    return jsonify(db.get_run_metadata(run_id))
+
+
+@app.route("/api/runs/<int:run_id>/metadata", methods=["PATCH"])
+def api_patch_metadata(run_id):
+    if not db.get_run(run_id):
+        abort(404)
+    body = request.get_json(force=True, silent=True) or {}
+
+    # Validate provided fields
+    if 'polish_ratio' in body and body['polish_ratio'] is not None:
+        try:
+            pr = int(body['polish_ratio'])
+            if not (0 <= pr <= 100):
+                raise ValueError
+            body['polish_ratio'] = pr
+        except (TypeError, ValueError):
+            return jsonify({"error": "polish_ratio must be 0-100"}), 400
+
+    if 'quality_score' in body and body['quality_score'] is not None:
+        try:
+            qs = int(body['quality_score'])
+            if not (1 <= qs <= 5):
+                raise ValueError
+            body['quality_score'] = qs
+        except (TypeError, ValueError):
+            return jsonify({"error": "quality_score must be 1-5"}), 400
+
+    if 'koji_variety' in body and body['koji_variety'] not in (None, 'yellow', 'white', 'black', 'other'):
+        return jsonify({"error": "koji_variety must be yellow, white, black, or other"}), 400
+
+    if 'inoculation_rate' in body and body['inoculation_rate'] is not None:
+        try:
+            body['inoculation_rate'] = float(body['inoculation_rate'])
+            if body['inoculation_rate'] <= 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            return jsonify({"error": "inoculation_rate must be a positive number"}), 400
+
+    return jsonify(db.upsert_run_metadata(run_id, body))
+
+
+# ── Reference curves ──────────────────────────────────────────────────────────
+
+@app.route("/api/reference-curves", methods=["GET"])
+def api_list_reference_curves():
+    return jsonify(db.get_all_reference_curves())
+
+
+@app.route("/api/reference-curves/<int:curve_id>", methods=["GET"])
+def api_get_reference_curve(curve_id):
+    curve = db.get_reference_curve(curve_id)
+    if not curve:
+        abort(404)
+    return jsonify(curve)
+
+
+@app.route("/api/reference-curves", methods=["POST"])
+def api_create_reference_curve():
+    body = request.get_json(force=True, silent=True) or {}
+    name = (body.get('name') or '').strip()
+    if not name:
+        return jsonify({"error": "name required"}), 400
+    points = body.get('points', [])
+    if not isinstance(points, list) or not points:
+        return jsonify({"error": "points must be a non-empty array"}), 400
+    for p in points:
+        if 'elapsed_min' not in p:
+            return jsonify({"error": "each point must have elapsed_min"}), 400
+    try:
+        curve_id = db.create_reference_curve(
+            name, body.get('description', ''), body.get('source', ''), points
+        )
+    except Exception as e:
+        if 'UNIQUE' in str(e):
+            return jsonify({"error": "a curve with that name already exists"}), 409
+        raise
+    return jsonify(db.get_reference_curve(curve_id)), 201
+
+
+@app.route("/api/reference-curves/<int:curve_id>", methods=["DELETE"])
+def api_delete_reference_curve(curve_id):
+    if not db.get_reference_curve(curve_id):
+        abort(404)
+    db.delete_reference_curve(curve_id)
+    return "", 204
+
+
+@app.route("/api/runs/<int:run_id>/target/from-curve/<int:curve_id>", methods=["POST"])
+def api_load_curve_as_target(run_id, curve_id):
+    if not db.get_run(run_id):
+        abort(404)
+    if not db.get_reference_curve(curve_id):
+        abort(404)
+    db.load_curve_as_target(run_id, curve_id)
+    return jsonify(db.get_target_profile(run_id)), 201
+
+
+# ── Correlation ────────────────────────────────────────────────────────────────
+
+_CORR_VARIABLES = ('avg_humidity_stage2', 'total_weight_loss_pct', 'avg_temp_all_zones', 'peak_deviation')
+
+
+@app.route("/api/correlation", methods=["GET"])
+def api_correlation():
+    variable = request.args.get('variable')
+    if variable not in _CORR_VARIABLES:
+        return jsonify({"error": f"variable must be one of: {', '.join(_CORR_VARIABLES)}"}), 400
+    count = db.get_scored_run_count()
+    if count < 5:
+        return jsonify({"error": "Need at least 5 scored runs", "count": count}), 400
+    rows = db.get_correlation_data(variable)
+    points = [{"run_id": r[0], "run_name": r[1], "x": r[3], "y": r[2]}
+              for r in rows if r[3] is not None]
+    pearson_r = db.compute_pearson_r([(p['x'], p['y']) for p in points])
+    return jsonify({"variable": variable, "n": len(points),
+                    "pearson_r": pearson_r, "points": points})
+
+
 # ── CSV export ────────────────────────────────────────────────────────────────
 
 @app.route("/api/runs/<int:run_id>/export.csv")
