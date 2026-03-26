@@ -91,13 +91,12 @@
 							</a>
 						</section>
 
-					<!-- Zone detail inline card (hidden until a zone button is clicked) -->
-					<div id="zone-detail-card" class="zone-detail-card" style="display:none;" role="region" aria-label="Zone detail">
+					<!-- Zone detail modal (opens when a zone button is clicked) -->
+					<div id="zone-detail-card" class="modal-overlay zone-modal-overlay" role="dialog" aria-modal="true" aria-label="Zone detail" hidden>
+					<div class="modal-popup zone-modal-popup">
 						<div class="zone-detail-card__header">
 							<h3 class="zone-detail-card__title" id="zdc-title">Zone</h3>
-							<div class="zone-detail-card__header-actions">
-								<a id="zdc-fullpage" class="zone-detail-card__fullpage-link" href="#" target="_blank">Open full page</a>
-								<button type="button" class="zone-detail-card__close" id="zdc-close" aria-label="Close zone detail">&times;</button>
+							<div class="zone-detail-card__header-actions">								<button type="button" class="zone-detail-card__close" id="zdc-close" aria-label="Close zone detail">&times;</button>
 							</div>
 						</div>
 						<div class="zone-detail-card__temp-row">
@@ -124,10 +123,8 @@
 								<button class="zone-detail-card__fan-btn zone-detail-card__fan-btn--auto" id="zdc-fan-auto" style="display:none;">Return to automatic</button>
 							</div>
 						</div>
-						<div class="zone-detail-card__notes-section">
-							<label class="zone-detail-card__notes-label" for="zdc-notes">Notes</label>
-							<textarea id="zdc-notes" class="zone-detail-card__notes" placeholder="Enter notes..."></textarea>
-						</div>
+
+					</div>
 					</div>
 
 						<div class="notes-wrap">
@@ -159,7 +156,6 @@
 							<div class="long long--top-left home-side-title-chart-card home-humidity-chart-card">
 								<div class="env-chart-header">
 									<span class="home-humidity-title chart-title--single-line">Environment</span>
-									<button id="hum-target-btn" class="elapsed-toggle-btn" type="button" title="Set humidity target band">Target</button>
 									<button id="elapsed-toggle-btn" class="elapsed-toggle-btn" type="button" title="Toggle elapsed/clock time axis">Clock</button>
 								</div>
 								<canvas id="humidity-chart" class="metric-chart"></canvas>
@@ -176,7 +172,6 @@
 						<div class="long long--top-left home-side-title-chart-card home-humidity-chart-card">
 							<div class="weight-chart-header-row">
 								<span class="home-humidity-title chart-title--single-line">Weight over time</span>
-								<button id="wt-target-open-btn" class="elapsed-toggle-btn" type="button" title="Set weight loss target band">Target</button>
 							</div>
 							<div class="weight-stats-row">
 								<span class="weight-stat"><label>Initial</label><span id="wt-initial">—</span></span>
@@ -224,6 +219,28 @@
 								<label class="settings-color-row"><span>Accent</span><input type="color" class="settings-color-input" data-key="themeAccent" value="#52a0e0"></label>
 								<label class="settings-color-row"><span>Grid lines</span><input type="color" class="settings-color-input" data-key="themeGrid" value="#2a2a2a"></label>
 							</div>
+						</section>
+
+						<section class="settings-section">
+							<h4 class="settings-section__title">Chart backgrounds</h4>
+							<div class="settings-colors-grid">
+								<label class="settings-color-row"><span>Temperature</span><input type="color" class="settings-color-input" data-key="chartBgTemp" value="#181818"></label>
+								<label class="settings-color-row"><span>Environment</span><input type="color" class="settings-color-input" data-key="chartBgEnv" value="#181818"></label>
+								<label class="settings-color-row"><span>Fans</span><input type="color" class="settings-color-input" data-key="chartBgFans" value="#181818"></label>
+								<label class="settings-color-row"><span>Weight</span><input type="color" class="settings-color-input" data-key="chartBgWeight" value="#181818"></label>
+							</div>
+						</section>
+
+						<section class="settings-section">
+							<h4 class="settings-section__title">Run targets</h4>
+							<div class="settings-targets-grid">
+								<label class="settings-target-row"><span>Humidity min (%RH)</span><input type="number" class="settings-target-input" id="st-hum-min" min="0" max="100" step="1" value="85"></label>
+								<label class="settings-target-row"><span>Humidity max (%RH)</span><input type="number" class="settings-target-input" id="st-hum-max" min="0" max="100" step="1" value="95"></label>
+								<label class="settings-target-row"><span>Weight loss min (lbs)</span><input type="number" class="settings-target-input" id="st-wt-min" step="0.01" placeholder="0.00"></label>
+								<label class="settings-target-row"><span>Weight loss max (lbs)</span><input type="number" class="settings-target-input" id="st-wt-max" step="0.01" placeholder="1.00"></label>
+							</div>
+							<button type="button" class="btn btn--primary btn--sm" id="st-targets-save" style="margin-top:.5rem;">Apply targets</button>
+							<span id="st-targets-status" style="font-size:.78rem;margin-left:.5rem;color:#7fff7f;"></span>
 						</section>
 
 						<div class="settings-footer">
@@ -1312,15 +1329,27 @@
 
 					const weightData = [];
 
-					// Wet-bulb formula (Stull 2011, accurate to ±1°C)
+					// Wet-bulb via psychrometric equation + Newton-Raphson iteration.
+					// More accurate than Stull (2011) at high RH (>85 %) and T > 35 °C (koji conditions).
 					function calcWetBulb(T, RH) {
-						if (T == null || RH == null || isNaN(T) || isNaN(RH) || RH < 0 || RH > 100 || T > 80) return null;
-						var wb = T * Math.atan(0.151977 * Math.pow(RH + 8.313659, 0.5))
-						       + Math.atan(T + RH)
-						       - Math.atan(RH - 1.676331)
-						       + 0.00391838 * Math.pow(RH, 1.5) * Math.atan(0.023101 * RH)
-						       - 4.686035;
-						return Math.round(wb * 2) / 2; // round to 0.5
+						if (T == null || RH == null || isNaN(T) || isNaN(RH) || RH <= 0 || RH > 100) return null;
+						// Tetens saturation vapour pressure (hPa)
+						function es(t) { return 6.1078 * Math.exp(17.27 * t / (t + 237.3)); }
+						var ea = es(T) * RH / 100;      // actual vapour pressure
+						var P  = 1013.25;               // sea-level pressure (hPa)
+						var A  = 6.6e-4;                // psychrometric coefficient
+						// Initial guess: midpoint between dry-bulb and dew point
+						var lnr = Math.log(ea / 6.1078);
+						var Td  = 237.3 * lnr / (17.27 - lnr);
+						var wb  = (T + Td) / 2;
+						for (var i = 0; i < 12; i++) {
+							var esw = es(wb);
+							var f   = esw - A * P * (T - wb) - ea;
+							var df  = 17.27 * 237.3 / Math.pow(wb + 237.3, 2) * esw + A * P;
+							wb -= f / df;
+							if (Math.abs(f / df) < 1e-6) break;
+						}
+						return Math.round(wb * 2) / 2; // round to 0.5 °C
 					}
 
 					// Elapsed-time mode flag and helpers
@@ -1377,11 +1406,12 @@
 						if (!tempLegendContainer) return;
 						tempLegendContainer.innerHTML = '';
 
-						tempChart.data.datasets.forEach((_, index) => {
-							tempChart.setDatasetVisibility(index, true);
+						tempChart.data.datasets.forEach((ds, index) => {
+							if (!ds._isTarget) tempChart.setDatasetVisibility(index, true);
 						});
 
 						tempChart.data.datasets.forEach((dataset, index) => {
+							if (dataset._isTarget) return;
 							const item = document.createElement('button');
 							item.type = 'button';
 							item.className = 'temp-chart-legend__item';
@@ -1658,6 +1688,8 @@
 								window._zonePanelPush(i, label, tVal, fVal);
 							}
 						}
+						// Hook for target-projection refresh
+						if (window._afterSamplePush) window._afterSamplePush();
 					};
 
 					// Expose data arrays for zone panel
@@ -1671,8 +1703,10 @@
 					window._weightChart      = weightChart;
 					window._fansChart        = fansChart;
 					window._chartLabels      = labels;
-					window._chartElapsedMins = [];   // parallel numeric elapsed-min per label
-					window._sampleElapsedMin = 0;
+					window._chartElapsedMins  = [];   // parallel numeric elapsed-min per label
+					window._sampleElapsedMin  = 0;
+					window._dashElapsedLabels = elapsedLabels; // expose for target projection
+					window._elapsedMode       = false;
 
 					// Called by settings panel when zone colors change
 					window.updateChartColors = function () {
@@ -1685,6 +1719,7 @@
 					// ── Elapsed time toggle ─────────────────────────────────────────────
 					function applyElapsedMode(on) {
 						elapsedMode = on;
+						window._elapsedMode = on;
 						var dispLabels = on ? elapsedLabels : labels;
 						// Update all small charts
 						[tempChart, envChart, fansChart, weightChart].forEach(function (ch) {
@@ -1985,9 +2020,8 @@
 					const card      = document.getElementById('zone-detail-card');
 					const titleEl   = document.getElementById('zdc-title');
 					const tempEl    = document.getElementById('zdc-temp');
-					const fullLink  = document.getElementById('zdc-fullpage');
 					const closeBtn  = document.getElementById('zdc-close');
-					const notesTA   = document.getElementById('zdc-notes');
+					const notesTA   = null; // notes removed from zone modal
 					const fanStatus = document.getElementById('zdc-fan-status');
 					const fanAutoBtn = document.getElementById('zdc-fan-auto');
 					const tempCanvas = document.getElementById('zdc-temp-chart');
@@ -1999,7 +2033,6 @@
 					let zdcTempChart = null;
 					let zdcFanChart  = null;
 					let activeZone   = null;
-					let notesSaveTimer = null;
 					let fanRequestPending = false;
 
 					// Chart options matching bubbly light style
@@ -2083,21 +2116,14 @@
 						if (activeLink) activeLink.classList.add('zone-combined--active');
 
 						// Show card
-						card.style.display = 'flex';
+						card.hidden = false;
 
-						// Load fan override state and notes in parallel
+						// Load fan override state
 						loadFanState(runId, zone);
-						if (notesTA) {
-							notesTA.value = '';
-							fetch('/api/runs/' + runId + '/zones/' + zone)
-								.then(function (r) { return r.ok ? r.json() : {}; })
-								.then(function (d) { if (d.note) notesTA.value = d.note; })
-								.catch(function () {});
-						}
 					}
 
 					function closeCard() {
-						card.style.display = 'none';
+						card.hidden = true;
 						if (zdcTempChart) { zdcTempChart.destroy(); zdcTempChart = null; }
 						if (zdcFanChart)  { zdcFanChart.destroy();  zdcFanChart  = null; }
 						document.querySelectorAll('.zone-combined').forEach(function (el) {
@@ -2182,22 +2208,6 @@
 						});
 					}
 
-					// Notes auto-save (800ms debounce)
-					if (notesTA) {
-						notesTA.addEventListener('input', function () {
-							clearTimeout(notesSaveTimer);
-							notesSaveTimer = setTimeout(function () {
-								var runId = getRunId();
-								if (runId && activeZone) {
-									fetch('/api/runs/' + runId + '/zones/' + activeZone, {
-										method: 'PUT',
-										headers: { 'Content-Type': 'application/json' },
-										body: JSON.stringify({ note: notesTA.value })
-									}).catch(function () {});
-								}
-							}, 800);
-						});
-					}
 
 					// Intercept zone button clicks when a run is active
 					document.querySelectorAll('.zone-combined').forEach(function (link) {
@@ -2211,6 +2221,9 @@
 
 					// Close triggers
 					closeBtn.addEventListener('click', closeCard);
+					card.addEventListener('click', function (e) {
+						if (e.target === card) closeCard(); // click backdrop
+					});
 					document.addEventListener('keydown', function (e) {
 						if (e.key === 'Escape' && activeZone) closeCard();
 					});
@@ -2604,7 +2617,8 @@
 			zoneColor1: '#e05252', zoneColor2: '#52a0e0', zoneColor3: '#52e07c',
 			zoneColor4: '#e0c952', zoneColor5: '#c052e0', zoneColor6: '#e09052',
 			themeBg:      '#111111', themeSurface: '#181818', themeBorder: '#2e2e2e',
-			themeText:    '#dddddd', themeAccent:  '#52a0e0', themeGrid:   '#2a2a2a'
+			themeText:    '#dddddd', themeAccent:  '#52a0e0', themeGrid:   '#2a2a2a',
+			chartBgTemp: '#181818', chartBgEnv: '#181818', chartBgFans: '#181818', chartBgWeight: '#181818'
 		};
 		const STORAGE_KEY = 'sakeSettings';
 
@@ -2633,8 +2647,21 @@
 			root.style.setProperty('--theme-grid',    s.themeGrid);
 		}
 
+		function applyChartBg(s) {
+			var map = {
+				chartBgTemp:   document.getElementById('temp-chart'),
+				chartBgEnv:    document.getElementById('humidity-chart'),
+				chartBgFans:   document.getElementById('fans-chart'),
+				chartBgWeight: document.getElementById('weight-chart')
+			};
+			Object.keys(map).forEach(function (key) {
+				if (map[key] && s[key]) map[key].style.background = s[key];
+			});
+		}
+
 		// Apply on load
 		applyCSSVars(loadSettings());
+		applyChartBg(loadSettings());
 
 		const modal     = document.getElementById('settings-modal');
 		const openBtn   = document.getElementById('settings-btn');
@@ -2664,6 +2691,7 @@
 				s[inp.dataset.key] = inp.value;
 				saveSettings(s);
 				applyCSSVars(s);
+				applyChartBg(s);
 				if (window.updateChartColors) window.updateChartColors();
 			});
 		});
@@ -2686,6 +2714,61 @@
 		document.addEventListener('keydown', function (e) {
 			if (e.key === 'Escape' && modal && modal.style.display === 'flex') closeSettings();
 		});
+
+		// Chart bg inputs also handled by existing colorInputs loop above
+
+		// Targets save button
+		var targSaveBtn = document.getElementById('st-targets-save');
+		var targStatus  = document.getElementById('st-targets-status');
+		if (targSaveBtn) {
+			targSaveBtn.addEventListener('click', function () {
+				var runId = window._runId;
+				if (!runId) { if (targStatus) { targStatus.textContent = 'No active run'; } return; }
+				var humMin = parseFloat(document.getElementById('st-hum-min').value);
+				var humMax = parseFloat(document.getElementById('st-hum-max').value);
+				var wtMin  = parseFloat(document.getElementById('st-wt-min').value)  || null;
+				var wtMax  = parseFloat(document.getElementById('st-wt-max').value)  || null;
+				var reqs = [
+					fetch('/api/runs/' + runId + '/humidity-targets', {
+						method: 'PUT',
+						headers: {'Content-Type': 'application/json'},
+						body: JSON.stringify({ min: humMin, max: humMax })
+					}),
+					fetch('/api/runs/' + runId + '/weight-targets', {
+						method: 'PUT',
+						headers: {'Content-Type': 'application/json'},
+						body: JSON.stringify({ min: wtMin, max: wtMax })
+					})
+				];
+				Promise.all(reqs).then(function (responses) {
+					var allOk = responses.every(function (r) { return r.ok; });
+					if (targStatus) {
+						targStatus.textContent = allOk ? 'Saved!' : 'Error saving';
+						setTimeout(function () { targStatus.textContent = ''; }, 2000);
+					}
+				}).catch(function () {
+					if (targStatus) { targStatus.textContent = 'Network error'; }
+				});
+			});
+		}
+
+		// Pre-fill targets when settings modal opens
+		var _origOpenSettings = openSettings;
+		openSettings = function () {
+			_origOpenSettings();
+			var runId = window._runId;
+			if (!runId) return;
+			fetch('/api/runs/' + runId + '/targets').then(function (r) { return r.json(); }).then(function (d) {
+				var humMinEl = document.getElementById('st-hum-min');
+				var humMaxEl = document.getElementById('st-hum-max');
+				var wtMinEl  = document.getElementById('st-wt-min');
+				var wtMaxEl  = document.getElementById('st-wt-max');
+				if (humMinEl && d.hum_min != null) humMinEl.value = d.hum_min;
+				if (humMaxEl && d.hum_max != null) humMaxEl.value = d.hum_max;
+				if (wtMinEl  && d.wt_min  != null) wtMinEl.value  = d.wt_min;
+				if (wtMaxEl  && d.wt_max  != null) wtMaxEl.value  = d.wt_max;
+			}).catch(function () {});
+		};
 
 		// Expose so chart code can read current zone colors
 		window.getSakeSettings = loadSettings;
@@ -2854,75 +2937,163 @@
 	})();
 	</script>
 
-	<!-- Phase 2: Weight target modal -->
-	<div id="wt-target-modal" class="modal-overlay" hidden>
-		<div class="modal-popup">
-			<div class="modal-header">
-				<h3 class="modal-title">Set Weight Loss Target Band</h3>
-				<button type="button" class="modal-close" id="wt-target-modal-close">&times;</button>
-			</div>
-			<div class="modal-content">
-				<p style="font-size:.85rem;color:#666;margin-bottom:1rem;">
-					A green band will be drawn on the weight chart between min and max target loss values.
-				</p>
-				<form id="wt-target-form" class="target-form">
-					<label class="target-form__row">
-						<span>Min loss (lbs)</span>
-						<input type="number" name="wt_min" step="0.01" required placeholder="0.00">
-					</label>
-					<label class="target-form__row">
-						<span>Max loss (lbs)</span>
-						<input type="number" name="wt_max" step="0.01" required placeholder="1.00">
-					</label>
-					<button type="submit" class="btn btn--primary" style="margin-top:.75rem;">Save</button>
-				</form>
-			</div>
-		</div>
-	</div>
-
-	<!-- Phase 2: Humidity target modal -->
-	<div id="hum-target-modal" class="modal-overlay" hidden>
-		<div class="modal-popup">
-			<div class="modal-header">
-				<h3 class="modal-title">Set Humidity Target Band</h3>
-				<button type="button" class="modal-close" id="hum-target-modal-close">&times;</button>
-			</div>
-			<div class="modal-content">
-				<p style="font-size:.85rem;color:#666;margin-bottom:1rem;">
-					A green band will be drawn on the environment chart for the ideal humidity range (typically 85&ndash;95 %RH for koji).
-				</p>
-				<form id="hum-target-form" class="target-form">
-					<label class="target-form__row">
-						<span>Min %RH</span>
-						<input type="number" name="hum_min" min="0" max="100" step="1" required value="85">
-					</label>
-					<label class="target-form__row">
-						<span>Max %RH</span>
-						<input type="number" name="hum_max" min="0" max="100" step="1" required value="95">
-					</label>
-					<button type="submit" class="btn btn--primary" style="margin-top:.75rem;">Save</button>
-				</form>
-			</div>
-		</div>
-	</div>
 
 	<script>
-		// Phase 2 modal wiring (weight target + humidity target)
-		(function () {
-			function wireModal(openId, modalId, closeId) {
-				var openBtn = document.getElementById(openId);
-				var modal   = document.getElementById(modalId);
-				var closeBtn = document.getElementById(closeId);
-				if (!openBtn || !modal) return;
-				openBtn.addEventListener('click', function () { modal.hidden = false; });
-				if (closeBtn) closeBtn.addEventListener('click', function () { modal.hidden = true; });
-				modal.addEventListener('click', function (e) {
-					if (e.target === modal) modal.hidden = true;
+	// ── Target profile projected curves ────────────────────────────────────────
+	(function () {
+		'use strict';
+		var N_FUTURE    = 36;   // projection steps (36 × 5 min = 3 h ahead)
+		var STEP_MIN    = 5;    // minutes between projection labels
+		var PROJ_ALPHA  = 0.45; // opacity for dashed target lines
+
+		// Hex #rrggbb → rgba(r,g,b,alpha)
+		function hexAlpha(hex, a) {
+			hex = hex.replace('#','');
+			if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+			var r = parseInt(hex.slice(0,2),16),
+			    g = parseInt(hex.slice(2,4),16),
+			    b = parseInt(hex.slice(4,6),16);
+			return 'rgba('+r+','+g+','+b+','+a+')';
+		}
+
+		// CSS zone color
+		function zoneColor(n) {
+			return (getComputedStyle(document.documentElement)
+				.getPropertyValue('--zone-color-'+n).trim()) ||
+				['#e05252','#52a0e0','#52e07c','#e0c952','#c052e0','#e09052'][n-1];
+		}
+
+		// Linear interpolation of target temp for zone z at elapsedMin
+		function interp(profile, z, em) {
+			if (!profile || !profile.length) return null;
+			var key = 'temp'+z+'_target', lo = null, hi = null;
+			for (var i = 0; i < profile.length; i++) {
+				var pt = profile[i];
+				if (pt.elapsed_min <= em) lo = pt;
+				else if (hi === null)     hi = pt;
+			}
+			if (!lo && !hi) return null;
+			if (!lo) { var v = parseFloat(hi[key]); return isNaN(v) ? null : v; }
+			if (!hi) { var v = parseFloat(lo[key]); return isNaN(v) ? null : v; }
+			var v0 = parseFloat(lo[key]), v1 = parseFloat(hi[key]);
+			if (isNaN(v0) || isNaN(v1)) return null;
+			var t = (em - lo.elapsed_min) / (hi.elapsed_min - lo.elapsed_min);
+			return v0 + t * (v1 - v0);
+		}
+
+		// Format wall-clock label "HH:MM"
+		function fmtClock(ms) {
+			var d = new Date(ms);
+			return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+		}
+
+		// Format elapsed label "Xh YYm ZZs"
+		function fmtElapsed(ms) {
+			if (ms < 0) ms = 0;
+			var s = Math.floor(ms/1000);
+			var h = Math.floor(s/3600), m = Math.floor((s%3600)/60);
+			return (h>0?h+'h ':'')+(m>0||h>0?String(m).padStart(2,'0')+'m ':'')+String(s%60).padStart(2,'0')+'s';
+		}
+
+		// Add 6 dashed target datasets to tempChart
+		function addTargetDatasets(chart) {
+			for (var z = 1; z <= 6; z++) {
+				var col = hexAlpha(zoneColor(z), PROJ_ALPHA);
+				chart.data.datasets.push({
+					label: 'T'+z+' Target',
+					_isTarget: true,
+					_zone: z,
+					data: [],
+					borderColor: col,
+					borderWidth: 1.5,
+					borderDash: [6, 4],
+					pointRadius: 0,
+					tension: 0.3,
+					fill: false
 				});
 			}
-			wireModal('wt-target-open-btn', 'wt-target-modal', 'wt-target-modal-close');
-			wireModal('hum-target-btn', 'hum-target-modal', 'hum-target-modal-close');
-		})();
+		}
+
+		// Rebuild chart labels (real + future) and target dataset data
+		function refreshProjection() {
+			var chart    = window._tempChart;
+			var profile  = window._targetProfile;
+			if (!chart || !profile || !profile.length) return;
+			var elMins   = window._chartElapsedMins;
+			var realLbls = window._dashLabels;
+			var elLbls   = window._dashElapsedLabels;
+			if (!elMins || !elMins.length || !realLbls) return;
+
+			var lastEl   = elMins[elMins.length - 1];
+			var startMs  = window._runStartMs || null;
+			var nowMs    = Date.now();
+
+			// Build future clock and elapsed label arrays
+			var futClock = [], futElapsed = [], futElMins = [];
+			for (var i = 1; i <= N_FUTURE; i++) {
+				var fMs  = nowMs + i * STEP_MIN * 60000;
+				var fEl  = startMs ? (fMs - startMs) / 60000 : lastEl + i * STEP_MIN;
+				futClock.push(fmtClock(fMs));
+				futElapsed.push(startMs ? fmtElapsed(fMs - startMs) : '+' + (i*STEP_MIN) + 'm');
+				futElMins.push(fEl);
+			}
+
+			// Set combined labels on chart
+			var useElapsed = window._elapsedMode || false;
+			chart.data.labels = (useElapsed ? elLbls : realLbls).concat(useElapsed ? futElapsed : futClock);
+
+			// Update each target dataset
+			chart.data.datasets.forEach(function (ds) {
+				if (!ds._isTarget) return;
+				var z = ds._zone;
+				var hist = elMins.map(function(em) { return interp(profile, z, em); });
+				var proj = futElMins.map(function(em) { return interp(profile, z, em); });
+				ds.data = hist.concat(proj);
+			});
+
+			chart.update('none');
+		}
+
+		// Patch updateChartColors to also refresh target dataset colors
+		function patchColorUpdater() {
+			var prev = window.updateChartColors;
+			window.updateChartColors = function () {
+				var chart = window._tempChart;
+				if (chart) {
+					chart.data.datasets.forEach(function (ds) {
+						if (ds._isTarget) {
+							ds.borderColor = hexAlpha(zoneColor(ds._zone), PROJ_ALPHA);
+						}
+					});
+				}
+				if (prev) prev();
+			};
+		}
+
+		// Wait for chart + run to be ready, then initialise
+		function init() {
+			if (!window._tempChart || !window._runId) { setTimeout(init, 250); return; }
+			addTargetDatasets(window._tempChart);
+			patchColorUpdater();
+
+			// Fetch target profile once
+			fetch('/api/runs/' + window._runId + '/target')
+				.then(function (r) { return r.json(); })
+				.then(function (data) {
+					window._targetProfile = Array.isArray(data) ? data : [];
+					if (window._targetProfile.length) refreshProjection();
+				})
+				.catch(function () { window._targetProfile = []; });
+
+			// Hook into per-sample push
+			var _prev = window._afterSamplePush;
+			window._afterSamplePush = function () {
+				if (_prev) _prev();
+				if (window._targetProfile && window._targetProfile.length) refreshProjection();
+			};
+		}
+		init();
+	})();
 	</script>
 
 	<script src="dashboard-phase2.js"></script>

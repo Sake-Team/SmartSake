@@ -15,6 +15,10 @@ MAX_THERMOCOUPLES = 6
 CSV_FILE = "sensor_data.csv"
 JSON_FILE = "sensor_latest.json"
 
+# SHT30 calibration offset (°C).  Positive = sensor reads too high; adjust until
+# readings match a reference thermometer placed at the same location.
+SHT30_TEMP_OFFSET_C = 0.0
+
 # Active run id — set at startup
 _active_run_id = None
 
@@ -182,7 +186,7 @@ def init_sht30():
     return adafruit_sht31d.SHT31D(i2c)
 
 def read_sht30(sensor):
-    return sensor.temperature, sensor.relative_humidity
+    return sensor.temperature - SHT30_TEMP_OFFSET_C, sensor.relative_humidity
 
 def discover_devices():
     return sorted(glob.glob(f"{W1_BASE}/3b-*"))
