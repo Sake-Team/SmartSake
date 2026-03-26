@@ -1486,12 +1486,12 @@
 						data: {
 							labels,
 							datasets: [
-								{ label: 'Fan 1', data: fansSeries.fan1, borderWidth: 1, pointRadius: 0, stepped: true },
-								{ label: 'Fan 2', data: fansSeries.fan2, borderWidth: 1, pointRadius: 0, stepped: true },
-								{ label: 'Fan 3', data: fansSeries.fan3, borderWidth: 1, pointRadius: 0, stepped: true },
-								{ label: 'Fan 4', data: fansSeries.fan4, borderWidth: 1, pointRadius: 0, stepped: true },
-								{ label: 'Fan 5', data: fansSeries.fan5, borderWidth: 1, pointRadius: 0, stepped: true },
-								{ label: 'Fan 6', data: fansSeries.fan6, borderWidth: 1, pointRadius: 0, stepped: true }
+								{ label: 'Fan 1', data: fansSeries.fan1, borderColor: getZoneColor(1), borderWidth: 1, pointRadius: 0, stepped: true },
+								{ label: 'Fan 2', data: fansSeries.fan2, borderColor: getZoneColor(2), borderWidth: 1, pointRadius: 0, stepped: true },
+								{ label: 'Fan 3', data: fansSeries.fan3, borderColor: getZoneColor(3), borderWidth: 1, pointRadius: 0, stepped: true },
+								{ label: 'Fan 4', data: fansSeries.fan4, borderColor: getZoneColor(4), borderWidth: 1, pointRadius: 0, stepped: true },
+								{ label: 'Fan 5', data: fansSeries.fan5, borderColor: getZoneColor(5), borderWidth: 1, pointRadius: 0, stepped: true },
+								{ label: 'Fan 6', data: fansSeries.fan6, borderColor: getZoneColor(6), borderWidth: 1, pointRadius: 0, stepped: true }
 							]
 						},
 						options: {
@@ -1708,12 +1708,20 @@
 					window._dashElapsedLabels = elapsedLabels; // expose for target projection
 					window._elapsedMode       = false;
 
-					// Called by settings panel when zone colors change
+					// Called by settings panel when zone colors change (skips target projection datasets)
 					window.updateChartColors = function () {
-						tempChart.data.datasets.forEach(function (ds, idx) {
-							ds.borderColor = getZoneColor(idx + 1);
+						var zoneIdx = 0;
+						tempChart.data.datasets.forEach(function (ds) {
+							if (ds._isTarget) return;
+							zoneIdx++;
+							ds.borderColor = getZoneColor(zoneIdx);
 						});
 						tempChart.update('none');
+						// Sync fans chart to same zone colors
+						fansChart.data.datasets.forEach(function (ds, idx) {
+							ds.borderColor = getZoneColor(idx + 1);
+						});
+						fansChart.update('none');
 					};
 
 					// ── Elapsed time toggle ─────────────────────────────────────────────
@@ -2060,10 +2068,6 @@
 
 						activeZone = zone;
 						titleEl.textContent = 'Zone ' + zone;
-
-						// Full-page link
-						const mode = new URLSearchParams(location.search).get('mode') || 'live';
-						fullLink.href = 'zone' + zone + '.html?run=' + runId + '&mode=' + mode;
 
 						// Current temp from dashboard display
 						const dryEl = document.getElementById('temp-' + zone + '-dry');
@@ -2662,6 +2666,8 @@
 		// Apply on load
 		applyCSSVars(loadSettings());
 		applyChartBg(loadSettings());
+		// Sync chart dataset colors after CSS vars are set
+		if (window.updateChartColors) window.updateChartColors();
 
 		const modal     = document.getElementById('settings-modal');
 		const openBtn   = document.getElementById('settings-btn');
@@ -2973,8 +2979,8 @@
 				else if (hi === null)     hi = pt;
 			}
 			if (!lo && !hi) return null;
-			if (!lo) { var v = parseFloat(hi[key]); return isNaN(v) ? null : v; }
-			if (!hi) { var v = parseFloat(lo[key]); return isNaN(v) ? null : v; }
+			if (!lo) { var vHi = parseFloat(hi[key]); return isNaN(vHi) ? null : vHi; }
+			if (!hi) { var vLo = parseFloat(lo[key]); return isNaN(vLo) ? null : vLo; }
 			var v0 = parseFloat(lo[key]), v1 = parseFloat(hi[key]);
 			if (isNaN(v0) || isNaN(v1)) return null;
 			var t = (em - lo.elapsed_min) / (hi.elapsed_min - lo.elapsed_min);
