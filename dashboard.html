@@ -166,7 +166,9 @@
 									<span class="home-humidity-title chart-title--single-line">Environment</span>
 									<button id="elapsed-toggle-btn" class="elapsed-toggle-btn" type="button" title="Toggle elapsed/clock time axis">Clock</button>
 								</div>
-								<canvas id="humidity-chart" class="metric-chart"></canvas>
+								<div class="env-chart-live-wrap">
+									<canvas id="humidity-chart" class="metric-chart"></canvas>
+								</div>
 							</div>
 
 							<div class="long long--top-left home-temp-chart-card home-fans-chart-card">
@@ -189,7 +191,9 @@
 								<span class="weight-stat"><label>Rate/hr</label><span id="wt-rate">—</span></span>
 							</div>
 							<div class="weight-stat-target" id="wt-target"></div>
-							<canvas id="weight-chart" class="metric-chart"></canvas>
+							<div class="env-chart-live-wrap">
+								<canvas id="weight-chart" class="metric-chart"></canvas>
+							</div>
 						</div>
 
 
@@ -204,6 +208,17 @@
 						<button type="button" class="modal-close" id="settings-modal-close" aria-label="Close settings">&times;</button>
 					</div>
 					<div class="modal-content settings-modal-content">
+
+						<section class="settings-section">
+							<h4 class="settings-section__title">Reference Curve</h4>
+							<div class="settings-curve-row">
+								<select id="settings-curve-select" class="settings-curve-select">
+									<option value="">— None —</option>
+								</select>
+								<button type="button" id="settings-apply-curve" class="btn-apply-curve">Apply</button>
+							</div>
+							<p class="settings-curve-hint" id="settings-curve-status"></p>
+						</section>
 
 						<section class="settings-section">
 							<h4 class="settings-section__title">Zone chart colors</h4>
@@ -2573,6 +2588,62 @@
 
 		// Expose so chart code can read current zone colors
 		window.getSakeSettings = loadSettings;
+
+		// ── Reference curve quick-apply ───────────────────────────────────
+		(function () {
+			var sel    = document.getElementById('settings-curve-select');
+			var btn    = document.getElementById('settings-apply-curve');
+			var status = document.getElementById('settings-curve-status');
+			if (!sel || !btn) return;
+
+			// Populate dropdown
+			fetch('/api/reference-curves')
+				.then(function (r) { return r.json(); })
+				.then(function (curves) {
+					curves.forEach(function (c) {
+						var opt = document.createElement('option');
+						opt.value = c.id;
+						opt.textContent = c.name;
+						sel.appendChild(opt);
+					});
+				})
+				.catch(function () {});
+
+			btn.addEventListener('click', function () {
+				var runId = window._runId;
+				if (!runId) { status.textContent = 'No active run'; status.style.color = '#ff9f9f'; return; }
+				var curveId = sel.value;
+				if (!curveId) {
+					// Clear target
+					fetch('/api/runs/' + runId + '/target', { method: 'DELETE' })
+						.then(function () {
+							window._targetProfile = [];
+							if (window._refreshProjection) window._refreshProjection();
+							status.textContent = 'Target curve cleared';
+							status.style.color = '#7fff7f';
+						});
+					return;
+				}
+				btn.disabled = true;
+				fetch('/api/runs/' + runId + '/target/from-curve/' + curveId, { method: 'POST' })
+					.then(function (r) {
+						if (!r.ok) throw new Error('Failed');
+						return fetch('/api/runs/' + runId + '/target');
+					})
+					.then(function (r) { return r.json(); })
+					.then(function (data) {
+						window._targetProfile = Array.isArray(data) ? data : [];
+						if (window._refreshProjection) window._refreshProjection();
+						status.textContent = 'Curve applied!';
+						status.style.color = '#7fff7f';
+					})
+					.catch(function () {
+						status.textContent = 'Failed to apply curve';
+						status.style.color = '#ff9f9f';
+					})
+					.finally(function () { btn.disabled = false; });
+			});
+		})();
 	})();
 
 
@@ -2870,6 +2941,8 @@
 					if (window._targetProfile.length) refreshProjection();
 				})
 				.catch(function () { window._targetProfile = []; });
+
+			window._refreshProjection = refreshProjection;
 
 			// Hook into per-sample push
 			var _prev = window._afterSamplePush;
