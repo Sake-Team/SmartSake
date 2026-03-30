@@ -526,17 +526,30 @@ def api_weight_analytics(run_id):
     return jsonify(data)
 
 
+@app.route("/api/runs/<int:run_id>/targets", methods=["GET"])
+def api_get_run_targets(run_id):
+    run = db.get_run(run_id)
+    if not run:
+        abort(404)
+    return jsonify({
+        "hum_min": run.get("humidity_target_min"),
+        "hum_max": run.get("humidity_target_max"),
+        "wt_min":  run.get("weight_target_min"),
+        "wt_max":  run.get("weight_target_max"),
+    })
+
+
 @app.route("/api/runs/<int:run_id>/weight-targets", methods=["PUT"])
 def api_weight_targets(run_id):
     if not db.get_run(run_id):
         abort(404)
     body = request.get_json(silent=True) or {}
-    t_min = body.get("target_min")
-    t_max = body.get("target_max")
+    t_min = body.get("min", body.get("target_min"))
+    t_max = body.get("max", body.get("target_max"))
     if t_min is None or t_max is None:
-        return jsonify({"error": "target_min and target_max required"}), 400
+        return jsonify({"error": "min and max required"}), 400
     if not (isinstance(t_min, (int, float)) and isinstance(t_max, (int, float))):
-        return jsonify({"error": "target_min and target_max must be numbers"}), 400
+        return jsonify({"error": "min and max must be numbers"}), 400
     db.update_run_weight_targets(run_id, float(t_min), float(t_max))
     return jsonify({"ok": True})
 
@@ -546,10 +559,10 @@ def api_humidity_targets(run_id):
     if not db.get_run(run_id):
         abort(404)
     body = request.get_json(silent=True) or {}
-    t_min = body.get("target_min")
-    t_max = body.get("target_max")
+    t_min = body.get("min", body.get("target_min"))
+    t_max = body.get("max", body.get("target_max"))
     if t_min is None or t_max is None:
-        return jsonify({"error": "target_min and target_max required"}), 400
+        return jsonify({"error": "min and max required"}), 400
     if not (0 <= float(t_min) <= 100 and 0 <= float(t_max) <= 100):
         return jsonify({"error": "target_min and target_max must be 0-100"}), 400
     db.update_run_humidity_targets(run_id, float(t_min), float(t_max))
