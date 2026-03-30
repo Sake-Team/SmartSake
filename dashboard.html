@@ -404,7 +404,9 @@
 								<button id="chart-y-reset" class="chart-y-reset-btn" title="Reset Y axis">&#x21BA;</button>
 							</div>
 						</div>
-						<canvas id="chart-modal-canvas"></canvas>
+						<div class="chart-modal-canvas-wrap">
+							<canvas id="chart-modal-canvas"></canvas>
+						</div>
 						<p class="chart-modal-help">Click legend items to toggle series. Press ESC or click outside to close.</p>
 					</div>
 				</div>
@@ -1827,7 +1829,8 @@
 
 					function buildDatasets(type, s, e) {
 						if (type === 'temp') {
-							return Object.keys(tempSeries).map((key, idx) => ({
+							// Actual zone datasets
+							const zoneDs = Object.keys(tempSeries).map((key, idx) => ({
 								label: tempChart.data.datasets[idx] ? tempChart.data.datasets[idx].label : ('Zone ' + (idx+1)),
 								borderColor: getDatasetColors('temp', idx),
 								backgroundColor: 'transparent',
@@ -1836,6 +1839,44 @@
 								tension: 0.3,
 								data: tempSeries[key].slice(s, e)
 							}));
+
+							// Target curve datasets (from reference curve / _targetProfile)
+							const profile = window._targetProfile || [];
+							const elMins  = window._chartElapsedMins || [];
+							if (profile.length && elMins.length) {
+								const sliceElMins = elMins.slice(s, e);
+								for (let z = 1; z <= 6; z++) {
+									// Use same color as zone but dimmed with dashes
+									const baseColor = getDatasetColors('temp', z - 1);
+									const interpVal = function (em) {
+										// linear interpolation into profile
+										var pts = profile;
+										if (!pts.length) return null;
+										var field = 'temp' + z + '_target';
+										if (em <= pts[0].elapsed_min) return pts[0][field] != null ? pts[0][field] : null;
+										for (var i = 1; i < pts.length; i++) {
+											if (em <= pts[i].elapsed_min) {
+												var t = (em - pts[i-1].elapsed_min) / (pts[i].elapsed_min - pts[i-1].elapsed_min);
+												var v0 = pts[i-1][field], v1 = pts[i][field];
+												return (v0 != null && v1 != null) ? v0 + t * (v1 - v0) : null;
+											}
+										}
+										return pts[pts.length - 1][field] != null ? pts[pts.length - 1][field] : null;
+									};
+									zoneDs.push({
+										label: 'Z' + z + ' Target',
+										borderColor: baseColor,
+										borderWidth: 1,
+										borderDash: [6, 4],
+										backgroundColor: 'transparent',
+										pointRadius: 0,
+										tension: 0.3,
+										data: sliceElMins.map(interpVal)
+									});
+								}
+							}
+
+							return zoneDs;
 						} else if (type === 'humidity') {
 							return [{
 								label: 'Humidity (%)',
