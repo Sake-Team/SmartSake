@@ -279,6 +279,13 @@
 						</div>
 
 						<div class="modal-input-section">
+							<label for="start-curve-select">Reference Curve (optional):</label>
+							<select id="start-curve-select" class="settings-curve-select">
+								<option value="">— None —</option>
+							</select>
+						</div>
+
+						<div class="modal-input-section">
 							<button type="button" class="modal-enter-btn" id="enter-run-btn">Start</button>
 						</div>
 					</div>
@@ -916,6 +923,23 @@
 						}
 					});
 
+					// Populate the start-modal curve dropdown
+					(function () {
+						var sel = document.getElementById('start-curve-select');
+						if (!sel) return;
+						fetch('/api/reference-curves')
+							.then(function (r) { return r.json(); })
+							.then(function (curves) {
+								curves.forEach(function (c) {
+									var opt = document.createElement('option');
+									opt.value = c.id;
+									opt.textContent = c.name;
+									sel.appendChild(opt);
+								});
+							})
+							.catch(function () {});
+					})();
+
 					// ---------- Confirm Start Run ----------
 					enterBtn.addEventListener('click', async function () {
 						const runName = runNameInput.value.trim();
@@ -930,12 +954,15 @@
 							});
 							const run = await res.json();
 
+							const startCurveId = Number(document.getElementById('start-curve-select')?.value);
 							if (window._parsedTargetRows && window._parsedTargetRows.length > 0) {
 								await fetch('/api/runs/' + run.id + '/target', {
 									method: 'POST',
 									headers: { 'Content-Type': 'application/json' },
 									body: JSON.stringify(window._parsedTargetRows)
 								});
+							} else if (startCurveId) {
+								await fetch('/api/runs/' + run.id + '/target/from-curve/' + startCurveId, { method: 'POST' });
 							}
 
 							startModal.style.display = 'none';
@@ -1331,6 +1358,17 @@
 						temp6: []
 					};
 
+					// {x: elapsed_min, y: val} parallel arrays — used by tempChart's linear x-axis
+					// so target curves can span the full profile without needing shared labels
+					const tempSeriesXY = {
+						temp1: [],
+						temp2: [],
+						temp3: [],
+						temp4: [],
+						temp5: [],
+						temp6: []
+					};
+
 					const fansSeries = {
 						fan1: [],
 						fan2: [],
@@ -1387,14 +1425,13 @@
 					const tempChart = new Chart(tempCtx, {
 						type: 'line',
 						data: {
-							labels,
 							datasets: [
-								{ label: 'Zone 1', data: tempSeries.temp1, borderColor: getZoneColor(1), borderWidth: 1, pointRadius: 0 },
-								{ label: 'Zone 2', data: tempSeries.temp2, borderColor: getZoneColor(2), borderWidth: 1, pointRadius: 0 },
-								{ label: 'Zone 3', data: tempSeries.temp3, borderColor: getZoneColor(3), borderWidth: 1, pointRadius: 0 },
-								{ label: 'Zone 4', data: tempSeries.temp4, borderColor: getZoneColor(4), borderWidth: 1, pointRadius: 0 },
-								{ label: 'Zone 5', data: tempSeries.temp5, borderColor: getZoneColor(5), borderWidth: 1, pointRadius: 0 },
-								{ label: 'Zone 6', data: tempSeries.temp6, borderColor: getZoneColor(6), borderWidth: 1, pointRadius: 0 }
+								{ label: 'Zone 1', data: tempSeriesXY.temp1, borderColor: getZoneColor(1), borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+								{ label: 'Zone 2', data: tempSeriesXY.temp2, borderColor: getZoneColor(2), borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+								{ label: 'Zone 3', data: tempSeriesXY.temp3, borderColor: getZoneColor(3), borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+								{ label: 'Zone 4', data: tempSeriesXY.temp4, borderColor: getZoneColor(4), borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+								{ label: 'Zone 5', data: tempSeriesXY.temp5, borderColor: getZoneColor(5), borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+								{ label: 'Zone 6', data: tempSeriesXY.temp6, borderColor: getZoneColor(6), borderWidth: 1.5, pointRadius: 0, tension: 0.3 }
 							]
 						},
 						options: {
@@ -1403,10 +1440,23 @@
 							maintainAspectRatio: false,
 							scales: {
 								x: {
-									ticks: { autoSkip: true, maxTicksLimit: 6 }
+									type: 'linear',
+									ticks: {
+										autoSkip: true,
+										maxTicksLimit: 8,
+										color: '#aaa',
+										callback: function (val) {
+											var h = Math.floor(val / 60), m = Math.round(val % 60);
+											return h > 0 ? h + 'h ' + String(m).padStart(2, '0') + 'm' : m + 'm';
+										}
+									},
+									title: { display: true, text: 'Elapsed time', color: '#888', font: { size: 10 } },
+									grid: { color: '#2a2a2a' }
 								},
 								y: {
-									title: { display: true, text: 'Temperature (°C)' }
+									title: { display: true, text: 'Temperature (°C)', color: '#aaa' },
+									ticks: { color: '#aaa' },
+									grid: { color: '#2a2a2a' }
 								}
 							},
 							plugins: {
@@ -1615,11 +1665,13 @@
 						labels.push(label);
 						sampleTimestamps.push(t.getTime());
 
-						// temps
+						// temps (raw for modal/zone cards; XY for tempChart linear axis)
 						for (let i = 1; i <= 6; i++) {
 							const key = `temp${i}`;
 							const val = parseFloat(sample.temps[key]);
-							tempSeries[key].push(isNaN(val) ? null : val);
+							const numVal = isNaN(val) ? null : val;
+							tempSeries[key].push(numVal);
+							// _elapsedMinNum computed below — push XY after it's calculated
 						}
 
 						// humidity + env probe data
@@ -1637,6 +1689,13 @@
 						var _elapsedMinNum = runStart ? (t.getTime() - runStart) / 60000 : 0;
 						window._sampleElapsedMin = _elapsedMinNum;
 						if (window._chartElapsedMins) window._chartElapsedMins.push(_elapsedMinNum);
+
+						// Push {x, y} to tempSeriesXY for the linear-axis tempChart
+						for (let i = 1; i <= 6; i++) {
+							const key = `temp${i}`;
+							const raw = tempSeries[key][tempSeries[key].length - 1]; // already pushed above
+							tempSeriesXY[key].push({ x: _elapsedMinNum, y: raw });
+						}
 
 						// fans (optional)
 						if (sample.fans) {
@@ -1659,6 +1718,7 @@
 							sampleTimestamps.shift();
 							elapsedLabels.shift();
 							Object.values(tempSeries).forEach(arr => arr.shift());
+							Object.values(tempSeriesXY).forEach(arr => arr.shift());
 							humidityData.shift();
 							shtTempData.shift();
 							wetBulbData.shift();
@@ -2934,19 +2994,20 @@
 			}
 		}
 
-		// Update target dataset values to match the current rolling window — does NOT
-		// extend chart.data.labels, so the live scrolling chart is never disrupted.
+		// Populate target datasets from the full profile as {x, y} points.
+		// Each target line spans the entire profile duration so it shows predictively
+		// ahead of the actual data as readings fill in from the left.
 		function refreshProjection() {
 			var chart   = window._tempChart;
 			var profile = window._targetProfile;
 			if (!chart || !profile || !profile.length) return;
-			var elMins  = window._chartElapsedMins;
-			if (!elMins || !elMins.length) return;
 
-			// For each existing label position compute interpolated target
 			chart.data.datasets.forEach(function (ds) {
 				if (!ds._isTarget) return;
-				ds.data = elMins.map(function (em) { return interp(profile, ds._zone, em); });
+				var key = 'temp' + ds._zone + '_target';
+				ds.data = profile
+					.filter(function (pt) { return pt[key] != null && !isNaN(parseFloat(pt[key])); })
+					.map(function (pt) { return { x: pt.elapsed_min, y: parseFloat(pt[key]) }; });
 			});
 
 			chart.update('none');
@@ -2984,13 +3045,6 @@
 				.catch(function () { window._targetProfile = []; });
 
 			window._refreshProjection = refreshProjection;
-
-			// Hook into per-sample push
-			var _prev = window._afterSamplePush;
-			window._afterSamplePush = function () {
-				if (_prev) _prev();
-				if (window._targetProfile && window._targetProfile.length) refreshProjection();
-			};
 		}
 		init();
 	})();
