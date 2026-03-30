@@ -1477,10 +1477,17 @@ header {
 	flex-shrink: 0;
 }
 
-.home-humidity-chart-card .metric-chart {
+.env-chart-live-wrap {
 	flex: 1;
 	min-height: 0;
-	height: 0 !important;
+	position: relative;
+}
+
+.env-chart-live-wrap .metric-chart {
+	position: absolute;
+	inset: 0;
+	width: 100% !important;
+	height: 100% !important;
 }
 
 .home-weight-chart-card {
@@ -1842,6 +1849,44 @@ header {
 	color: #888;
 	border-bottom: 1px solid #2e2e2e;
 	padding-bottom: 0.3rem;
+}
+
+.settings-curve-row {
+	display: flex;
+	gap: 0.5rem;
+	align-items: center;
+	margin-top: 0.4rem;
+}
+
+.settings-curve-select {
+	flex: 1;
+	padding: 0.35rem 0.6rem;
+	font-size: 0.85rem;
+	border-radius: 5px;
+	border: 1px solid #444;
+	background: #1a1a1a;
+	color: #ddd;
+}
+
+.btn-apply-curve {
+	padding: 0.35rem 0.8rem;
+	font-size: 0.82rem;
+	font-weight: 600;
+	border: none;
+	border-radius: 5px;
+	background: #d40000;
+	color: #fff;
+	cursor: pointer;
+}
+
+.btn-apply-curve:hover {
+	background: #b00;
+}
+
+.settings-curve-hint {
+	margin: 0.3rem 0 0;
+	font-size: 0.75rem;
+	color: #888;
 }
 
 .settings-colors-grid {
