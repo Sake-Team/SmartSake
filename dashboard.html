@@ -2710,7 +2710,7 @@
 			});
 		}
 
-		if (openBtn)  openBtn.addEventListener('click', openSettings);
+		if (openBtn)  openBtn.addEventListener('click', function () { openSettings(); });
 		if (closeBtn) closeBtn.addEventListener('click', closeSettings);
 		if (modal) {
 			modal.addEventListener('click', function (e) {
@@ -2948,8 +2948,6 @@
 	// ── Target profile projected curves ────────────────────────────────────────
 	(function () {
 		'use strict';
-		var N_FUTURE    = 36;   // projection steps (36 × 5 min = 3 h ahead)
-		var STEP_MIN    = 5;    // minutes between projection labels
 		var PROJ_ALPHA  = 0.45; // opacity for dashed target lines
 
 		// Hex #rrggbb → rgba(r,g,b,alpha)
@@ -3020,41 +3018,19 @@
 			}
 		}
 
-		// Rebuild chart labels (real + future) and target dataset data
+		// Update target dataset values to match the current rolling window — does NOT
+		// extend chart.data.labels, so the live scrolling chart is never disrupted.
 		function refreshProjection() {
-			var chart    = window._tempChart;
-			var profile  = window._targetProfile;
+			var chart   = window._tempChart;
+			var profile = window._targetProfile;
 			if (!chart || !profile || !profile.length) return;
-			var elMins   = window._chartElapsedMins;
-			var realLbls = window._dashLabels;
-			var elLbls   = window._dashElapsedLabels;
-			if (!elMins || !elMins.length || !realLbls) return;
+			var elMins  = window._chartElapsedMins;
+			if (!elMins || !elMins.length) return;
 
-			var lastEl   = elMins[elMins.length - 1];
-			var startMs  = window._runStartMs || null;
-			var nowMs    = Date.now();
-
-			// Build future clock and elapsed label arrays
-			var futClock = [], futElapsed = [], futElMins = [];
-			for (var i = 1; i <= N_FUTURE; i++) {
-				var fMs  = nowMs + i * STEP_MIN * 60000;
-				var fEl  = startMs ? (fMs - startMs) / 60000 : lastEl + i * STEP_MIN;
-				futClock.push(fmtClock(fMs));
-				futElapsed.push(startMs ? fmtElapsed(fMs - startMs) : '+' + (i*STEP_MIN) + 'm');
-				futElMins.push(fEl);
-			}
-
-			// Set combined labels on chart
-			var useElapsed = window._elapsedMode || false;
-			chart.data.labels = (useElapsed ? elLbls : realLbls).concat(useElapsed ? futElapsed : futClock);
-
-			// Update each target dataset
+			// For each existing label position compute interpolated target
 			chart.data.datasets.forEach(function (ds) {
 				if (!ds._isTarget) return;
-				var z = ds._zone;
-				var hist = elMins.map(function(em) { return interp(profile, z, em); });
-				var proj = futElMins.map(function(em) { return interp(profile, z, em); });
-				ds.data = hist.concat(proj);
+				ds.data = elMins.map(function (em) { return interp(profile, ds._zone, em); });
 			});
 
 			chart.update('none');
