@@ -265,7 +265,7 @@ body:has(#start-run-btn.end-run-btn-active) .set-temp-btn {
 @media (max-width: 480px) { header h1, .page-title { font-size: calc(1.8rem + 6pt); } }
 
 /* Main padding so content doesn't overlap the absolute header */
-main { padding: 8px 16px 16px; transform: translateX(-8px); }
+main { padding: 90px 16px 16px; transform: translateX(-8px); }
 
 /* Zone pages: push content below the large Zone header */
 .zone-page main { padding-top: 120px; }
@@ -1044,21 +1044,19 @@ a.button{display:inline-block;margin-top:16px;padding:8px 12px;border-radius:6px
   user-select: none;
 }
 
-.pong-modal-popup {
-  max-width: 560px;
+.arcade-modal-popup {
+  max-width: 600px;
 }
 
-#pong-canvas {
-  border: 1px solid #ccc;
+#arcade-canvas {
   display: block;
   margin: 0 auto;
-  background: #000;
+  background: #03010a;
 }
 
-.pong-help-text {
-  margin-top: 0.5rem;
-  font-size: 0.8rem;
-  text-align: center;
+.arcade-modal-title {
+  color: #7fff7f;
+  font-family: monospace;
 }
 
 /* Restore normal layout */
@@ -1470,18 +1468,19 @@ header {
 }
 
 .home-humidity-chart-card {
-	grid-template-columns: minmax(0, 1fr);
-	column-gap: 0;
+	display: flex;
+	flex-direction: column;
+	padding: 8px;
 }
 
-.home-humidity-chart-card .home-chart-live-wrap {
-	grid-column: 1;
-	min-height: 0;
-	height: 100%;
+.home-humidity-chart-card .env-chart-header {
+	flex-shrink: 0;
 }
 
 .home-humidity-chart-card .metric-chart {
+	flex: 1;
 	min-height: 0;
+	height: 0 !important;
 }
 
 .home-weight-chart-card {
@@ -1772,6 +1771,33 @@ header {
 	box-shadow: 0 0 0 2px #52a0e0, 0 2px 4px rgba(0,0,0,0.06);
 	transform: translateY(-2px);
 }
+
+/* ── Zone temperature state legend ──────────────────────────────────────── */
+.zone-temp-legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 4px 0 0;
+	grid-column: 1;
+	grid-row: 2;
+	align-self: start;
+}
+
+.zone-temp-legend__item {
+	display: inline-flex;
+	align-items: center;
+	padding: 2px 8px;
+	border-radius: 4px;
+	font-size: 0.72rem;
+	font-weight: 600;
+	border: 1px solid transparent;
+	white-space: nowrap;
+}
+
+.zone-temp-legend__item.zone-temp-ok   { background: #ccffcc; border-color: #40c040; color: #1a4a1a; }
+.zone-temp-legend__item.zone-temp-warm { background: #fff0cc; border-color: #ffc040; color: #4a3000; }
+.zone-temp-legend__item.zone-temp-hot  { background: #ffcccc; border-color: #ff8080; color: #4a0000; }
+.zone-temp-legend__item.zone-temp-cold { background: #cce4ff; border-color: #4088ee; color: #00204a; }
 
 /* ── Settings panel ──────────────────────────────────────────────────────── */
 .settings-btn {

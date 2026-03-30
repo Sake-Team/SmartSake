@@ -580,17 +580,27 @@ def api_export_csv(run_id):
     if not run:
         abort(404)
     readings = db.get_all_readings(run_id)
+    zone_notes = db.get_zone_notes(run_id)
+    # Combine all zone notes into one string for the Notes column
+    notes_str = " | ".join(
+        f"Zone {z}: {note}"
+        for z, note in sorted(zone_notes.items())
+        if note and note.strip()
+    )
+    # Escape quotes in notes
+    notes_escaped = notes_str.replace('"', '""')
 
     lines = ["Timestamp,TC1,TC2,TC3,TC4,TC5,TC6,SHT_Temp,Humidity,"
-             "Fan1,Fan2,Fan3,Fan4,Fan5,Fan6,Weight_lbs"]
+             "Fan1,Fan2,Fan3,Fan4,Fan5,Fan6,Weight_lbs,Notes"]
     for r in readings:
-        lines.append(",".join(str(r.get(k) or "") for k in [
+        row = ",".join(str(r.get(k) or "") for k in [
             "recorded_at",
             "tc1","tc2","tc3","tc4","tc5","tc6",
             "sht_temp","humidity",
             "fan1","fan2","fan3","fan4","fan5","fan6",
             "weight_lbs"
-        ]))
+        ])
+        lines.append(f'{row},"{notes_escaped}"')
 
     from flask import Response
     filename = run["name"].replace(" ", "_") + ".csv"

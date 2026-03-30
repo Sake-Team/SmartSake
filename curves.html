@@ -89,6 +89,9 @@
     .back-link { display: inline-flex; align-items: center; gap: .4rem; font-size: .85rem;
                  color: #888; text-decoration: none; margin-bottom: .9rem; }
     .back-link:hover { color: #ccc; }
+
+    /* ── Header clearance ──────────────────────────────────── */
+    .curves-page { padding-top: 5.5rem !important; }
   </style>
 </head>
 <body>
@@ -153,12 +156,7 @@
               <tr>
                 <th class="col-del"></th>
                 <th>Min</th>
-                <th><span class="zone-dot" id="dot-1"></span>Z1 °C</th>
-                <th><span class="zone-dot" id="dot-2"></span>Z2 °C</th>
-                <th><span class="zone-dot" id="dot-3"></span>Z3 °C</th>
-                <th><span class="zone-dot" id="dot-4"></span>Z4 °C</th>
-                <th><span class="zone-dot" id="dot-5"></span>Z5 °C</th>
-                <th><span class="zone-dot" id="dot-6"></span>Z6 °C</th>
+                <th>Target °C</th>
               </tr>
             </thead>
             <tbody id="points-tbody"></tbody>
@@ -187,17 +185,15 @@
 (function () {
   'use strict';
 
-  // ── Zone colors (matches dashboard) ────────────────────────────────────────
-  var ZONE_COLORS = ['#e05252','#e09f52','#d4e052','#52e06e','#52bee0','#a052e0'];
-
   // ── State ───────────────────────────────────────────────────────────────────
   var _curves       = [];    // list from GET /api/reference-curves
   var _editingId    = null;  // null = new curve
   var _activeRunId  = null;  // filled from GET /api/runs?active=1
   var _chart        = null;
 
+  var CURVE_COLOR = '#c00';
+
   // ── Boot ────────────────────────────────────────────────────────────────────
-  applyZoneDots();
   initChart();
   loadCurveList();
   loadActiveRun();
@@ -210,20 +206,24 @@
   document.getElementById('add-bulk-btn').addEventListener('click', addBulkRows);
   document.getElementById('apply-btn').addEventListener('click', applyToRun);
 
-  // ── Zone colour dots ────────────────────────────────────────────────────────
-  function applyZoneDots() {
-    for (var z = 1; z <= 6; z++) {
-      var el = document.getElementById('dot-' + z);
-      if (el) el.style.background = ZONE_COLORS[z - 1];
-    }
-  }
-
   // ── Chart ────────────────────────────────────────────────────────────────────
   function initChart() {
     var ctx = document.getElementById('curve-chart').getContext('2d');
     _chart = new Chart(ctx, {
       type: 'line',
-      data: { labels: [], datasets: buildDatasets([]) },
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Temperature Target',
+          data: [],
+          borderColor: CURVE_COLOR,
+          backgroundColor: CURVE_COLOR + '22',
+          borderWidth: 2,
+          pointRadius: 3,
+          spanGaps: true,
+          tension: 0.3
+        }]
+      },
       options: {
         animation: false,
         responsive: false,
@@ -243,31 +243,14 @@
     });
   }
 
-  function buildDatasets(points) {
-    return ZONE_COLORS.map(function (color, i) {
-      return {
-        label: 'Zone ' + (i + 1),
-        data: points.map(function (p) { return p['temp' + (i + 1) + '_target']; }),
-        borderColor: color,
-        backgroundColor: color + '22',
-        borderWidth: 2,
-        pointRadius: 3,
-        spanGaps: true,
-        tension: 0.3
-      };
-    });
-  }
-
   function refreshChart() {
     var rows  = collectTableRows();
     var labels = rows.map(function (r) { return r.elapsed_min; });
     _chart.data.labels = labels;
-    for (var i = 0; i < 6; i++) {
-      _chart.data.datasets[i].data = rows.map(function (r) {
-        var v = r['temp' + (i + 1) + '_target'];
-        return (v === '' || v === null || isNaN(v)) ? null : v;
-      });
-    }
+    _chart.data.datasets[0].data = rows.map(function (r) {
+      var v = r.temp_target;
+      return (v === '' || v === null || isNaN(v)) ? null : v;
+    });
     _chart.update('none');
   }
 
@@ -280,8 +263,7 @@
       var minInput = lastRow.querySelector('input[data-col="elapsed_min"]');
       if (minInput) lastMin = (parseInt(minInput.value, 10) || 0) + 15;
     }
-    insertRow({ elapsed_min: lastMin, temp1_target: '', temp2_target: '',
-                temp3_target: '', temp4_target: '', temp5_target: '', temp6_target: '' });
+    insertRow({ elapsed_min: lastMin, temp_target: '' });
     if (!skipRefresh) refreshChart();
   }
 
@@ -294,8 +276,7 @@
       if (minInput) startMin = (parseInt(minInput.value, 10) || 0) + 15;
     }
     for (var i = 0; i < 10; i++) {
-      insertRow({ elapsed_min: startMin + i * 15, temp1_target: '', temp2_target: '',
-                  temp3_target: '', temp4_target: '', temp5_target: '', temp6_target: '' });
+      insertRow({ elapsed_min: startMin + i * 15, temp_target: '' });
     }
     refreshChart();
   }
@@ -318,10 +299,8 @@
     // elapsed_min
     tr.appendChild(makeCell('elapsed_min', point.elapsed_min, 'number', true));
 
-    // temp1–6
-    for (var z = 1; z <= 6; z++) {
-      tr.appendChild(makeCell('temp' + z + '_target', point['temp' + z + '_target'], 'number', false));
-    }
+    // single temp target
+    tr.appendChild(makeCell('temp_target', point.temp_target, 'number', false));
 
     tbody.appendChild(tr);
   }
@@ -353,10 +332,25 @@
     return rows;
   }
 
+  // Convert from the single temp_target UI to the 6-zone API format
+  function rowsToApiPoints(rows) {
+    return rows.map(function (r) {
+      var t = (r.temp_target !== null && !isNaN(r.temp_target)) ? r.temp_target : null;
+      return {
+        elapsed_min:  r.elapsed_min,
+        temp1_target: t, temp2_target: t, temp3_target: t,
+        temp4_target: t, temp5_target: t, temp6_target: t
+      };
+    });
+  }
+
   function loadPointsIntoTable(points) {
     var tbody = document.getElementById('points-tbody');
     tbody.innerHTML = '';
-    points.forEach(function (p) { insertRow(p); });
+    // Convert from 6-zone API format to single temp_target
+    points.forEach(function (p) {
+      insertRow({ elapsed_min: p.elapsed_min, temp_target: p.temp1_target });
+    });
     if (!points.length) addEmptyRow(true);
     refreshChart();
   }
@@ -457,7 +451,7 @@
       name:        name,
       description: document.getElementById('inp-desc').value.trim(),
       source:      document.getElementById('inp-src').value.trim(),
-      points:      points
+      points:      rowsToApiPoints(points)
     };
 
     var method, url;

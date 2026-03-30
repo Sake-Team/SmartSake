@@ -91,7 +91,15 @@
 							</a>
 						</section>
 
-					<!-- Zone detail modal (opens when a zone button is clicked) -->
+					<!-- Zone temperature state legend -->
+				<div class="zone-temp-legend" aria-label="Temperature state legend">
+					<span class="zone-temp-legend__item zone-temp-ok">In range</span>
+					<span class="zone-temp-legend__item zone-temp-warm">Warm</span>
+					<span class="zone-temp-legend__item zone-temp-hot">Too hot</span>
+					<span class="zone-temp-legend__item zone-temp-cold">Too cold</span>
+				</div>
+
+				<!-- Zone detail modal (opens when a zone button is clicked) -->
 					<div id="zone-detail-card" class="modal-overlay zone-modal-overlay" role="dialog" aria-modal="true" aria-label="Zone detail" hidden>
 					<div class="modal-popup zone-modal-popup">
 						<div class="zone-detail-card__header">
@@ -231,18 +239,6 @@
 							</div>
 						</section>
 
-						<section class="settings-section">
-							<h4 class="settings-section__title">Run targets</h4>
-							<div class="settings-targets-grid">
-								<label class="settings-target-row"><span>Humidity min (%RH)</span><input type="number" class="settings-target-input" id="st-hum-min" min="0" max="100" step="1" value="85"></label>
-								<label class="settings-target-row"><span>Humidity max (%RH)</span><input type="number" class="settings-target-input" id="st-hum-max" min="0" max="100" step="1" value="95"></label>
-								<label class="settings-target-row"><span>Weight loss min (lbs)</span><input type="number" class="settings-target-input" id="st-wt-min" step="0.01" placeholder="0.00"></label>
-								<label class="settings-target-row"><span>Weight loss max (lbs)</span><input type="number" class="settings-target-input" id="st-wt-max" step="0.01" placeholder="1.00"></label>
-							</div>
-							<button type="button" class="btn btn--primary btn--sm" id="st-targets-save" style="margin-top:.5rem;">Apply targets</button>
-							<span id="st-targets-status" style="font-size:.78rem;margin-left:.5rem;color:#7fff7f;"></span>
-						</section>
-
 						<div class="settings-footer">
 							<button type="button" id="settings-reset-btn" class="settings-reset-btn">Reset to defaults</button>
 						</div>
@@ -356,19 +352,16 @@
 				</div>
 			</div>
 
-			<!-- Easter egg Pong modal -->
-			<div id="pong-modal" class="modal-overlay">
-				<div class="modal-popup pong-modal-popup">
+			<!-- Void Sake Co. Arcade -->
+			<div id="arcade-modal" class="modal-overlay">
+				<div class="modal-popup arcade-modal-popup">
 					<div class="modal-header">
-						<h3 class="modal-title">Pong Mode</h3>
-						<button type="button" class="modal-close" id="pong-close-btn"
-							aria-label="Close Pong">&times;</button>
+						<h3 class="modal-title arcade-modal-title">☽ VOID SAKE CO. ARCADE ☽</h3>
+						<button type="button" class="modal-close" id="arcade-close-btn"
+							aria-label="Close arcade">&times;</button>
 					</div>
-					<div class="modal-content">
-						<canvas id="pong-canvas" width="500" height="300" aria-label="Pong game"></canvas>
-						<p class="pong-help-text">
-							Use ↑ and ↓ arrows to move your paddle. Press ESC to exit.
-						</p>
+					<div class="modal-content" style="padding:0;overflow:hidden;border-radius:0 0 8px 8px;">
+						<canvas id="arcade-canvas" width="560" height="380" aria-label="Void Sake Co. Arcade"></canvas>
 					</div>
 				</div>
 			</div>
@@ -960,6 +953,9 @@
 						});
 
 						confirmEndBtn.addEventListener('click', function () {
+							// In URL-param live mode (_runId set), the mode controller handles export
+							if (window._runId) return;
+
 							const currentRunName = localStorage.getItem('currentRunName') || 'UnknownRun';
 
 							stopDataCollectionAndExport(currentRunName);
@@ -1463,9 +1459,9 @@
 						options: {
 							animation: false, responsive: true, maintainAspectRatio: false,
 							scales: {
-								x: { ticks: { color: '#aaa', autoSkip: true, maxTicksLimit: 6 }, grid: { color: '#2a2a2a' } },
+								x: { ticks: { color: '#aaa', autoSkip: true, maxTicksLimit: 8 }, grid: { color: '#2a2a2a' } },
 								yTemp: { type: 'linear', position: 'left',
-									ticks: { color: '#aaa' }, grid: { color: '#2a2a2a' },
+									ticks: { color: ENV_DRY_COLOR }, grid: { color: '#2a2a2a' },
 									title: { display: true, text: 'Temp (°C)', color: '#aaa' } },
 								yHum: { type: 'linear', position: 'right', min: 0, max: 100,
 									ticks: { color: ENV_HUM_COLOR }, grid: { drawOnChartArea: false },
@@ -1474,7 +1470,8 @@
 							plugins: {
 								legend: {
 									position: 'bottom',
-									labels: { color: '#ccc', usePointStyle: true, boxWidth: 10, font: { size: 11 } }
+									labels: { color: '#ccc', usePointStyle: true, boxWidth: 10, font: { size: 11 },
+									          padding: 8 }
 								}
 							}
 						}
@@ -2423,188 +2420,39 @@
 				})();
 
 
-				// Easter egg: Pong game when clicking the logo (with more random CPU + forgiving collisions)
+				// Easter egg: Arcade — click the logo to open
 				(function () {
-					const logo = document.getElementById('sake-logo-egg');
-					const pongModal = document.getElementById('pong-modal');
-					const pongClose = document.getElementById('pong-close-btn');
-					const canvas = document.getElementById('pong-canvas');
+					var logo = document.getElementById('sake-logo-egg');
+					var modal = document.getElementById('arcade-modal');
+					var closeBtn = document.getElementById('arcade-close-btn');
+					var canvas = document.getElementById('arcade-canvas');
+					if (!logo || !modal || !canvas) return;
+					var ctx = canvas.getContext('2d');
+					var animId = null;
 
-					if (!logo || !pongModal || !canvas) return;
-
-					const ctx = canvas.getContext('2d');
-
-					let animationId = null;
-					let ball, paddleLeft, paddleRight;
-					let upPressed = false;
-					let downPressed = false;
-
-					const HITBOX_PADDING = 3;
-					const PLAYER_SPEED = 4;
-					const AI_MAX_SPEED = 3;
-					const AI_NOISE_RANGE = 25;
-
-					function resetGame() {
-						ball = {
-							x: canvas.width / 2,
-							y: canvas.height / 2,
-							vx: 3 * (Math.random() > 0.5 ? 1 : -1),
-							vy: (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1),
-							r: 6
-						};
-						paddleLeft = {
-							x: 10,
-							y: canvas.height / 2 - 25,
-							w: 8,
-							h: 50
-						};
-						paddleRight = {
-							x: canvas.width - 18,
-							y: canvas.height / 2 - 25,
-							w: 8,
-							h: 50
-						};
-					}
-
-					function draw() {
-						ctx.fillStyle = '#000';
+					function openArcade() {
+						modal.style.display = 'flex';
+						ctx.fillStyle = '#03010a';
 						ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-						ctx.strokeStyle = '#444';
-						ctx.setLineDash([5, 5]);
-						ctx.beginPath();
-						ctx.moveTo(canvas.width / 2, 0);
-						ctx.lineTo(canvas.width / 2, canvas.height);
-						ctx.stroke();
-						ctx.setLineDash([]);
-
-						ctx.fillStyle = '#fff';
-						ctx.fillRect(paddleLeft.x, paddleLeft.y, paddleLeft.w, paddleLeft.h);
-						ctx.fillRect(paddleRight.x, paddleRight.y, paddleRight.w, paddleRight.h);
-
-						ctx.beginPath();
-						ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-						ctx.fill();
+						ctx.font = 'bold 20px monospace';
+						ctx.fillStyle = '#7fff7f';
+						ctx.textAlign = 'center';
+						ctx.fillText('VOID SAKE CO. ARCADE', canvas.width / 2, canvas.height / 2 - 20);
+						ctx.font = '14px monospace';
+						ctx.fillStyle = '#5a9';
+						ctx.fillText('Coming soon...', canvas.width / 2, canvas.height / 2 + 20);
+					}
+					function closeArcade() {
+						modal.style.display = 'none';
 					}
 
-					function update() {
-						// player paddle
-						if (upPressed) paddleLeft.y -= PLAYER_SPEED;
-						if (downPressed) paddleLeft.y += PLAYER_SPEED;
-						paddleLeft.y = Math.max(0, Math.min(canvas.height - paddleLeft.h, paddleLeft.y));
-
-						// CPU paddle
-						let aiTargetY;
-						if (ball.x > canvas.width * 0.4) {
-							const noise = (Math.random() - 0.5) * AI_NOISE_RANGE;
-							aiTargetY = ball.y + noise - paddleRight.h / 2;
-						} else {
-							aiTargetY = canvas.height / 2 - paddleRight.h / 2;
-						}
-
-						if (aiTargetY > paddleRight.y) {
-							paddleRight.y = Math.min(paddleRight.y + AI_MAX_SPEED, aiTargetY);
-						} else {
-							paddleRight.y = Math.max(paddleRight.y - AI_MAX_SPEED, aiTargetY);
-						}
-						paddleRight.y = Math.max(0, Math.min(canvas.height - paddleRight.h, paddleRight.y));
-
-						// ball motion
-						ball.x += ball.vx;
-						ball.y += ball.vy;
-
-						// top/bottom bounce
-						if (ball.y - ball.r < 0) {
-							ball.y = ball.r;
-							ball.vy *= -1;
-						} else if (ball.y + ball.r > canvas.height) {
-							ball.y = canvas.height - ball.r;
-							ball.vy *= -1;
-						}
-
-						// left paddle collision (forgiving hitbox)
-						if (
-							ball.x - ball.r <= paddleLeft.x + paddleLeft.w + HITBOX_PADDING &&
-							ball.x - ball.r >= paddleLeft.x - HITBOX_PADDING &&
-							ball.y >= paddleLeft.y - HITBOX_PADDING &&
-							ball.y <= paddleLeft.y + paddleLeft.h + HITBOX_PADDING
-						) {
-							ball.x = paddleLeft.x + paddleLeft.w + ball.r + HITBOX_PADDING;
-							ball.vx = Math.abs(ball.vx);
-
-							const offset = (ball.y - (paddleLeft.y + paddleLeft.h / 2)) / (paddleLeft.h / 2);
-							ball.vy += offset * 1.5;
-						}
-
-						// right paddle collision (CPU)
-						if (
-							ball.x + ball.r >= paddleRight.x - HITBOX_PADDING &&
-							ball.x + ball.r <= paddleRight.x + paddleRight.w + HITBOX_PADDING &&
-							ball.y >= paddleRight.y - HITBOX_PADDING &&
-							ball.y <= paddleRight.y + paddleRight.h + HITBOX_PADDING
-						) {
-							ball.x = paddleRight.x - ball.r - HITBOX_PADDING;
-							ball.vx = -Math.abs(ball.vx);
-
-							const offset = (ball.y - (paddleRight.y + paddleRight.h / 2)) / (paddleRight.h / 2);
-							ball.vy += offset * 1.5;
-						}
-
-						// reset if out of bounds
-						if (ball.x < -30 || ball.x > canvas.width + 30) {
-							resetGame();
-						}
-					}
-
-					function loop() {
-						update();
-						draw();
-						animationId = requestAnimationFrame(loop);
-					}
-
-					function keyDownHandler(e) {
-						if (e.key === 'ArrowUp') {
-							upPressed = true;
-						} else if (e.key === 'ArrowDown') {
-							downPressed = true;
-						} else if (e.key === 'Escape') {
-							closePong();
-						}
-					}
-
-					function keyUpHandler(e) {
-						if (e.key === 'ArrowUp') {
-							upPressed = false;
-						} else if (e.key === 'ArrowDown') {
-							downPressed = false;
-						}
-					}
-
-					function openPong() {
-						resetGame();
-						pongModal.style.display = 'flex';
-						loop();
-						document.addEventListener('keydown', keyDownHandler);
-						document.addEventListener('keyup', keyUpHandler);
-					}
-
-					function closePong() {
-						pongModal.style.display = 'none';
-						if (animationId) cancelAnimationFrame(animationId);
-						animationId = null;
-						document.removeEventListener('keydown', keyDownHandler);
-						document.removeEventListener('keyup', keyUpHandler);
-					}
-
-					logo.addEventListener('click', openPong);
-
-					if (pongClose) {
-						pongClose.addEventListener('click', closePong);
-					}
-					pongModal.addEventListener('click', function (e) {
-						if (e.target === pongModal) {
-							closePong();
-						}
+					logo.addEventListener('click', openArcade);
+					if (closeBtn) closeBtn.addEventListener('click', closeArcade);
+					modal.addEventListener('click', function (e) {
+						if (e.target === modal) closeArcade();
+					});
+					document.addEventListener('keydown', function (e) {
+						if (e.key === 'Escape' && modal.style.display === 'flex') closeArcade();
 					});
 				})();
 			</script>
@@ -2722,59 +2570,6 @@
 		});
 
 		// Chart bg inputs also handled by existing colorInputs loop above
-
-		// Targets save button
-		var targSaveBtn = document.getElementById('st-targets-save');
-		var targStatus  = document.getElementById('st-targets-status');
-		if (targSaveBtn) {
-			targSaveBtn.addEventListener('click', function () {
-				var runId = window._runId;
-				if (!runId) { if (targStatus) { targStatus.textContent = 'No active run'; } return; }
-				var humMin = parseFloat(document.getElementById('st-hum-min').value);
-				var humMax = parseFloat(document.getElementById('st-hum-max').value);
-				var wtMin  = parseFloat(document.getElementById('st-wt-min').value)  || null;
-				var wtMax  = parseFloat(document.getElementById('st-wt-max').value)  || null;
-				var reqs = [
-					fetch('/api/runs/' + runId + '/humidity-targets', {
-						method: 'PUT',
-						headers: {'Content-Type': 'application/json'},
-						body: JSON.stringify({ min: humMin, max: humMax })
-					}),
-					fetch('/api/runs/' + runId + '/weight-targets', {
-						method: 'PUT',
-						headers: {'Content-Type': 'application/json'},
-						body: JSON.stringify({ min: wtMin, max: wtMax })
-					})
-				];
-				Promise.all(reqs).then(function (responses) {
-					var allOk = responses.every(function (r) { return r.ok; });
-					if (targStatus) {
-						targStatus.textContent = allOk ? 'Saved!' : 'Error saving';
-						setTimeout(function () { targStatus.textContent = ''; }, 2000);
-					}
-				}).catch(function () {
-					if (targStatus) { targStatus.textContent = 'Network error'; }
-				});
-			});
-		}
-
-		// Pre-fill targets when settings modal opens
-		var _origOpenSettings = openSettings;
-		openSettings = function () {
-			_origOpenSettings();
-			var runId = window._runId;
-			if (!runId) return;
-			fetch('/api/runs/' + runId + '/targets').then(function (r) { return r.json(); }).then(function (d) {
-				var humMinEl = document.getElementById('st-hum-min');
-				var humMaxEl = document.getElementById('st-hum-max');
-				var wtMinEl  = document.getElementById('st-wt-min');
-				var wtMaxEl  = document.getElementById('st-wt-max');
-				if (humMinEl && d.hum_min != null) humMinEl.value = d.hum_min;
-				if (humMaxEl && d.hum_max != null) humMaxEl.value = d.hum_max;
-				if (wtMinEl  && d.wt_min  != null) wtMinEl.value  = d.wt_min;
-				if (wtMaxEl  && d.wt_max  != null) wtMaxEl.value  = d.wt_max;
-			}).catch(function () {});
-		};
 
 		// Expose so chart code can read current zone colors
 		window.getSakeSettings = loadSettings;
@@ -2928,7 +2723,16 @@
 		if (confirmEnd) {
 			confirmEnd.addEventListener('click', function () {
 				fetch('/api/runs/' + runId + '/end', { method: 'POST' })
-					.finally(function () { location.href = 'home.html'; });
+					.finally(function () {
+						// Trigger server-side CSV download (includes real readings + notes)
+						const dl = document.createElement('a');
+						dl.href = '/api/runs/' + runId + '/export.csv';
+						dl.download = '';
+						document.body.appendChild(dl);
+						dl.click();
+						document.body.removeChild(dl);
+						setTimeout(function () { location.href = 'home.html'; }, 600);
+					});
 			});
 		}
 
