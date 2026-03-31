@@ -2576,7 +2576,7 @@
 					var hubTick = 0;
 					var cards = [
 						{ key: '1', title: 'VOID PONG',     sub: 'Eldritch Pong', active: true  },
-						{ key: '2', title: 'KOJI RUNNER',    sub: 'Coming soon',   active: false },
+						{ key: '2', title: 'KOJI RUNNER',    sub: 'Endless Run',   active: true  },
 						{ key: '3', title: 'SPORE INVADERS', sub: 'Space Invaders', active: true  },
 						{ key: '4', title: 'KOJI DIG',       sub: 'Dig & Inflate', active: true  }
 					];
@@ -3046,6 +3046,183 @@
 						}
 					}
 
+					// ── KOJI RUNNER ──────────────────────────────────────────
+					var run = {};
+					var RUN_GND = 285;
+					var RUN_GRAV = 0.55, RUN_JUMP = -12;
+
+					function runBgSpores() {
+						var out = [];
+						for (var i = 0; i < 10; i++)
+							out.push({x: Math.random() * W, y: 60 + Math.random() * 180,
+								r: 6 + Math.random() * 22, spd: 0.25 + Math.random() * 0.45});
+						return out;
+					}
+
+					function runSpawn() {
+						// Pick obstacle pattern
+						var patterns = [
+							[{ox:0, h:44+Math.random()*36, w:16}],
+							[{ox:0, h:38+Math.random()*28, w:14}, {ox:26, h:52+Math.random()*24, w:14}],
+							[{ox:0, h:32, w:12}, {ox:18, h:48, w:12}, {ox:36, h:32, w:12}]
+						];
+						var maxPat = run.score < 400 ? 2 : 3;
+						var pat = patterns[Math.floor(Math.random() * maxPat)];
+						var spikes = [];
+						for (var i = 0; i < pat.length; i++)
+							spikes.push({x: W + 24 + pat[i].ox, h: pat[i].h, w: pat[i].w});
+						run.obstacles.push(spikes);
+					}
+
+					function runInit() {
+						run = {
+							py: RUN_GND, vy: 0, onGround: true, jumpsLeft: 2,
+							squish: 0, scrollX: 0,
+							obstacles: [], spawnTimer: 0,
+							bgSpores: runBgSpores(),
+							score: 0, tick: 0, over: false
+						};
+						runSpawn();
+					}
+
+					function runStep() {
+						if (run.over) return;
+						run.tick++;
+						run.score = Math.floor(run.tick / 8);
+						var spd = 4 + run.score * 0.004;
+						run.scrollX += spd;
+						if (run.squish > 0) run.squish--;
+
+						// Physics
+						if (!run.onGround) { run.vy += RUN_GRAV; run.py += run.vy; }
+						if (run.py >= RUN_GND) {
+							if (!run.onGround) run.squish = 7;
+							run.py = RUN_GND; run.vy = 0; run.onGround = true; run.jumpsLeft = 2;
+						}
+
+						// BG parallax
+						for (var i = 0; i < run.bgSpores.length; i++) {
+							run.bgSpores[i].x -= run.bgSpores[i].spd;
+							if (run.bgSpores[i].x + run.bgSpores[i].r < 0)
+								run.bgSpores[i].x = W + run.bgSpores[i].r;
+						}
+
+						// Move + cull obstacles
+						for (var i = run.obstacles.length - 1; i >= 0; i--) {
+							var obs = run.obstacles[i];
+							for (var j = 0; j < obs.length; j++) obs[j].x -= spd;
+							var rightX = -Infinity;
+							for (var j = 0; j < obs.length; j++) rightX = Math.max(rightX, obs[j].x + obs[j].w);
+							if (rightX < -10) run.obstacles.splice(i, 1);
+						}
+
+						// Spawn
+						run.spawnTimer++;
+						if (run.spawnTimer >= Math.max(38, 82 - run.score * 0.06)) {
+							run.spawnTimer = 0; runSpawn();
+						}
+
+						// Collision: player circle (cx=80, cy=py-15, r=14) vs spike AABB
+						var pcx = 80, pcy = run.py - 15, pr = 13;
+						for (var i = 0; i < run.obstacles.length; i++) {
+							for (var j = 0; j < run.obstacles[i].length; j++) {
+								var sp = run.obstacles[i][j];
+								var sx = sp.x, sy = RUN_GND - sp.h, sw = sp.w, sh = sp.h;
+								var nx = Math.max(sx, Math.min(pcx, sx + sw));
+								var ny = Math.max(sy, Math.min(pcy, sy + sh));
+								var dx = pcx - nx, dy = pcy - ny;
+								if (dx*dx + dy*dy < pr*pr) { run.over = true; return; }
+							}
+						}
+					}
+
+					function drawRun() {
+						ctx.fillStyle = '#03010a'; ctx.fillRect(0, 0, W, H);
+
+						// BG spore blobs
+						for (var i = 0; i < run.bgSpores.length; i++) {
+							var s = run.bgSpores[i];
+							ctx.save(); ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+							ctx.fillStyle = 'rgba(50,110,50,0.11)'; ctx.fill(); ctx.restore();
+						}
+
+						// Obstacles (heat spikes)
+						for (var i = 0; i < run.obstacles.length; i++) {
+							for (var j = 0; j < run.obstacles[i].length; j++) {
+								var sp = run.obstacles[i][j];
+								ctx.save();
+								ctx.fillStyle = '#dd3322'; ctx.shadowColor = '#ff5533'; ctx.shadowBlur = 10;
+								ctx.beginPath();
+								ctx.moveTo(sp.x + sp.w/2, RUN_GND - sp.h);
+								ctx.lineTo(sp.x + sp.w,   RUN_GND);
+								ctx.lineTo(sp.x,           RUN_GND);
+								ctx.closePath(); ctx.fill();
+								ctx.strokeStyle = 'rgba(255,130,60,0.55)'; ctx.lineWidth = 1;
+								ctx.beginPath();
+								ctx.moveTo(sp.x + sp.w/2, RUN_GND - sp.h + 5);
+								ctx.lineTo(sp.x + sp.w/2, RUN_GND - 4);
+								ctx.stroke(); ctx.restore();
+							}
+						}
+
+						// Ground line
+						ctx.save(); ctx.strokeStyle = '#4a8a2a'; ctx.lineWidth = 2;
+						ctx.shadowColor = '#4a8a2a'; ctx.shadowBlur = 6;
+						ctx.beginPath(); ctx.moveTo(0, RUN_GND); ctx.lineTo(W, RUN_GND); ctx.stroke();
+						ctx.restore();
+
+						// Ground dots (scrolling)
+						ctx.fillStyle = '#1a3a0a';
+						var goff = run.scrollX % 36;
+						for (var gx = -goff; gx < W; gx += 36) ctx.fillRect(gx, RUN_GND + 5, 3, 3);
+
+						// Player spore
+						var pcx = 80, pcy = run.py - 15;
+						var sx = run.squish > 0 ? 1.3 : 1, sy2 = run.squish > 0 ? 0.7 : 1;
+						var bob = run.onGround ? Math.sin(run.tick * 0.35) * 2 : 0;
+						ctx.save();
+						ctx.translate(pcx, run.py);
+						ctx.scale(sx, sy2);
+						ctx.translate(0, -15 + bob);
+						ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI*2);
+						ctx.fillStyle = '#e8c030'; ctx.shadowColor = '#ffee44'; ctx.shadowBlur = 10; ctx.fill();
+						ctx.strokeStyle = '#fff8a0'; ctx.lineWidth = 1.5; ctx.stroke();
+						ctx.fillStyle = '#222';
+						ctx.beginPath(); ctx.arc(4, -3, 2.5, 0, Math.PI*2); ctx.fill();
+						ctx.beginPath(); ctx.arc(-2, -3, 2.5, 0, Math.PI*2); ctx.fill();
+						ctx.fillStyle = 'rgba(255,255,200,0.5)';
+						ctx.beginPath(); ctx.arc(-2, -7, 2, 0, Math.PI*2); ctx.fill();
+						ctx.restore();
+
+						// Air arc when jumping
+						if (!run.onGround) {
+							ctx.save(); ctx.strokeStyle = 'rgba(180,255,100,0.25)'; ctx.lineWidth = 1;
+							ctx.beginPath(); ctx.arc(pcx, pcy, 20, Math.PI, 0); ctx.stroke(); ctx.restore();
+						}
+
+						// HUD
+						ctx.fillStyle = '#03010a'; ctx.fillRect(0, 0, W, 28);
+						ctx.font = 'bold 13px monospace'; ctx.fillStyle = '#7fff7f'; ctx.textAlign = 'left';
+						ctx.fillText('DIST: ' + run.score + 'm', 8, 20);
+						ctx.font = '9px monospace'; ctx.fillStyle = '#2a5a2a'; ctx.textAlign = 'right';
+						ctx.fillText('[SPC/↑] jump (×2)  ESC=hub', W - 6, 20);
+
+						// Game over overlay
+						if (run.over) {
+							ctx.save();
+							ctx.fillStyle = 'rgba(3,1,10,0.82)'; ctx.fillRect(0, 0, W, H);
+							ctx.font = 'bold 24px monospace'; ctx.textAlign = 'center';
+							ctx.fillStyle = '#cc3333'; ctx.shadowColor = '#cc3333'; ctx.shadowBlur = 16;
+							ctx.fillText('HEAT TAKES YOU', W/2, H/2 - 28);
+							ctx.shadowBlur = 0;
+							ctx.font = '18px monospace'; ctx.fillStyle = '#7fff7f';
+							ctx.fillText('DIST: ' + run.score + 'm', W/2, H/2 + 4);
+							ctx.font = '13px monospace'; ctx.fillStyle = '#5ab85a';
+							ctx.fillText('[ENTER] run again   [ESC] hub', W/2, H/2 + 28);
+							ctx.restore();
+						}
+					}
+
 					// ── SPORE INVADERS ───────────────────────────────────────
 					var inv = {};
 					var IC = 10, IR = 5, IW = 28, IH = 18, IXG = 46, IYG = 32;
@@ -3287,6 +3464,7 @@
 						if (scene === 'hub')  drawHub();
 						else if (scene === 'pong') { pongStep(); drawPong(); }
 						else if (scene === 'dig')  { digStep();  drawDig();  }
+						else if (scene === 'run')  { runStep();  drawRun();  }
 						else if (scene === 'inv')  { invStep();  drawInv();  }
 						animId = requestAnimationFrame(loop);
 					}
@@ -3301,6 +3479,7 @@
 						}
 						if (scene === 'hub') {
 							if (e.key === '1') { pongInit(); scene = 'pong'; }
+							if (e.key === '2') { runInit();  scene = 'run';  }
 							if (e.key === '3') { invInit();  scene = 'inv';  }
 							if (e.key === '4') { digInit();  scene = 'dig';  }
 						} else if (scene === 'pong') {
@@ -3314,6 +3493,12 @@
 							if (e.key === 'ArrowRight') { dig.right = true; e.preventDefault(); }
 							if (e.key === ' ')          { dig.pumping = true; e.preventDefault(); }
 							if (e.key === 'Enter' && (dig.over || dig.won)) digInit();
+						} else if (scene === 'run') {
+							if ((e.key === ' ' || e.key === 'ArrowUp') && !run.over) {
+								if (run.jumpsLeft > 0) { run.vy = RUN_JUMP; run.onGround = false; run.jumpsLeft--; }
+								e.preventDefault();
+							}
+							if (e.key === 'Enter' && run.over) runInit();
 						} else if (scene === 'inv') {
 							if (e.key === 'ArrowLeft')  { inv.left  = true; e.preventDefault(); }
 							if (e.key === 'ArrowRight') { inv.right = true; e.preventDefault(); }
