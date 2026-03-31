@@ -2202,3 +2202,194 @@ body {
 	border: 1px solid #d0d0d8;
 	font-size: 0.85rem;
 }
+
+/* ── Origin-style dark UI ─────────────────────────────────────────────────────
+   Unified dark surface, 12px bubble corners, consistent spacing & contrast.
+   All light-theme defaults above are overridden here.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/* Page background — ensure html + body are both dark */
+html { background: #0f0f0f; }
+
+/* Unified card surface colour & subtle border */
+.long, .mid, .notes, .card,
+.zone-detail-card, .set-temp-btn,
+.notes > .home-link {
+	background: #181818;
+	border-color: rgba(255,255,255,0.07);
+	box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+}
+
+/* 12 px bubble corners everywhere */
+.long, .mid, .notes, .card,
+.zone-combined, .zone-detail-card,
+.modal-popup, .set-temp-btn,
+.notes > .home-link, .start-run-btn {
+	border-radius: 12px;
+}
+
+/* Card text defaults */
+.long, .mid, .notes, .zone-detail-card { color: #e0e0e0; }
+
+/* Consistent chart-card internal padding */
+.long--top-left { padding: 16px; }
+
+/* Consistent gap in left-column */
+.left { gap: 16px; }
+
+/* ── Zone buttons ──────────────────────────────────────────────────────────── */
+.zone-combined {
+	background: #181818;
+	border: 1px solid rgba(255,255,255,0.07);
+	box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+	color: #ddd;
+}
+.zone-combined:hover, .zone-combined:focus {
+	background: #222;
+	color: #fff;
+	border-color: rgba(255,255,255,0.14);
+}
+
+/* Temperature state tints — dark semitransparent */
+.zone-combined.zone-temp-hot  { background: rgba(210,60,60,0.15);  border-color: rgba(210,80,80,0.45); }
+.zone-combined.zone-temp-hot:hover,
+.zone-combined.zone-temp-hot:focus  { background: rgba(210,60,60,0.25); }
+
+.zone-combined.zone-temp-warm { background: rgba(240,170,40,0.15); border-color: rgba(240,170,40,0.45); }
+.zone-combined.zone-temp-warm:hover,
+.zone-combined.zone-temp-warm:focus { background: rgba(240,170,40,0.25); }
+
+.zone-combined.zone-temp-ok   { background: rgba(50,175,50,0.15);  border-color: rgba(50,175,50,0.45); }
+.zone-combined.zone-temp-ok:hover,
+.zone-combined.zone-temp-ok:focus   { background: rgba(50,175,50,0.25); }
+
+.zone-combined.zone-temp-cold { background: rgba(50,130,230,0.15); border-color: rgba(50,130,230,0.45); }
+.zone-combined.zone-temp-cold:hover,
+.zone-combined.zone-temp-cold:focus { background: rgba(50,130,230,0.25); }
+
+.zone-combined--active {
+	box-shadow: 0 0 0 2px #52a0e0, 0 4px 16px rgba(0,0,0,0.4);
+}
+
+/* Zone / card labels */
+.zone-combined__label, .temp__label { color: #999; }
+.temp__note { color: #666; }
+
+/* ── Notes ─────────────────────────────────────────────────────────────────── */
+.notes__input  { color: #ddd; scrollbar-color: #444 #181818; }
+.notes__meta   { color: #777; }
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+header h1, .header-title, .page-title { color: #ffffff; }
+
+/* ── Chart title pill overlays ─────────────────────────────────────────────── */
+.temp-chart-title-left,
+.home-chart-title-left,
+.home-humidity-title,
+.home-weight-title {
+	background: rgba(8,8,8,0.7);
+	color: #d0d0d0;
+}
+
+/* ── Temp-chart legend text ────────────────────────────────────────────────── */
+.temp-chart-legend__item { color: #ccc; }
+
+/* ── Temp legend badges ────────────────────────────────────────────────────── */
+.zone-temp-legend__item.zone-temp-ok   { background: rgba(50,175,50,0.18);  border-color: rgba(50,175,50,0.5);  color: #7fe07f; }
+.zone-temp-legend__item.zone-temp-warm { background: rgba(240,170,40,0.18); border-color: rgba(240,170,40,0.5); color: #ffc864; }
+.zone-temp-legend__item.zone-temp-hot  { background: rgba(210,60,60,0.18);  border-color: rgba(210,80,80,0.5);  color: #ff8080; }
+.zone-temp-legend__item.zone-temp-cold { background: rgba(50,130,230,0.18); border-color: rgba(50,130,230,0.5); color: #80b8ff; }
+
+/* ── Temp deviation number colours ─────────────────────────────────────────── */
+.temp__num.temp-good     { color: #e0e0e0 !important; background: transparent; }
+.temp__num.temp-warning  { color: #ffc107 !important; background: rgba(255,193,7,0.12); }
+.temp__num.temp-danger   { color: #ff6b6b !important; background: rgba(255,107,107,0.12); }
+.temp__num.temp-too-hot  { color: #ff9090 !important; background: rgba(255,100,100,0.18) !important; }
+.temp__num.temp-too-cold { color: #90b8ff !important; background: rgba(90,160,255,0.18) !important; }
+
+/* ── Generic modal popup ───────────────────────────────────────────────────── */
+.modal-popup        { background: #181818; border: 1px solid rgba(255,255,255,0.09); color: #e0e0e0; }
+.modal-header       { border-color: rgba(255,255,255,0.09); }
+.modal-title        { color: #e0e0e0; }
+.modal-close        { color: #777; }
+.modal-close:hover,
+.modal-close:active { background: #2a2a2a; color: #e0e0e0; }
+.modal-content p    { color: #aaa; }
+.modal-input-section label { color: #ccc; }
+.modal-input-section input {
+	background: #1e1e1e;
+	border-color: #3a3a3a;
+	color: #ddd;
+}
+
+/* ── Stage markers & overlay chips ─────────────────────────────────────────── */
+.marker-btn                     { background: #1e1e1e; border-color: #3a3a3a; color: #bbb; }
+.marker-btn:hover               { background: #2a2a2a; }
+.marker-chip, .overlay-chip     { background: #1e1e1e; border-color: #3a3a3a; color: #bbb; }
+.overlay-select                 { background: #1e1e1e; border-color: #3a3a3a; color: #ccc; }
+
+/* ── Weight stats ──────────────────────────────────────────────────────────── */
+.weight-stat span   { color: #e0e0e0; }
+.weight-stat-target { color: #82b366; }
+
+/* ── Target form ───────────────────────────────────────────────────────────── */
+.target-form__row input { background: #1e1e1e; border-color: #3a3a3a; color: #ddd; }
+
+/* ── Zone detail inline card ───────────────────────────────────────────────── */
+.zone-detail-card                        { background: #181818; border-color: rgba(255,255,255,0.07); color: #e0e0e0; }
+.zone-detail-card__title                 { color: #e0e0e0; }
+.zone-detail-card__temp-val              { color: #ffffff; }
+.zone-detail-card__temp-unit             { color: #888; }
+.zone-detail-card__temp-label            { color: #777; }
+.zone-detail-card__fan-label             { color: #999; }
+.zone-detail-card__fan-status            { color: #666; }
+.zone-detail-card__chart-label           { color: #777; }
+.zone-detail-card__notes-label           { color: #777; }
+
+.zone-detail-card__fan-btn               { background: #222; border-color: rgba(255,255,255,0.1); color: #ccc; }
+.zone-detail-card__fan-btn:hover:not(:disabled) { background: #2a2a2a; border-color: rgba(255,255,255,0.18); }
+.zone-detail-card__fan-btn--active       { background: rgba(82,160,224,0.2); border-color: rgba(82,160,224,0.5); color: #80c0f0; }
+.zone-detail-card__fan-btn--auto         { background: #202020; color: #888; }
+
+.zone-detail-card__notes                 { background: #222; border-color: #3a3a3a; color: #ddd; }
+.zone-detail-card__fullpage-link         { color: #52a0e0; }
+.zone-detail-card__close                 { color: #666; }
+.zone-detail-card__close:hover           { color: #ccc; }
+
+/* ── Set-temp button & Home link (above notes) ─────────────────────────────── */
+.set-temp-btn {
+	background: #181818;
+	border-color: rgba(255,255,255,0.07);
+	color: #e05555;
+	box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.set-temp-btn:hover, .set-temp-btn:focus-visible {
+	background: #c03030;
+	color: #fff;
+	border-color: #c03030;
+	transform: translateY(-2px);
+}
+.notes > .home-link {
+	background: #181818;
+	border-color: rgba(255,255,255,0.07);
+	color: #e05555;
+	box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.notes > .home-link:hover, .notes > .home-link:focus-visible {
+	background: #c03030;
+	color: #fff;
+	border-color: #c03030;
+}
+
+/* ── Mid card hover ────────────────────────────────────────────────────────── */
+.mid:hover { background: #222; color: #fff; }
+
+/* ── Recovery banner ───────────────────────────────────────────────────────── */
+.recovery-banner {
+	background: rgba(100,77,3,0.3);
+	color: #ffd060;
+	border-color: rgba(255,190,60,0.3);
+}
+
+/* ── .card utility (zone pages) ─────────────────────────────────────────────── */
+.card { background: #181818; border-color: rgba(255,255,255,0.07); color: #e0e0e0; }
