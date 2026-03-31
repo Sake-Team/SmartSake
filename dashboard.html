@@ -2578,7 +2578,7 @@
 						{ key: '1', title: 'VOID PONG',     sub: 'Eldritch Pong', active: true  },
 						{ key: '2', title: 'KOJI RUNNER',    sub: 'Coming soon',   active: false },
 						{ key: '3', title: 'SPORE INVADERS', sub: 'Coming soon',   active: false },
-						{ key: '4', title: 'KOJI DIG',       sub: 'Coming soon',   active: false }
+						{ key: '4', title: 'KOJI DIG',       sub: 'Dig & Inflate', active: true  }
 					];
 					function drawHub() {
 						ctx.fillStyle = '#03010a';
@@ -2809,10 +2809,248 @@
 						}
 					}
 
+					// ── KOJI DIG ─────────────────────────────────────────────
+					var dig = {};
+					var DT = 20, DC = 28, DR = 18, DOY = 20, PSPD = 2;
+					function dtc(c, r) { return [c * DT + DT/2, r * DT + DOY + DT/2]; }
+
+					function digInit() {
+						var grid = [];
+						for (var r = 0; r < DR; r++) {
+							var row = []; for (var c = 0; c < DC; c++) row.push(1); grid.push(row);
+						}
+						var ePos = [{c:24,r:3},{c:24,r:14},{c:14,r:3},{c:14,r:14}];
+						var enemies = [];
+						for (var i = 0; i < ePos.length; i++) {
+							var ep = ePos[i]; grid[ep.r][ep.c] = 0;
+							var tc0 = dtc(ep.c, ep.r);
+							enemies.push({c:ep.c, r:ep.r, x:tc0[0], y:tc0[1],
+								inflate:0, lastHit:0, dead:false, moveTimer: i * 30});
+						}
+						grid[9][1] = 0;
+						var pp = dtc(1, 9);
+						dig = {
+							grid:grid, enemies:enemies,
+							px:pp[0], py:pp[1], pc:1, pr:9,
+							vx:0, vy:0, pdir:[1,0],
+							pumping:false, pumpLen:0, pumpHitTimer:0,
+							score:0, lives:3, tick:0,
+							over:false, won:false, deadTimer:0, invincTimer:0,
+							left:false, right:false, up:false, down:false
+						};
+					}
+
+					function digStep() {
+						if (dig.over || dig.won) return;
+						dig.tick++;
+						if (dig.deadTimer > 0) { dig.deadTimer--; return; }
+						if (dig.invincTimer > 0) dig.invincTimer--;
+
+						// At tile center: steer
+						var tc1 = dtc(dig.pc, dig.pr);
+						if (Math.abs(dig.px - tc1[0]) < PSPD + 0.5 && Math.abs(dig.py - tc1[1]) < PSPD + 0.5) {
+							dig.px = tc1[0]; dig.py = tc1[1];
+							var wvx = 0, wvy = 0;
+							if      (dig.right) wvx =  PSPD;
+							else if (dig.left)  wvx = -PSPD;
+							else if (dig.down)  wvy =  PSPD;
+							else if (dig.up)    wvy = -PSPD;
+							if (wvx !== 0 || wvy !== 0) {
+								var wdc = wvx > 0 ? 1 : wvx < 0 ? -1 : 0;
+								var wdr = wvy > 0 ? 1 : wvy < 0 ? -1 : 0;
+								if (dig.pc+wdc >= 0 && dig.pc+wdc < DC && dig.pr+wdr >= 0 && dig.pr+wdr < DR) {
+									dig.vx = wvx; dig.vy = wvy; dig.pdir = [wdc, wdr];
+								} else { dig.vx = 0; dig.vy = 0; }
+							}
+							// stop if current direction hits boundary
+							if (dig.vx !== 0 || dig.vy !== 0) {
+								var cdc = dig.vx > 0 ? 1 : dig.vx < 0 ? -1 : 0;
+								var cdr = dig.vy > 0 ? 1 : dig.vy < 0 ? -1 : 0;
+								if (dig.pc+cdc < 0 || dig.pc+cdc >= DC || dig.pr+cdr < 0 || dig.pr+cdr >= DR)
+									{ dig.vx = 0; dig.vy = 0; }
+							}
+						}
+
+						dig.px += dig.vx; dig.py += dig.vy;
+						var nc = Math.floor(dig.px / DT);
+						var nr = Math.floor((dig.py - DOY) / DT);
+						if (nc >= 0 && nc < DC && nr >= 0 && nr < DR) {
+							if (nc !== dig.pc || nr !== dig.pr) { dig.pc = nc; dig.pr = nr; dig.grid[nr][nc] = 0; }
+						} else {
+							var tc2 = dtc(dig.pc, dig.pr);
+							dig.px = tc2[0]; dig.py = tc2[1]; dig.vx = 0; dig.vy = 0;
+						}
+
+						// Pump
+						dig.pumpHitTimer++;
+						if (dig.pumping) {
+							dig.pumpLen = Math.min(dig.pumpLen + 1.5, 5 * DT);
+							if (dig.pumpHitTimer % 10 === 0) {
+								for (var pi = 0; pi < dig.enemies.length; pi++) {
+									var pe = dig.enemies[pi];
+									if (pe.dead) continue;
+									var pex = pe.x - dig.px, pey = pe.y - dig.py;
+									var dot = pex * dig.pdir[0] + pey * dig.pdir[1];
+									var cross = Math.abs(pex * dig.pdir[1] - pey * dig.pdir[0]);
+									if (dot > 0 && dot <= dig.pumpLen && cross < DT * 0.7) {
+										pe.inflate++; pe.lastHit = dig.tick;
+										if (pe.inflate >= 3) { pe.dead = true; dig.score += 100; }
+									}
+								}
+							}
+						} else {
+							dig.pumpLen = 0;
+							for (var pi2 = 0; pi2 < dig.enemies.length; pi2++) {
+								var pe2 = dig.enemies[pi2];
+								if (!pe2.dead && pe2.inflate > 0 && dig.tick - pe2.lastHit > 60) pe2.inflate = 0;
+							}
+						}
+
+						// Enemies
+						for (var ei = 0; ei < dig.enemies.length; ei++) {
+							var en = dig.enemies[ei];
+							if (en.dead || en.inflate >= 2) continue;
+							en.moveTimer++;
+							if (en.moveTimer >= 25) {
+								en.moveTimer = 0;
+								var dirs = [{dc:1,dr:0},{dc:-1,dr:0},{dc:0,dr:1},{dc:0,dr:-1}];
+								dirs.sort(function() { return Math.random() - 0.5; });
+								var best = null, bestScore = Infinity;
+								for (var d = 0; d < dirs.length; d++) {
+									var enc2 = en.c + dirs[d].dc, enr2 = en.r + dirs[d].dr;
+									if (enc2 < 0 || enc2 >= DC || enr2 < 0 || enr2 >= DR) continue;
+									if (dig.grid[enr2][enc2] !== 0) continue;
+									var dist = Math.abs(enc2 - dig.pc) + Math.abs(enr2 - dig.pr);
+									var noise = dig.tick % 50 < 35 ? 0 : 20;
+									var sc = dist + noise;
+									if (sc < bestScore) { bestScore = sc; best = {c:enc2, r:enr2}; }
+								}
+								if (best) {
+									en.c = best.c; en.r = best.r;
+									var etc = dtc(en.c, en.r); en.x = etc[0]; en.y = etc[1];
+								}
+							}
+							// Collision
+							if (dig.invincTimer === 0) {
+								var ddx = en.x - dig.px, ddy = en.y - dig.py;
+								if (ddx*ddx + ddy*ddy < (DT*0.65)*(DT*0.65)) {
+									dig.lives--;
+									if (dig.lives <= 0) { dig.over = true; return; }
+									var rp = dtc(1, 9); dig.px = rp[0]; dig.py = rp[1]; dig.pc = 1; dig.pr = 9;
+									dig.vx = 0; dig.vy = 0; dig.deadTimer = 60; dig.invincTimer = 150;
+									return;
+								}
+							}
+						}
+
+						var allDead = true;
+						for (var wi = 0; wi < dig.enemies.length; wi++) {
+							if (!dig.enemies[wi].dead) { allDead = false; break; }
+						}
+						if (allDead) dig.won = true;
+					}
+
+					function drawDig() {
+						ctx.fillStyle = '#03010a';
+						ctx.fillRect(0, 0, W, H);
+
+						// Soil
+						for (var r = 0; r < DR; r++) {
+							for (var c = 0; c < DC; c++) {
+								if (dig.grid[r][c]) {
+									var tx = c * DT, ty = r * DT + DOY;
+									ctx.fillStyle = '#2a1505';
+									ctx.fillRect(tx, ty, DT, DT);
+									ctx.fillStyle = '#3d2008';
+									ctx.fillRect(tx + 4, ty + 5, 2, 2);
+									ctx.fillRect(tx + 13, ty + 12, 2, 2);
+									ctx.fillRect(tx + 8,  ty + 15, 2, 2);
+								}
+							}
+						}
+
+						// Enemies
+						for (var i = 0; i < dig.enemies.length; i++) {
+							var e = dig.enemies[i];
+							if (e.dead) continue;
+							var er = DT * 0.38 + e.inflate * DT * 0.18;
+							ctx.save();
+							ctx.beginPath(); ctx.arc(e.x, e.y, er, 0, Math.PI * 2);
+							ctx.fillStyle = 'rgba(' + (150 + e.inflate * 30) + ',50,60,0.9)';
+							ctx.shadowColor = '#aa2233'; ctx.shadowBlur = 8; ctx.fill();
+							ctx.fillStyle = '#fff';
+							ctx.beginPath(); ctx.arc(e.x - 3, e.y - 2, 2.5, 0, Math.PI * 2); ctx.fill();
+							ctx.beginPath(); ctx.arc(e.x + 3, e.y - 2, 2.5, 0, Math.PI * 2); ctx.fill();
+							ctx.fillStyle = '#111';
+							ctx.beginPath(); ctx.arc(e.x - 3, e.y - 2, 1.2, 0, Math.PI * 2); ctx.fill();
+							ctx.beginPath(); ctx.arc(e.x + 3, e.y - 2, 1.2, 0, Math.PI * 2); ctx.fill();
+							if (e.inflate > 0) {
+								ctx.strokeStyle = 'rgba(255,160,60,0.7)'; ctx.lineWidth = 1.5;
+								for (var ci = 0; ci < e.inflate * 2; ci++) {
+									var ca = (ci / (e.inflate * 2)) * Math.PI * 2;
+									ctx.beginPath();
+									ctx.moveTo(e.x + Math.cos(ca) * er * 0.55, e.y + Math.sin(ca) * er * 0.55);
+									ctx.lineTo(e.x + Math.cos(ca) * er, e.y + Math.sin(ca) * er);
+									ctx.stroke();
+								}
+							}
+							ctx.restore();
+						}
+
+						// Pump beam
+						if (dig.pumping && dig.pumpLen > 0) {
+							ctx.save();
+							ctx.strokeStyle = '#ffdd44'; ctx.lineWidth = 2.5;
+							ctx.shadowColor = '#ffdd44'; ctx.shadowBlur = 6; ctx.globalAlpha = 0.85;
+							ctx.beginPath();
+							ctx.moveTo(dig.px, dig.py);
+							ctx.lineTo(dig.px + dig.pdir[0] * dig.pumpLen, dig.py + dig.pdir[1] * dig.pumpLen);
+							ctx.stroke(); ctx.restore();
+						}
+
+						// Player
+						if (dig.invincTimer === 0 || dig.tick % 8 < 5) {
+							ctx.save();
+							ctx.beginPath(); ctx.arc(dig.px, dig.py, DT * 0.38, 0, Math.PI * 2);
+							ctx.fillStyle = '#e8c030'; ctx.shadowColor = '#ffee44'; ctx.shadowBlur = 8; ctx.fill();
+							ctx.strokeStyle = '#fff8a0'; ctx.lineWidth = 1.5; ctx.stroke();
+							var fd = dig.pdir;
+							ctx.fillStyle = '#222';
+							ctx.beginPath(); ctx.arc(dig.px+fd[0]*2-fd[1]*3, dig.py+fd[1]*2-fd[0]*3, 1.8, 0, Math.PI*2); ctx.fill();
+							ctx.beginPath(); ctx.arc(dig.px+fd[0]*2+fd[1]*3, dig.py+fd[1]*2+fd[0]*3, 1.8, 0, Math.PI*2); ctx.fill();
+							ctx.restore();
+						}
+
+						// HUD
+						ctx.fillStyle = '#050208'; ctx.fillRect(0, 0, W, DOY);
+						ctx.font = '12px monospace'; ctx.fillStyle = '#7fff7f'; ctx.textAlign = 'left';
+						ctx.fillText('SCORE: ' + dig.score, 8, 15);
+						ctx.fillStyle = '#e8c030'; ctx.textAlign = 'center';
+						for (var li = 0; li < dig.lives; li++) {
+							ctx.beginPath(); ctx.arc(W/2 - 20 + li * 18, 10, 5, 0, Math.PI*2); ctx.fill();
+						}
+						ctx.font = '9px monospace'; ctx.fillStyle = '#2a5a2a'; ctx.textAlign = 'right';
+						ctx.fillText('[↑↓←→] dig  [SPC] pump  ESC=hub', W - 6, 15);
+
+						// Overlay
+						if (dig.over || dig.won) {
+							ctx.save();
+							ctx.fillStyle = 'rgba(3,1,10,0.8)'; ctx.fillRect(0, 0, W, H);
+							ctx.font = 'bold 24px monospace'; ctx.textAlign = 'center';
+							ctx.fillStyle = dig.won ? '#7fff7f' : '#cc3333';
+							ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 16;
+							ctx.fillText(dig.won ? 'KOJI TRIUMPHS!' : 'MOLD TAKES ROOT', W/2, H/2 - 16);
+							ctx.shadowBlur = 0; ctx.font = '13px monospace'; ctx.fillStyle = '#5ab85a';
+							ctx.fillText('[ENTER] play again   [ESC] hub', W/2, H/2 + 20);
+							ctx.restore();
+						}
+					}
+
 					// ── Game loop ────────────────────────────────────────────
 					function loop() {
 						if (scene === 'hub')  drawHub();
 						else if (scene === 'pong') { pongStep(); drawPong(); }
+						else if (scene === 'dig')  { digStep();  drawDig();  }
 						animId = requestAnimationFrame(loop);
 					}
 
@@ -2826,15 +3064,26 @@
 						}
 						if (scene === 'hub') {
 							if (e.key === '1') { pongInit(); scene = 'pong'; }
+							if (e.key === '4') { digInit();  scene = 'dig';  }
 						} else if (scene === 'pong') {
 							if (e.key === 'ArrowUp')   { pong.up   = true; e.preventDefault(); }
 							if (e.key === 'ArrowDown') { pong.down = true; e.preventDefault(); }
 							if (e.key === 'Enter' && pong.over) pongInit();
+						} else if (scene === 'dig') {
+							if (e.key === 'ArrowUp')    { dig.up    = true; e.preventDefault(); }
+							if (e.key === 'ArrowDown')  { dig.down  = true; e.preventDefault(); }
+							if (e.key === 'ArrowLeft')  { dig.left  = true; e.preventDefault(); }
+							if (e.key === 'ArrowRight') { dig.right = true; e.preventDefault(); }
+							if (e.key === ' ')          { dig.pumping = true; e.preventDefault(); }
+							if (e.key === 'Enter' && (dig.over || dig.won)) digInit();
 						}
 					}
 					function onKeyUp(e) {
-						if (e.key === 'ArrowUp')   pong.up   = false;
-						if (e.key === 'ArrowDown') pong.down = false;
+						if (e.key === 'ArrowUp')    { pong.up   = false; dig.up    = false; }
+						if (e.key === 'ArrowDown')  { pong.down = false; dig.down  = false; }
+						if (e.key === 'ArrowLeft')  dig.left  = false;
+						if (e.key === 'ArrowRight') dig.right = false;
+						if (e.key === ' ')          dig.pumping = false;
 					}
 
 					// ── Modal wiring ─────────────────────────────────────────
