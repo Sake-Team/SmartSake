@@ -2577,7 +2577,7 @@
 					var cards = [
 						{ key: '1', title: 'VOID PONG',     sub: 'Eldritch Pong', active: true  },
 						{ key: '2', title: 'KOJI RUNNER',    sub: 'Coming soon',   active: false },
-						{ key: '3', title: 'SPORE INVADERS', sub: 'Coming soon',   active: false },
+						{ key: '3', title: 'SPORE INVADERS', sub: 'Space Invaders', active: true  },
 						{ key: '4', title: 'KOJI DIG',       sub: 'Dig & Inflate', active: true  }
 					];
 					function drawHub() {
@@ -3046,11 +3046,248 @@
 						}
 					}
 
+					// ── SPORE INVADERS ───────────────────────────────────────
+					var inv = {};
+					var IC = 10, IR = 5, IW = 28, IH = 18, IXG = 46, IYG = 32;
+					var IX0 = Math.floor((W - (IC - 1) * IXG - IW) / 2);
+					var IY0 = 36;
+
+					function invInit() {
+						var es = [];
+						for (var r = 0; r < IR; r++)
+							for (var c = 0; c < IC; c++)
+								es.push({r:r, c:c, x:IX0+c*IXG, y:IY0+r*IYG, dead:false, fr:0});
+						var bxs = [72, W/2 - 22, W - 72 - 44];
+						var bars = [];
+						for (var i = 0; i < 3; i++)
+							bars.push({x:bxs[i], y:H - 76, w:44, h:22, hp:4});
+						inv = {
+							enemies:es, barriers:bars,
+							dx:1, dropping:false, dropLeft:0,
+							px:W/2, py:H - 34, pspeed:4,
+							left:false, right:false,
+							pbullet:null, ebullets:[],
+							eshootTimer:0, eshootInterval:70,
+							score:0, lives:3, tick:0,
+							over:false, won:false
+						};
+					}
+
+					function invAlive() {
+						var n = 0;
+						for (var i = 0; i < inv.enemies.length; i++) if (!inv.enemies[i].dead) n++;
+						return n;
+					}
+
+					function invStep() {
+						if (inv.over || inv.won) return;
+						inv.tick++;
+						if (inv.left)  inv.px = Math.max(20, inv.px - inv.pspeed);
+						if (inv.right) inv.px = Math.min(W - 20, inv.px + inv.pspeed);
+
+						// Enemy group movement
+						var spd = 0.4 + (IC * IR - invAlive()) * 0.02;
+						if (inv.dropping) {
+							for (var i = 0; i < inv.enemies.length; i++)
+								if (!inv.enemies[i].dead) inv.enemies[i].y += 0.7;
+							inv.dropLeft -= 0.7;
+							if (inv.dropLeft <= 0) inv.dropping = false;
+						} else {
+							for (var i = 0; i < inv.enemies.length; i++)
+								if (!inv.enemies[i].dead) inv.enemies[i].x += inv.dx * spd;
+							var minX = Infinity, maxX = -Infinity;
+							for (var i = 0; i < inv.enemies.length; i++) {
+								if (!inv.enemies[i].dead) {
+									if (inv.enemies[i].x < minX) minX = inv.enemies[i].x;
+									if (inv.enemies[i].x + IW > maxX) maxX = inv.enemies[i].x + IW;
+								}
+							}
+							if (maxX >= W - 8 || minX <= 8) {
+								inv.dx *= -1; inv.dropping = true; inv.dropLeft = 16;
+							}
+						}
+						if (inv.tick % 28 === 0)
+							for (var i = 0; i < inv.enemies.length; i++) inv.enemies[i].fr ^= 1;
+
+						// Player bullet
+						if (inv.pbullet) {
+							inv.pbullet.y -= 7;
+							if (inv.pbullet.y < 0) inv.pbullet = null;
+						}
+
+						// Enemy shooting
+						inv.eshootTimer++;
+						if (inv.eshootTimer >= inv.eshootInterval) {
+							inv.eshootTimer = 0;
+							var cols = {};
+							for (var i = 0; i < inv.enemies.length; i++) {
+								var e = inv.enemies[i];
+								if (!e.dead && (!cols[e.c] || e.r > cols[e.c].r)) cols[e.c] = e;
+							}
+							var shooters = [];
+							for (var k in cols) shooters.push(cols[k]);
+							if (shooters.length) {
+								var s = shooters[Math.floor(Math.random() * shooters.length)];
+								inv.ebullets.push({x:s.x + IW/2, y:s.y + IH, vy:3.5});
+							}
+							inv.eshootInterval = 45 + Math.floor(Math.random() * 55);
+						}
+						for (var i = inv.ebullets.length - 1; i >= 0; i--) {
+							inv.ebullets[i].y += inv.ebullets[i].vy;
+							if (inv.ebullets[i].y > H) inv.ebullets.splice(i, 1);
+						}
+
+						// Player bullet hits enemy
+						if (inv.pbullet) {
+							for (var i = 0; i < inv.enemies.length; i++) {
+								var e = inv.enemies[i];
+								if (e.dead) continue;
+								if (inv.pbullet.x >= e.x && inv.pbullet.x <= e.x+IW &&
+									inv.pbullet.y >= e.y && inv.pbullet.y <= e.y+IH) {
+									e.dead = true;
+									inv.score += e.r < 2 ? 30 : e.r < 4 ? 20 : 10;
+									inv.pbullet = null; break;
+								}
+							}
+						}
+						// Player bullet hits barrier
+						if (inv.pbullet) {
+							for (var i = 0; i < inv.barriers.length; i++) {
+								var b = inv.barriers[i];
+								if (!b.hp) continue;
+								if (inv.pbullet.x >= b.x && inv.pbullet.x <= b.x+b.w &&
+									inv.pbullet.y >= b.y && inv.pbullet.y <= b.y+b.h) {
+									b.hp--; inv.pbullet = null; break;
+								}
+							}
+						}
+						// Enemy bullets hit barriers
+						for (var i = inv.ebullets.length - 1; i >= 0; i--) {
+							var eb = inv.ebullets[i];
+							for (var j = 0; j < inv.barriers.length; j++) {
+								var b = inv.barriers[j];
+								if (!b.hp) continue;
+								if (eb.x >= b.x && eb.x <= b.x+b.w && eb.y >= b.y && eb.y <= b.y+b.h) {
+									b.hp--; inv.ebullets.splice(i, 1); break;
+								}
+							}
+						}
+						// Enemy bullets hit player
+						for (var i = inv.ebullets.length - 1; i >= 0; i--) {
+							var eb = inv.ebullets[i];
+							if (eb.x >= inv.px-18 && eb.x <= inv.px+18 &&
+								eb.y >= inv.py-18 && eb.y <= inv.py+8) {
+								inv.lives--; inv.ebullets.splice(i, 1);
+								if (!inv.lives) { inv.over = true; return; }
+							}
+						}
+						// Enemies reach player
+						for (var i = 0; i < inv.enemies.length; i++) {
+							if (!inv.enemies[i].dead && inv.enemies[i].y + IH >= inv.py - 10) {
+								inv.over = true; return;
+							}
+						}
+						if (!invAlive()) inv.won = true;
+					}
+
+					function drawInvEnemy(x, y, row, fr) {
+						var cols = ['#44ffee','#cc44ff','#ffcc44','#ff8844','#ff4444'];
+						var col = cols[row % 5];
+						ctx.save(); ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 5;
+						ctx.fillRect(x+4, y+4, IW-8, IH-6);           // body
+						ctx.fillRect(x+5, y, 4, 5);                    // left antenna
+						ctx.fillRect(x+IW-9, y, 4, 5);                 // right antenna
+						if (fr === 0) {
+							ctx.fillRect(x, y+IH-8, 5, 5);             // legs out
+							ctx.fillRect(x+IW-5, y+IH-8, 5, 5);
+						} else {
+							ctx.fillRect(x+3, y+IH-4, 5, 4);           // legs in
+							ctx.fillRect(x+IW-8, y+IH-4, 5, 4);
+						}
+						ctx.fillStyle = '#000';
+						ctx.fillRect(x+8, y+7, 3, 3);                  // eyes
+						ctx.fillRect(x+IW-11, y+7, 3, 3);
+						ctx.restore();
+					}
+
+					function drawInv() {
+						ctx.fillStyle = '#03010a';
+						ctx.fillRect(0, 0, W, H);
+
+						// Enemies
+						for (var i = 0; i < inv.enemies.length; i++) {
+							var e = inv.enemies[i];
+							if (!e.dead) drawInvEnemy(e.x, e.y, e.r, e.fr);
+						}
+						// Barriers
+						for (var i = 0; i < inv.barriers.length; i++) {
+							var b = inv.barriers[i];
+							if (!b.hp) continue;
+							ctx.save();
+							ctx.globalAlpha = 0.25 + (b.hp / 4) * 0.75;
+							ctx.fillStyle = '#4aaa4a'; ctx.shadowColor = '#4aaa4a'; ctx.shadowBlur = 6;
+							ctx.fillRect(b.x, b.y, b.w, b.h);
+							ctx.restore();
+						}
+						// Player bullet
+						if (inv.pbullet) {
+							ctx.save(); ctx.fillStyle = '#7fff7f';
+							ctx.shadowColor = '#7fff7f'; ctx.shadowBlur = 8;
+							ctx.fillRect(inv.pbullet.x - 1, inv.pbullet.y, 3, 10);
+							ctx.restore();
+						}
+						// Enemy bullets
+						for (var i = 0; i < inv.ebullets.length; i++) {
+							var eb = inv.ebullets[i];
+							ctx.fillStyle = '#ff8844';
+							ctx.fillRect(eb.x - 1, eb.y, 3, 8);
+						}
+						// Player ship
+						ctx.save();
+						ctx.fillStyle = '#7fff7f'; ctx.shadowColor = '#7fff7f'; ctx.shadowBlur = 10;
+						ctx.beginPath();
+						ctx.moveTo(inv.px, inv.py - 18);
+						ctx.lineTo(inv.px + 18, inv.py + 8);
+						ctx.lineTo(inv.px - 18, inv.py + 8);
+						ctx.closePath(); ctx.fill();
+						ctx.fillRect(inv.px - 2, inv.py - 22, 4, 8);  // cannon
+						ctx.restore();
+						// Ground line
+						ctx.fillStyle = '#1a3a1a';
+						ctx.fillRect(0, H - 22, W, 1);
+						// HUD
+						ctx.fillStyle = '#03010a'; ctx.fillRect(0, 0, W, 28);
+						ctx.font = '13px monospace'; ctx.fillStyle = '#7fff7f'; ctx.textAlign = 'left';
+						ctx.fillText('SCORE: ' + inv.score, 8, 20);
+						ctx.textAlign = 'center';
+						for (var li = 0; li < inv.lives; li++) {
+							var lx = W/2 - 22 + li * 22;
+							ctx.save(); ctx.fillStyle = '#7fff7f';
+							ctx.beginPath(); ctx.moveTo(lx, H-18); ctx.lineTo(lx+8, H-7); ctx.lineTo(lx-8, H-7); ctx.closePath(); ctx.fill();
+							ctx.restore();
+						}
+						ctx.font = '9px monospace'; ctx.fillStyle = '#2a5a2a'; ctx.textAlign = 'right';
+						ctx.fillText('[←→] move  [SPC] shoot  ESC=hub', W - 6, 20);
+						// Overlay
+						if (inv.over || inv.won) {
+							ctx.save();
+							ctx.fillStyle = 'rgba(3,1,10,0.8)'; ctx.fillRect(0, 0, W, H);
+							ctx.font = 'bold 24px monospace'; ctx.textAlign = 'center';
+							ctx.fillStyle = inv.won ? '#7fff7f' : '#cc3333';
+							ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 16;
+							ctx.fillText(inv.won ? 'SPORES CLEARED!' : 'KOJI INVADED', W/2, H/2 - 16);
+							ctx.shadowBlur = 0; ctx.font = '13px monospace'; ctx.fillStyle = '#5ab85a';
+							ctx.fillText('[ENTER] play again   [ESC] hub', W/2, H/2 + 20);
+							ctx.restore();
+						}
+					}
+
 					// ── Game loop ────────────────────────────────────────────
 					function loop() {
 						if (scene === 'hub')  drawHub();
 						else if (scene === 'pong') { pongStep(); drawPong(); }
 						else if (scene === 'dig')  { digStep();  drawDig();  }
+						else if (scene === 'inv')  { invStep();  drawInv();  }
 						animId = requestAnimationFrame(loop);
 					}
 
@@ -3064,6 +3301,7 @@
 						}
 						if (scene === 'hub') {
 							if (e.key === '1') { pongInit(); scene = 'pong'; }
+							if (e.key === '3') { invInit();  scene = 'inv';  }
 							if (e.key === '4') { digInit();  scene = 'dig';  }
 						} else if (scene === 'pong') {
 							if (e.key === 'ArrowUp')   { pong.up   = true; e.preventDefault(); }
@@ -3076,14 +3314,22 @@
 							if (e.key === 'ArrowRight') { dig.right = true; e.preventDefault(); }
 							if (e.key === ' ')          { dig.pumping = true; e.preventDefault(); }
 							if (e.key === 'Enter' && (dig.over || dig.won)) digInit();
+						} else if (scene === 'inv') {
+							if (e.key === 'ArrowLeft')  { inv.left  = true; e.preventDefault(); }
+							if (e.key === 'ArrowRight') { inv.right = true; e.preventDefault(); }
+							if (e.key === ' ') {
+								if (!inv.pbullet) inv.pbullet = {x: inv.px, y: inv.py - 22};
+								e.preventDefault();
+							}
+							if (e.key === 'Enter' && (inv.over || inv.won)) invInit();
 						}
 					}
 					function onKeyUp(e) {
 						if (e.key === 'ArrowUp')    { pong.up   = false; dig.up    = false; }
 						if (e.key === 'ArrowDown')  { pong.down = false; dig.down  = false; }
-						if (e.key === 'ArrowLeft')  dig.left  = false;
-						if (e.key === 'ArrowRight') dig.right = false;
-						if (e.key === ' ')          dig.pumping = false;
+						if (e.key === 'ArrowLeft')  { dig.left  = false; inv.left  = false; }
+						if (e.key === 'ArrowRight') { dig.right = false; inv.right = false; }
+						if (e.key === ' ')            dig.pumping = false;
 					}
 
 					// ── Modal wiring ─────────────────────────────────────────
