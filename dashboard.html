@@ -2538,38 +2538,321 @@
 
 				// Easter egg: Arcade — click the logo to open
 				(function () {
-					var logo = document.getElementById('sake-logo-egg');
-					var modal = document.getElementById('arcade-modal');
+					var logo    = document.getElementById('sake-logo-egg');
+					var modal   = document.getElementById('arcade-modal');
 					var closeBtn = document.getElementById('arcade-close-btn');
-					var canvas = document.getElementById('arcade-canvas');
+					var canvas  = document.getElementById('arcade-canvas');
 					if (!logo || !modal || !canvas) return;
 					var ctx = canvas.getContext('2d');
+					var W = canvas.width, H = canvas.height;   // 560 × 380
 					var animId = null;
+					var scene  = 'hub';   // 'hub' | 'pong'
 
-					function openArcade() {
-						modal.style.display = 'flex';
+					// ── Starfield ────────────────────────────────────────────
+					var stars = [];
+					(function () {
+						for (var i = 0; i < 120; i++) {
+							stars.push({
+								x: Math.random() * W, y: Math.random() * H,
+								r: Math.random() * 1.4 + 0.3,
+								speed: Math.random() * 0.4 + 0.1,
+								alpha: Math.random() * 0.7 + 0.3
+							});
+						}
+					}());
+					function drawStars() {
+						for (var i = 0; i < stars.length; i++) {
+							var s = stars[i];
+							s.y += s.speed;
+							if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
+							ctx.beginPath();
+							ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+							ctx.fillStyle = 'rgba(127,255,127,' + s.alpha + ')';
+							ctx.fill();
+						}
+					}
+
+					// ── Hub ──────────────────────────────────────────────────
+					var hubTick = 0;
+					var cards = [
+						{ key: '1', title: 'VOID PONG',     sub: 'Eldritch Pong', active: true  },
+						{ key: '2', title: 'KOJI RUNNER',    sub: 'Coming soon',   active: false },
+						{ key: '3', title: 'SPORE INVADERS', sub: 'Coming soon',   active: false },
+						{ key: '4', title: 'KOJI DIG',       sub: 'Coming soon',   active: false }
+					];
+					function drawHub() {
 						ctx.fillStyle = '#03010a';
-						ctx.fillRect(0, 0, canvas.width, canvas.height);
-						ctx.font = 'bold 20px monospace';
-						ctx.fillStyle = '#7fff7f';
+						ctx.fillRect(0, 0, W, H);
+						drawStars();
+
+						// Title glow
+						ctx.save();
+						ctx.font = 'bold 22px monospace';
 						ctx.textAlign = 'center';
-						ctx.fillText('VOID SAKE CO. ARCADE', canvas.width / 2, canvas.height / 2 - 20);
-						ctx.font = '14px monospace';
-						ctx.fillStyle = '#5a9';
-						ctx.fillText('Coming soon...', canvas.width / 2, canvas.height / 2 + 20);
+						ctx.fillStyle = '#7fff7f';
+						ctx.shadowColor = '#7fff7f';
+						ctx.shadowBlur = 10 + 6 * Math.sin(hubTick * 0.05);
+						ctx.fillText('VOID SAKE CO. ARCADE', W / 2, 52);
+						ctx.restore();
+
+						// Cards
+						var cw = 118, ch = 72, gap = 12;
+						var totalW = 4 * cw + 3 * gap;
+						var cx0 = (W - totalW) / 2, cy0 = 120;
+						for (var i = 0; i < cards.length; i++) {
+							var c = cards[i];
+							var x = cx0 + i * (cw + gap);
+							ctx.save();
+							ctx.strokeStyle = c.active ? '#7fff7f' : '#1c3c1c';
+							ctx.lineWidth   = c.active ? 2 : 1;
+							ctx.shadowColor = c.active ? '#7fff7f' : 'transparent';
+							ctx.shadowBlur  = c.active ? 8 + 5 * Math.sin(hubTick * 0.06 + i) : 0;
+							ctx.strokeRect(x, cy0, cw, ch);
+							ctx.font = 'bold 14px monospace';
+							ctx.textAlign = 'center';
+							ctx.fillStyle = c.active ? '#7fff7f' : '#1c3c1c';
+							ctx.fillText('[' + c.key + ']', x + cw / 2, cy0 + 22);
+							ctx.font = '11px monospace';
+							ctx.fillStyle = c.active ? '#7fff7f' : '#1c3c1c';
+							ctx.fillText(c.title, x + cw / 2, cy0 + 40);
+							ctx.font = '9px monospace';
+							ctx.fillStyle = c.active ? '#5ab85a' : '#162a16';
+							ctx.fillText(c.sub, x + cw / 2, cy0 + 56);
+							ctx.restore();
+						}
+
+						// Controls hint
+						ctx.font = '10px monospace';
+						ctx.textAlign = 'center';
+						ctx.fillStyle = '#2a5a2a';
+						ctx.fillText('press key to select game   ESC closes', W / 2, H - 14);
+						hubTick++;
+					}
+
+					// ── VOID PONG ────────────────────────────────────────────
+					var pong = {};
+					function pongInit() {
+						pong = {
+							bx: W / 2, by: H / 2,
+							bvx: 3.5 * (Math.random() < 0.5 ? 1 : -1),
+							bvy: 2.5 * (Math.random() < 0.5 ? 1 : -1),
+							br: 10,
+							py: H / 2 - 35, ph: 70, pw: 12, pspeed: 5,
+							ay: H / 2 - 35, ah: 70, aw: 12, aspeed: 3.2,
+							pscore: 0, ascore: 0,
+							up: false, down: false,
+							tick: 0,
+							over: false, winner: ''
+						};
+					}
+
+					function drawEyeball(x, y, r) {
+						ctx.beginPath();
+						ctx.arc(x, y, r, 0, Math.PI * 2);
+						ctx.fillStyle = '#d4f5d4';
+						ctx.fill();
+						ctx.strokeStyle = '#7fff7f';
+						ctx.lineWidth = 1;
+						ctx.stroke();
+						ctx.beginPath();
+						ctx.arc(x, y, r * 0.5, 0, Math.PI * 2);
+						ctx.fillStyle = '#1a6b1a';
+						ctx.fill();
+						ctx.beginPath();
+						ctx.arc(x, y, r * 0.25, 0, Math.PI * 2);
+						ctx.fillStyle = '#000';
+						ctx.fill();
+						ctx.save();
+						ctx.strokeStyle = 'rgba(200,50,50,0.5)';
+						ctx.lineWidth = 0.7;
+						for (var v = 0; v < 4; v++) {
+							var ang = (v / 4) * Math.PI * 2;
+							ctx.beginPath();
+							ctx.moveTo(x + Math.cos(ang) * r * 0.55, y + Math.sin(ang) * r * 0.55);
+							ctx.lineTo(x + Math.cos(ang) * r * 0.9,  y + Math.sin(ang) * r * 0.9);
+							ctx.stroke();
+						}
+						ctx.restore();
+					}
+
+					function drawTentaclePaddle(x, y, h, tick, color) {
+						ctx.save();
+						ctx.strokeStyle = color;
+						ctx.lineWidth = 2.5;
+						ctx.shadowColor = color;
+						ctx.shadowBlur = 8;
+						var segs = 3, segH = h / segs;
+						for (var s = 0; s < segs; s++) {
+							var sy = y + s * segH;
+							var wob = Math.sin(tick * 0.12 + s * 1.3) * 4;
+							ctx.beginPath();
+							ctx.moveTo(x, sy);
+							ctx.quadraticCurveTo(x + wob, sy + segH / 2, x, sy + segH);
+							ctx.stroke();
+							ctx.beginPath();
+							ctx.arc(x + wob * 0.5, sy + segH / 2, 2, 0, Math.PI * 2);
+							ctx.fillStyle = color;
+							ctx.fill();
+						}
+						ctx.restore();
+					}
+
+					function pongStep() {
+						if (pong.over) return;
+						pong.tick++;
+						if (pong.up)   pong.py = Math.max(0, pong.py - pong.pspeed);
+						if (pong.down) pong.py = Math.min(H - pong.ph, pong.py + pong.pspeed);
+
+						// AI tracks ball
+						var aiMid = pong.ay + pong.ah / 2;
+						if (aiMid < pong.by - 4) pong.ay = Math.min(H - pong.ah, pong.ay + pong.aspeed);
+						if (aiMid > pong.by + 4) pong.ay = Math.max(0, pong.ay - pong.aspeed);
+
+						pong.bx += pong.bvx;
+						pong.by += pong.bvy;
+
+						// Top/bottom bounce
+						if (pong.by - pong.br <= 0) { pong.by = pong.br; pong.bvy *= -1; }
+						if (pong.by + pong.br >= H)  { pong.by = H - pong.br; pong.bvy *= -1; }
+
+						// Player paddle (left)
+						var px = 26;
+						if (pong.bvx < 0 &&
+							pong.bx - pong.br <= px &&
+							pong.bx - pong.br >= px - 6 &&
+							pong.by >= pong.py && pong.by <= pong.py + pong.ph) {
+							pong.bvx = Math.abs(pong.bvx) * 1.04;
+							pong.bvy = ((pong.by - (pong.py + pong.ph / 2)) / (pong.ph / 2)) * 5;
+						}
+
+						// AI paddle (right)
+						var ax = W - 26;
+						if (pong.bvx > 0 &&
+							pong.bx + pong.br >= ax &&
+							pong.bx + pong.br <= ax + 6 &&
+							pong.by >= pong.ay && pong.by <= pong.ay + pong.ah) {
+							pong.bvx = -Math.abs(pong.bvx) * 1.04;
+							pong.bvy = ((pong.by - (pong.ay + pong.ah / 2)) / (pong.ah / 2)) * 5;
+						}
+
+						// Speed cap
+						var spd = Math.sqrt(pong.bvx * pong.bvx + pong.bvy * pong.bvy);
+						if (spd > 9) { pong.bvx = pong.bvx / spd * 9; pong.bvy = pong.bvy / spd * 9; }
+
+						// Scoring
+						if (pong.bx < 0) {
+							pong.ascore++;
+							pong.bx = W/2; pong.by = H/2;
+							pong.bvx = 3.5; pong.bvy = 2.5 * (Math.random() < 0.5 ? 1 : -1);
+						}
+						if (pong.bx > W) {
+							pong.pscore++;
+							pong.bx = W/2; pong.by = H/2;
+							pong.bvx = -3.5; pong.bvy = 2.5 * (Math.random() < 0.5 ? 1 : -1);
+						}
+
+						if (pong.pscore >= 7) { pong.over = true; pong.winner = 'VOID ENTITY WINS'; }
+						if (pong.ascore >= 7) { pong.over = true; pong.winner = 'CRIMSON HOST WINS'; }
+					}
+
+					function drawPong() {
+						ctx.fillStyle = '#03010a';
+						ctx.fillRect(0, 0, W, H);
+
+						// Centre dashes
+						ctx.save();
+						ctx.strokeStyle = '#0a2a0a';
+						ctx.lineWidth = 1;
+						ctx.setLineDash([8, 8]);
+						ctx.beginPath(); ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H); ctx.stroke();
+						ctx.restore();
+
+						// Scores
+						ctx.font = 'bold 28px monospace';
+						ctx.textAlign = 'center';
+						ctx.fillStyle = '#3a7a3a';
+						ctx.fillText(pong.pscore, W/2 - 60, 36);
+						ctx.fillStyle = '#8a1a1a';
+						ctx.fillText(pong.ascore, W/2 + 60, 36);
+
+						// Paddles
+						drawTentaclePaddle(26, pong.py, pong.ph, pong.tick, '#7fff7f');
+						drawTentaclePaddle(W - 26, pong.ay, pong.ah, pong.tick * 0.8, '#cc2222');
+
+						// Ball
+						drawEyeball(pong.bx, pong.by, pong.br);
+
+						// Footer labels
+						ctx.font = '9px monospace';
+						ctx.fillStyle = '#2a5a2a'; ctx.textAlign = 'left';
+						ctx.fillText('YOU [↑↓]', 8, H - 6);
+						ctx.fillStyle = '#5a1a1a'; ctx.textAlign = 'right';
+						ctx.fillText('CRIMSON HOST', W - 8, H - 6);
+						ctx.fillStyle = '#1a3a1a'; ctx.textAlign = 'center';
+						ctx.fillText('ESC = hub', W/2, H - 6);
+
+						// Game-over overlay
+						if (pong.over) {
+							ctx.save();
+							ctx.fillStyle = 'rgba(3,1,10,0.78)';
+							ctx.fillRect(0, 0, W, H);
+							ctx.font = 'bold 26px monospace';
+							ctx.textAlign = 'center';
+							ctx.fillStyle = '#7fff7f';
+							ctx.shadowColor = '#7fff7f'; ctx.shadowBlur = 16;
+							ctx.fillText(pong.winner, W/2, H/2 - 16);
+							ctx.shadowBlur = 0;
+							ctx.font = '13px monospace';
+							ctx.fillStyle = '#5ab85a';
+							ctx.fillText('[ENTER] play again   [ESC] hub', W/2, H/2 + 20);
+							ctx.restore();
+						}
+					}
+
+					// ── Game loop ────────────────────────────────────────────
+					function loop() {
+						if (scene === 'hub')  drawHub();
+						else if (scene === 'pong') { pongStep(); drawPong(); }
+						animId = requestAnimationFrame(loop);
+					}
+
+					// ── Input ────────────────────────────────────────────────
+					function onKeyDown(e) {
+						if (modal.style.display !== 'flex') return;
+						if (e.key === 'Escape') {
+							if (scene === 'hub') closeArcade();
+							else scene = 'hub';
+							return;
+						}
+						if (scene === 'hub') {
+							if (e.key === '1') { pongInit(); scene = 'pong'; }
+						} else if (scene === 'pong') {
+							if (e.key === 'ArrowUp')   { pong.up   = true; e.preventDefault(); }
+							if (e.key === 'ArrowDown') { pong.down = true; e.preventDefault(); }
+							if (e.key === 'Enter' && pong.over) pongInit();
+						}
+					}
+					function onKeyUp(e) {
+						if (e.key === 'ArrowUp')   pong.up   = false;
+						if (e.key === 'ArrowDown') pong.down = false;
+					}
+
+					// ── Modal wiring ─────────────────────────────────────────
+					function openArcade() {
+						scene = 'hub';
+						modal.style.display = 'flex';
+						if (!animId) loop();
 					}
 					function closeArcade() {
 						modal.style.display = 'none';
+						if (animId) { cancelAnimationFrame(animId); animId = null; }
 					}
 
 					logo.addEventListener('click', openArcade);
 					if (closeBtn) closeBtn.addEventListener('click', closeArcade);
-					modal.addEventListener('click', function (e) {
-						if (e.target === modal) closeArcade();
-					});
-					document.addEventListener('keydown', function (e) {
-						if (e.key === 'Escape' && modal.style.display === 'flex') closeArcade();
-					});
+					modal.addEventListener('click', function (e) { if (e.target === modal) closeArcade(); });
+					document.addEventListener('keydown', onKeyDown);
+					document.addEventListener('keyup',   onKeyUp);
 				})();
 			</script>
 
