@@ -2517,3 +2517,157 @@ header h1, .header-title, .page-title { color: #ffffff; }
     width:  100% !important;
     height: 100% !important;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   COMPACT HEADER + 2×2 CHART GRID LAYOUT
+   Goal: single-screen view — all 4 charts visible without scrolling.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Header: flat compact bar ──────────────────────────────────────────────── */
+header.header {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 0.4rem 1.2rem !important;
+    background: #111 !important;
+    border-bottom: 1px solid rgba(255,255,255,0.09) !important;
+    position: relative !important;  /* un-absolute the header so it takes flow space */
+    gap: 0.75rem;
+    flex-wrap: nowrap;
+    min-height: 52px;
+}
+
+/* .header-inner: logo + title + gear — left group */
+.header-inner {
+    position: static !important;   /* was absolute — back to normal flow */
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    flex-shrink: 0;
+}
+
+.sake-logo-egg {
+    height: 36px !important;
+}
+
+.header-title {
+    font-size: 1.3rem !important;
+    font-weight: 700 !important;
+    white-space: nowrap;
+    margin: 0 !important;
+}
+
+/* .header-right: date/time + buttons — right group */
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-shrink: 0;
+}
+
+/* Date/time pill in header */
+.header-right .notes__meta {
+    font-size: 0.78rem;
+    color: #888;
+    white-space: nowrap;
+    position: static !important;
+}
+
+/* Compact set-temp button in header */
+.header-right .set-temp-btn {
+    min-height: unset !important;
+    height: 32px !important;
+    padding: 0 0.75rem !important;
+    font-size: 0.8rem !important;
+    font-weight: 600;
+    width: auto !important;
+    border-radius: 6px !important;
+}
+
+/* Compact start-run button in header */
+.header-right .start-run-btn {
+    min-height: unset !important;
+    height: 32px !important;
+    width: auto !important;
+    padding: 0 0.85rem !important;
+    font-size: 0.8rem !important;
+    font-weight: 700;
+    border-radius: 6px !important;
+    margin-top: 0 !important;
+}
+
+/* ── Main: remove the 90px top-padding used to clear the old absolute header ── */
+main {
+    padding: 10px 12px 12px !important;
+    transform: none !important;
+}
+
+/* ── Home layout: keep the existing grid, just fix column sizing ───────────── */
+.layout--home {
+    gap: 10px !important;
+    align-items: stretch !important;
+}
+
+/* ── Charts column: 2×2 grid ───────────────────────────────────────────────── */
+.layout--home .left {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    grid-template-rows: 1fr 1fr !important;
+    gap: 10px !important;
+    flex-direction: unset !important;
+    width: auto !important;
+    height: calc(100vh - 74px) !important;   /* fill viewport minus compact header */
+    min-height: 400px;
+    max-height: 900px;
+    padding: 0 !important;
+}
+
+/* Each chart card fills its grid cell */
+.layout--home .left > .long {
+    height: auto !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden;
+}
+
+/* Override individual explicit heights — grid rows distribute space instead */
+.home-temp-chart-card,
+.home-fans-chart-card,
+.home-humidity-chart-card {
+    height: auto !important;
+}
+
+/* live-wrap fills remaining vertical space in each card */
+.temp-chart-live-wrap,
+.env-chart-live-wrap {
+    flex: 1 1 0 !important;
+    min-height: 80px !important;
+    position: relative !important;
+}
+
+/* Temperature chart legend: wrap horizontally to save vertical space */
+#temp-chart-legend.temp-chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    font-size: 0.72rem;
+}
+
+/* Stage marker toolbar: compact */
+.stage-marker-toolbar {
+    flex-shrink: 0;
+}
+
+/* Overlay chips: compact single line */
+#overlay-chips.overlay-chips-row {
+    flex-shrink: 0;
+}
+
+/* Weight stats row: smaller font so it fits */
+.weight-stats-row {
+    font-size: 0.75rem;
+    gap: 6px;
+    flex-wrap: wrap;
+}
