@@ -354,6 +354,31 @@ def get_all_readings(run_id):
         return [dict(r) for r in rows]
 
 
+def get_room_history(hours, max_points=600):
+    """Return up to max_points sensor readings from the last `hours` hours, across all runs."""
+    from datetime import timedelta
+    cutoff = (datetime.now() - timedelta(hours=hours)).isoformat()
+    with get_conn() as conn:
+        total = conn.execute(
+            "SELECT COUNT(*) FROM sensor_readings WHERE recorded_at >= ?", (cutoff,)
+        ).fetchone()[0]
+        if total == 0:
+            return []
+        stride = max(1, total // max_points)
+        rows = conn.execute("""
+            WITH rn AS (
+                SELECT sr.*, r.name AS run_name,
+                       (ROW_NUMBER() OVER (ORDER BY sr.recorded_at ASC) - 1) AS rn
+                FROM sensor_readings sr
+                JOIN runs r ON sr.run_id = r.id
+                WHERE sr.recorded_at >= ?
+            )
+            SELECT * FROM rn WHERE rn % ? = 0
+            ORDER BY recorded_at ASC
+        """, (cutoff, stride)).fetchall()
+        return [dict(r) for r in rows]
+
+
 def get_readings_sampled(run_id, n=300):
     """Return up to n evenly-strided readings for run_id."""
     with get_conn() as conn:
