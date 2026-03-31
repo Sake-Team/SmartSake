@@ -3173,13 +3173,33 @@ main {
     min-height: 0 !important;
 }
 
-/* Make the temp-chart-title-left not absolute — it was overlaying the chart */
+/* Chart titles: zone-label style — muted, small, uppercase, centered */
 .layout--home .home-temp-chart-card .temp-chart-title-left,
-.layout--home .home-fans-chart-card .temp-chart-title-left {
+.layout--home .home-fans-chart-card .temp-chart-title-left,
+.layout--home .home-humidity-chart-card .home-humidity-title {
     position: static !important;
     background: transparent !important;
-    font-size: 0.8rem !important;
-    font-weight: 600;
-    color: #ccc !important;
+    font-size: 0.68rem !important;
+    font-weight: 600 !important;
+    color: var(--theme-text-muted, #888) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.07em !important;
     padding: 0 !important;
+    flex: 1 !important;
+    text-align: center !important;
+}
+
+/* Header rows: center-align their content */
+.layout--home .temp-chart-header-row,
+.layout--home .env-chart-header,
+.layout--home .weight-chart-header-row {
+    justify-content: center !important;
+}
+
+/* Fans title is a direct card child (no header row) — center it as a block */
+.layout--home .home-fans-chart-card > .temp-chart-title-left {
+    display: block !important;
+    width: 100% !important;
+    text-align: center !important;
+    flex: none !important;
 }
