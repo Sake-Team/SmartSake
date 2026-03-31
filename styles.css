@@ -112,9 +112,9 @@ header h1 { font-size: calc(3.2rem + 6pt); margin: 0; line-height: 1; color: #11
 
 /* Run name display in header */
 .run-name-header {
-	color: #1e3a8a;
-	font-weight: 800;
-	font-size: calc(2.5rem + 6pt);
+	color: #52a0e0;
+	font-weight: 700;
+	font-size: 1.1rem;
 }
 
 /* Start Run Button positioned over temperature rectangle */
@@ -2586,8 +2586,12 @@ header.header {
     position: static !important;
 }
 
-/* Compact set-temp button in header */
+/* Compact set-temp button in header: override absolute positioning from base rule */
 .header-right .set-temp-btn {
+    position: static !important;
+    top: auto !important;
+    right: auto !important;
+    display: none;           /* hidden unless run is active (see :has rule below) */
     min-height: unset !important;
     height: 32px !important;
     padding: 0 0.75rem !important;
@@ -2595,6 +2599,10 @@ header.header {
     font-weight: 600;
     width: auto !important;
     border-radius: 6px !important;
+}
+/* Show set-temp btn in header when a run is active */
+body:has(#start-run-btn.end-run-btn-active) .header-right .set-temp-btn {
+    display: inline-flex !important;
 }
 
 /* Compact start-run button in header */
@@ -2938,4 +2946,33 @@ main {
 /* Chart cards: tighter internal padding */
 .layout--home .left > .long {
     padding: 7px 8px !important;
+}
+
+/* Legend items: prevent stretching to full column width in flex container */
+.temp-chart-legend__item {
+    align-self: flex-start !important;
+    flex-shrink: 0 !important;
+    width: auto !important;
+    max-width: none !important;
+}
+
+/* Temp chart header row: don't let it take too much vertical space */
+.temp-chart-header-row {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex-shrink: 0 !important;
+    margin-bottom: 2px !important;
+    min-height: 0 !important;
+}
+
+/* Make the temp-chart-title-left not absolute — it was overlaying the chart */
+.layout--home .home-temp-chart-card .temp-chart-title-left,
+.layout--home .home-fans-chart-card .temp-chart-title-left {
+    position: static !important;
+    background: transparent !important;
+    font-size: 0.8rem !important;
+    font-weight: 600;
+    color: #ccc !important;
+    padding: 0 !important;
 }

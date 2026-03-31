@@ -140,11 +140,10 @@
 						</div>
 
 						<div class="modal-input-section">
-							<label for="target-csv-upload">Select Koji Strain:</label>
-							<input type="file" id="target-csv-upload" accept=".csv" class="upload-input">
-							<div id="upload-status" class="upload-status"></div>
-							<small class="help-text">Upload a CSV with target temperatures over
-								time</small>
+							<label for="start-curve-select">Reference Curve (optional):</label>
+							<select id="start-curve-select" class="settings-curve-select">
+								<option value="">— None —</option>
+							</select>
 						</div>
 
 						<div class="modal-input-section">
@@ -606,31 +605,49 @@
 						}
 					});
 
+					// Populate reference curve dropdown
+					(function () {
+						var sel = document.getElementById('start-curve-select');
+						if (!sel) return;
+						fetch('/api/reference-curves')
+							.then(function (r) { return r.json(); })
+							.then(function (curves) {
+								curves.forEach(function (c) {
+									var opt = document.createElement('option');
+									opt.value = c.id;
+									opt.textContent = c.name;
+									sel.appendChild(opt);
+								});
+							})
+							.catch(function () {});
+					})();
+
 					// ---------- Confirm Start Run ----------
-					enterBtn.addEventListener('click', function () {
+					enterBtn.addEventListener('click', async function () {
 						const runName = runNameInput.value.trim();
 						if (!runName) return;
 
-						if (runNameDisplay) {
-							runNameDisplay.textContent = '- ' + runName;
-						}
-						localStorage.setItem('currentRunName', runName);
+						enterBtn.disabled = true;
+						try {
+							const res = await fetch('/api/runs', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ name: runName })
+							});
+							const run = await res.json();
 
-						startDataCollection();
-						if (window.startTemperatureReading) {
-							window.startTemperatureReading();
-						}
-						if (window.setRunStartTime) {
-							window.setRunStartTime();
-						}
+							const startCurveId = Number(document.getElementById('start-curve-select')?.value);
+							if (startCurveId) {
+								await fetch('/api/runs/' + run.id + '/target/from-curve/' + startCurveId, { method: 'POST' });
+							}
 
-						startBtn.textContent = 'End Run';
-						startBtn.classList.add('end-run-btn-active');
-						startBtn.style.pointerEvents = 'auto';
-						startBtn.style.cursor = 'pointer';
-
-						startModal.style.display = 'none';
-						runNameInput.value = '';
+							startModal.style.display = 'none';
+							runNameInput.value = '';
+							location.href = 'dashboard.html?run=' + run.id + '&mode=live';
+						} catch (err) {
+							alert('Failed to start run: ' + err.message);
+							enterBtn.disabled = false;
+						}
 					});
 
 					runNameInput.addEventListener('keydown', function (e) {

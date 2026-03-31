@@ -176,7 +176,6 @@
 							<div class="long long--top-left home-temp-chart-card">
 								<div class="temp-chart-header-row">
 									<span class="temp-chart-title-left chart-title--single-line">Temperature over time</span>
-									<select id="overlay-run-select" class="overlay-select" title="Overlay a past run"></select>
 								</div>
 								<div id="temp-chart-legend" class="temp-chart-legend" aria-label="Temperature legend"></div>
 								<div id="overlay-chips" class="overlay-chips-row"></div>
@@ -1349,7 +1348,7 @@
 					const fansCtx = fansCanvas.getContext('2d');
 					const weightCtx = weightCanvas.getContext('2d');
 
-					const maxPoints = 60; // keep last 60 samples (~5 min if 5s interval)
+					const maxPoints = 2880; // ~4 hrs at 5s polling, ~24 hrs at 30s polling
 					const labels = [];
 					const sampleTimestamps = []; // parallel ms timestamps for time-range filtering
 					const humidityData = [];
