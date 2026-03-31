@@ -1386,8 +1386,9 @@ header {
 }
 
 .home-temp-chart-card .temp-chart-legend {
+	margin-top: 4px;
 	margin-bottom: 0;
-	padding-bottom: 4px;
+	padding: 0;
 	flex-shrink: 0;
 }
 
@@ -1458,8 +1459,9 @@ header {
 }
 
 .home-fans-chart-card .temp-chart-legend {
+	margin-top: 4px;
 	margin-bottom: 0;
-	padding-bottom: 4px;
+	padding: 0;
 	flex-shrink: 0;
 }
 
