@@ -208,15 +208,8 @@
 						<div class="long long--top-left home-side-title-chart-card home-humidity-chart-card">
 							<div class="weight-chart-header-row">
 								<span class="home-humidity-title chart-title--single-line">Weight over time</span>
+								<button type="button" id="wt-zero-btn" class="wt-zero-btn" title="Zero the scale at current reading">Zero</button>
 							</div>
-							<div class="weight-stats-row">
-								<span class="weight-stat"><label>Initial</label><span id="wt-initial">—</span></span>
-								<span class="weight-stat"><label>Current</label><span id="wt-current">—</span></span>
-								<span class="weight-stat"><label>Loss</label><span id="wt-loss-lbs">—</span></span>
-								<span class="weight-stat"><label>Loss %</label><span id="wt-loss-pct">—</span></span>
-								<span class="weight-stat"><label>Rate/hr</label><span id="wt-rate">—</span></span>
-							</div>
-							<div class="weight-stat-target" id="wt-target"></div>
 							<div class="env-chart-live-wrap">
 								<canvas id="weight-chart" class="metric-chart"></canvas>
 							</div>
@@ -1390,6 +1383,11 @@
 					};
 
 					const weightData = [];
+					const rawWeightData = []; // unmodified lbs readings (tare not applied)
+					var weightTare = (function () {
+						var v = parseFloat(localStorage.getItem('sakeWeightTare') || '');
+						return isFinite(v) ? v : 0;
+					})();
 
 					// Wet-bulb via psychrometric equation + Newton-Raphson iteration.
 					// More accurate than Stull (2011) at high RH (>85 %) and T > 35 °C (koji conditions).
@@ -1721,7 +1719,9 @@
 
 						// weight (real sensor data)
 						const wRaw = sample.weight != null ? parseFloat(sample.weight) : null;
-						weightData.push(wRaw !== null && !isNaN(wRaw) ? wRaw : null);
+						const wRawVal = (wRaw !== null && !isNaN(wRaw)) ? wRaw : null;
+						rawWeightData.push(wRawVal);
+						weightData.push(wRawVal !== null ? wRawVal - weightTare : null);
 
 						// keep arrays bounded
 						if (labels.length > maxPoints) {
@@ -1735,6 +1735,7 @@
 							wetBulbData.shift();
 							Object.values(fansSeries).forEach(arr => arr.shift());
 							weightData.shift();
+							rawWeightData.shift();
 							if (window._chartElapsedMins) window._chartElapsedMins.shift();
 						}
 
@@ -1756,8 +1757,12 @@
 							}
 							if (wtEl) wtEl.textContent = (wRaw != null && !isNaN(wRaw)) ? wRaw.toFixed(2) : '—';
 							if (wlEl) {
-								var loss = document.getElementById('wt-loss-pct');
-								wlEl.textContent = (loss && loss.textContent && loss.textContent !== '—') ? 'Loss ' + loss.textContent : 'Loss —';
+								if (weightTare !== 0 && wRaw != null && !isNaN(wRaw)) {
+									var delta = wRaw - weightTare;
+									wlEl.textContent = (delta >= 0 ? '+' : '') + delta.toFixed(2) + ' lbs';
+								} else {
+									wlEl.textContent = '';
+								}
 							}
 						})();
 
@@ -1810,6 +1815,24 @@
 					window._sampleElapsedMin  = 0;
 					window._dashElapsedLabels = elapsedLabels; // expose for target projection
 					window._elapsedMode       = false;
+
+					// ── Weight Zero / tare button ──────────────────────────────────────────
+					(function () {
+						var zeroBtn = document.getElementById('wt-zero-btn');
+						if (!zeroBtn) return;
+						zeroBtn.addEventListener('click', function () {
+							var current = rawWeightData.length ? rawWeightData[rawWeightData.length - 1] : null;
+							if (current == null) { alert('No weight reading available yet.'); return; }
+							if (!confirm('Zero scale at ' + current.toFixed(2) + ' lbs?\nThe chart will read 0 from this point.')) return;
+							weightTare = current;
+							try { localStorage.setItem('sakeWeightTare', weightTare); } catch (e) {}
+							// Recompute tared values for all existing points
+							for (var i = 0; i < rawWeightData.length; i++) {
+								weightData[i] = rawWeightData[i] !== null ? rawWeightData[i] - weightTare : null;
+							}
+							weightChart.update('none');
+						});
+					})();
 
 					// Called by settings panel when zone colors change (skips target projection datasets)
 					window.updateChartColors = function () {
