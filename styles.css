@@ -2522,6 +2522,15 @@ header h1, .header-title, .page-title { color: #ffffff; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
+   FULL-VIEWPORT FIT: flex column so charts fill exactly the remaining space.
+   ══════════════════════════════════════════════════════════════════════════════ */
+html, body { height: 100%; overflow: hidden; }
+.page-wrapper { display: flex !important; flex-direction: column !important; height: 100% !important; overflow: hidden !important; }
+main { flex: 1 1 0 !important; overflow: hidden !important; min-height: 0 !important; }
+.stage { height: 100% !important; overflow: hidden !important; }
+.layout.layout--home { height: 100% !important; overflow: hidden !important; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
    COMPACT HEADER + 2×2 CHART GRID LAYOUT
    Goal: single-screen view — all 4 charts visible without scrolling.
    ══════════════════════════════════════════════════════════════════════════════ */
@@ -2612,7 +2621,7 @@ main {
     align-items: stretch !important;
 }
 
-/* ── Charts column: 2×2 grid ───────────────────────────────────────────────── */
+/* ── Charts column: 2×2 grid, fills available height via flex parent ───────── */
 .layout--home .left {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
@@ -2620,10 +2629,11 @@ main {
     gap: 10px !important;
     flex-direction: unset !important;
     width: auto !important;
-    height: calc(100vh - 74px) !important;   /* fill viewport minus compact header */
-    min-height: 400px;
-    max-height: 900px;
+    height: 100% !important;
+    min-height: 300px;
     padding: 0 !important;
+    overflow: hidden !important;
+    align-self: stretch !important;
 }
 
 /* Each chart card fills its grid cell */
@@ -2741,4 +2751,191 @@ main {
 .header-right .elapsed-toggle-btn.elapsed-toggle-btn--active {
     background: rgba(82,224,140,0.2) !important;
     color: #72e090 !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   COMPACT ZONE CARDS + LEFT COLUMN LAYOUT
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Left column of layout--home: flex column, stretches full height */
+.layout--home > :not(.left) {
+    /* First column items stack vertically via grid auto-placement */
+}
+
+/* Zone cards: smaller height so all 6 + stat cards + legend fit */
+.zone-combined {
+    height: 64px !important;
+    width: 128px !important;
+}
+
+.zones-combined {
+    gap: 7px !important;
+}
+
+/* Zone label: smaller text */
+.zone-combined .zone-combined__label {
+    font-size: 0.72rem !important;
+    margin-bottom: 0 !important;
+}
+
+/* Zone temperature number: slightly smaller */
+.zone-combined .temp__num {
+    font-size: 1.6rem !important;
+}
+
+.zone-combined .temp__unit {
+    font-size: 0.7rem !important;
+}
+
+/* Zone temp legend: compact */
+.zone-temp-legend {
+    gap: 4px !important;
+    margin: 2px 0 !important;
+}
+
+.zone-temp-legend__item {
+    font-size: 0.68rem !important;
+    padding: 2px 6px !important;
+}
+
+/* ── Left column grid: 4 rows — zones / legend / stat-cards / notes ─────────── */
+.layout--home {
+    grid-template-rows: auto auto auto 1fr !important;
+}
+.layout--home .zone-temp-legend {
+    grid-row: 2 !important;
+}
+.layout--home .env-weight-stats {
+    grid-column: 1 !important;
+    grid-row: 3 !important;
+}
+.layout--home .notes-wrap {
+    grid-row: 4 !important;
+}
+
+/* ── Env + Weight quick-view stat cards ────────────────────────────────────── */
+.env-weight-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+    /* matches zones-combined column width */
+    width: calc(2 * 128px + 7px);
+    grid-column: 1;
+}
+
+.ew-stat-card {
+    background: var(--theme-surface, #181818);
+    border: 1px solid var(--theme-border, rgba(255,255,255,0.07));
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 8px;
+    gap: 1px;
+    min-height: 58px;
+}
+
+.ew-stat-card__label {
+    font-size: 0.68rem;
+    color: #777;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.ew-stat-card__value-row {
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
+}
+
+.ew-stat-card__value {
+    font-size: 1.45rem;
+    font-weight: 700;
+    line-height: 1;
+    color: #e0e0e0;
+}
+
+.ew-stat-card__unit {
+    font-size: 0.7rem;
+    color: #888;
+}
+
+.ew-stat-card__sub {
+    font-size: 0.65rem;
+    color: #666;
+}
+
+.ew-stat-card--humidity .ew-stat-card__value { color: #7ab4f0; }
+.ew-stat-card--weight   .ew-stat-card__value { color: #75c489; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   COMPACT CHART LEGENDS (inline like env chart, not vertical lists)
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Make temp + fans legend items small inline pills */
+.temp-chart-legend {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 3px 6px !important;
+    padding: 0 !important;
+    margin: 0 0 2px !important;
+    min-height: 0 !important;
+}
+
+.temp-chart-legend__item {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 3px !important;
+    font-size: 0.68rem !important;
+    padding: 1px 4px !important;
+    border-radius: 3px !important;
+    min-height: 0 !important;
+    height: auto !important;
+    background: transparent !important;
+    border: none !important;
+    color: #aaa !important;
+    cursor: pointer;
+}
+
+.temp-chart-legend__item.is-hidden {
+    opacity: 0.35 !important;
+}
+
+.temp-chart-legend__swatch {
+    width: 8px !important;
+    height: 8px !important;
+    border-radius: 50% !important;
+    flex-shrink: 0;
+}
+
+/* Temp chart header row: tighter */
+.temp-chart-header-row {
+    margin-bottom: 2px !important;
+    gap: 4px !important;
+}
+
+.temp-chart-title-left {
+    font-size: 0.8rem !important;
+}
+
+.home-humidity-title {
+    font-size: 0.8rem !important;
+}
+
+/* Stage markers and overlay chips: hide labels text to save space */
+.stage-marker-toolbar {
+    font-size: 0.68rem !important;
+}
+
+.marker-btn {
+    font-size: 0.68rem !important;
+    padding: 2px 5px !important;
+}
+
+/* Chart cards: tighter internal padding */
+.layout--home .left > .long {
+    padding: 7px 8px !important;
 }
