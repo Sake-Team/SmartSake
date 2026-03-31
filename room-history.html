@@ -11,8 +11,7 @@
       --rh-surface: #161616;
       --rh-border: #252525;
       --rh-text: #d8d8d8;
-      --rh-muted: #666;
-      --rh-accent: #52a0e0;
+      --rh-muted: #555;
       --z1: #e05252; --z2: #52a0e0; --z3: #52e07c;
       --z4: #e0c952; --z5: #c052e0; --z6: #e09052;
     }
@@ -20,14 +19,14 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     html, body {
-      height: 100%;
+      min-height: 100%;
       background: var(--rh-bg);
       color: var(--rh-text);
       font-family: Arial, Helvetica, sans-serif;
       font-size: 14px;
     }
 
-    /* ── Header ── */
+    /* ── Header ─────────────────────────────────────────────────── */
     .rh-header {
       position: sticky;
       top: 0;
@@ -37,168 +36,168 @@
       display: flex;
       align-items: center;
       gap: 1rem;
-      padding: 0.6rem 1.2rem;
+      padding: 0.55rem 1.2rem;
       flex-wrap: wrap;
     }
 
-    .rh-header-brand {
+    .rh-brand {
       display: flex;
       align-items: center;
-      gap: 0.6rem;
+      gap: 0.55rem;
       text-decoration: none;
       color: var(--rh-text);
       flex-shrink: 0;
     }
+    .rh-brand img { height: 34px; width: auto; }
+    .rh-brand h1 { font-size: 1rem; font-weight: 700; white-space: nowrap; }
 
-    .rh-header-brand img { height: 36px; width: auto; }
-    .rh-header-brand h1 { font-size: 1.05rem; font-weight: 700; white-space: nowrap; }
-
-    .rh-range-group {
-      display: flex;
-      gap: 2px;
-      flex-shrink: 0;
-    }
-
+    .rh-range-group { display: flex; gap: 2px; flex-shrink: 0; }
     .rh-range-btn {
       background: transparent;
       border: none;
       border-radius: 5px;
-      color: #999;
+      color: #888;
       cursor: pointer;
-      font-size: 0.82rem;
-      padding: 0.3rem 0.65rem;
+      font-size: 0.8rem;
+      padding: 0.28rem 0.6rem;
       white-space: nowrap;
-      transition: background 0.15s, color 0.15s;
+      transition: background 0.12s, color 0.12s;
     }
     .rh-range-btn:hover { background: rgba(255,255,255,0.07); color: #ccc; }
-    .rh-range-btn.active {
-      background: rgba(82,160,224,0.22);
-      color: #82c0f0;
-    }
+    .rh-range-btn.active { background: rgba(82,160,224,0.22); color: #82c0f0; }
 
     .rh-header-right {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 0.7rem;
       margin-left: auto;
       flex-shrink: 0;
     }
 
     .rh-clock {
-      font-size: 0.88rem;
+      font-size: 0.85rem;
       color: var(--rh-muted);
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
     }
 
     .rh-nav-btn {
-      display: inline-block;
-      padding: 0.3rem 0.75rem;
-      background: #1e1e1e;
-      border: 1px solid #333;
+      padding: 0.28rem 0.7rem;
+      background: #1c1c1c;
+      border: 1px solid #2e2e2e;
       border-radius: 5px;
       color: #bbb;
       text-decoration: none;
-      font-size: 0.82rem;
-      transition: background 0.15s;
+      font-size: 0.8rem;
+      transition: background 0.12s;
     }
-    .rh-nav-btn:hover { background: #2a2a2a; color: #ddd; }
-
-    .rh-refresh-dot {
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      background: #3a8a3a;
-      flex-shrink: 0;
-      transition: background 0.3s;
-    }
-    .rh-refresh-dot.pulsing { background: #7fff7f; }
-
-    /* ── Active run banner ── */
-    .rh-run-banner {
-      background: #0e1f0e;
-      border-bottom: 1px solid #1e3e1e;
-      padding: 0.4rem 1.2rem;
-      font-size: 0.82rem;
+    .rh-nav-btn:hover { background: #252525; color: #ddd; }
+    .rh-nav-btn--active {
+      border-color: #2a5a2a;
       color: #7fff7f;
+      background: #0e1f0e;
+    }
+    .rh-nav-btn--active:hover { background: #142814; }
+
+    /* ── Status bar ─────────────────────────────────────────────── */
+    .rh-status-bar {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 1rem;
+      padding: 0.35rem 1.2rem;
+      background: #111;
+      border-bottom: 1px solid var(--rh-border);
+      font-size: 0.75rem;
+      color: var(--rh-muted);
+      flex-wrap: wrap;
     }
-    .rh-run-banner a {
-      color: #aaffaa;
-      text-decoration: none;
-      font-weight: 600;
-      margin-left: auto;
-      padding: 0.2rem 0.6rem;
-      border: 1px solid #2a6a2a;
-      border-radius: 4px;
-    }
-    .rh-run-banner a:hover { background: #1a4a1a; }
 
-    /* ── Live sensor strip ── */
+    .rh-status-dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #2a6a2a;
+      transition: background 0.4s;
+      flex-shrink: 0;
+    }
+    .rh-status-dot.pulse { background: #5fff5f; }
+
+    .rh-status-bar__spacer { flex: 1; }
+
+    .rh-clear-btn {
+      background: none;
+      border: 1px solid #333;
+      border-radius: 4px;
+      color: #666;
+      cursor: pointer;
+      font-size: 0.72rem;
+      padding: 0.18rem 0.55rem;
+      transition: border-color 0.12s, color 0.12s;
+    }
+    .rh-clear-btn:hover { border-color: #c04040; color: #ff8080; }
+
+    /* ── Live sensor strip ──────────────────────────────────────── */
     .rh-live-strip {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      padding: 0.55rem 1.2rem;
+      gap: 0.45rem;
+      padding: 0.5rem 1.2rem;
       background: var(--rh-surface);
       border-bottom: 1px solid var(--rh-border);
       flex-wrap: wrap;
       overflow-x: auto;
     }
 
-    .rh-zone-chip {
+    .rh-live-lbl {
+      font-size: 0.68rem;
+      color: var(--rh-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      flex-shrink: 0;
+    }
+
+    .rh-chip {
       display: flex;
       flex-direction: column;
       align-items: center;
       background: #1a1a1a;
-      border: 1px solid #2e2e2e;
+      border: 1px solid #2a2a2a;
       border-radius: 6px;
-      padding: 0.3rem 0.6rem;
-      min-width: 58px;
+      padding: 0.28rem 0.55rem;
+      min-width: 55px;
+      flex-shrink: 0;
     }
-    .rh-zone-chip__label {
-      font-size: 0.68rem;
-      color: var(--rh-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    .rh-zone-chip__val {
-      font-size: 1.05rem;
+    .rh-chip__lbl { font-size: 0.65rem; color: var(--rh-muted); }
+    .rh-chip__val {
+      font-size: 1rem;
       font-weight: 700;
       font-variant-numeric: tabular-nums;
+      line-height: 1.2;
     }
 
-    .rh-live-divider {
-      width: 1px; height: 32px;
-      background: #2a2a2a;
+    .rh-strip-div {
+      width: 1px; height: 30px;
+      background: #222;
       flex-shrink: 0;
     }
 
-    .rh-env-block, .rh-weight-block {
+    .rh-env-block, .rh-wt-block {
       display: flex;
       flex-direction: column;
-      gap: 0.1rem;
-      padding: 0 0.5rem;
+      gap: 0.05rem;
+      padding: 0 0.4rem;
     }
-    .rh-env-block__main, .rh-weight-block__main {
-      font-size: 1.05rem;
+    .rh-env-block__val, .rh-wt-block__val {
+      font-size: 1rem;
       font-weight: 700;
       font-variant-numeric: tabular-nums;
     }
-    .rh-env-block__sub, .rh-weight-block__sub {
-      font-size: 0.72rem;
+    .rh-env-block__sub, .rh-wt-block__sub {
+      font-size: 0.68rem;
       color: var(--rh-muted);
     }
 
-    .rh-live-label {
-      font-size: 0.7rem;
-      color: var(--rh-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    /* ── Charts container ── */
+    /* ── Charts ─────────────────────────────────────────────────── */
     .rh-charts {
       padding: 1rem 1.2rem;
       display: flex;
@@ -206,14 +205,14 @@
       gap: 1rem;
     }
 
-    .rh-chart-card {
+    .rh-card {
       background: var(--rh-surface);
       border: 1px solid var(--rh-border);
       border-radius: 8px;
-      padding: 0.75rem 1rem 0.85rem;
+      padding: 0.7rem 1rem 0.8rem;
     }
 
-    .rh-chart-header {
+    .rh-card-hdr {
       display: flex;
       align-items: center;
       gap: 0.75rem;
@@ -221,28 +220,29 @@
       flex-wrap: wrap;
     }
 
-    .rh-chart-title {
-      font-size: 0.78rem;
+    .rh-card-title {
+      font-size: 0.74rem;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      color: #888;
+      color: #777;
+      flex-shrink: 0;
     }
 
-    .rh-chart-legend {
+    .rh-legend {
       display: flex;
-      gap: 0.75rem;
+      gap: 0.65rem;
       flex-wrap: wrap;
     }
     .rh-legend-item {
       display: flex;
       align-items: center;
-      gap: 0.3rem;
-      font-size: 0.75rem;
-      color: #aaa;
+      gap: 0.28rem;
+      font-size: 0.72rem;
+      color: #888;
     }
-    .rh-legend-swatch {
-      width: 18px; height: 2px;
+    .rh-legend-line {
+      width: 16px; height: 2px;
       border-radius: 1px;
       flex-shrink: 0;
     }
@@ -250,9 +250,9 @@
     .rh-chart-wrap {
       position: relative;
     }
-    .rh-chart-wrap--temp  { height: 280px; }
-    .rh-chart-wrap--env   { height: 220px; }
-    .rh-chart-wrap--weight { height: 180px; }
+    .rh-chart-wrap--temp   { height: 280px; }
+    .rh-chart-wrap--env    { height: 220px; }
+    .rh-chart-wrap--weight { height: 170px; }
 
     .rh-chart-wrap canvas {
       position: absolute;
@@ -261,122 +261,144 @@
       height: 100% !important;
     }
 
-    /* ── Empty / loading state ── */
+    /* Empty state */
     .rh-empty {
-      text-align: center;
-      padding: 3rem 1rem;
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
       color: var(--rh-muted);
-      font-size: 0.9rem;
+      font-size: 0.85rem;
+      pointer-events: none;
     }
+    .rh-empty small { font-size: 0.72rem; }
 
-    /* ── Footer ── */
+    /* ── Footer ─────────────────────────────────────────────────── */
     .rh-footer {
-      padding: 0.6rem 1.2rem;
-      font-size: 0.75rem;
+      padding: 0.5rem 1.2rem;
+      font-size: 0.72rem;
       color: var(--rh-muted);
-      text-align: right;
       border-top: 1px solid var(--rh-border);
+      display: flex;
+      gap: 1rem;
+      justify-content: space-between;
+      flex-wrap: wrap;
     }
   </style>
 </head>
 <body>
 
-  <!-- Header -->
+  <!-- ── Header ──────────────────────────────────────────────── -->
   <header class="rh-header">
-    <a href="/" class="rh-header-brand">
-      <img src="images/VoidSakeLogo.jpg" alt="SmartSake logo">
+    <a href="/" class="rh-brand">
+      <img src="images/VoidSakeLogo.jpg" alt="SmartSake">
       <h1>Room History</h1>
     </a>
 
-    <div class="rh-range-group" id="rh-range-group" role="group" aria-label="Time range">
-      <button class="rh-range-btn" data-hours="6">6h</button>
-      <button class="rh-range-btn" data-hours="12">12h</button>
-      <button class="rh-range-btn active" data-hours="24">1d</button>
-      <button class="rh-range-btn" data-hours="72">3d</button>
-      <button class="rh-range-btn" data-hours="120">5d</button>
-      <button class="rh-range-btn" data-hours="168">7d</button>
+    <div class="rh-range-group" id="rh-ranges" role="group" aria-label="View range">
+      <button class="rh-range-btn" data-minutes="30">30m</button>
+      <button class="rh-range-btn" data-minutes="60">1h</button>
+      <button class="rh-range-btn" data-minutes="360">6h</button>
+      <button class="rh-range-btn" data-minutes="720">12h</button>
+      <button class="rh-range-btn active" data-minutes="1440">1d</button>
+      <button class="rh-range-btn" data-minutes="4320">3d</button>
+      <button class="rh-range-btn" data-minutes="10080">7d</button>
     </div>
 
     <div class="rh-header-right">
-      <div class="rh-refresh-dot" id="rh-refresh-dot" title="Auto-refreshes every 60s"></div>
       <span class="rh-clock" id="rh-clock"></span>
-      <a href="/dashboard.html" class="rh-nav-btn" id="rh-dashboard-link" style="display:none">Live Run</a>
+      <a href="#" class="rh-nav-btn rh-nav-btn--active" id="rh-batch-link" style="display:none">Live Batch &rarr;</a>
       <a href="/" class="rh-nav-btn">Home</a>
     </div>
   </header>
 
-  <!-- Active run banner -->
-  <div class="rh-run-banner" id="rh-run-banner" style="display:none">
-    <span id="rh-run-text"></span>
-    <a href="#" id="rh-run-link">Open Dashboard &rarr;</a>
+  <!-- ── Status bar ───────────────────────────────────────────── -->
+  <div class="rh-status-bar">
+    <span class="rh-status-dot" id="rh-dot"></span>
+    <span id="rh-status-text">Initialising…</span>
+    <span class="rh-status-bar__spacer"></span>
+    <button class="rh-clear-btn" id="rh-clear-btn" title="Erase locally-stored room log">Clear log</button>
   </div>
 
-  <!-- Live sensor strip -->
-  <div class="rh-live-strip" id="rh-live-strip">
-    <span class="rh-live-label">Live</span>
-    <div class="rh-zone-chip" id="rh-z1"><span class="rh-zone-chip__label">Z1</span><span class="rh-zone-chip__val" style="color:var(--z1)">--</span></div>
-    <div class="rh-zone-chip" id="rh-z2"><span class="rh-zone-chip__label">Z2</span><span class="rh-zone-chip__val" style="color:var(--z2)">--</span></div>
-    <div class="rh-zone-chip" id="rh-z3"><span class="rh-zone-chip__label">Z3</span><span class="rh-zone-chip__val" style="color:var(--z3)">--</span></div>
-    <div class="rh-zone-chip" id="rh-z4"><span class="rh-zone-chip__label">Z4</span><span class="rh-zone-chip__val" style="color:var(--z4)">--</span></div>
-    <div class="rh-zone-chip" id="rh-z5"><span class="rh-zone-chip__label">Z5</span><span class="rh-zone-chip__val" style="color:var(--z5)">--</span></div>
-    <div class="rh-zone-chip" id="rh-z6"><span class="rh-zone-chip__label">Z6</span><span class="rh-zone-chip__val" style="color:var(--z6)">--</span></div>
-    <div class="rh-live-divider"></div>
+  <!-- ── Live sensor strip ────────────────────────────────────── -->
+  <div class="rh-live-strip">
+    <span class="rh-live-lbl">Now</span>
+    <div class="rh-chip"><span class="rh-chip__lbl">Z1</span><span class="rh-chip__val" id="lv-z1" style="color:var(--z1)">--</span></div>
+    <div class="rh-chip"><span class="rh-chip__lbl">Z2</span><span class="rh-chip__val" id="lv-z2" style="color:var(--z2)">--</span></div>
+    <div class="rh-chip"><span class="rh-chip__lbl">Z3</span><span class="rh-chip__val" id="lv-z3" style="color:var(--z3)">--</span></div>
+    <div class="rh-chip"><span class="rh-chip__lbl">Z4</span><span class="rh-chip__val" id="lv-z4" style="color:var(--z4)">--</span></div>
+    <div class="rh-chip"><span class="rh-chip__lbl">Z5</span><span class="rh-chip__val" id="lv-z5" style="color:var(--z5)">--</span></div>
+    <div class="rh-chip"><span class="rh-chip__lbl">Z6</span><span class="rh-chip__val" id="lv-z6" style="color:var(--z6)">--</span></div>
+    <div class="rh-strip-div"></div>
     <div class="rh-env-block">
-      <span class="rh-live-label">Humidity</span>
-      <span class="rh-env-block__main" id="rh-hum-val">--%</span>
-      <span class="rh-env-block__sub" id="rh-wb-val">WB —°C</span>
+      <span class="rh-live-lbl">Humidity</span>
+      <span class="rh-env-block__val" id="lv-hum">--%</span>
+      <span class="rh-env-block__sub" id="lv-wb">WB —°C</span>
     </div>
-    <div class="rh-live-divider"></div>
-    <div class="rh-weight-block">
-      <span class="rh-live-label">Weight</span>
-      <span class="rh-weight-block__main" id="rh-wt-val">-- lbs</span>
-      <span class="rh-weight-block__sub" id="rh-wt-loss-val">Loss —%</span>
+    <div class="rh-strip-div"></div>
+    <div class="rh-wt-block">
+      <span class="rh-live-lbl">Weight</span>
+      <span class="rh-wt-block__val" id="lv-wt">-- lbs</span>
+      <span class="rh-wt-block__sub" id="lv-wt-sub">&nbsp;</span>
     </div>
   </div>
 
-  <!-- Charts -->
+  <!-- ── Charts ───────────────────────────────────────────────── -->
   <div class="rh-charts">
 
     <!-- Temperature -->
-    <div class="rh-chart-card">
-      <div class="rh-chart-header">
-        <span class="rh-chart-title">Temperature</span>
-        <div class="rh-chart-legend" id="rh-temp-legend"></div>
+    <div class="rh-card">
+      <div class="rh-card-hdr">
+        <span class="rh-card-title">Temperature</span>
+        <div class="rh-legend" id="rh-temp-legend"></div>
       </div>
-      <div class="rh-chart-wrap rh-chart-wrap--temp">
+      <div class="rh-chart-wrap rh-chart-wrap--temp" id="temp-wrap">
         <canvas id="rh-temp-canvas"></canvas>
+        <div class="rh-empty" id="temp-empty" style="display:none">
+          No data yet<small>Readings log every 60s while this page is open</small>
+        </div>
       </div>
     </div>
 
     <!-- Environment -->
-    <div class="rh-chart-card">
-      <div class="rh-chart-header">
-        <span class="rh-chart-title">Environment</span>
-        <div class="rh-chart-legend">
-          <span class="rh-legend-item"><span class="rh-legend-swatch" style="background:#f0a040"></span>Dry Bulb °C</span>
-          <span class="rh-legend-item"><span class="rh-legend-swatch" style="background:#40c0d0"></span>Wet Bulb °C</span>
-          <span class="rh-legend-item"><span class="rh-legend-swatch" style="background:#7070e0;height:1px;border-top:1px dashed #7070e0"></span>Humidity %</span>
+    <div class="rh-card">
+      <div class="rh-card-hdr">
+        <span class="rh-card-title">Environment</span>
+        <div class="rh-legend">
+          <span class="rh-legend-item"><span class="rh-legend-line" style="background:#f0a040"></span>Dry Bulb °C</span>
+          <span class="rh-legend-item"><span class="rh-legend-line" style="background:#40c0d0"></span>Wet Bulb °C</span>
+          <span class="rh-legend-item"><span class="rh-legend-line" style="background:#7070e0;height:1px;border-top:2px dashed #7070e0"></span>Humidity %</span>
         </div>
       </div>
-      <div class="rh-chart-wrap rh-chart-wrap--env">
+      <div class="rh-chart-wrap rh-chart-wrap--env" id="env-wrap">
         <canvas id="rh-env-canvas"></canvas>
+        <div class="rh-empty" id="env-empty" style="display:none">
+          No data yet<small>Readings log every 60s while this page is open</small>
+        </div>
       </div>
     </div>
 
     <!-- Weight -->
-    <div class="rh-chart-card">
-      <div class="rh-chart-header">
-        <span class="rh-chart-title">Weight</span>
+    <div class="rh-card">
+      <div class="rh-card-hdr">
+        <span class="rh-card-title">Weight</span>
       </div>
-      <div class="rh-chart-wrap rh-chart-wrap--weight">
-        <canvas id="rh-weight-canvas"></canvas>
+      <div class="rh-chart-wrap rh-chart-wrap--weight" id="wt-wrap">
+        <canvas id="rh-wt-canvas"></canvas>
+        <div class="rh-empty" id="wt-empty" style="display:none">
+          No data yet<small>Readings log every 60s while this page is open</small>
+        </div>
       </div>
     </div>
 
   </div>
 
   <footer class="rh-footer">
-    <span id="rh-last-updated">—</span>
+    <span id="rh-footer-left">Room log stored locally in this browser</span>
+    <span id="rh-footer-right"></span>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -384,39 +406,68 @@
   (function () {
     'use strict';
 
-    // ── Zone colors ────────────────────────────────────────────────────────────
-    var ZONE_COLORS = ['#e05252','#52a0e0','#52e07c','#e0c952','#c052e0','#e09052'];
-    var ENV_DRY  = '#f0a040';
-    var ENV_WET  = '#40c0d0';
-    var ENV_HUM  = '#7070e0';
-    var WT_COLOR = '#52e0a0';
+    // ── Constants ──────────────────────────────────────────────────────────────
+    var STORAGE_KEY    = 'smartsake-room-log-v1';
+    var POLL_MS        = 60 * 1000;        // log a reading every 60 s
+    var LIVE_POLL_MS   = 5  * 1000;        // update the live strip every 5 s
+    var MAX_READINGS   = 7 * 24 * 60;      // 7 days at 1/min = 10 080 entries
+    var ZONE_COLORS    = ['#e05252','#52a0e0','#52e07c','#e0c952','#c052e0','#e09052'];
 
     // ── State ──────────────────────────────────────────────────────────────────
-    var activeHours  = 24;
-    var tempChart    = null;
-    var envChart     = null;
-    var weightChart  = null;
-    var activeRunId  = null;
-    var initialWeight = null;
+    var log         = [];   // [{t, v:[tc1..tc6, hum, sht, wt]}]
+    var activeMinutes = 1440;
+    var tempChart   = null;
+    var envChart    = null;
+    var wtChart     = null;
+    var activeRunId = null;
+    var logStartTime = null;  // ms of first ever logged reading
 
-    // ── Clock ──────────────────────────────────────────────────────────────────
-    var clockEl = document.getElementById('rh-clock');
-    function updateClock() {
-      var d = new Date();
-      clockEl.textContent =
-        d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + '  ' +
-        d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    // ── Persistence ────────────────────────────────────────────────────────────
+    function saveLog() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ log: log }));
+      } catch (e) {
+        // localStorage full — prune oldest half and retry
+        log = log.slice(Math.floor(log.length / 2));
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ log: log })); } catch (_) {}
+      }
     }
-    updateClock();
-    setInterval(updateClock, 10000);
 
-    // ── Wet bulb (psychrometric Newton-Raphson, matches dashboard) ─────────────
+    function loadLog() {
+      try {
+        var raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        var obj = JSON.parse(raw);
+        if (Array.isArray(obj.log)) {
+          log = obj.log;
+          if (log.length) logStartTime = log[0].t;
+        }
+      } catch (_) {
+        log = [];
+      }
+    }
+
+    function clearLog() {
+      if (!confirm('Clear all locally-stored room history? This cannot be undone.')) return;
+      log = [];
+      logStartTime = null;
+      localStorage.removeItem(STORAGE_KEY);
+      renderCharts();
+      updateStatusBar();
+    }
+
+    // ── Trim log to MAX_READINGS ───────────────────────────────────────────────
+    function trimLog() {
+      if (log.length > MAX_READINGS) {
+        log = log.slice(log.length - MAX_READINGS);
+      }
+    }
+
+    // ── Wet bulb (Newton-Raphson psychrometric, matches dashboard) ─────────────
     function calcWetBulb(T, RH) {
       if (T == null || RH == null || isNaN(T) || isNaN(RH) || RH <= 0 || RH > 100) return null;
       function es(t) { return 6.1078 * Math.exp(17.27 * t / (t + 237.3)); }
-      var ea = es(T) * RH / 100;
-      var P  = 1013.25;
-      var A  = 6.6e-4;
+      var ea = es(T) * RH / 100, P = 1013.25, A = 6.6e-4;
       var lnr = Math.log(ea / 6.1078);
       var Td  = 237.3 * lnr / (17.27 - lnr);
       var wb  = (T + Td) / 2;
@@ -431,326 +482,357 @@
     }
 
     // ── Label formatter ────────────────────────────────────────────────────────
-    function fmtLabel(isoStr, hours) {
-      var d = new Date(isoStr);
-      if (hours <= 24) {
+    function fmtLabel(ms, rangeMinutes) {
+      var d = new Date(ms);
+      if (rangeMinutes <= 120) {
+        return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+      }
+      if (rangeMinutes <= 1440) {
         return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
       }
       return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' +
              d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
     }
 
-    // ── Process API readings into chart arrays ─────────────────────────────────
-    function processReadings(readings, hours) {
-      var labels  = [];
-      var zones   = [[], [], [], [], [], []];
-      var humidity= [], shtTemp = [], wetBulb = [], weight = [];
+    function fmtDuration(ms) {
+      var s = Math.floor(ms / 1000);
+      var d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+      if (d > 0) return d + 'd ' + h + 'h';
+      if (h > 0) return h + 'h ' + m + 'm';
+      return m + 'm';
+    }
 
-      readings.forEach(function (r) {
-        labels.push(fmtLabel(r.recorded_at, hours));
-        for (var z = 0; z < 6; z++) {
-          var v = r['tc' + (z + 1)];
-          zones[z].push(v != null ? v : null);
-        }
-        var hv = r.humidity   != null ? parseFloat(r.humidity)   : null;
-        var tv = r.sht_temp   != null ? parseFloat(r.sht_temp)   : null;
-        var wv = r.weight_lbs != null ? parseFloat(r.weight_lbs) : null;
-        humidity.push(isNaN(hv) ? null : hv);
-        shtTemp.push(isNaN(tv)  ? null : tv);
-        wetBulb.push(calcWetBulb(isNaN(tv) ? null : tv, isNaN(hv) ? null : hv));
-        weight.push(isNaN(wv)   ? null : wv);
-      });
+    // ── Filter log to active range ─────────────────────────────────────────────
+    function getWindow() {
+      if (!log.length) return [];
+      var cutoff = Date.now() - activeMinutes * 60 * 1000;
+      // Stride to a max of ~400 visible points so charts stay fast
+      var slice  = log.filter(function (r) { return r.t >= cutoff; });
+      var stride = Math.max(1, Math.floor(slice.length / 400));
+      return slice.filter(function (_, i) { return i % stride === 0; });
+    }
 
-      return { labels, zones, humidity, shtTemp, wetBulb, weight };
+    // ── Clock ──────────────────────────────────────────────────────────────────
+    var clockEl = document.getElementById('rh-clock');
+    function tickClock() {
+      var d = new Date();
+      clockEl.textContent =
+        d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + '  ' +
+        d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    }
+    tickClock();
+    setInterval(tickClock, 15000);
+
+    // ── Status bar ─────────────────────────────────────────────────────────────
+    var dotEl      = document.getElementById('rh-dot');
+    var statusText = document.getElementById('rh-status-text');
+    var footerR    = document.getElementById('rh-footer-right');
+
+    function updateStatusBar() {
+      var n = log.length;
+      if (n === 0) {
+        statusText.textContent = 'No readings yet — waiting for first poll…';
+        footerR.textContent = '';
+        return;
+      }
+      var span = logStartTime ? fmtDuration(Date.now() - logStartTime) : '—';
+      statusText.textContent =
+        n.toLocaleString() + ' readings logged • logging since ' + span + ' ago' +
+        ' • polls every 60s';
+      footerR.textContent = 'Last log: ' + new Date(log[n - 1].t).toLocaleTimeString();
+    }
+
+    function pulseDot() {
+      dotEl.classList.add('pulse');
+      setTimeout(function () { dotEl.classList.remove('pulse'); }, 900);
     }
 
     // ── Chart defaults ─────────────────────────────────────────────────────────
-    Chart.defaults.color = '#666';
-    Chart.defaults.borderColor = '#252525';
+    Chart.defaults.color = '#555';
+    Chart.defaults.borderColor = '#1e1e1e';
 
-    var COMMON_OPTS = {
-      responsive: false,
-      animation: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#1a1a1a',
-          borderColor: '#333',
-          borderWidth: 1,
-          titleColor: '#aaa',
-          bodyColor: '#ccc',
-          padding: 8
-        }
-      },
-      scales: {
-        x: {
-          ticks: {
-            color: '#555',
-            maxTicksLimit: 8,
-            maxRotation: 0,
-            font: { size: 10 }
-          },
-          grid: { color: '#1e1e1e' }
-        }
+    var BASE_SCALE_X = {
+      ticks: { color: '#4a4a4a', maxTicksLimit: 8, maxRotation: 0, font: { size: 10 } },
+      grid: { color: '#1a1a1a' }
+    };
+    var BASE_SCALE_Y = {
+      ticks: { color: '#4a4a4a', font: { size: 10 } },
+      grid: { color: '#1a1a1a' }
+    };
+    var BASE_PLUGINS = {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#1a1a1a',
+        borderColor: '#303030',
+        borderWidth: 1,
+        titleColor: '#999',
+        bodyColor: '#bbb',
+        padding: 8,
+        mode: 'index',
+        intersect: false
       }
     };
 
-    function mergeOpts(extra) {
-      return Object.assign({}, COMMON_OPTS, extra,
-        { plugins: Object.assign({}, COMMON_OPTS.plugins, extra.plugins || {}),
-          scales: Object.assign({}, COMMON_OPTS.scales, extra.scales || {}) });
-    }
-
-    // ── Build temp legend ──────────────────────────────────────────────────────
+    // ── Build temperature legend ───────────────────────────────────────────────
     function buildTempLegend() {
       var el = document.getElementById('rh-temp-legend');
       el.innerHTML = '';
-      for (var z = 0; z < 6; z++) {
+      ZONE_COLORS.forEach(function (c, i) {
         var item = document.createElement('span');
         item.className = 'rh-legend-item';
-        item.innerHTML =
-          '<span class="rh-legend-swatch" style="background:' + ZONE_COLORS[z] + '"></span>' +
-          'Zone ' + (z + 1);
+        item.innerHTML = '<span class="rh-legend-line" style="background:' + c + '"></span>Zone ' + (i + 1);
         el.appendChild(item);
-      }
+      });
     }
 
-    // ── Create / update charts ─────────────────────────────────────────────────
-    function buildCharts(data) {
-      var tempCtx   = document.getElementById('rh-temp-canvas').getContext('2d');
-      var envCtx    = document.getElementById('rh-env-canvas').getContext('2d');
-      var weightCtx = document.getElementById('rh-weight-canvas').getContext('2d');
+    // ── Show / hide empty state overlay ───────────────────────────────────────
+    function setEmpty(id, isEmpty) {
+      var el = document.getElementById(id);
+      if (el) el.style.display = isEmpty ? 'flex' : 'none';
+    }
 
-      // Temperature chart
-      var tempDatasets = data.zones.map(function (arr, i) {
-        return {
-          label: 'Zone ' + (i + 1),
-          data: arr,
-          borderColor: ZONE_COLORS[i],
-          backgroundColor: 'transparent',
-          borderWidth: 1.5,
-          pointRadius: 0,
-          tension: 0.3
-        };
-      });
+    // ── Render charts from current log window ─────────────────────────────────
+    function renderCharts() {
+      var rows = getWindow();
+      var isEmpty = rows.length === 0;
 
+      setEmpty('temp-empty', isEmpty);
+      setEmpty('env-empty',  isEmpty);
+      setEmpty('wt-empty',   isEmpty);
+
+      var labels   = rows.map(function (r) { return fmtLabel(r.t, activeMinutes); });
+      var zones    = [0,1,2,3,4,5].map(function (z) { return rows.map(function (r) { return r.v[z]; }); });
+      var humArr   = rows.map(function (r) { return r.v[6]; });
+      var shtArr   = rows.map(function (r) { return r.v[7]; });
+      var wbArr    = rows.map(function (r) { return calcWetBulb(r.v[7], r.v[6]); });
+      var wtArr    = rows.map(function (r) { return r.v[8]; });
+
+      // ── Temp chart ────────────────────────────────────────────────────────
+      var tCtx = document.getElementById('rh-temp-canvas').getContext('2d');
       if (tempChart) { tempChart.destroy(); }
-      tempChart = new Chart(tempCtx, {
-        type: 'line',
-        data: { labels: data.labels, datasets: tempDatasets },
-        options: mergeOpts({
-          scales: {
-            x: COMMON_OPTS.scales.x,
-            y: {
-              ticks: { color: '#555', font: { size: 10 } },
-              grid: { color: '#1e1e1e' },
-              title: { display: true, text: '°C', color: '#555', font: { size: 10 } }
-            }
-          }
-        })
-      });
-
-      // Environment chart (dual Y-axis)
-      if (envChart) { envChart.destroy(); }
-      envChart = new Chart(envCtx, {
+      tempChart = new Chart(tCtx, {
         type: 'line',
         data: {
-          labels: data.labels,
+          labels: labels,
+          datasets: zones.map(function (data, i) {
+            return {
+              label: 'Zone ' + (i + 1),
+              data: data,
+              borderColor: ZONE_COLORS[i],
+              backgroundColor: 'transparent',
+              borderWidth: 1.5, pointRadius: 0, tension: 0.3
+            };
+          })
+        },
+        options: {
+          responsive: false, animation: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: BASE_PLUGINS,
+          scales: {
+            x: BASE_SCALE_X,
+            y: Object.assign({}, BASE_SCALE_Y, {
+              title: { display: true, text: '°C', color: '#4a4a4a', font: { size: 10 } }
+            })
+          }
+        }
+      });
+
+      // ── Env chart ─────────────────────────────────────────────────────────
+      var eCtx = document.getElementById('rh-env-canvas').getContext('2d');
+      if (envChart) { envChart.destroy(); }
+      envChart = new Chart(eCtx, {
+        type: 'line',
+        data: {
+          labels: labels,
           datasets: [
-            { label: 'Dry Bulb (°C)', data: data.shtTemp, yAxisID: 'yTemp',
-              borderColor: ENV_DRY, backgroundColor: 'transparent',
+            { label: 'Dry Bulb (°C)', data: shtArr, yAxisID: 'yT',
+              borderColor: '#f0a040', backgroundColor: 'transparent',
               borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
-            { label: 'Wet Bulb (°C)', data: data.wetBulb, yAxisID: 'yTemp',
-              borderColor: ENV_WET, backgroundColor: 'transparent',
+            { label: 'Wet Bulb (°C)', data: wbArr, yAxisID: 'yT',
+              borderColor: '#40c0d0', backgroundColor: 'transparent',
               borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
-            { label: 'Humidity (%)', data: data.humidity, yAxisID: 'yHum',
-              borderColor: ENV_HUM, backgroundColor: 'transparent',
-              borderWidth: 1, pointRadius: 0, tension: 0.3,
-              borderDash: [4, 3] }
+            { label: 'Humidity (%)', data: humArr, yAxisID: 'yH',
+              borderColor: '#7070e0', backgroundColor: 'transparent',
+              borderWidth: 1, pointRadius: 0, tension: 0.3, borderDash: [4, 3] }
           ]
         },
-        options: mergeOpts({
+        options: {
+          responsive: false, animation: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: BASE_PLUGINS,
           scales: {
-            x: COMMON_OPTS.scales.x,
-            yTemp: {
-              type: 'linear', position: 'left',
-              ticks: { color: '#555', font: { size: 10 } },
-              grid: { color: '#1e1e1e' },
-              title: { display: true, text: '°C', color: '#555', font: { size: 10 } }
-            },
-            yHum: {
+            x: BASE_SCALE_X,
+            yT: Object.assign({}, BASE_SCALE_Y, {
+              position: 'left',
+              title: { display: true, text: '°C', color: '#4a4a4a', font: { size: 10 } }
+            }),
+            yH: {
               type: 'linear', position: 'right',
               min: 0, max: 100,
-              ticks: { color: '#555', font: { size: 10 } },
+              ticks: { color: '#4a4a4a', font: { size: 10 } },
               grid: { drawOnChartArea: false },
-              title: { display: true, text: '%', color: '#555', font: { size: 10 } }
+              title: { display: true, text: '%', color: '#4a4a4a', font: { size: 10 } }
             }
           }
-        })
+        }
       });
 
-      // Weight chart
-      if (weightChart) { weightChart.destroy(); }
-      weightChart = new Chart(weightCtx, {
+      // ── Weight chart ──────────────────────────────────────────────────────
+      var wCtx = document.getElementById('rh-wt-canvas').getContext('2d');
+      if (wtChart) { wtChart.destroy(); }
+      wtChart = new Chart(wCtx, {
         type: 'line',
         data: {
-          labels: data.labels,
+          labels: labels,
           datasets: [{
             label: 'Weight (lbs)',
-            data: data.weight,
-            borderColor: WT_COLOR,
-            backgroundColor: WT_COLOR + '18',
-            borderWidth: 1.5,
-            pointRadius: 0,
-            tension: 0.3,
-            fill: true
+            data: wtArr,
+            borderColor: '#52e0a0',
+            backgroundColor: '#52e0a018',
+            borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: true
           }]
         },
-        options: mergeOpts({
+        options: {
+          responsive: false, animation: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: BASE_PLUGINS,
           scales: {
-            x: COMMON_OPTS.scales.x,
-            y: {
-              ticks: { color: '#555', font: { size: 10 } },
-              grid: { color: '#1e1e1e' },
-              title: { display: true, text: 'lbs', color: '#555', font: { size: 10 } }
-            }
+            x: BASE_SCALE_X,
+            y: Object.assign({}, BASE_SCALE_Y, {
+              title: { display: true, text: 'lbs', color: '#4a4a4a', font: { size: 10 } }
+            })
           }
-        })
+        }
       });
     }
 
-    // ── Fetch + render history ─────────────────────────────────────────────────
-    var refreshDot = document.getElementById('rh-refresh-dot');
-
-    function pulseRefreshDot() {
-      refreshDot.classList.add('pulsing');
-      setTimeout(function () { refreshDot.classList.remove('pulsing'); }, 800);
-    }
-
-    async function loadHistory() {
-      try {
-        var res  = await fetch('/api/room-history?hours=' + activeHours);
-        var rows = await res.json();
-        if (!Array.isArray(rows) || rows.length === 0) {
-          // Show empty state on charts but don't crash
-          document.getElementById('rh-last-updated').textContent =
-            'No data for this period — ' + new Date().toLocaleTimeString();
-          return;
-        }
-        var data = processReadings(rows, activeHours);
-        buildCharts(data);
-        document.getElementById('rh-last-updated').textContent =
-          'Updated ' + new Date().toLocaleTimeString();
-        pulseRefreshDot();
-      } catch (err) {
-        console.error('Room history fetch failed:', err);
-      }
-    }
-
-    // ── Fetch live sensor values ───────────────────────────────────────────────
-    async function loadLive() {
+    // ── Poll /api/latest — log a reading + update live strip ──────────────────
+    async function poll() {
       try {
         var res  = await fetch('/api/latest');
         var data = await res.json();
 
-        for (var z = 1; z <= 6; z++) {
+        var tc = [1,2,3,4,5,6].map(function (z) {
           var v = data['tc' + z];
-          var chip = document.getElementById('rh-z' + z);
-          if (chip) {
-            chip.querySelector('.rh-zone-chip__val').textContent =
-              (v != null ? v.toFixed(1) : '--') + '°';
-          }
+          return (v != null && !isNaN(v)) ? parseFloat(v) : null;
+        });
+        var hum = (data.humidity  != null) ? parseFloat(data.humidity)  : null;
+        var sht = (data.sht_temp  != null) ? parseFloat(data.sht_temp)  : null;
+        var wt  = (data.weight_lbs != null) ? parseFloat(data.weight_lbs): null;
+
+        // Append to log
+        var entry = { t: Date.now(), v: tc.concat([hum, sht, wt]) };
+        log.push(entry);
+        if (!logStartTime) logStartTime = entry.t;
+        trimLog();
+        saveLog();
+
+        // Update live strip
+        for (var z = 1; z <= 6; z++) {
+          var el = document.getElementById('lv-z' + z);
+          if (el) el.textContent = tc[z-1] != null ? tc[z-1].toFixed(1) + '°' : '--';
         }
-
-        var hv = data.humidity != null ? parseFloat(data.humidity) : null;
-        var tv = data.sht_temp != null ? parseFloat(data.sht_temp) : null;
-        var wv = data.weight_lbs != null ? parseFloat(data.weight_lbs) : null;
-
-        var humEl  = document.getElementById('rh-hum-val');
-        var wbEl   = document.getElementById('rh-wb-val');
-        var wtEl   = document.getElementById('rh-wt-val');
-        var wlEl   = document.getElementById('rh-wt-loss-val');
-
-        if (humEl) humEl.textContent = (hv != null && !isNaN(hv)) ? hv.toFixed(1) + '%' : '--%';
-        var wb = calcWetBulb(tv, hv);
+        var humEl = document.getElementById('lv-hum');
+        var wbEl  = document.getElementById('lv-wb');
+        var wtEl  = document.getElementById('lv-wt');
+        var wSubEl = document.getElementById('lv-wt-sub');
+        if (humEl) humEl.textContent = (hum != null && !isNaN(hum)) ? hum.toFixed(1) + '%' : '--%';
+        var wb = calcWetBulb(sht, hum);
         if (wbEl) wbEl.textContent = wb != null ? 'WB ' + wb.toFixed(1) + '°C' : 'WB —°C';
+        if (wtEl) wtEl.textContent = (wt != null && !isNaN(wt)) ? wt.toFixed(2) + ' lbs' : '-- lbs';
 
-        if (wtEl) wtEl.textContent = (wv != null && !isNaN(wv)) ? wv.toFixed(2) + ' lbs' : '-- lbs';
-        if (wlEl) {
-          if (initialWeight != null && wv != null && !isNaN(wv) && initialWeight > 0) {
-            var pct = ((initialWeight - wv) / initialWeight * 100).toFixed(1);
-            wlEl.textContent = 'Loss ' + pct + '%';
+        // Weight sub: show change vs first reading in current window
+        if (wSubEl) {
+          var rows = getWindow();
+          var firstWt = null;
+          for (var i = 0; i < rows.length; i++) {
+            if (rows[i].v[8] != null) { firstWt = rows[i].v[8]; break; }
+          }
+          if (firstWt != null && wt != null && !isNaN(wt) && firstWt > 0) {
+            var delta = wt - firstWt;
+            wSubEl.textContent = (delta >= 0 ? '+' : '') + delta.toFixed(2) + ' lbs this window';
           } else {
-            wlEl.textContent = 'Loss —%';
+            wSubEl.textContent = '';
           }
         }
+
+        pulseDot();
+        renderCharts();
+        updateStatusBar();
+
       } catch (err) {
-        // non-fatal — sensors may not be available
+        // Sensor offline — update status but don't crash
+        statusText.textContent = 'Sensor offline — retrying…';
       }
     }
 
-    // ── Active run banner ──────────────────────────────────────────────────────
-    async function loadActiveRun() {
+    // ── Poll active run banner ─────────────────────────────────────────────────
+    async function pollRun() {
       try {
         var res = await fetch('/api/runs/active');
+        var lnk = document.getElementById('rh-batch-link');
         if (!res.ok) {
-          document.getElementById('rh-run-banner').style.display = 'none';
-          document.getElementById('rh-dashboard-link').style.display = 'none';
+          if (lnk) lnk.style.display = 'none';
+          activeRunId = null;
           return;
         }
         var run = await res.json();
         activeRunId = run.id;
-
-        // Get initial weight from first reading for loss calc
-        try {
-          var rRes = await fetch('/api/runs/' + run.id + '/readings?n=1');
-          var rData = await rRes.json();
-          if (Array.isArray(rData) && rData.length && rData[0].weight_lbs != null) {
-            initialWeight = parseFloat(rData[0].weight_lbs);
-          }
-        } catch (_) {}
-
-        var banner  = document.getElementById('rh-run-banner');
-        var runText = document.getElementById('rh-run-text');
-        var runLink = document.getElementById('rh-run-link');
-        var dashLink = document.getElementById('rh-dashboard-link');
-
-        var started = new Date(run.started_at);
-        var mins    = Math.round((Date.now() - started) / 60000);
-        var dur     = mins < 60 ? mins + 'm' : Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm';
-
-        runText.textContent = 'Active run: ' + run.name + ' — ' + dur + ' elapsed';
-        runLink.href = 'dashboard.html?run=' + run.id + '&mode=live';
-        dashLink.href = 'dashboard.html?run=' + run.id + '&mode=live';
-        dashLink.style.display = '';
-        banner.style.display = '';
-      } catch (_) {
-        document.getElementById('rh-run-banner').style.display = 'none';
-      }
+        if (lnk) {
+          lnk.href = 'dashboard.html?run=' + run.id + '&mode=live';
+          lnk.style.display = '';
+        }
+      } catch (_) {}
     }
 
     // ── Range buttons ──────────────────────────────────────────────────────────
-    var rangeBtns = document.querySelectorAll('#rh-range-group .rh-range-btn');
+    var rangeBtns = document.querySelectorAll('#rh-ranges .rh-range-btn');
     rangeBtns.forEach(function (btn) {
       btn.addEventListener('click', function () {
         rangeBtns.forEach(function (b) { b.classList.remove('active'); });
         btn.classList.add('active');
-        activeHours = parseFloat(btn.dataset.hours);
-        loadHistory();
+        activeMinutes = parseInt(btn.dataset.minutes, 10);
+        renderCharts();
+        updateStatusBar();
       });
     });
 
-    // ── Auto-refresh ───────────────────────────────────────────────────────────
-    setInterval(loadHistory, 60 * 1000);  // charts: every 60s
-    setInterval(loadLive,    5  * 1000);  // live strip: every 5s
-    setInterval(loadActiveRun, 30 * 1000); // run banner: every 30s
+    // ── Clear button ───────────────────────────────────────────────────────────
+    document.getElementById('rh-clear-btn').addEventListener('click', clearLog);
 
-    // ── Initial load ───────────────────────────────────────────────────────────
+    // ── Boot ───────────────────────────────────────────────────────────────────
     buildTempLegend();
-    loadActiveRun();
-    loadLive();
-    loadHistory();
+    loadLog();
+    updateStatusBar();
+    renderCharts();
+
+    // First immediate poll, then on interval
+    poll();
+    setInterval(poll, POLL_MS);
+
+    // Live strip updates faster than the log interval
+    setInterval(function () {
+      fetch('/api/latest').then(function (r) { return r.json(); }).then(function (data) {
+        for (var z = 1; z <= 6; z++) {
+          var el = document.getElementById('lv-z' + z);
+          var v  = data['tc' + z];
+          if (el) el.textContent = (v != null && !isNaN(v)) ? parseFloat(v).toFixed(1) + '°' : '--';
+        }
+        var hum = data.humidity  != null ? parseFloat(data.humidity)  : null;
+        var sht = data.sht_temp  != null ? parseFloat(data.sht_temp)  : null;
+        var wt  = data.weight_lbs != null ? parseFloat(data.weight_lbs): null;
+        var humEl = document.getElementById('lv-hum');
+        var wbEl  = document.getElementById('lv-wb');
+        var wtEl  = document.getElementById('lv-wt');
+        if (humEl) humEl.textContent = (hum != null && !isNaN(hum)) ? hum.toFixed(1) + '%' : '--%';
+        var wb = calcWetBulb(sht, hum);
+        if (wbEl) wbEl.textContent = wb != null ? 'WB ' + wb.toFixed(1) + '°C' : 'WB —°C';
+        if (wtEl) wtEl.textContent = (wt != null && !isNaN(wt)) ? wt.toFixed(2) + ' lbs' : '-- lbs';
+      }).catch(function () {});
+    }, LIVE_POLL_MS);
+
+    pollRun();
+    setInterval(pollRun, 30000);
 
   })();
   </script>
