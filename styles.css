@@ -2674,3 +2674,71 @@ main {
     gap: 6px;
     flex-wrap: wrap;
 }
+
+/* ── Chart controls group (time-window + elapsed toggle) ───────────────────── */
+.chart-controls-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 8px;
+    padding: 3px 5px;
+}
+
+/* Time-window pill group */
+.time-window-btns {
+    display: flex;
+    gap: 2px;
+}
+
+.tw-btn {
+    background: transparent;
+    border: none;
+    border-radius: 5px;
+    color: #777;
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 7px;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+
+.tw-btn:hover {
+    background: rgba(255,255,255,0.08);
+    color: #ccc;
+}
+
+.tw-btn--active {
+    background: rgba(82,160,224,0.22) !important;
+    color: #82c0f0 !important;
+}
+
+/* Elapsed/Clock toggle — compact version in header */
+.header-right .elapsed-toggle-btn {
+    background: transparent;
+    border: none;
+    border-radius: 5px;
+    color: #777;
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 7px;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+    /* separator on left */
+    border-left: 1px solid rgba(255,255,255,0.1);
+    margin-left: 2px;
+    padding-left: 8px;
+}
+
+.header-right .elapsed-toggle-btn:hover {
+    background: rgba(255,255,255,0.08);
+    color: #ccc;
+}
+
+.header-right .elapsed-toggle-btn.elapsed-toggle-btn--active {
+    background: rgba(82,224,140,0.2) !important;
+    color: #72e090 !important;
+}
