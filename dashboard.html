@@ -25,6 +25,15 @@
 			</div>
 			<div class="header-right">
 				<div class="notes__meta" id="notes-meta" aria-live="polite"></div>
+				<div class="chart-controls-group">
+					<div class="time-window-btns" id="time-window-btns" role="group" aria-label="Chart time window">
+						<button class="tw-btn tw-btn--active" data-minutes="0" type="button">All</button>
+						<button class="tw-btn" data-minutes="60" type="button">1h</button>
+						<button class="tw-btn" data-minutes="30" type="button">30m</button>
+						<button class="tw-btn" data-minutes="15" type="button">15m</button>
+					</div>
+					<button id="elapsed-toggle-btn" class="elapsed-toggle-btn" type="button" title="Toggle elapsed/clock time axis">Clock</button>
+				</div>
 				<button id="set-temp-btn" class="set-temp-btn" type="button">Set temp</button>
 				<button id="start-run-btn" class="start-run-btn">Start Run</button>
 			</div>
@@ -161,7 +170,6 @@
 							<div class="long long--top-left home-side-title-chart-card home-humidity-chart-card">
 								<div class="env-chart-header">
 									<span class="home-humidity-title chart-title--single-line">Environment</span>
-									<button id="elapsed-toggle-btn" class="elapsed-toggle-btn" type="button" title="Toggle elapsed/clock time axis">Clock</button>
 								</div>
 								<div class="env-chart-live-wrap">
 									<canvas id="humidity-chart" class="metric-chart"></canvas>
@@ -1785,11 +1793,19 @@
 						elapsedMode = on;
 						window._elapsedMode = on;
 						var dispLabels = on ? elapsedLabels : labels;
-						// Update all small charts
-						[tempChart, envChart, fansChart, weightChart].forEach(function (ch) {
+						// Update all small charts' label arrays
+						[envChart, fansChart, weightChart].forEach(function (ch) {
 							ch.data.labels = dispLabels;
+							// Reset window bounds so applyTimeWindow re-calculates with new labels
+							ch.options.scales.x.min = undefined;
+							ch.options.scales.x.max = undefined;
 							ch.update('none');
 						});
+						// tempChart uses linear x-axis — doesn't use labels array
+						// Re-apply the active time window with the new label set
+						if (typeof applyTimeWindow === 'function') {
+							applyTimeWindow(activeWindowMinutes || 0);
+						}
 						// Update open modal if any
 						if (chartModal && chartModal.style.display === 'flex' && modalChart) {
 							refreshModalChart();
@@ -1814,6 +1830,68 @@
 							elapsedToggleBtn.classList.toggle('elapsed-toggle-btn--active', on);
 						}
 						applyElapsedMode(on);
+					};
+
+					// ── Time-window filter (All / 1h / 30m / 15m) ─────────────────────
+					var activeWindowMinutes = 0; // 0 = show all
+
+					function applyTimeWindow(minutes) {
+						activeWindowMinutes = minutes;
+						var total = sampleTimestamps.length;
+
+						// Determine start index based on the requested window
+						var startIdx = 0;
+						if (minutes > 0 && total > 0) {
+							var cutoff = sampleTimestamps[total - 1] - minutes * 60 * 1000;
+							for (var i = 0; i < total; i++) {
+								if (sampleTimestamps[i] >= cutoff) { startIdx = i; break; }
+							}
+						}
+
+						// -- tempChart uses a linear x-axis (elapsed minutes) --
+						if (total > 0 && window._chartElapsedMins && window._chartElapsedMins.length > 0) {
+							var elMins = window._chartElapsedMins;
+							if (minutes === 0) {
+								tempChart.options.scales.x.min = undefined;
+								tempChart.options.scales.x.max = undefined;
+							} else {
+								tempChart.options.scales.x.min = elMins[startIdx] != null ? elMins[startIdx] : undefined;
+								tempChart.options.scales.x.max = elMins[elMins.length - 1] != null ? elMins[elMins.length - 1] : undefined;
+							}
+							tempChart.update('none');
+						}
+
+						// -- label-based charts (env, fans, weight): set x.min/x.max via label value --
+						var dispLabels = elapsedMode ? elapsedLabels : labels;
+						[envChart, fansChart, weightChart].forEach(function (ch) {
+							if (!total || !dispLabels.length) return;
+							if (minutes === 0) {
+								ch.options.scales.x.min = undefined;
+								ch.options.scales.x.max = undefined;
+							} else {
+								ch.options.scales.x.min = dispLabels[startIdx] !== undefined ? dispLabels[startIdx] : undefined;
+								ch.options.scales.x.max = dispLabels[dispLabels.length - 1] !== undefined ? dispLabels[dispLabels.length - 1] : undefined;
+							}
+							ch.update('none');
+						});
+					}
+
+					// Wire time-window buttons
+					var twBtns = document.querySelectorAll('#time-window-btns .tw-btn');
+					twBtns.forEach(function (btn) {
+						btn.addEventListener('click', function () {
+							var mins = parseInt(btn.dataset.minutes, 10);
+							twBtns.forEach(function (b) { b.classList.remove('tw-btn--active'); });
+							btn.classList.add('tw-btn--active');
+							applyTimeWindow(mins);
+						});
+					});
+
+					// Re-apply window after each new sample so live mode stays in the selected window
+					var _origAfterSamplePush = window._afterSamplePush;
+					window._afterSamplePush = function () {
+						if (_origAfterSamplePush) _origAfterSamplePush();
+						if (activeWindowMinutes > 0) applyTimeWindow(activeWindowMinutes);
 					};
 
 					// ---------- Full-page chart modal + controls ----------
