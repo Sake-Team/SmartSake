@@ -3092,6 +3092,7 @@ main {
 /* Make temp + fans legend items small inline pills */
 .temp-chart-legend {
     display: flex !important;
+    flex-direction: row !important;
     flex-wrap: wrap !important;
     gap: 3px 6px !important;
     padding: 0 !important;
