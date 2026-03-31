@@ -234,24 +234,7 @@
 
 						<section class="settings-section">
 							<h4 class="settings-section__title">Theme</h4>
-							<div class="settings-colors-grid">
-								<label class="settings-color-row"><span>Background</span><input type="color" class="settings-color-input" data-key="themeBg" value="#111111"></label>
-								<label class="settings-color-row"><span>Surface</span><input type="color" class="settings-color-input" data-key="themeSurface" value="#181818"></label>
-								<label class="settings-color-row"><span>Border</span><input type="color" class="settings-color-input" data-key="themeBorder" value="#2e2e2e"></label>
-								<label class="settings-color-row"><span>Text</span><input type="color" class="settings-color-input" data-key="themeText" value="#dddddd"></label>
-								<label class="settings-color-row"><span>Accent</span><input type="color" class="settings-color-input" data-key="themeAccent" value="#52a0e0"></label>
-								<label class="settings-color-row"><span>Grid lines</span><input type="color" class="settings-color-input" data-key="themeGrid" value="#2a2a2a"></label>
-							</div>
-						</section>
-
-						<section class="settings-section">
-							<h4 class="settings-section__title">Chart backgrounds</h4>
-							<div class="settings-colors-grid">
-								<label class="settings-color-row"><span>Temperature</span><input type="color" class="settings-color-input" data-key="chartBgTemp" value="#181818"></label>
-								<label class="settings-color-row"><span>Environment</span><input type="color" class="settings-color-input" data-key="chartBgEnv" value="#181818"></label>
-								<label class="settings-color-row"><span>Fans</span><input type="color" class="settings-color-input" data-key="chartBgFans" value="#181818"></label>
-								<label class="settings-color-row"><span>Weight</span><input type="color" class="settings-color-input" data-key="chartBgWeight" value="#181818"></label>
-							</div>
+							<div class="theme-picker" id="theme-picker"></div>
 						</section>
 
 						<div class="settings-footer">
@@ -3544,11 +3527,22 @@
 	(function () {
 		'use strict';
 
+		const THEMES = {
+			dark:    { label: 'Dark',    themeBg: '#111111', themeSurface: '#181818', themeBorder: '#2e2e2e', themeText: '#dddddd', themeAccent: '#52a0e0', themeGrid: '#2a2a2a',    chartBgTemp: '#181818', chartBgEnv: '#181818', chartBgFans: '#181818', chartBgWeight: '#181818' },
+			light:   { label: 'Light',   themeBg: '#f4f4f6', themeSurface: '#ffffff', themeBorder: '#d8d8e0', themeText: '#1a1a2e', themeAccent: '#2277cc', themeGrid: '#e0e0e8',    chartBgTemp: '#ffffff', chartBgEnv: '#ffffff', chartBgFans: '#ffffff', chartBgWeight: '#ffffff' },
+			galaxy:  { label: 'Galaxy',  themeBg: '#0a0a1a', themeSurface: '#0f0f2a', themeBorder: '#2a1f5a', themeText: '#e0d8ff', themeAccent: '#a855f7', themeGrid: '#1a1240',   chartBgTemp: '#0f0f2a', chartBgEnv: '#0f0f2a', chartBgFans: '#0f0f2a', chartBgWeight: '#0f0f2a' },
+			ocean:   { label: 'Ocean',   themeBg: '#021a2b', themeSurface: '#032538', themeBorder: '#0a4060', themeText: '#a8d8f0', themeAccent: '#00b4d8', themeGrid: '#083050',   chartBgTemp: '#032538', chartBgEnv: '#032538', chartBgFans: '#032538', chartBgWeight: '#032538' },
+			sakura:  { label: 'Sakura',  themeBg: '#1a0a10', themeSurface: '#260f18', themeBorder: '#4a1f30', themeText: '#f0d8e0', themeAccent: '#e05080', themeGrid: '#3a1525',   chartBgTemp: '#260f18', chartBgEnv: '#260f18', chartBgFans: '#260f18', chartBgWeight: '#260f18' },
+			forest:  { label: 'Forest',  themeBg: '#081a0f', themeSurface: '#0f2416', themeBorder: '#1e4a28', themeText: '#c8e8d0', themeAccent: '#4caf80', themeGrid: '#143320',   chartBgTemp: '#0f2416', chartBgEnv: '#0f2416', chartBgFans: '#0f2416', chartBgWeight: '#0f2416' },
+			amber:   { label: 'Amber',   themeBg: '#1a1000', themeSurface: '#241800', themeBorder: '#4a3800', themeText: '#f5e0a0', themeAccent: '#f0a020', themeGrid: '#382800',   chartBgTemp: '#241800', chartBgEnv: '#241800', chartBgFans: '#241800', chartBgWeight: '#241800' }
+		};
+
 		const DEFAULTS = {
+			theme: 'dark',
 			zoneColor1: '#e05252', zoneColor2: '#52a0e0', zoneColor3: '#52e07c',
 			zoneColor4: '#e0c952', zoneColor5: '#c052e0', zoneColor6: '#e09052',
-			themeBg:      '#111111', themeSurface: '#181818', themeBorder: '#2e2e2e',
-			themeText:    '#dddddd', themeAccent:  '#52a0e0', themeGrid:   '#2a2a2a',
+			themeBg: '#111111', themeSurface: '#181818', themeBorder: '#2e2e2e',
+			themeText: '#dddddd', themeAccent: '#52a0e0', themeGrid: '#2a2a2a',
 			chartBgTemp: '#181818', chartBgEnv: '#181818', chartBgFans: '#181818', chartBgWeight: '#181818'
 		};
 		const STORAGE_KEY = 'sakeSettings';
@@ -3602,10 +3596,51 @@
 		const resetBtn  = document.getElementById('settings-reset-btn');
 		const colorInputs = document.querySelectorAll('.settings-color-input');
 
+		// ── Theme picker ──────────────────────────────────────────────────────
+		(function () {
+			var picker = document.getElementById('theme-picker');
+			if (!picker) return;
+			Object.keys(THEMES).forEach(function (key) {
+				var t = THEMES[key];
+				var card = document.createElement('button');
+				card.type = 'button';
+				card.className = 'theme-card';
+				card.dataset.theme = key;
+				card.innerHTML =
+					'<div class="theme-card__swatch">' +
+						'<span style="background:' + t.themeBg + '"></span>' +
+						'<span style="background:' + t.themeSurface + '"></span>' +
+						'<span style="background:' + t.themeAccent + '"></span>' +
+					'</div>' +
+					'<span class="theme-card__label">' + t.label + '</span>' +
+					'<span class="theme-card__check">&#10003;</span>';
+				card.addEventListener('click', function () {
+					var s = loadSettings();
+					Object.keys(t).forEach(function (k) {
+						if (k !== 'label') s[k] = t[k];
+					});
+					s.theme = key;
+					saveSettings(s);
+					applyCSSVars(s);
+					applyChartBg(s);
+					if (window.updateChartColors) window.updateChartColors();
+					updateThemeCards(key);
+				});
+				picker.appendChild(card);
+			});
+		})();
+
+		function updateThemeCards(activeKey) {
+			document.querySelectorAll('.theme-card').forEach(function (c) {
+				c.classList.toggle('theme-card--active', c.dataset.theme === activeKey);
+			});
+		}
+
 		function populateInputs(s) {
 			colorInputs.forEach(function (inp) {
 				inp.value = s[inp.dataset.key] || DEFAULTS[inp.dataset.key] || '#000000';
 			});
+			updateThemeCards(s.theme || 'dark');
 		}
 
 		function openSettings() {
@@ -3631,9 +3666,12 @@
 
 		if (resetBtn) {
 			resetBtn.addEventListener('click', function () {
-				saveSettings(Object.assign({}, DEFAULTS));
-				applyCSSVars(DEFAULTS);
-				populateInputs(DEFAULTS);
+				const s = Object.assign({}, DEFAULTS);
+				saveSettings(s);
+				applyCSSVars(s);
+				applyChartBg(s);
+				populateInputs(s);
+				if (window.updateChartColors) window.updateChartColors();
 			});
 		}
 
@@ -3647,8 +3685,6 @@
 		document.addEventListener('keydown', function (e) {
 			if (e.key === 'Escape' && modal && modal.style.display === 'flex') closeSettings();
 		});
-
-		// Chart bg inputs also handled by existing colorInputs loop above
 
 		// Expose so chart code can read current zone colors
 		window.getSakeSettings = loadSettings;
