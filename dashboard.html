@@ -108,6 +108,26 @@
 					<span class="zone-temp-legend__item zone-temp-cold">Too cold</span>
 				</div>
 
+				<!-- Humidity + Weight quick-view cards (like zone buttons) -->
+				<div class="env-weight-stats">
+					<div class="ew-stat-card ew-stat-card--humidity">
+						<span class="ew-stat-card__label">Humidity</span>
+						<div class="ew-stat-card__value-row">
+							<span class="ew-stat-card__value" id="ew-humidity-val">—</span>
+							<span class="ew-stat-card__unit">%</span>
+						</div>
+						<span class="ew-stat-card__sub" id="ew-wetbulb-val">WB —°C</span>
+					</div>
+					<div class="ew-stat-card ew-stat-card--weight">
+						<span class="ew-stat-card__label">Weight</span>
+						<div class="ew-stat-card__value-row">
+							<span class="ew-stat-card__value" id="ew-weight-val">—</span>
+							<span class="ew-stat-card__unit">lbs</span>
+						</div>
+						<span class="ew-stat-card__sub" id="ew-weight-loss-val">Loss —%</span>
+					</div>
+				</div>
+
 				<!-- Zone detail modal (opens when a zone button is clicked) -->
 					<div id="zone-detail-card" class="modal-overlay zone-modal-overlay" role="dialog" aria-modal="true" aria-label="Zone detail" hidden>
 					<div class="modal-popup zone-modal-popup">
@@ -1721,6 +1741,24 @@
 						humChart.update('none');
 						fansChart.update('none');
 						weightChart.update('none');
+
+						// Update env/weight quick-view stat cards
+						(function () {
+							var hEl = document.getElementById('ew-humidity-val');
+							var wbEl = document.getElementById('ew-wetbulb-val');
+							var wtEl = document.getElementById('ew-weight-val');
+							var wlEl = document.getElementById('ew-weight-loss-val');
+							if (hEl) hEl.textContent = (!isNaN(humVal) && humVal != null) ? humVal.toFixed(1) : '—';
+							if (wbEl) {
+								var wb = wetBulbData.length ? wetBulbData[wetBulbData.length - 1] : null;
+								wbEl.textContent = wb != null ? 'WB ' + wb.toFixed(1) + '°C' : 'WB —';
+							}
+							if (wtEl) wtEl.textContent = (wRaw != null && !isNaN(wRaw)) ? wRaw.toFixed(2) : '—';
+							if (wlEl) {
+								var loss = document.getElementById('wt-loss-pct');
+								wlEl.textContent = (loss && loss.textContent && loss.textContent !== '—') ? 'Loss ' + loss.textContent : 'Loss —';
+							}
+						})();
 
 						// Share latest sample for zone pages (live updates)
 						try {
