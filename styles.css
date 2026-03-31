@@ -2468,3 +2468,52 @@ header h1, .header-title, .page-title { color: #ffffff; }
 
 /* ── .card utility (zone pages) ─────────────────────────────────────────────── */
 .card { background: #181818; border-color: rgba(255,255,255,0.07); color: #e0e0e0; }
+
+/* ── Chart card sizing fixes ─────────────────────────────────────────────────
+   Three problems fixed here:
+   1. .left had height: var(--notes-height) = 434px, forcing 4 cards to share
+      that space via flex-shrink → each collapsed to ~96px.
+   2. .long--top-left { padding: 16px } (our dark override) overrides the 8px
+      padding that chart cards set, squishing content further.
+   3. .env-chart-live-wrap relied on flex:1 with no explicit px height — Chart.js
+      reads 0 at init time, sets canvas attributes tiny → blurry/blown-out image.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/* Allow the charts column to grow beyond the notes-box height cap */
+.layout--home .left { height: auto; min-height: var(--notes-height); }
+
+/* Restore correct padding on chart cards — overrides the .long--top-left: 16px
+   set above (same specificity, later declaration wins) */
+.home-temp-chart-card,
+.home-fans-chart-card,
+.home-humidity-chart-card { padding: 10px; }
+
+/* Temp chart: give it a comfortable explicit height */
+.home-temp-chart-card               { height: 280px; }
+
+/* Fans chart: slightly shorter than temp */
+.home-temp-chart-card.home-fans-chart-card { height: 200px; }
+
+/* Env + weight charts: 220px each */
+.home-humidity-chart-card           { height: 220px; }
+
+/* Fix env / weight canvas resolution:
+   Give the live-wrap a concrete pixel floor so Chart.js can read it at init.
+   flex:1 1 0 + explicit min-height means the flex item fills available space
+   AND never collapses to 0 when Chart.js samples it. */
+.env-chart-live-wrap {
+    flex: 1 1 0;
+    min-height: 150px;
+    position: relative;
+}
+
+/* Ensure chart canvases fill their live-wrap absolutely (reinforces existing
+   rules with higher specificity to beat the blanket ".long canvas" 220px rule) */
+.home-temp-chart-card .metric-chart,
+.home-fans-chart-card .metric-chart,
+.env-chart-live-wrap  .metric-chart {
+    position: absolute !important;
+    inset: 0 !important;
+    width:  100% !important;
+    height: 100% !important;
+}
