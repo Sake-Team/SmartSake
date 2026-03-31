@@ -2415,6 +2415,23 @@ body {
 	gap: 8px;
 }
 
+.wt-zero-btn {
+	margin-left: auto;
+	padding: 0.2rem 0.65rem;
+	font-size: 0.75rem;
+	font-weight: 600;
+	background: transparent;
+	border: 1px solid #444;
+	border-radius: 4px;
+	color: #999;
+	cursor: pointer;
+	transition: border-color 0.12s, color 0.12s;
+}
+.wt-zero-btn:hover {
+	border-color: #52a0e0;
+	color: #82c0f0;
+}
+
 .weight-stats-row {
 	display: flex;
 	flex-wrap: wrap;
@@ -2716,8 +2733,8 @@ header h1, .header-title, .page-title { color: #ffffff; }
 html, body { height: 100%; overflow: hidden; }
 .page-wrapper { display: flex !important; flex-direction: column !important; height: 100% !important; overflow: hidden !important; }
 main { flex: 1 1 0 !important; overflow: hidden !important; min-height: 0 !important; }
-.stage { height: 100% !important; overflow: hidden !important; }
-.layout.layout--home { height: 100% !important; overflow: hidden !important; }
+.stage { display: block !important; width: 100% !important; height: 100% !important; overflow: hidden !important; }
+.layout.layout--home { width: 100% !important; height: 100% !important; overflow: hidden !important; }
 
 /* ══════════════════════════════════════════════════════════════════════════════
    COMPACT HEADER + 2×2 CHART GRID LAYOUT
