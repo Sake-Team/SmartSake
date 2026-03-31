@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SmartSake — Room History</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    :root {
+      --rh-bg: #0d0d0d;
+      --rh-surface: #161616;
+      --rh-border: #252525;
+      --rh-text: #d8d8d8;
+      --rh-muted: #666;
+      --rh-accent: #52a0e0;
+      --z1: #e05252; --z2: #52a0e0; --z3: #52e07c;
+      --z4: #e0c952; --z5: #c052e0; --z6: #e09052;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--rh-bg);
+      color: var(--rh-text);
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 14px;
+    }
+
+    /* ── Header ── */
+    .rh-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--rh-surface);
+      border-bottom: 1px solid var(--rh-border);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.6rem 1.2rem;
+      flex-wrap: wrap;
+    }
+
+    .rh-header-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      text-decoration: none;
+      color: var(--rh-text);
+      flex-shrink: 0;
+    }
+
+    .rh-header-brand img { height: 36px; width: auto; }
+    .rh-header-brand h1 { font-size: 1.05rem; font-weight: 700; white-space: nowrap; }
+
+    .rh-range-group {
+      display: flex;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+
+    .rh-range-btn {
+      background: transparent;
+      border: none;
+      border-radius: 5px;
+      color: #999;
+      cursor: pointer;
+      font-size: 0.82rem;
+      padding: 0.3rem 0.65rem;
+      white-space: nowrap;
+      transition: background 0.15s, color 0.15s;
+    }
+    .rh-range-btn:hover { background: rgba(255,255,255,0.07); color: #ccc; }
+    .rh-range-btn.active {
+      background: rgba(82,160,224,0.22);
+      color: #82c0f0;
+    }
+
+    .rh-header-right {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+
+    .rh-clock {
+      font-size: 0.88rem;
+      color: var(--rh-muted);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .rh-nav-btn {
+      display: inline-block;
+      padding: 0.3rem 0.75rem;
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-radius: 5px;
+      color: #bbb;
+      text-decoration: none;
+      font-size: 0.82rem;
+      transition: background 0.15s;
+    }
+    .rh-nav-btn:hover { background: #2a2a2a; color: #ddd; }
+
+    .rh-refresh-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #3a8a3a;
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .rh-refresh-dot.pulsing { background: #7fff7f; }
+
+    /* ── Active run banner ── */
+    .rh-run-banner {
+      background: #0e1f0e;
+      border-bottom: 1px solid #1e3e1e;
+      padding: 0.4rem 1.2rem;
+      font-size: 0.82rem;
+      color: #7fff7f;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .rh-run-banner a {
+      color: #aaffaa;
+      text-decoration: none;
+      font-weight: 600;
+      margin-left: auto;
+      padding: 0.2rem 0.6rem;
+      border: 1px solid #2a6a2a;
+      border-radius: 4px;
+    }
+    .rh-run-banner a:hover { background: #1a4a1a; }
+
+    /* ── Live sensor strip ── */
+    .rh-live-strip {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.55rem 1.2rem;
+      background: var(--rh-surface);
+      border-bottom: 1px solid var(--rh-border);
+      flex-wrap: wrap;
+      overflow-x: auto;
+    }
+
+    .rh-zone-chip {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: #1a1a1a;
+      border: 1px solid #2e2e2e;
+      border-radius: 6px;
+      padding: 0.3rem 0.6rem;
+      min-width: 58px;
+    }
+    .rh-zone-chip__label {
+      font-size: 0.68rem;
+      color: var(--rh-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .rh-zone-chip__val {
+      font-size: 1.05rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .rh-live-divider {
+      width: 1px; height: 32px;
+      background: #2a2a2a;
+      flex-shrink: 0;
+    }
+
+    .rh-env-block, .rh-weight-block {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+      padding: 0 0.5rem;
+    }
+    .rh-env-block__main, .rh-weight-block__main {
+      font-size: 1.05rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .rh-env-block__sub, .rh-weight-block__sub {
+      font-size: 0.72rem;
+      color: var(--rh-muted);
+    }
+
+    .rh-live-label {
+      font-size: 0.7rem;
+      color: var(--rh-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* ── Charts container ── */
+    .rh-charts {
+      padding: 1rem 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .rh-chart-card {
+      background: var(--rh-surface);
+      border: 1px solid var(--rh-border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem 0.85rem;
+    }
+
+    .rh-chart-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .rh-chart-title {
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #888;
+    }
+
+    .rh-chart-legend {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .rh-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.75rem;
+      color: #aaa;
+    }
+    .rh-legend-swatch {
+      width: 18px; height: 2px;
+      border-radius: 1px;
+      flex-shrink: 0;
+    }
+
+    .rh-chart-wrap {
+      position: relative;
+    }
+    .rh-chart-wrap--temp  { height: 280px; }
+    .rh-chart-wrap--env   { height: 220px; }
+    .rh-chart-wrap--weight { height: 180px; }
+
+    .rh-chart-wrap canvas {
+      position: absolute;
+      inset: 0;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* ── Empty / loading state ── */
+    .rh-empty {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--rh-muted);
+      font-size: 0.9rem;
+    }
+
+    /* ── Footer ── */
+    .rh-footer {
+      padding: 0.6rem 1.2rem;
+      font-size: 0.75rem;
+      color: var(--rh-muted);
+      text-align: right;
+      border-top: 1px solid var(--rh-border);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="rh-header">
+    <a href="/" class="rh-header-brand">
+      <img src="images/VoidSakeLogo.jpg" alt="SmartSake logo">
+      <h1>Room History</h1>
+    </a>
+
+    <div class="rh-range-group" id="rh-range-group" role="group" aria-label="Time range">
+      <button class="rh-range-btn" data-hours="6">6h</button>
+      <button class="rh-range-btn" data-hours="12">12h</button>
+      <button class="rh-range-btn active" data-hours="24">1d</button>
+      <button class="rh-range-btn" data-hours="72">3d</button>
+      <button class="rh-range-btn" data-hours="120">5d</button>
+      <button class="rh-range-btn" data-hours="168">7d</button>
+    </div>
+
+    <div class="rh-header-right">
+      <div class="rh-refresh-dot" id="rh-refresh-dot" title="Auto-refreshes every 60s"></div>
+      <span class="rh-clock" id="rh-clock"></span>
+      <a href="/dashboard.html" class="rh-nav-btn" id="rh-dashboard-link" style="display:none">Live Run</a>
+      <a href="/" class="rh-nav-btn">Home</a>
+    </div>
+  </header>
+
+  <!-- Active run banner -->
+  <div class="rh-run-banner" id="rh-run-banner" style="display:none">
+    <span id="rh-run-text"></span>
+    <a href="#" id="rh-run-link">Open Dashboard &rarr;</a>
+  </div>
+
+  <!-- Live sensor strip -->
+  <div class="rh-live-strip" id="rh-live-strip">
+    <span class="rh-live-label">Live</span>
+    <div class="rh-zone-chip" id="rh-z1"><span class="rh-zone-chip__label">Z1</span><span class="rh-zone-chip__val" style="color:var(--z1)">--</span></div>
+    <div class="rh-zone-chip" id="rh-z2"><span class="rh-zone-chip__label">Z2</span><span class="rh-zone-chip__val" style="color:var(--z2)">--</span></div>
+    <div class="rh-zone-chip" id="rh-z3"><span class="rh-zone-chip__label">Z3</span><span class="rh-zone-chip__val" style="color:var(--z3)">--</span></div>
+    <div class="rh-zone-chip" id="rh-z4"><span class="rh-zone-chip__label">Z4</span><span class="rh-zone-chip__val" style="color:var(--z4)">--</span></div>
+    <div class="rh-zone-chip" id="rh-z5"><span class="rh-zone-chip__label">Z5</span><span class="rh-zone-chip__val" style="color:var(--z5)">--</span></div>
+    <div class="rh-zone-chip" id="rh-z6"><span class="rh-zone-chip__label">Z6</span><span class="rh-zone-chip__val" style="color:var(--z6)">--</span></div>
+    <div class="rh-live-divider"></div>
+    <div class="rh-env-block">
+      <span class="rh-live-label">Humidity</span>
+      <span class="rh-env-block__main" id="rh-hum-val">--%</span>
+      <span class="rh-env-block__sub" id="rh-wb-val">WB —°C</span>
+    </div>
+    <div class="rh-live-divider"></div>
+    <div class="rh-weight-block">
+      <span class="rh-live-label">Weight</span>
+      <span class="rh-weight-block__main" id="rh-wt-val">-- lbs</span>
+      <span class="rh-weight-block__sub" id="rh-wt-loss-val">Loss —%</span>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="rh-charts">
+
+    <!-- Temperature -->
+    <div class="rh-chart-card">
+      <div class="rh-chart-header">
+        <span class="rh-chart-title">Temperature</span>
+        <div class="rh-chart-legend" id="rh-temp-legend"></div>
+      </div>
+      <div class="rh-chart-wrap rh-chart-wrap--temp">
+        <canvas id="rh-temp-canvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Environment -->
+    <div class="rh-chart-card">
+      <div class="rh-chart-header">
+        <span class="rh-chart-title">Environment</span>
+        <div class="rh-chart-legend">
+          <span class="rh-legend-item"><span class="rh-legend-swatch" style="background:#f0a040"></span>Dry Bulb °C</span>
+          <span class="rh-legend-item"><span class="rh-legend-swatch" style="background:#40c0d0"></span>Wet Bulb °C</span>
+          <span class="rh-legend-item"><span class="rh-legend-swatch" style="background:#7070e0;height:1px;border-top:1px dashed #7070e0"></span>Humidity %</span>
+        </div>
+      </div>
+      <div class="rh-chart-wrap rh-chart-wrap--env">
+        <canvas id="rh-env-canvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Weight -->
+    <div class="rh-chart-card">
+      <div class="rh-chart-header">
+        <span class="rh-chart-title">Weight</span>
+      </div>
+      <div class="rh-chart-wrap rh-chart-wrap--weight">
+        <canvas id="rh-weight-canvas"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <footer class="rh-footer">
+    <span id="rh-last-updated">—</span>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+  (function () {
+    'use strict';
+
+    // ── Zone colors ────────────────────────────────────────────────────────────
+    var ZONE_COLORS = ['#e05252','#52a0e0','#52e07c','#e0c952','#c052e0','#e09052'];
+    var ENV_DRY  = '#f0a040';
+    var ENV_WET  = '#40c0d0';
+    var ENV_HUM  = '#7070e0';
+    var WT_COLOR = '#52e0a0';
+
+    // ── State ──────────────────────────────────────────────────────────────────
+    var activeHours  = 24;
+    var tempChart    = null;
+    var envChart     = null;
+    var weightChart  = null;
+    var activeRunId  = null;
+    var initialWeight = null;
+
+    // ── Clock ──────────────────────────────────────────────────────────────────
+    var clockEl = document.getElementById('rh-clock');
+    function updateClock() {
+      var d = new Date();
+      clockEl.textContent =
+        d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + '  ' +
+        d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    }
+    updateClock();
+    setInterval(updateClock, 10000);
+
+    // ── Wet bulb (psychrometric Newton-Raphson, matches dashboard) ─────────────
+    function calcWetBulb(T, RH) {
+      if (T == null || RH == null || isNaN(T) || isNaN(RH) || RH <= 0 || RH > 100) return null;
+      function es(t) { return 6.1078 * Math.exp(17.27 * t / (t + 237.3)); }
+      var ea = es(T) * RH / 100;
+      var P  = 1013.25;
+      var A  = 6.6e-4;
+      var lnr = Math.log(ea / 6.1078);
+      var Td  = 237.3 * lnr / (17.27 - lnr);
+      var wb  = (T + Td) / 2;
+      for (var i = 0; i < 12; i++) {
+        var esw = es(wb);
+        var f   = esw - A * P * (T - wb) - ea;
+        var df  = 17.27 * 237.3 / Math.pow(wb + 237.3, 2) * esw + A * P;
+        wb -= f / df;
+        if (Math.abs(f / df) < 1e-6) break;
+      }
+      return Math.round(wb * 2) / 2;
+    }
+
+    // ── Label formatter ────────────────────────────────────────────────────────
+    function fmtLabel(isoStr, hours) {
+      var d = new Date(isoStr);
+      if (hours <= 24) {
+        return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+      }
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' +
+             d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // ── Process API readings into chart arrays ─────────────────────────────────
+    function processReadings(readings, hours) {
+      var labels  = [];
+      var zones   = [[], [], [], [], [], []];
+      var humidity= [], shtTemp = [], wetBulb = [], weight = [];
+
+      readings.forEach(function (r) {
+        labels.push(fmtLabel(r.recorded_at, hours));
+        for (var z = 0; z < 6; z++) {
+          var v = r['tc' + (z + 1)];
+          zones[z].push(v != null ? v : null);
+        }
+        var hv = r.humidity   != null ? parseFloat(r.humidity)   : null;
+        var tv = r.sht_temp   != null ? parseFloat(r.sht_temp)   : null;
+        var wv = r.weight_lbs != null ? parseFloat(r.weight_lbs) : null;
+        humidity.push(isNaN(hv) ? null : hv);
+        shtTemp.push(isNaN(tv)  ? null : tv);
+        wetBulb.push(calcWetBulb(isNaN(tv) ? null : tv, isNaN(hv) ? null : hv));
+        weight.push(isNaN(wv)   ? null : wv);
+      });
+
+      return { labels, zones, humidity, shtTemp, wetBulb, weight };
+    }
+
+    // ── Chart defaults ─────────────────────────────────────────────────────────
+    Chart.defaults.color = '#666';
+    Chart.defaults.borderColor = '#252525';
+
+    var COMMON_OPTS = {
+      responsive: false,
+      animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1a1a',
+          borderColor: '#333',
+          borderWidth: 1,
+          titleColor: '#aaa',
+          bodyColor: '#ccc',
+          padding: 8
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: '#555',
+            maxTicksLimit: 8,
+            maxRotation: 0,
+            font: { size: 10 }
+          },
+          grid: { color: '#1e1e1e' }
+        }
+      }
+    };
+
+    function mergeOpts(extra) {
+      return Object.assign({}, COMMON_OPTS, extra,
+        { plugins: Object.assign({}, COMMON_OPTS.plugins, extra.plugins || {}),
+          scales: Object.assign({}, COMMON_OPTS.scales, extra.scales || {}) });
+    }
+
+    // ── Build temp legend ──────────────────────────────────────────────────────
+    function buildTempLegend() {
+      var el = document.getElementById('rh-temp-legend');
+      el.innerHTML = '';
+      for (var z = 0; z < 6; z++) {
+        var item = document.createElement('span');
+        item.className = 'rh-legend-item';
+        item.innerHTML =
+          '<span class="rh-legend-swatch" style="background:' + ZONE_COLORS[z] + '"></span>' +
+          'Zone ' + (z + 1);
+        el.appendChild(item);
+      }
+    }
+
+    // ── Create / update charts ─────────────────────────────────────────────────
+    function buildCharts(data) {
+      var tempCtx   = document.getElementById('rh-temp-canvas').getContext('2d');
+      var envCtx    = document.getElementById('rh-env-canvas').getContext('2d');
+      var weightCtx = document.getElementById('rh-weight-canvas').getContext('2d');
+
+      // Temperature chart
+      var tempDatasets = data.zones.map(function (arr, i) {
+        return {
+          label: 'Zone ' + (i + 1),
+          data: arr,
+          borderColor: ZONE_COLORS[i],
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.3
+        };
+      });
+
+      if (tempChart) { tempChart.destroy(); }
+      tempChart = new Chart(tempCtx, {
+        type: 'line',
+        data: { labels: data.labels, datasets: tempDatasets },
+        options: mergeOpts({
+          scales: {
+            x: COMMON_OPTS.scales.x,
+            y: {
+              ticks: { color: '#555', font: { size: 10 } },
+              grid: { color: '#1e1e1e' },
+              title: { display: true, text: '°C', color: '#555', font: { size: 10 } }
+            }
+          }
+        })
+      });
+
+      // Environment chart (dual Y-axis)
+      if (envChart) { envChart.destroy(); }
+      envChart = new Chart(envCtx, {
+        type: 'line',
+        data: {
+          labels: data.labels,
+          datasets: [
+            { label: 'Dry Bulb (°C)', data: data.shtTemp, yAxisID: 'yTemp',
+              borderColor: ENV_DRY, backgroundColor: 'transparent',
+              borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+            { label: 'Wet Bulb (°C)', data: data.wetBulb, yAxisID: 'yTemp',
+              borderColor: ENV_WET, backgroundColor: 'transparent',
+              borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+            { label: 'Humidity (%)', data: data.humidity, yAxisID: 'yHum',
+              borderColor: ENV_HUM, backgroundColor: 'transparent',
+              borderWidth: 1, pointRadius: 0, tension: 0.3,
+              borderDash: [4, 3] }
+          ]
+        },
+        options: mergeOpts({
+          scales: {
+            x: COMMON_OPTS.scales.x,
+            yTemp: {
+              type: 'linear', position: 'left',
+              ticks: { color: '#555', font: { size: 10 } },
+              grid: { color: '#1e1e1e' },
+              title: { display: true, text: '°C', color: '#555', font: { size: 10 } }
+            },
+            yHum: {
+              type: 'linear', position: 'right',
+              min: 0, max: 100,
+              ticks: { color: '#555', font: { size: 10 } },
+              grid: { drawOnChartArea: false },
+              title: { display: true, text: '%', color: '#555', font: { size: 10 } }
+            }
+          }
+        })
+      });
+
+      // Weight chart
+      if (weightChart) { weightChart.destroy(); }
+      weightChart = new Chart(weightCtx, {
+        type: 'line',
+        data: {
+          labels: data.labels,
+          datasets: [{
+            label: 'Weight (lbs)',
+            data: data.weight,
+            borderColor: WT_COLOR,
+            backgroundColor: WT_COLOR + '18',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            tension: 0.3,
+            fill: true
+          }]
+        },
+        options: mergeOpts({
+          scales: {
+            x: COMMON_OPTS.scales.x,
+            y: {
+              ticks: { color: '#555', font: { size: 10 } },
+              grid: { color: '#1e1e1e' },
+              title: { display: true, text: 'lbs', color: '#555', font: { size: 10 } }
+            }
+          }
+        })
+      });
+    }
+
+    // ── Fetch + render history ─────────────────────────────────────────────────
+    var refreshDot = document.getElementById('rh-refresh-dot');
+
+    function pulseRefreshDot() {
+      refreshDot.classList.add('pulsing');
+      setTimeout(function () { refreshDot.classList.remove('pulsing'); }, 800);
+    }
+
+    async function loadHistory() {
+      try {
+        var res  = await fetch('/api/room-history?hours=' + activeHours);
+        var rows = await res.json();
+        if (!Array.isArray(rows) || rows.length === 0) {
+          // Show empty state on charts but don't crash
+          document.getElementById('rh-last-updated').textContent =
+            'No data for this period — ' + new Date().toLocaleTimeString();
+          return;
+        }
+        var data = processReadings(rows, activeHours);
+        buildCharts(data);
+        document.getElementById('rh-last-updated').textContent =
+          'Updated ' + new Date().toLocaleTimeString();
+        pulseRefreshDot();
+      } catch (err) {
+        console.error('Room history fetch failed:', err);
+      }
+    }
+
+    // ── Fetch live sensor values ───────────────────────────────────────────────
+    async function loadLive() {
+      try {
+        var res  = await fetch('/api/latest');
+        var data = await res.json();
+
+        for (var z = 1; z <= 6; z++) {
+          var v = data['tc' + z];
+          var chip = document.getElementById('rh-z' + z);
+          if (chip) {
+            chip.querySelector('.rh-zone-chip__val').textContent =
+              (v != null ? v.toFixed(1) : '--') + '°';
+          }
+        }
+
+        var hv = data.humidity != null ? parseFloat(data.humidity) : null;
+        var tv = data.sht_temp != null ? parseFloat(data.sht_temp) : null;
+        var wv = data.weight_lbs != null ? parseFloat(data.weight_lbs) : null;
+
+        var humEl  = document.getElementById('rh-hum-val');
+        var wbEl   = document.getElementById('rh-wb-val');
+        var wtEl   = document.getElementById('rh-wt-val');
+        var wlEl   = document.getElementById('rh-wt-loss-val');
+
+        if (humEl) humEl.textContent = (hv != null && !isNaN(hv)) ? hv.toFixed(1) + '%' : '--%';
+        var wb = calcWetBulb(tv, hv);
+        if (wbEl) wbEl.textContent = wb != null ? 'WB ' + wb.toFixed(1) + '°C' : 'WB —°C';
+
+        if (wtEl) wtEl.textContent = (wv != null && !isNaN(wv)) ? wv.toFixed(2) + ' lbs' : '-- lbs';
+        if (wlEl) {
+          if (initialWeight != null && wv != null && !isNaN(wv) && initialWeight > 0) {
+            var pct = ((initialWeight - wv) / initialWeight * 100).toFixed(1);
+            wlEl.textContent = 'Loss ' + pct + '%';
+          } else {
+            wlEl.textContent = 'Loss —%';
+          }
+        }
+      } catch (err) {
+        // non-fatal — sensors may not be available
+      }
+    }
+
+    // ── Active run banner ──────────────────────────────────────────────────────
+    async function loadActiveRun() {
+      try {
+        var res = await fetch('/api/runs/active');
+        if (!res.ok) {
+          document.getElementById('rh-run-banner').style.display = 'none';
+          document.getElementById('rh-dashboard-link').style.display = 'none';
+          return;
+        }
+        var run = await res.json();
+        activeRunId = run.id;
+
+        // Get initial weight from first reading for loss calc
+        try {
+          var rRes = await fetch('/api/runs/' + run.id + '/readings?n=1');
+          var rData = await rRes.json();
+          if (Array.isArray(rData) && rData.length && rData[0].weight_lbs != null) {
+            initialWeight = parseFloat(rData[0].weight_lbs);
+          }
+        } catch (_) {}
+
+        var banner  = document.getElementById('rh-run-banner');
+        var runText = document.getElementById('rh-run-text');
+        var runLink = document.getElementById('rh-run-link');
+        var dashLink = document.getElementById('rh-dashboard-link');
+
+        var started = new Date(run.started_at);
+        var mins    = Math.round((Date.now() - started) / 60000);
+        var dur     = mins < 60 ? mins + 'm' : Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm';
+
+        runText.textContent = 'Active run: ' + run.name + ' — ' + dur + ' elapsed';
+        runLink.href = 'dashboard.html?run=' + run.id + '&mode=live';
+        dashLink.href = 'dashboard.html?run=' + run.id + '&mode=live';
+        dashLink.style.display = '';
+        banner.style.display = '';
+      } catch (_) {
+        document.getElementById('rh-run-banner').style.display = 'none';
+      }
+    }
+
+    // ── Range buttons ──────────────────────────────────────────────────────────
+    var rangeBtns = document.querySelectorAll('#rh-range-group .rh-range-btn');
+    rangeBtns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        rangeBtns.forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        activeHours = parseFloat(btn.dataset.hours);
+        loadHistory();
+      });
+    });
+
+    // ── Auto-refresh ───────────────────────────────────────────────────────────
+    setInterval(loadHistory, 60 * 1000);  // charts: every 60s
+    setInterval(loadLive,    5  * 1000);  // live strip: every 5s
+    setInterval(loadActiveRun, 30 * 1000); // run banner: every 30s
+
+    // ── Initial load ───────────────────────────────────────────────────────────
+    buildTempLegend();
+    loadActiveRun();
+    loadLive();
+    loadHistory();
+
+  })();
+  </script>
+</body>
+</html>

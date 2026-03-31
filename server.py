@@ -572,6 +572,16 @@ def api_humidity_targets(run_id):
                     "humidity_target_max": run.get("humidity_target_max")})
 
 
+# ── Room history ──────────────────────────────────────────────────────────────
+
+@app.route("/api/room-history")
+def api_room_history():
+    hours = request.args.get('hours', type=float, default=24.0)
+    if hours <= 0 or hours > 24 * 7:
+        return jsonify({"error": "hours must be between 0 and 168"}), 400
+    return jsonify(db.get_room_history(hours))
+
+
 # ── CSV export ────────────────────────────────────────────────────────────────
 
 @app.route("/api/runs/<int:run_id>/export.csv")
