@@ -17,21 +17,21 @@
 <body>
 	<div id="replay-banner" class="replay-banner" style="display:none"></div>
 	<div class="page-wrapper">
-		   <header class="header">
-			   <div class="header-inner">
-				   <img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" id="sake-logo-egg" class="sake-logo-egg" />
-				   <h1 class="header-title">Home <span id="run-name-display" class="run-name-header"></span></h1>
-				   <button id="settings-btn" class="settings-btn" type="button" aria-label="Open settings" title="Settings">&#9881;</button>
-			   </div>
-		   </header>
-
-		   <div class="run-box">
-			   <button id="start-run-btn" class="start-run-btn">Start Run</button>
-		   </div>
+		<header class="header">
+			<div class="header-inner">
+				<img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" id="sake-logo-egg" class="sake-logo-egg" />
+				<h1 class="header-title">Home <span id="run-name-display" class="run-name-header"></span></h1>
+				<button id="settings-btn" class="settings-btn" type="button" aria-label="Open settings" title="Settings">&#9881;</button>
+			</div>
+			<div class="header-right">
+				<div class="notes__meta" id="notes-meta" aria-live="polite"></div>
+				<button id="set-temp-btn" class="set-temp-btn" type="button">Set temp</button>
+				<button id="start-run-btn" class="start-run-btn">Start Run</button>
+			</div>
+		</header>
 
 		<main>
-			<main>
-				<div class="stage">
+			<div class="stage">
 					<section class="layout layout--home">
 
 						<section class="zones-combined">
@@ -144,9 +144,6 @@
 						</div>
 
 						<div class="left">
-							<button id="set-temp-btn" class="set-temp-btn" type="button">Set temp</button>
-							<div class="notes__meta" id="notes-meta" aria-live="polite">Date,
-								Time</div>
 							<div class="long long--top-left home-temp-chart-card">
 								<div class="temp-chart-header-row">
 									<span class="temp-chart-title-left chart-title--single-line">Temperature over time</span>
@@ -198,6 +195,8 @@
 
 
 				</div>
+					</section><!-- /.layout--home -->
+				</div><!-- /.stage -->
 			</main>
 
 			<!-- Settings modal -->
