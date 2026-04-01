@@ -625,7 +625,7 @@
           })
         },
         options: {
-          responsive: false, animation: false,
+          responsive: true, maintainAspectRatio: false, animation: false,
           interaction: { mode: 'index', intersect: false },
           plugins: BASE_PLUGINS,
           scales: {
@@ -657,7 +657,7 @@
           ]
         },
         options: {
-          responsive: false, animation: false,
+          responsive: true, maintainAspectRatio: false, animation: false,
           interaction: { mode: 'index', intersect: false },
           plugins: BASE_PLUGINS,
           scales: {
@@ -693,7 +693,7 @@
           }]
         },
         options: {
-          responsive: false, animation: false,
+          responsive: true, maintainAspectRatio: false, animation: false,
           interaction: { mode: 'index', intersect: false },
           plugins: BASE_PLUGINS,
           scales: {
@@ -714,7 +714,8 @@
 
         var tc = [1,2,3,4,5,6].map(function (z) {
           var v = data['tc' + z];
-          return (v != null && !isNaN(v)) ? parseFloat(v) : null;
+          if (v == null || isNaN(v)) return null;
+          return Math.round(parseFloat(v) * 2) / 2;
         });
         var hum = (data.humidity  != null) ? parseFloat(data.humidity)  : null;
         var sht = (data.sht_temp  != null) ? parseFloat(data.sht_temp)  : null;
