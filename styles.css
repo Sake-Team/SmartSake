@@ -2074,30 +2074,6 @@ header {
 	color: #888;
 }
 
-.settings-colors-grid {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-	gap: 0.5rem;
-}
-
-.settings-color-row {
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	font-size: 0.85rem;
-	color: var(--theme-text, #ccc);
-	cursor: pointer;
-}
-
-.settings-color-input {
-	width: 36px;
-	height: 28px;
-	border: 1px solid var(--theme-border, #444);
-	border-radius: 4px;
-	cursor: pointer;
-	padding: 1px;
-	background: none;
-}
 
 /* Zone detail as modal overlay */
 .zone-modal-overlay {

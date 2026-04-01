@@ -241,19 +241,7 @@
 							<p class="settings-curve-hint" id="settings-curve-status"></p>
 						</section>
 
-						<section class="settings-section">
-							<h4 class="settings-section__title">Zone chart colors</h4>
-							<div class="settings-colors-grid">
-								<label class="settings-color-row"><span>Zone 1</span><input type="color" class="settings-color-input" data-key="zoneColor1" value="#e05252"></label>
-								<label class="settings-color-row"><span>Zone 2</span><input type="color" class="settings-color-input" data-key="zoneColor2" value="#52a0e0"></label>
-								<label class="settings-color-row"><span>Zone 3</span><input type="color" class="settings-color-input" data-key="zoneColor3" value="#52e07c"></label>
-								<label class="settings-color-row"><span>Zone 4</span><input type="color" class="settings-color-input" data-key="zoneColor4" value="#e0c952"></label>
-								<label class="settings-color-row"><span>Zone 5</span><input type="color" class="settings-color-input" data-key="zoneColor5" value="#c052e0"></label>
-								<label class="settings-color-row"><span>Zone 6</span><input type="color" class="settings-color-input" data-key="zoneColor6" value="#e09052"></label>
-							</div>
-						</section>
-
-						<section class="settings-section">
+<section class="settings-section">
 							<h4 class="settings-section__title">Theme</h4>
 							<div class="theme-picker" id="theme-picker"></div>
 						</section>
@@ -3677,8 +3665,6 @@
 
 		const DEFAULTS = {
 			theme: 'dark',
-			zoneColor1: '#e05252', zoneColor2: '#52a0e0', zoneColor3: '#52e07c',
-			zoneColor4: '#e0c952', zoneColor5: '#c052e0', zoneColor6: '#e09052',
 			themeBg: '#111111', themeSurface: '#181818', themeBorder: '#2e2e2e',
 			themeText: '#dddddd', themeAccent: '#52a0e0', themeGrid: '#2a2a2a',
 			chartBgTemp: '#181818', chartBgEnv: '#181818', chartBgFans: '#181818', chartBgWeight: '#181818'
@@ -3696,12 +3682,12 @@
 
 		function applyCSSVars(s) {
 			const root = document.documentElement;
-			root.style.setProperty('--zone-color-1', s.zoneColor1);
-			root.style.setProperty('--zone-color-2', s.zoneColor2);
-			root.style.setProperty('--zone-color-3', s.zoneColor3);
-			root.style.setProperty('--zone-color-4', s.zoneColor4);
-			root.style.setProperty('--zone-color-5', s.zoneColor5);
-			root.style.setProperty('--zone-color-6', s.zoneColor6);
+			root.style.setProperty('--zone-color-1', '#e05252');
+			root.style.setProperty('--zone-color-2', '#52a0e0');
+			root.style.setProperty('--zone-color-3', '#52e07c');
+			root.style.setProperty('--zone-color-4', '#e0c952');
+			root.style.setProperty('--zone-color-5', '#c052e0');
+			root.style.setProperty('--zone-color-6', '#e09052');
 			root.style.setProperty('--theme-bg',      s.themeBg);
 			root.style.setProperty('--theme-surface', s.themeSurface);
 			root.style.setProperty('--theme-border',  s.themeBorder);
@@ -3732,7 +3718,6 @@
 		const openBtn   = document.getElementById('settings-btn');
 		const closeBtn  = document.getElementById('settings-modal-close');
 		const resetBtn  = document.getElementById('settings-reset-btn');
-		const colorInputs = document.querySelectorAll('.settings-color-input');
 
 		// ── Theme picker ──────────────────────────────────────────────────────
 		(function () {
@@ -3775,9 +3760,6 @@
 		}
 
 		function populateInputs(s) {
-			colorInputs.forEach(function (inp) {
-				inp.value = s[inp.dataset.key] || DEFAULTS[inp.dataset.key] || '#000000';
-			});
 			updateThemeCards(s.theme || 'dark');
 		}
 
@@ -3791,16 +3773,6 @@
 			if (modal) modal.style.display = 'none';
 		}
 
-		colorInputs.forEach(function (inp) {
-			inp.addEventListener('input', function () {
-				const s = loadSettings();
-				s[inp.dataset.key] = inp.value;
-				saveSettings(s);
-				applyCSSVars(s);
-				applyChartBg(s);
-				if (window.updateChartColors) window.updateChartColors();
-			});
-		});
 
 		if (resetBtn) {
 			resetBtn.addEventListener('click', function () {
