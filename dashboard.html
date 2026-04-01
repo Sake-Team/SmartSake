@@ -1435,12 +1435,12 @@
 						type: 'line',
 						data: {
 							datasets: [
-								{ label: 'Zone 1', data: tempSeriesXY.temp1, borderColor: getZoneColor(1), borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
-								{ label: 'Zone 2', data: tempSeriesXY.temp2, borderColor: getZoneColor(2), borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
-								{ label: 'Zone 3', data: tempSeriesXY.temp3, borderColor: getZoneColor(3), borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
-								{ label: 'Zone 4', data: tempSeriesXY.temp4, borderColor: getZoneColor(4), borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
-								{ label: 'Zone 5', data: tempSeriesXY.temp5, borderColor: getZoneColor(5), borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
-								{ label: 'Zone 6', data: tempSeriesXY.temp6, borderColor: getZoneColor(6), borderWidth: 1.5, pointRadius: 0, tension: 0.3 }
+								{ label: 'Zone 1', data: tempSeriesXY.temp1, borderColor: getZoneColor(1), borderWidth: 2.5, pointRadius: 0, tension: 0.3 },
+								{ label: 'Zone 2', data: tempSeriesXY.temp2, borderColor: getZoneColor(2), borderWidth: 2.5, pointRadius: 0, tension: 0.3 },
+								{ label: 'Zone 3', data: tempSeriesXY.temp3, borderColor: getZoneColor(3), borderWidth: 2.5, pointRadius: 0, tension: 0.3 },
+								{ label: 'Zone 4', data: tempSeriesXY.temp4, borderColor: getZoneColor(4), borderWidth: 2.5, pointRadius: 0, tension: 0.3 },
+								{ label: 'Zone 5', data: tempSeriesXY.temp5, borderColor: getZoneColor(5), borderWidth: 2.5, pointRadius: 0, tension: 0.3 },
+								{ label: 'Zone 6', data: tempSeriesXY.temp6, borderColor: getZoneColor(6), borderWidth: 2.5, pointRadius: 0, tension: 0.3 }
 							]
 						},
 						options: {
@@ -1522,13 +1522,13 @@
 							datasets: [
 								{ label: 'Dry Bulb (°C)', data: shtTempData, yAxisID: 'yTemp',
 								  borderColor: ENV_DRY_COLOR, backgroundColor: ENV_DRY_COLOR + '22',
-								  borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false },
+								  borderWidth: 2.5, pointRadius: 0, tension: 0.3, fill: false },
 								{ label: 'Wet Bulb (°C)', data: wetBulbData, yAxisID: 'yTemp',
 								  borderColor: ENV_WET_COLOR, backgroundColor: ENV_WET_COLOR + '22',
-								  borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false },
+								  borderWidth: 2.5, pointRadius: 0, tension: 0.3, fill: false },
 								{ label: 'Humidity (%)', data: humidityData, yAxisID: 'yHum',
 								  borderColor: ENV_HUM_COLOR, backgroundColor: ENV_HUM_COLOR + '22',
-								  borderWidth: 1, pointRadius: 0, tension: 0.3, fill: false,
+								  borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false,
 								  borderDash: [4, 3] }
 							]
 						},
@@ -1559,12 +1559,12 @@
 						data: {
 							labels,
 							datasets: [
-								{ label: 'Fan 1', data: fansSeries.fan1, borderColor: getZoneColor(1), borderWidth: 1, pointRadius: 0, stepped: true },
-								{ label: 'Fan 2', data: fansSeries.fan2, borderColor: getZoneColor(2), borderWidth: 1, pointRadius: 0, stepped: true },
-								{ label: 'Fan 3', data: fansSeries.fan3, borderColor: getZoneColor(3), borderWidth: 1, pointRadius: 0, stepped: true },
-								{ label: 'Fan 4', data: fansSeries.fan4, borderColor: getZoneColor(4), borderWidth: 1, pointRadius: 0, stepped: true },
-								{ label: 'Fan 5', data: fansSeries.fan5, borderColor: getZoneColor(5), borderWidth: 1, pointRadius: 0, stepped: true },
-								{ label: 'Fan 6', data: fansSeries.fan6, borderColor: getZoneColor(6), borderWidth: 1, pointRadius: 0, stepped: true }
+								{ label: 'Fan 1', data: fansSeries.fan1, borderColor: getZoneColor(1), borderWidth: 2, pointRadius: 0, stepped: true },
+								{ label: 'Fan 2', data: fansSeries.fan2, borderColor: getZoneColor(2), borderWidth: 2, pointRadius: 0, stepped: true },
+								{ label: 'Fan 3', data: fansSeries.fan3, borderColor: getZoneColor(3), borderWidth: 2, pointRadius: 0, stepped: true },
+								{ label: 'Fan 4', data: fansSeries.fan4, borderColor: getZoneColor(4), borderWidth: 2, pointRadius: 0, stepped: true },
+								{ label: 'Fan 5', data: fansSeries.fan5, borderColor: getZoneColor(5), borderWidth: 2, pointRadius: 0, stepped: true },
+								{ label: 'Fan 6', data: fansSeries.fan6, borderColor: getZoneColor(6), borderWidth: 2, pointRadius: 0, stepped: true }
 							]
 						},
 						options: {
@@ -1632,7 +1632,7 @@
 						data: {
 							labels,
 							datasets: [
-								{ label: 'Weight (lbs)', data: weightData, borderWidth: 2, pointRadius: 2,
+								{ label: 'Weight (lbs)', data: weightData, borderWidth: 2.5, pointRadius: 2,
 								  borderColor: 'rgb(75, 192, 192)', backgroundColor: 'rgba(75, 192, 192, 0.15)',
 								  spanGaps: true }
 							]
