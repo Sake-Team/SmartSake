@@ -185,7 +185,6 @@
 								<div class="temp-chart-live-wrap">
 									<canvas id="temp-chart" class="metric-chart"></canvas>
 								</div>
-								<div id="temp-chart-legend" class="temp-chart-legend" aria-label="Temperature legend"></div>
 							</div>
 
 							<div class="long long--top-left home-side-title-chart-card home-humidity-chart-card">
@@ -202,7 +201,6 @@
 								<div class="temp-chart-live-wrap">
 									<canvas id="fans-chart" class="metric-chart"></canvas>
 								</div>
-								<div id="fans-chart-legend" class="temp-chart-legend" aria-label="Fans legend"></div>
 							</div>
 
 						<div class="long long--top-left home-side-title-chart-card home-humidity-chart-card">
@@ -1338,10 +1336,7 @@
 					const shtTempData  = []; // SHT30 dry-bulb (probe)
 					const wetBulbData  = []; // calculated wet-bulb
 					const elapsedLabels = []; // HH:MM:SS from run start
-					const tempLegendContainer = document.getElementById('temp-chart-legend');
-					const fansLegendContainer = document.getElementById('fans-chart-legend');
-
-					const tempSeries = {
+const tempSeries = {
 						temp1: [],
 						temp2: [],
 						temp3: [],
@@ -1457,47 +1452,19 @@
 								}
 							},
 							plugins: {
-								legend: { display: false }
+								legend: {
+									position: 'bottom',
+									labels: {
+										color: '#ccc', usePointStyle: true, boxWidth: 10,
+										font: { size: 11 }, padding: 8,
+										filter: function (item, data) {
+											return !data.datasets[item.datasetIndex]._isTarget;
+										}
+									}
+								}
 							}
 						}
 					});
-
-					function renderTempLegend() {
-						if (!tempLegendContainer) return;
-						tempLegendContainer.innerHTML = '';
-
-						tempChart.data.datasets.forEach((ds, index) => {
-							if (!ds._isTarget) tempChart.setDatasetVisibility(index, true);
-						});
-
-						tempChart.data.datasets.forEach((dataset, index) => {
-							if (dataset._isTarget) return;
-							const item = document.createElement('button');
-							item.type = 'button';
-							item.className = 'temp-chart-legend__item';
-
-							const swatch = document.createElement('span');
-							swatch.className = 'temp-chart-legend__swatch';
-							swatch.style.backgroundColor = dataset.borderColor || '#555';
-
-							const label = document.createElement('span');
-							label.textContent = dataset.label;
-
-							item.appendChild(swatch);
-							item.appendChild(label);
-
-							item.addEventListener('click', function () {
-								const currentlyVisible = tempChart.isDatasetVisible(index);
-								tempChart.setDatasetVisibility(index, !currentlyVisible);
-								item.classList.toggle('is-hidden', currentlyVisible);
-								tempChart.update('none');
-							});
-
-							tempLegendContainer.appendChild(item);
-						});
-					}
-
-					renderTempLegend();
 
 						// Environmental chart (dry bulb probe, wet bulb calculated, humidity)
 					const ENV_DRY_COLOR = '#f0a040'; // amber for dry bulb
@@ -1574,46 +1541,16 @@
 								}
 							},
 							plugins: {
-								legend: { display: false }
+								legend: {
+									position: 'bottom',
+									labels: {
+										color: '#ccc', usePointStyle: true, boxWidth: 10,
+										font: { size: 11 }, padding: 8
+									}
+								}
 							}
 						}
 					});
-
-					function renderFansLegend() {
-						if (!fansLegendContainer) return;
-						fansLegendContainer.innerHTML = '';
-
-						fansChart.data.datasets.forEach((_, index) => {
-							fansChart.setDatasetVisibility(index, true);
-						});
-
-						fansChart.data.datasets.forEach((dataset, index) => {
-							const item = document.createElement('button');
-							item.type = 'button';
-							item.className = 'temp-chart-legend__item';
-
-							const swatch = document.createElement('span');
-							swatch.className = 'temp-chart-legend__swatch';
-							swatch.style.backgroundColor = dataset.borderColor || '#555';
-
-							const label = document.createElement('span');
-							label.textContent = dataset.label;
-
-							item.appendChild(swatch);
-							item.appendChild(label);
-
-							item.addEventListener('click', function () {
-								const currentlyVisible = fansChart.isDatasetVisible(index);
-								fansChart.setDatasetVisibility(index, !currentlyVisible);
-								item.classList.toggle('is-hidden', currentlyVisible);
-								fansChart.update('none');
-							});
-
-							fansLegendContainer.appendChild(item);
-						});
-					}
-
-					renderFansLegend();
 
 					const weightChart = new Chart(weightCtx, {
 						type: 'line',

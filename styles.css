@@ -1345,51 +1345,12 @@ header {
 	display: inline-block;
 }
 
-.temp-chart-legend {
-	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	gap: 4px;
-	margin: 0 0 8px 0;
-}
-
-.temp-chart-legend__item {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	padding: 0;
-	border: none;
-	background: transparent;
-	cursor: pointer;
-	font-size: 0.72rem;
-	line-height: 1.1;
-	color: #222;
-}
-
-.temp-chart-legend__swatch {
-	width: 8px;
-	height: 8px;
-	border-radius: 2px;
-	display: inline-block;
-}
-
-.temp-chart-legend__item.is-hidden {
-	opacity: 0.45;
-}
-
 .home-temp-chart-card {
 	display: flex;
 	flex-direction: column;
 	align-items: stretch;
 	min-height: 0;
 	padding: 8px;
-}
-
-.home-temp-chart-card .temp-chart-legend {
-	margin-top: 4px;
-	margin-bottom: 0;
-	padding: 0;
-	flex-shrink: 0;
 }
 
 .home-temp-chart-card .temp-chart-live-wrap {
@@ -1456,13 +1417,6 @@ header {
 .home-side-title-chart-card .metric-chart {
 	height: 100% !important;
 	min-height: 120px;
-}
-
-.home-fans-chart-card .temp-chart-legend {
-	margin-top: 4px;
-	margin-bottom: 0;
-	padding: 0;
-	flex-shrink: 0;
 }
 
 .home-humidity-chart-card {
@@ -1538,58 +1492,13 @@ header {
 	display: inline-block;
 }
 
-.temp-chart-legend {
+.home-temp-chart-card {
 	display: flex;
 	flex-direction: column;
-	align-items: flex-start;
-	gap: 4px;
-	margin: 0 0 8px 0;
-}
-
-.temp-chart-legend__item {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	padding: 0;
-	border: none;
-	background: transparent;
-	cursor: pointer;
-	font-size: 0.72rem;
-	line-height: 1.1;
-	color: #222;
-}
-
-.temp-chart-legend__swatch {
-	width: 8px;
-	height: 8px;
-	border-radius: 2px;
-	display: inline-block;
-}
-
-.temp-chart-legend__item.is-hidden {
-	opacity: 0.45;
-}
-
-.home-temp-chart-card {
-	display: grid;
-	grid-template-columns: max-content minmax(0, 1fr);
-	column-gap: 12px;
-	align-items: stretch;
-	justify-content: stretch;
 	min-height: 0;
 }
 
-.home-temp-chart-card .temp-chart-legend {
-	grid-column: 1;
-	grid-row: 1;
-	margin-bottom: 0;
-	align-self: end;
-	padding-bottom: 7px;
-}
-
 .home-temp-chart-card .temp-chart-live-wrap {
-	grid-column: 2;
-	grid-row: 1;
 	position: relative;
 	min-height: 120px;
 }
@@ -1650,14 +1559,6 @@ header {
 .home-side-title-chart-card .metric-chart {
 	height: 100% !important;
 	min-height: 120px;
-}
-
-.home-fans-chart-card .temp-chart-legend {
-	grid-column: 1;
-	grid-row: 1;
-	margin-bottom: 0;
-	align-self: end;
-	padding-bottom: 7px;
 }
 
 .home-humidity-chart-card {
@@ -2551,8 +2452,6 @@ header h1, .header-title, .page-title { color: #ffffff; }
 	color: #d0d0d0;
 }
 
-/* ── Temp-chart legend text ────────────────────────────────────────────────── */
-.temp-chart-legend__item { color: #ccc; }
 
 /* ── Temp legend badges ────────────────────────────────────────────────────── */
 .zone-temp-legend__item.zone-temp-ok   { background: rgba(50,175,50,0.18);  border-color: rgba(50,175,50,0.5);  color: #7fe07f; }
@@ -3061,47 +2960,6 @@ main {
 .ew-stat-card--humidity .ew-stat-card__value { color: #7ab4f0; }
 .ew-stat-card--weight   .ew-stat-card__value { color: #75c489; }
 
-/* ══════════════════════════════════════════════════════════════════════════════
-   COMPACT CHART LEGENDS (inline like env chart, not vertical lists)
-   ══════════════════════════════════════════════════════════════════════════════ */
-
-/* Make temp + fans legend items small inline pills */
-.temp-chart-legend {
-    display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: wrap !important;
-    gap: 3px 6px !important;
-    padding: 0 !important;
-    margin: 0 0 2px !important;
-    min-height: 0 !important;
-}
-
-.temp-chart-legend__item {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 3px !important;
-    font-size: 0.68rem !important;
-    padding: 1px 4px !important;
-    border-radius: 3px !important;
-    min-height: 0 !important;
-    height: auto !important;
-    background: transparent !important;
-    border: none !important;
-    color: #aaa !important;
-    cursor: pointer;
-}
-
-.temp-chart-legend__item.is-hidden {
-    opacity: 0.35 !important;
-}
-
-.temp-chart-legend__swatch {
-    width: 8px !important;
-    height: 8px !important;
-    border-radius: 50% !important;
-    flex-shrink: 0;
-}
-
 /* Temp chart header row: tighter */
 .temp-chart-header-row {
     margin-bottom: 2px !important;
@@ -3131,13 +2989,6 @@ main {
     padding: 7px 8px !important;
 }
 
-/* Legend items: prevent stretching to full column width in flex container */
-.temp-chart-legend__item {
-    align-self: flex-start !important;
-    flex-shrink: 0 !important;
-    width: auto !important;
-    max-width: none !important;
-}
 
 /* Temp chart header row: don't let it take too much vertical space */
 .temp-chart-header-row {
