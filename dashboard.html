@@ -3041,7 +3041,6 @@
 								for (var d = 0; d < dirs.length; d++) {
 									var enc2 = en.c + dirs[d].dc, enr2 = en.r + dirs[d].dr;
 									if (enc2 < 0 || enc2 >= DC || enr2 < 0 || enr2 >= DR) continue;
-									if (dig.grid[enr2][enc2] !== 0) continue;
 									var dist = Math.abs(enc2 - dig.pc) + Math.abs(enr2 - dig.pr);
 									var noise = dig.tick % 50 < 35 ? 0 : 20;
 									var sc = dist + noise;
@@ -3385,7 +3384,7 @@
 						if (inv.right) inv.px = Math.min(W - 20, inv.px + inv.pspeed);
 
 						// Enemy group movement
-						var spd = 0.4 + (IC * IR - invAlive()) * 0.02;
+						var spd = 1.0 + (IC * IR - invAlive()) * 0.04;
 						if (inv.dropping) {
 							for (var i = 0; i < inv.enemies.length; i++)
 								if (!inv.enemies[i].dead) inv.enemies[i].y += 0.7;
@@ -3427,9 +3426,9 @@
 							for (var k in cols) shooters.push(cols[k]);
 							if (shooters.length) {
 								var s = shooters[Math.floor(Math.random() * shooters.length)];
-								inv.ebullets.push({x:s.x + IW/2, y:s.y + IH, vy:3.5});
+								inv.ebullets.push({x:s.x + IW/2, y:s.y + IH, vy:5.5});
 							}
-							inv.eshootInterval = 45 + Math.floor(Math.random() * 55);
+							inv.eshootInterval = 28 + Math.floor(Math.random() * 32);
 						}
 						for (var i = inv.ebullets.length - 1; i >= 0; i--) {
 							inv.ebullets[i].y += inv.ebullets[i].vy;

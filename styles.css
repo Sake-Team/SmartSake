@@ -2825,7 +2825,7 @@ body:has(#start-run-btn.end-run-btn-active) .header-right .set-temp-btn {
 
 /* ── Main: remove the 90px top-padding used to clear the old absolute header ── */
 main {
-    padding: 10px 12px 12px !important;
+    padding: 16px 12px 12px !important;
     transform: none !important;
 }
 
