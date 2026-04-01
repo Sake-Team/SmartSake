@@ -7,11 +7,11 @@
   <link rel="stylesheet" href="styles.css">
   <style>
     :root {
-      --rh-bg: #0d0d0d;
-      --rh-surface: #161616;
-      --rh-border: #252525;
-      --rh-text: #d8d8d8;
-      --rh-muted: #555;
+      --rh-bg:      #0f0f0f;
+      --rh-surface: #181818;
+      --rh-border:  rgba(255,255,255,0.07);
+      --rh-text:    #e0e0e0;
+      --rh-muted:   #888;
       --z1: #e05252; --z2: #52a0e0; --z3: #52e07c;
       --z4: #e0c952; --z5: #c052e0; --z6: #e09052;
     }
@@ -26,30 +26,31 @@
       font-size: 14px;
     }
 
-    /* ── Header ─────────────────────────────────────────────────── */
+    /* ── Header — matches dashboard compact bar ──────────────────── */
     .rh-header {
       position: sticky;
       top: 0;
       z-index: 100;
-      background: var(--rh-surface);
-      border-bottom: 1px solid var(--rh-border);
+      background: #111;
+      border-bottom: 1px solid rgba(255,255,255,0.09);
       display: flex;
       align-items: center;
-      gap: 1rem;
-      padding: 0.55rem 1.2rem;
-      flex-wrap: wrap;
+      gap: 0.75rem;
+      padding: 0.4rem 1.2rem;
+      flex-wrap: nowrap;
+      min-height: 52px;
     }
 
     .rh-brand {
       display: flex;
       align-items: center;
-      gap: 0.55rem;
+      gap: 0.5rem;
       text-decoration: none;
       color: var(--rh-text);
       flex-shrink: 0;
     }
-    .rh-brand img { height: 34px; width: auto; }
-    .rh-brand h1 { font-size: 1rem; font-weight: 700; white-space: nowrap; }
+    .rh-brand img { height: 36px; width: auto; }
+    .rh-brand h1 { font-size: 1.3rem; font-weight: 700; white-space: nowrap; margin: 0; }
 
     .rh-range-group { display: flex; gap: 2px; flex-shrink: 0; }
     .rh-range-btn {
@@ -64,40 +65,44 @@
       transition: background 0.12s, color 0.12s;
     }
     .rh-range-btn:hover { background: rgba(255,255,255,0.07); color: #ccc; }
-    .rh-range-btn.active { background: rgba(82,160,224,0.22); color: #82c0f0; }
+    .rh-range-btn.active { background: rgba(82,160,224,0.22); color: #82c0f0; font-weight: 600; }
 
     .rh-header-right {
       display: flex;
       align-items: center;
-      gap: 0.7rem;
+      gap: 0.6rem;
       margin-left: auto;
       flex-shrink: 0;
     }
 
     .rh-clock {
-      font-size: 0.85rem;
-      color: var(--rh-muted);
+      font-size: 0.78rem;
+      color: #888;
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
     }
 
     .rh-nav-btn {
-      padding: 0.28rem 0.7rem;
+      padding: 0 0.85rem;
+      height: 32px;
+      line-height: 32px;
       background: #1c1c1c;
-      border: 1px solid #2e2e2e;
-      border-radius: 5px;
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 6px;
       color: #bbb;
       text-decoration: none;
       font-size: 0.8rem;
+      font-weight: 600;
       transition: background 0.12s;
+      white-space: nowrap;
     }
     .rh-nav-btn:hover { background: #252525; color: #ddd; }
     .rh-nav-btn--active {
-      border-color: #2a5a2a;
+      border-color: rgba(50,175,50,0.4);
       color: #7fff7f;
-      background: #0e1f0e;
+      background: rgba(50,175,50,0.1);
     }
-    .rh-nav-btn--active:hover { background: #142814; }
+    .rh-nav-btn--active:hover { background: rgba(50,175,50,0.18); }
 
     /* ── Status bar ─────────────────────────────────────────────── */
     .rh-status-bar {
@@ -106,7 +111,7 @@
       gap: 1rem;
       padding: 0.35rem 1.2rem;
       background: #111;
-      border-bottom: 1px solid var(--rh-border);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
       font-size: 0.75rem;
       color: var(--rh-muted);
       flex-wrap: wrap;
@@ -116,7 +121,7 @@
       display: inline-block;
       width: 6px; height: 6px;
       border-radius: 50%;
-      background: #2a6a2a;
+      background: rgba(50,175,50,0.4);
       transition: background 0.4s;
       flex-shrink: 0;
     }
@@ -126,15 +131,15 @@
 
     .rh-clear-btn {
       background: none;
-      border: 1px solid #333;
+      border: 1px solid rgba(255,255,255,0.09);
       border-radius: 4px;
-      color: #666;
+      color: var(--rh-muted);
       cursor: pointer;
       font-size: 0.72rem;
       padding: 0.18rem 0.55rem;
       transition: border-color 0.12s, color 0.12s;
     }
-    .rh-clear-btn:hover { border-color: #c04040; color: #ff8080; }
+    .rh-clear-btn:hover { border-color: rgba(200,60,60,0.6); color: #ff8080; }
 
     /* ── Live sensor strip ──────────────────────────────────────── */
     .rh-live-strip {
@@ -143,7 +148,7 @@
       gap: 0.45rem;
       padding: 0.5rem 1.2rem;
       background: var(--rh-surface);
-      border-bottom: 1px solid var(--rh-border);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
       flex-wrap: wrap;
       overflow-x: auto;
     }
@@ -152,7 +157,7 @@
       font-size: 0.68rem;
       color: var(--rh-muted);
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.06em;
       flex-shrink: 0;
     }
 
@@ -160,9 +165,9 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      border-radius: 6px;
+      background: color-mix(in srgb, var(--rh-surface) 70%, #000 30%);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 8px;
       padding: 0.28rem 0.55rem;
       min-width: 55px;
       flex-shrink: 0;
@@ -177,7 +182,7 @@
 
     .rh-strip-div {
       width: 1px; height: 30px;
-      background: #222;
+      background: rgba(255,255,255,0.07);
       flex-shrink: 0;
     }
 
@@ -207,8 +212,9 @@
 
     .rh-card {
       background: var(--rh-surface);
-      border: 1px solid var(--rh-border);
-      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.35);
       padding: 0.7rem 1rem 0.8rem;
     }
 
@@ -221,11 +227,11 @@
     }
 
     .rh-card-title {
-      font-size: 0.74rem;
+      font-size: 0.68rem;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: #777;
+      letter-spacing: 0.07em;
+      color: var(--rh-muted);
       flex-shrink: 0;
     }
 
@@ -239,7 +245,7 @@
       align-items: center;
       gap: 0.28rem;
       font-size: 0.72rem;
-      color: #888;
+      color: var(--rh-muted);
     }
     .rh-legend-line {
       width: 16px; height: 2px;
@@ -281,7 +287,7 @@
       padding: 0.5rem 1.2rem;
       font-size: 0.72rem;
       color: var(--rh-muted);
-      border-top: 1px solid var(--rh-border);
+      border-top: 1px solid rgba(255,255,255,0.06);
       display: flex;
       gap: 1rem;
       justify-content: space-between;
@@ -548,25 +554,25 @@
     }
 
     // ── Chart defaults ─────────────────────────────────────────────────────────
-    Chart.defaults.color = '#555';
-    Chart.defaults.borderColor = '#1e1e1e';
+    Chart.defaults.color = '#888';
+    Chart.defaults.borderColor = '#2a2a2a';
 
     var BASE_SCALE_X = {
-      ticks: { color: '#4a4a4a', maxTicksLimit: 8, maxRotation: 0, font: { size: 10 } },
-      grid: { color: '#1a1a1a' }
+      ticks: { color: '#aaa', maxTicksLimit: 8, maxRotation: 0, font: { size: 10 } },
+      grid: { color: '#2a2a2a' }
     };
     var BASE_SCALE_Y = {
-      ticks: { color: '#4a4a4a', font: { size: 10 } },
-      grid: { color: '#1a1a1a' }
+      ticks: { color: '#aaa', font: { size: 10 } },
+      grid: { color: '#2a2a2a' }
     };
     var BASE_PLUGINS = {
       legend: { display: false },
       tooltip: {
-        backgroundColor: '#1a1a1a',
-        borderColor: '#303030',
+        backgroundColor: '#181818',
+        borderColor: 'rgba(255,255,255,0.09)',
         borderWidth: 1,
-        titleColor: '#999',
-        bodyColor: '#bbb',
+        titleColor: '#aaa',
+        bodyColor: '#ddd',
         padding: 8,
         mode: 'index',
         intersect: false
@@ -631,7 +637,7 @@
           scales: {
             x: BASE_SCALE_X,
             y: Object.assign({}, BASE_SCALE_Y, {
-              title: { display: true, text: '°C', color: '#4a4a4a', font: { size: 10 } }
+              title: { display: true, text: '°C', color: '#888', font: { size: 10 } }
             })
           }
         }
@@ -664,14 +670,14 @@
             x: BASE_SCALE_X,
             yT: Object.assign({}, BASE_SCALE_Y, {
               position: 'left',
-              title: { display: true, text: '°C', color: '#4a4a4a', font: { size: 10 } }
+              title: { display: true, text: '°C', color: '#888', font: { size: 10 } }
             }),
             yH: {
               type: 'linear', position: 'right',
               min: 0, max: 100,
-              ticks: { color: '#4a4a4a', font: { size: 10 } },
+              ticks: { color: '#aaa', font: { size: 10 } },
               grid: { drawOnChartArea: false },
-              title: { display: true, text: '%', color: '#4a4a4a', font: { size: 10 } }
+              title: { display: true, text: '%', color: '#888', font: { size: 10 } }
             }
           }
         }
@@ -699,7 +705,7 @@
           scales: {
             x: BASE_SCALE_X,
             y: Object.assign({}, BASE_SCALE_Y, {
-              title: { display: true, text: 'lbs', color: '#4a4a4a', font: { size: 10 } }
+              title: { display: true, text: 'lbs', color: '#888', font: { size: 10 } }
             })
           }
         }
