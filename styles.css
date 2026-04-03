@@ -544,6 +544,98 @@ main { padding: 90px 16px 16px; transform: translateX(-8px); }
 	line-height: 1.1;
 }
 
+/* ── Per-zone temperature inputs in Set Temp modal ─────────────────────────── */
+.set-temp-apply-all-row {
+	margin-bottom: 12px;
+}
+
+.set-temp-apply-all-label {
+	display: block;
+	font-weight: 600;
+	color: #333;
+	font-size: 0.9rem;
+	margin-bottom: 6px;
+}
+
+.set-temp-apply-all-controls {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.set-temp-apply-all-controls input {
+	flex: 1;
+	padding: 7px 10px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	font-size: 0.95rem;
+	transition: border-color 0.2s ease;
+}
+
+.set-temp-apply-all-controls input:focus {
+	outline: none;
+	border-color: #d40000;
+	box-shadow: 0 0 0 2px rgba(212, 0, 0, 0.1);
+}
+
+.modal-apply-all-btn {
+	background-color: #555;
+	color: white;
+	border: none;
+	padding: 7px 14px;
+	border-radius: 4px;
+	font-size: 0.85rem;
+	font-weight: 600;
+	cursor: pointer;
+	white-space: nowrap;
+	transition: background-color 0.2s ease;
+}
+
+.modal-apply-all-btn:hover {
+	background-color: #333;
+}
+
+.set-temp-zones-grid {
+	display: grid;
+	grid-template-columns: 60px 1fr auto;
+	gap: 6px 10px;
+	align-items: center;
+	margin-bottom: 16px;
+	padding: 10px 12px;
+	background: #f7f7f7;
+	border: 1px solid #e0e0e0;
+	border-radius: 6px;
+}
+
+.set-temp-zone-label {
+	font-weight: 700;
+	color: #333;
+	font-size: 0.88rem;
+	white-space: nowrap;
+}
+
+.set-temp-zone-current {
+	font-size: 0.82rem;
+	color: #888;
+	text-align: right;
+	white-space: nowrap;
+}
+
+.set-temp-zone-input {
+	padding: 5px 8px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	font-size: 0.9rem;
+	width: 80px;
+	transition: border-color 0.2s ease;
+}
+
+.set-temp-zone-input:focus {
+	outline: none;
+	border-color: #d40000;
+	box-shadow: 0 0 0 2px rgba(212, 0, 0, 0.1);
+}
+
 /* Modal form elements */
 .modal-input-section {
 	display: flex;
@@ -2789,7 +2881,10 @@ main {
 .time-window-btns {
     display: flex;
     gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none; /* Firefox */
 }
+.time-window-btns::-webkit-scrollbar { display: none; } /* Chrome/Safari */
 
 .tw-btn {
     background: transparent;

@@ -28,13 +28,20 @@
 				<div class="chart-controls-group">
 					<div class="time-window-btns" id="time-window-btns" role="group" aria-label="Chart time window">
 						<button class="tw-btn tw-btn--active" data-minutes="0" type="button">All</button>
-						<button class="tw-btn" data-minutes="10080" type="button">7d</button>
-						<button class="tw-btn" data-minutes="7200" type="button">5d</button>
-						<button class="tw-btn" data-minutes="4320" type="button">3d</button>
-						<button class="tw-btn" data-minutes="1440" type="button">1d</button>
-						<button class="tw-btn" data-minutes="60" type="button">1h</button>
-						<button class="tw-btn" data-minutes="30" type="button">30m</button>
 						<button class="tw-btn" data-minutes="15" type="button">15m</button>
+						<button class="tw-btn" data-minutes="30" type="button">30m</button>
+						<button class="tw-btn" data-minutes="60" type="button">1h</button>
+						<button class="tw-btn" data-minutes="180" type="button">3h</button>
+						<button class="tw-btn" data-minutes="360" type="button">6h</button>
+						<button class="tw-btn" data-minutes="720" type="button">12h</button>
+						<button class="tw-btn" data-minutes="1080" type="button">18h</button>
+						<button class="tw-btn" data-minutes="1440" type="button">24h</button>
+						<button class="tw-btn" data-minutes="1800" type="button">30h</button>
+						<button class="tw-btn" data-minutes="2160" type="button">36h</button>
+						<button class="tw-btn" data-minutes="2520" type="button">42h</button>
+						<button class="tw-btn" data-minutes="2880" type="button">48h</button>
+						<button class="tw-btn" data-minutes="3240" type="button">54h</button>
+						<button class="tw-btn" data-minutes="3600" type="button">60h</button>
 					</div>
 					<button id="elapsed-toggle-btn" class="elapsed-toggle-btn" type="button" title="Toggle elapsed/clock time axis">Clock</button>
 				</div>
@@ -312,19 +319,48 @@
 							aria-label="Close set temperature modal">&times;</button>
 					</div>
 					<div class="modal-content">
-						<p id="ideal-temp-current" class="ideal-temp-current">
-							<span class="ideal-temp-current__label">Current set point</span>
-							<span id="ideal-temp-current-value" class="ideal-temp-current__value">-- °C</span>
-						</p>
-						<p id="deviation-current" class="deviation-current">
-							<span class="deviation-current__label">The current deviation allowance is</span>
-							<span id="deviation-current-value" class="deviation-current__value">5.0 °C</span>
-						</p>
+						<!-- Apply to all zones row -->
+						<div class="set-temp-apply-all-row">
+							<label class="set-temp-apply-all-label">Apply to all zones (°C):</label>
+							<div class="set-temp-apply-all-controls">
+								<input type="number" id="ideal-temp-all-input" step="0.1" min="0" max="100"
+									placeholder="e.g. 32.0" />
+								<button type="button" class="modal-apply-all-btn" id="apply-all-temp-btn">Apply to All</button>
+							</div>
+						</div>
 
-						<div class="modal-input-section">
-							<label for="ideal-temp-input">Ideal Temperature (°C):</label>
-							<input type="number" id="ideal-temp-input" name="ideal-temp-input" step="0.1" min="0"
-								max="100" placeholder="e.g. 32.0" />
+						<!-- Per-zone temperature inputs -->
+						<div class="set-temp-zones-grid">
+							<div class="set-temp-zone-row">
+								<span class="set-temp-zone-label">Zone 1</span>
+								<span class="set-temp-zone-current" id="ideal-temp-current-1">-- °C</span>
+								<input type="number" id="ideal-temp-zone-1" class="set-temp-zone-input" step="0.1" min="0" max="100" placeholder="32.0" />
+							</div>
+							<div class="set-temp-zone-row">
+								<span class="set-temp-zone-label">Zone 2</span>
+								<span class="set-temp-zone-current" id="ideal-temp-current-2">-- °C</span>
+								<input type="number" id="ideal-temp-zone-2" class="set-temp-zone-input" step="0.1" min="0" max="100" placeholder="32.0" />
+							</div>
+							<div class="set-temp-zone-row">
+								<span class="set-temp-zone-label">Zone 3</span>
+								<span class="set-temp-zone-current" id="ideal-temp-current-3">-- °C</span>
+								<input type="number" id="ideal-temp-zone-3" class="set-temp-zone-input" step="0.1" min="0" max="100" placeholder="32.0" />
+							</div>
+							<div class="set-temp-zone-row">
+								<span class="set-temp-zone-label">Zone 4</span>
+								<span class="set-temp-zone-current" id="ideal-temp-current-4">-- °C</span>
+								<input type="number" id="ideal-temp-zone-4" class="set-temp-zone-input" step="0.1" min="0" max="100" placeholder="32.0" />
+							</div>
+							<div class="set-temp-zone-row">
+								<span class="set-temp-zone-label">Zone 5</span>
+								<span class="set-temp-zone-current" id="ideal-temp-current-5">-- °C</span>
+								<input type="number" id="ideal-temp-zone-5" class="set-temp-zone-input" step="0.1" min="0" max="100" placeholder="32.0" />
+							</div>
+							<div class="set-temp-zone-row">
+								<span class="set-temp-zone-label">Zone 6</span>
+								<span class="set-temp-zone-current" id="ideal-temp-current-6">-- °C</span>
+								<input type="number" id="ideal-temp-zone-6" class="set-temp-zone-input" step="0.1" min="0" max="100" placeholder="32.0" />
+							</div>
 						</div>
 
 						<div class="modal-input-section">
@@ -332,6 +368,11 @@
 							<input type="number" id="deviation-allowance-input" name="deviation-allowance-input" step="0.1"
 								min="0" max="30" placeholder="e.g. 5.0" />
 						</div>
+
+						<p id="deviation-current" class="deviation-current" style="margin-top:10px;">
+							<span class="deviation-current__label">Current allowance:</span>
+							<span id="deviation-current-value" class="deviation-current__value">5.0 °C</span>
+						</p>
 
 						<div class="modal-button-section">
 							<button type="button" class="modal-cancel-btn" id="cancel-set-temp-btn">Cancel</button>
@@ -453,31 +494,15 @@
 					});
 				})();
 
-				// Set temperature modal + ideal temperature storage
+				// Set temperature modal + per-zone ideal temperature storage
 				(function () {
-					const IDEAL_TEMP_KEY = 'sakeIdealTempC';
 					const DEVIATION_ALLOWANCE_KEY = 'sakeDeviationAllowanceC';
+					const ZONE_COUNT = 6;
 
-					const setTempBtn = document.getElementById('set-temp-btn');
-					const setTempModal = document.getElementById('set-temp-modal');
-					const closeSetTempModalBtn = document.getElementById('close-set-temp-modal');
-					const cancelSetTempBtn = document.getElementById('cancel-set-temp-btn');
-					const saveSetTempBtn = document.getElementById('save-set-temp-btn');
-					const idealTempInput = document.getElementById('ideal-temp-input');
-					const deviationAllowanceInput = document.getElementById('deviation-allowance-input');
-					const idealTempCurrent = document.getElementById('ideal-temp-current');
-					const idealTempCurrentValue = document.getElementById('ideal-temp-current-value');
-					const deviationCurrent = document.getElementById('deviation-current');
-					const deviationCurrentValue = document.getElementById('deviation-current-value');
+					function zoneKey(z) { return 'sakeIdealTempC_' + z; }
 
-					if (!setTempBtn || !setTempModal || !closeSetTempModalBtn || !cancelSetTempBtn || !saveSetTempBtn ||
-						!idealTempInput || !deviationAllowanceInput || !idealTempCurrent || !idealTempCurrentValue ||
-						!deviationCurrent || !deviationCurrentValue) {
-						return;
-					}
-
-					function getIdealTemp() {
-						const raw = localStorage.getItem(IDEAL_TEMP_KEY);
+					function getIdealTempForZone(zone) {
+						const raw = localStorage.getItem(zoneKey(zone));
 						const parsed = raw === null ? NaN : parseFloat(raw);
 						return Number.isFinite(parsed) ? parsed : null;
 					}
@@ -489,97 +514,164 @@
 					}
 
 					function updateCurrentLabel() {
-						const current = getIdealTemp();
-						idealTempCurrentValue.textContent = current === null
-							? '-- °C'
-							: `${current.toFixed(1)} °C`;
-
-						const deviation = getDeviationAllowance();
-						deviationCurrentValue.textContent = `${deviation.toFixed(1)} °C`;
+						for (let z = 1; z <= ZONE_COUNT; z++) {
+							const el = document.getElementById('ideal-temp-current-' + z);
+							if (el) {
+								const val = getIdealTempForZone(z);
+								el.textContent = val === null ? '-- °C' : val.toFixed(1) + ' °C';
+							}
+						}
+						const deviationCurrentValue = document.getElementById('deviation-current-value');
+						if (deviationCurrentValue) {
+							deviationCurrentValue.textContent = getDeviationAllowance().toFixed(1) + ' °C';
+						}
 					}
 
+					const setTempModal = document.getElementById('set-temp-modal');
+					const deviationAllowanceInput = document.getElementById('deviation-allowance-input');
+
 					function openSetTempModal() {
-						const current = getIdealTemp();
-						const deviation = getDeviationAllowance();
-						idealTempInput.value = current === null ? '' : current.toFixed(1);
-						deviationAllowanceInput.value = deviation.toFixed(1);
+						if (!setTempModal) return;
+						for (let z = 1; z <= ZONE_COUNT; z++) {
+							const input = document.getElementById('ideal-temp-zone-' + z);
+							if (input) {
+								const val = getIdealTempForZone(z);
+								input.value = val === null ? '' : val.toFixed(1);
+								input.setCustomValidity('');
+							}
+						}
+						if (deviationAllowanceInput) {
+							deviationAllowanceInput.value = getDeviationAllowance().toFixed(1);
+							deviationAllowanceInput.setCustomValidity('');
+						}
+						const allInput = document.getElementById('ideal-temp-all-input');
+						if (allInput) { allInput.value = ''; allInput.setCustomValidity(''); }
 						updateCurrentLabel();
 						setTempModal.style.display = 'flex';
-						idealTempInput.focus();
-						idealTempInput.select();
+						const first = document.getElementById('ideal-temp-zone-1');
+						if (first) { first.focus(); first.select(); }
 					}
 
 					function closeSetTempModal() {
-						setTempModal.style.display = 'none';
+						if (setTempModal) setTempModal.style.display = 'none';
 					}
 
 					function saveIdealTemp() {
-						const value = parseFloat(idealTempInput.value);
-						const deviationValue = parseFloat(deviationAllowanceInput.value);
-						if (!Number.isFinite(value) || value < 0 || value > 100) {
-							idealTempInput.setCustomValidity('Please enter a value between 0 and 100 °C.');
-							idealTempInput.reportValidity();
-							return;
-						}
+						const deviationValue = parseFloat(deviationAllowanceInput ? deviationAllowanceInput.value : '');
 						if (!Number.isFinite(deviationValue) || deviationValue < 0 || deviationValue > 30) {
-							deviationAllowanceInput.setCustomValidity('Please enter a value between 0 and 30 °C.');
-							deviationAllowanceInput.reportValidity();
+							if (deviationAllowanceInput) {
+								deviationAllowanceInput.setCustomValidity('Please enter a value between 0 and 30 °C.');
+								deviationAllowanceInput.reportValidity();
+							}
 							return;
 						}
-						idealTempInput.setCustomValidity('');
-						deviationAllowanceInput.setCustomValidity('');
+						if (deviationAllowanceInput) deviationAllowanceInput.setCustomValidity('');
 
-						localStorage.setItem(IDEAL_TEMP_KEY, value.toFixed(1));
+						// Validate each zone input
+						const newTemps = {};
+						for (let z = 1; z <= ZONE_COUNT; z++) {
+							const input = document.getElementById('ideal-temp-zone-' + z);
+							if (!input || input.value.trim() === '') {
+								newTemps[z] = null;
+								continue;
+							}
+							const val = parseFloat(input.value);
+							if (!Number.isFinite(val) || val < 0 || val > 100) {
+								input.setCustomValidity('Please enter a value between 0 and 100 °C.');
+								input.reportValidity();
+								return;
+							}
+							input.setCustomValidity('');
+							newTemps[z] = val;
+						}
+
+						// Persist per-zone values
+						for (let z = 1; z <= ZONE_COUNT; z++) {
+							if (newTemps[z] === null) {
+								localStorage.removeItem(zoneKey(z));
+							} else {
+								localStorage.setItem(zoneKey(z), newTemps[z].toFixed(1));
+							}
+						}
 						localStorage.setItem(DEVIATION_ALLOWANCE_KEY, deviationValue.toFixed(1));
 						updateCurrentLabel();
 						window.dispatchEvent(new CustomEvent('sake-ideal-temp-updated', {
-							detail: {
-								value: value.toFixed(1),
-								deviationAllowance: deviationValue.toFixed(1)
-							}
+							detail: { deviationAllowance: deviationValue.toFixed(1) }
 						}));
 						closeSetTempModal();
 					}
 
-					setTempBtn.addEventListener('click', openSetTempModal);
-					closeSetTempModalBtn.addEventListener('click', closeSetTempModal);
-					cancelSetTempBtn.addEventListener('click', closeSetTempModal);
-					saveSetTempBtn.addEventListener('click', saveIdealTemp);
+					// Wire main buttons
+					const setTempBtn = document.getElementById('set-temp-btn');
+					const closeSetTempModalBtn = document.getElementById('close-set-temp-modal');
+					const cancelSetTempBtn = document.getElementById('cancel-set-temp-btn');
+					const saveSetTempBtn = document.getElementById('save-set-temp-btn');
+					if (setTempBtn) setTempBtn.addEventListener('click', openSetTempModal);
+					if (closeSetTempModalBtn) closeSetTempModalBtn.addEventListener('click', closeSetTempModal);
+					if (cancelSetTempBtn) cancelSetTempBtn.addEventListener('click', closeSetTempModal);
+					if (saveSetTempBtn) saveSetTempBtn.addEventListener('click', saveIdealTemp);
 
-					idealTempInput.addEventListener('input', function () {
-						idealTempInput.setCustomValidity('');
-					});
+					// Apply-to-all button
+					const applyAllBtn = document.getElementById('apply-all-temp-btn');
+					const applyAllInput = document.getElementById('ideal-temp-all-input');
+					if (applyAllBtn && applyAllInput) {
+						applyAllBtn.addEventListener('click', function () {
+							const val = parseFloat(applyAllInput.value);
+							if (!Number.isFinite(val) || val < 0 || val > 100) {
+								applyAllInput.setCustomValidity('Please enter a value between 0 and 100 °C.');
+								applyAllInput.reportValidity();
+								return;
+							}
+							applyAllInput.setCustomValidity('');
+							for (let z = 1; z <= ZONE_COUNT; z++) {
+								const input = document.getElementById('ideal-temp-zone-' + z);
+								if (input) { input.value = val.toFixed(1); input.setCustomValidity(''); }
+							}
+						});
+						applyAllInput.addEventListener('input', function () {
+							applyAllInput.setCustomValidity('');
+						});
+						applyAllInput.addEventListener('keydown', function (e) {
+							if (e.key === 'Enter') { e.preventDefault(); applyAllBtn.click(); }
+						});
+					}
 
-					deviationAllowanceInput.addEventListener('input', function () {
-						deviationAllowanceInput.setCustomValidity('');
-					});
+					// Per-zone input listeners
+					for (let z = 1; z <= ZONE_COUNT; z++) {
+						(function (zone) {
+							const input = document.getElementById('ideal-temp-zone-' + zone);
+							if (!input) return;
+							input.addEventListener('input', function () { input.setCustomValidity(''); });
+							input.addEventListener('keydown', function (e) {
+								if (e.key === 'Enter') { e.preventDefault(); saveIdealTemp(); }
+							});
+						}(z));
+					}
 
-					idealTempInput.addEventListener('keydown', function (e) {
-						if (e.key === 'Enter') {
-							e.preventDefault();
-							saveIdealTemp();
-						}
-					});
+					if (deviationAllowanceInput) {
+						deviationAllowanceInput.addEventListener('input', function () {
+							deviationAllowanceInput.setCustomValidity('');
+						});
+					}
 
-					setTempModal.addEventListener('click', function (e) {
-						if (e.target === setTempModal) {
-							closeSetTempModal();
-						}
-					});
+					if (setTempModal) {
+						setTempModal.addEventListener('click', function (e) {
+							if (e.target === setTempModal) closeSetTempModal();
+						});
+					}
 
 					document.addEventListener('keydown', function (e) {
-						if (e.key === 'Escape' && setTempModal.style.display === 'flex') {
+						if (e.key === 'Escape' && setTempModal && setTempModal.style.display === 'flex') {
 							closeSetTempModal();
 						}
 					});
 
-					window.getIdealTemperature = function () {
-						return getIdealTemp();
+					// Public API — zone parameter optional; without it returns zone 1 for backward compat
+					window.getIdealTemperature = function (zone) {
+						return getIdealTempForZone(zone !== undefined ? zone : 1);
 					};
-
-					window.getDeviationAllowance = function () {
-						return getDeviationAllowance();
-					};
+					window.getIdealTemperatureForZone = getIdealTempForZone;
+					window.getDeviationAllowance = getDeviationAllowance;
 
 					updateCurrentLabel();
 				})();
@@ -2417,7 +2509,6 @@ const tempSeries = {
 
 				// Target temperature CSV upload and deviation detection
 				(function () {
-					const IDEAL_TEMP_KEY = 'sakeIdealTempC';
 					const DEVIATION_ALLOWANCE_KEY = 'sakeDeviationAllowanceC';
 					let targetTemperatures = [];
 					let runStartTime = null;
@@ -2453,19 +2544,16 @@ const tempSeries = {
 						if (!runStartTime) return null;
 
 						if (targetTemperatures.length === 0) {
-							const storedIdeal = parseFloat(localStorage.getItem(IDEAL_TEMP_KEY) || '');
-							if (Number.isFinite(storedIdeal)) {
-								return {
-									time: 0,
-									temp1: storedIdeal,
-									temp2: storedIdeal,
-									temp3: storedIdeal,
-									temp4: storedIdeal,
-									temp5: storedIdeal,
-									temp6: storedIdeal
-								};
+							// Build per-zone targets from individual localStorage keys
+							const result = { time: 0 };
+							let anySet = false;
+							for (let z = 1; z <= 6; z++) {
+								const raw = localStorage.getItem('sakeIdealTempC_' + z);
+								const val = parseFloat(raw || '');
+								result['temp' + z] = Number.isFinite(val) ? val : null;
+								if (Number.isFinite(val)) anySet = true;
 							}
-							return null;
+							return anySet ? result : null;
 						}
 
 						const elapsedMinutes = (Date.now() - runStartTime) / (1000 * 60);
