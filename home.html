@@ -2,102 +2,258 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>SmartSake — Home</title>
+  <title>SmartSake</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="stylesheet" href="styles.css">
   <style>
-    .home-panels { display: flex; flex-direction: column; gap: 1.5rem; padding: 1.5rem; padding-top: 6rem; max-width: 720px; margin: 0 auto; }
-    .panel { background: var(--color-surface, #1a1a1a); border: 1px solid #333; border-radius: 8px; padding: 1.25rem 1.5rem; }
-    .panel h2 { margin: 0 0 .75rem; font-size: 1.1rem; text-transform: uppercase; letter-spacing: .05em; color: #aaa; }
-    .panel-badge { display: inline-block; padding: .2em .6em; border-radius: 4px; font-size: .8rem; font-weight: 700; margin-left: .5rem; vertical-align: middle; }
-    .badge-active  { background: #1a6b1a; color: #7fff7f; }
-    .badge-crashed { background: #6b1a1a; color: #ff9f9f; }
-    .run-row { display: flex; justify-content: space-between; align-items: center; padding: .5rem 0; border-bottom: 1px solid #2a2a2a; cursor: pointer; transition: background .15s; }
-    .run-row:last-child { border-bottom: none; }
-    .run-row:hover { background: #222; }
-    .run-row-info { flex: 1; }
-    .run-row-name { font-weight: 600; }
-    .run-row-meta { font-size: .8rem; color: #888; margin-top: .15rem; }
-    .run-row-actions { display: flex; gap: .5rem; }
-    .btn { padding: .45rem .9rem; border: none; border-radius: 5px; cursor: pointer; font-size: .875rem; font-weight: 600; }
-    .btn-primary  { background: #d40000; color: #fff; }
-    .btn-primary:hover { background: #b00; }
-    .btn-secondary { background: #333; color: #ddd; }
-    .btn-secondary:hover { background: #444; }
-    .btn-danger  { background: #5a1010; color: #ffaaaa; }
-    .btn-danger:hover { background: #7a1515; }
-    .btn-sm { padding: .3rem .6rem; font-size: .8rem; }
-    .input-row { display: flex; gap: .5rem; align-items: center; margin-top: .5rem; }
-    .input-row input[type=text] { flex: 1; padding: .45rem .7rem; background: #111; border: 1px solid #444; border-radius: 5px; color: #eee; font-size: .9rem; }
-    .input-row input[type=text]:focus { outline: none; border-color: #d40000; }
-    .upload-row { margin-top: .5rem; display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
-    .upload-row label { font-size: .85rem; color: #aaa; white-space: nowrap; }
-    .upload-status { font-size: .8rem; }
-    .no-runs-msg { color: #666; font-style: italic; font-size: .9rem; }
-    .active-panel-header { display: flex; align-items: baseline; gap: .5rem; }
-    .active-run-detail { font-size: .85rem; color: #999; margin-bottom: .75rem; }
-    .active-run-btns { display: flex; gap: .75rem; flex-wrap: wrap; }
+    /* ── page ── */
+    html, body { height: 100%; }
+
+    /* ── content wrap ── */
+    .home-wrap {
+      max-width: 660px;
+      margin: 0 auto;
+      padding: 5rem 1.1rem 2.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    /* ── card ── */
+    .hcard {
+      background: var(--theme-surface, #181818);
+      border: 1px solid var(--theme-border, rgba(255,255,255,0.07));
+      border-radius: 10px;
+      padding: 1.1rem 1.35rem 1.25rem;
+    }
+
+    /* ── section label (like "PREVIOUS RUNS") ── */
+    .hcard-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--theme-text-muted, #666);
+      margin: 0 0 0.9rem;
+    }
+
+    /* ── active run meta line ── */
+    .run-meta {
+      font-size: 0.82rem;
+      color: var(--theme-text-muted, #888);
+      margin: 0 0 1rem;
+      line-height: 1.6;
+    }
+
+    /* ── status badge (dot + label) ── */
+    .hbadge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 9px 2px 6px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      vertical-align: middle;
+      margin-left: 0.45rem;
+    }
+    .hbadge::before {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      flex-shrink: 0;
+    }
+    .hbadge-active  { background: rgba(74,222,74,0.1);  color: #4aee4a; }
+    .hbadge-crashed { background: rgba(255,90,90,0.12); color: #ff7070; }
+
+    /* ── input row ── */
+    .h-input-row {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .h-input-row input[type=text] {
+      flex: 1;
+      background: rgba(255,255,255,0.055);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 7px;
+      color: var(--theme-text, #ddd);
+      font-size: 0.9rem;
+      padding: 0.48rem 0.8rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .h-input-row input[type=text]:focus {
+      border-color: rgba(255,255,255,0.25);
+    }
+    .h-input-row input[type=text]::placeholder { color: #4a4a4a; }
+
+    /* ── field row (label + control) ── */
+    .h-field {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      margin-top: 0.7rem;
+    }
+    .h-field-label {
+      font-size: 0.78rem;
+      color: var(--theme-text-muted, #777);
+      white-space: nowrap;
+    }
+    .h-field select {
+      background: rgba(255,255,255,0.055);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 5px;
+      color: var(--theme-text, #ccc);
+      font-size: 0.8rem;
+      padding: 3px 8px;
+      outline: none;
+    }
+    .h-field input[type=file] {
+      font-size: 0.78rem;
+      color: var(--theme-text-muted, #888);
+    }
+    .upload-status { font-size: 0.77rem; }
+
+    /* ── buttons ── */
+    .hbtn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      border-radius: 7px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 0.42rem 0.95rem;
+      text-decoration: none;
+      transition: opacity 0.13s, background 0.13s;
+      white-space: nowrap;
+    }
+    .hbtn:hover { opacity: 0.82; }
+    .hbtn-primary { background: #d40000; color: #fff; }
+    .hbtn-secondary {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--theme-text, #ccc);
+    }
+    .hbtn-secondary:hover { background: rgba(255,255,255,0.11); opacity: 1; }
+    .hbtn-ghost {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--theme-text-muted, #888);
+    }
+    .hbtn-ghost:hover { background: rgba(255,255,255,0.05); opacity: 1; }
+    .hbtn-danger {
+      background: rgba(160,30,30,0.2);
+      border: 1px solid rgba(160,30,30,0.3);
+      color: #ff8888;
+    }
+    .hbtn-danger:hover { background: rgba(160,30,30,0.3); opacity: 1; }
+    .hbtn-sm { padding: 0.28rem 0.65rem; font-size: 0.76rem; }
+
+    /* ── button group ── */
+    .hbtn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+    /* ── divider between list rows ── */
+    .h-divider { border: none; border-top: 1px solid var(--theme-border, rgba(255,255,255,0.06)); margin: 0; }
+
+    /* ── run list row ── */
+    .run-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.65rem 0.4rem;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: background 0.12s;
+      gap: 0.5rem;
+    }
+    .run-row:hover { background: rgba(255,255,255,0.04); }
+    .run-row-info { flex: 1; min-width: 0; }
+    .run-row-name {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--theme-text, #e0e0e0);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .run-row-meta {
+      font-size: 0.75rem;
+      color: var(--theme-text-muted, #666);
+      margin-top: 2px;
+    }
+    .run-row-actions { display: flex; gap: 0.35rem; flex-shrink: 0; }
+
+    /* ── empty state ── */
+    .empty-msg {
+      font-size: 0.85rem;
+      color: var(--theme-text-muted, #555);
+      font-style: italic;
+      margin: 0;
+      padding: 0.25rem 0.4rem;
+    }
   </style>
 </head>
 <body>
   <div class="page-wrapper">
     <header class="header">
       <div class="header-inner">
-        <img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" class="sake-logo-egg">
+        <img src="images/VoidSakeLogo.jpg" alt="SmartSake logo" class="sake-logo-egg">
         <h1 class="header-title">SmartSake</h1>
       </div>
     </header>
 
-    <div class="home-panels">
+    <div class="home-wrap">
 
-      <!-- Panel A: Active / Crashed run (hidden until API confirms one exists) -->
-      <div class="panel" id="active-panel" style="display:none">
-        <h2>
-          <span class="active-panel-header">
-            Current Run
-            <span class="panel-badge" id="active-badge"></span>
-          </span>
-        </h2>
-        <div class="active-run-detail" id="active-detail"></div>
-        <div class="active-run-btns">
-          <button class="btn btn-primary" id="resume-btn">Resume Run</button>
-          <button class="btn btn-secondary" id="mark-ended-btn">Mark as Ended</button>
+      <!-- Active / crashed run — hidden until API confirms one exists -->
+      <div class="hcard" id="active-panel" style="display:none">
+        <p class="hcard-label">
+          Current Run
+          <span class="hbadge" id="active-badge"></span>
+        </p>
+        <div class="run-meta" id="active-detail"></div>
+        <div class="hbtn-row">
+          <button class="hbtn hbtn-primary" id="resume-btn">Resume Run</button>
+          <button class="hbtn hbtn-ghost" id="mark-ended-btn">Mark as Ended</button>
         </div>
       </div>
 
-      <!-- Panel B: Start a new run -->
-      <div class="panel">
-        <h2>New Run</h2>
-        <div class="input-row">
-          <input type="text" id="new-run-name" placeholder="Enter run name…" maxlength="80">
-          <button class="btn btn-primary" id="start-btn">Start</button>
+      <!-- Start a new run -->
+      <div class="hcard">
+        <p class="hcard-label">New Run</p>
+        <div class="h-input-row">
+          <input type="text" id="new-run-name" placeholder="Run name…" maxlength="80">
+          <button class="hbtn hbtn-primary" id="start-btn">Start</button>
         </div>
-        <div class="upload-row">
-          <label for="curve-select">Reference curve (optional):</label>
-          <select id="curve-select" style="font-size:.82rem;padding:2px 6px;border-radius:4px;border:1px solid #555;background:#2a2a2a;color:#ddd;">
+        <div class="h-field">
+          <span class="h-field-label">Reference curve (optional):</span>
+          <select id="curve-select">
             <option value="">— None —</option>
           </select>
         </div>
-        <div class="upload-row">
-          <label for="target-csv">Or upload CSV (overrides curve):</label>
+        <div class="h-field">
+          <span class="h-field-label">Or upload CSV target:</span>
           <input type="file" id="target-csv" accept=".csv">
           <span class="upload-status" id="csv-status"></span>
         </div>
       </div>
 
-      <!-- Panel: Tools -->
-      <div class="panel">
-        <h2>Tools</h2>
-        <div class="active-run-btns">
-          <a href="curves.html" class="btn btn-secondary">Curve Builder</a>
-          <a href="room-history.html" class="btn btn-secondary">Room History</a>
+      <!-- Tools -->
+      <div class="hcard">
+        <p class="hcard-label">Tools</p>
+        <div class="hbtn-row">
+          <a href="curves.html" class="hbtn hbtn-secondary">Curve Builder</a>
+          <a href="room-history.html" class="hbtn hbtn-secondary">Room History</a>
         </div>
       </div>
 
-      <!-- Panel C: Previous runs -->
-      <div class="panel">
-        <h2>Previous Runs</h2>
-        <div id="runs-list"><p class="no-runs-msg">Loading…</p></div>
+      <!-- Previous runs -->
+      <div class="hcard">
+        <p class="hcard-label">Previous Runs</p>
+        <div id="runs-list"><p class="empty-msg">Loading…</p></div>
       </div>
 
     </div>
@@ -217,7 +373,7 @@
         const isCrashed = run.status === 'crashed' || (age !== null && age > 120);
 
         badge.textContent = isCrashed ? 'Crashed' : 'Active';
-        badge.className = 'panel-badge ' + (isCrashed ? 'badge-crashed' : 'badge-active');
+        badge.className = 'hbadge ' + (isCrashed ? 'hbadge-crashed' : 'hbadge-active');
 
         const lastStr = run.last_reading_at
           ? (isCrashed ? 'Last reading ' + Math.round(age / 60) + ' min ago' : 'Last reading ' + age + 's ago')
@@ -248,31 +404,40 @@
         const finished = runs.filter(r => r.ended_at !== null || r.status === 'crashed');
 
         if (finished.length === 0) {
-          container.innerHTML = '<p class="no-runs-msg">No completed runs yet.</p>';
+          container.innerHTML = '<p class="empty-msg">No completed runs yet.</p>';
           return;
         }
 
         container.innerHTML = '';
-        finished.forEach(function (run) {
+        finished.forEach(function (run, idx) {
+          if (idx > 0) {
+            const hr = document.createElement('hr');
+            hr.className = 'h-divider';
+            container.appendChild(hr);
+          }
+
           const row = document.createElement('div');
           row.className = 'run-row';
 
-          const statusLabel = run.status === 'crashed' ? ' <span style="color:#ff9f9f;font-size:.75rem">[crashed]</span>' : '';
+          const crashedTag = run.status === 'crashed'
+            ? ' <span style="color:#ff7070;font-size:.72rem;font-weight:600">[crashed]</span>' : '';
           const starsHtml = run.quality_score
-            ? '<span style="color:#d79b00">' + '★'.repeat(run.quality_score) + '</span>'
-              + '<span style="color:#555">' + '★'.repeat(5 - run.quality_score) + '</span>'
+            ? '<span style="color:#c8960a">' + '★'.repeat(run.quality_score) + '</span>'
+              + '<span style="color:#333">' + '★'.repeat(5 - run.quality_score) + '</span>'
             : '';
-          row.innerHTML = `
-            <div class="run-row-info">
-              <div class="run-row-name">${escHtml(run.name)}${statusLabel} ${starsHtml}</div>
-              <div class="run-row-meta">${fmtDate(run.started_at)} &mdash; ${duration(run.started_at, run.ended_at)}</div>
-            </div>
-            <div class="run-row-actions">
-              <button class="btn btn-secondary btn-sm view-btn">View</button>
-              <button class="btn btn-secondary btn-sm details-btn">Details</button>
-              <button class="btn btn-danger btn-sm delete-btn">Delete</button>
-            </div>
-          `;
+
+          row.innerHTML =
+            '<div class="run-row-info">' +
+              '<div class="run-row-name">' + escHtml(run.name) + crashedTag +
+                (starsHtml ? ' ' + starsHtml : '') +
+              '</div>' +
+              '<div class="run-row-meta">' + fmtDate(run.started_at) + ' &mdash; ' + duration(run.started_at, run.ended_at) + '</div>' +
+            '</div>' +
+            '<div class="run-row-actions">' +
+              '<button class="hbtn hbtn-secondary hbtn-sm view-btn">View</button>' +
+              '<button class="hbtn hbtn-secondary hbtn-sm details-btn">Details</button>' +
+              '<button class="hbtn hbtn-danger hbtn-sm delete-btn">Delete</button>' +
+            '</div>';
 
           row.querySelector('.view-btn').onclick = function (e) {
             e.stopPropagation();
@@ -298,7 +463,7 @@
           container.appendChild(row);
         });
       } catch (err) {
-        container.innerHTML = '<p class="no-runs-msg">Could not load runs.</p>';
+        container.innerHTML = '<p class="empty-msg">Could not load runs.</p>';
       }
     }
 

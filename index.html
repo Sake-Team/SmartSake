@@ -3,26 +3,67 @@
 
 <head>
 	<meta charset="utf-8">
-	<title>Sake Table - Dashboard</title>
+	<title>SmartSake</title>
 	<meta name="viewport" content="width=device-width,initial-scale=1">
 	<link rel="stylesheet" href="styles.css">
+	<style>
+		/* ── idle page tweaks (index.html) ───────────────────────────────── */
+
+		/* Header right section — matches dashboard layout */
+		.idx-header-right {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			flex-shrink: 0;
+		}
+
+		/* Date/time in header — matches dashboard */
+		.idx-header-right .notes__meta {
+			font-size: 0.78rem;
+			color: #888;
+			white-space: pre;
+			text-align: right;
+			position: static !important;
+		}
+
+		/* Start Run button positioned in header (compact) */
+		.idx-header-right .start-run-btn {
+			position: static !important;
+			top: auto !important; right: auto !important;
+			min-height: unset !important;
+			height: 32px !important;
+			width: auto !important;
+			padding: 0 0.85rem !important;
+			font-size: 0.8rem !important;
+			font-weight: 700;
+			border-radius: 6px !important;
+			margin-top: 0 !important;
+		}
+
+		/* Hide the old run-box (button is now in header) */
+		.run-box { display: none !important; }
+
+		/* Ensure main/stage fills properly */
+		main { display: block; }
+	</style>
 </head>
 
 <body>
 	<div class="page-wrapper">
-		   <header class="header">
-			   <div class="header-inner">
-				   <img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" id="sake-logo-egg" class="sake-logo-egg" />
-				   <h1 class="header-title">Home <span id="run-name-display" class="run-name-header"></span></h1>
-			   </div>
-		   </header>
+		<header class="header">
+			<div class="header-inner">
+				<img src="images/VoidSakeLogo.jpg" alt="SmartSake logo" id="sake-logo-egg" class="sake-logo-egg" />
+				<h1 class="header-title">SmartSake <span id="run-name-display" class="run-name-header"></span></h1>
+			</div>
+			<div class="idx-header-right">
+				<div class="notes__meta" id="notes-meta-header" aria-live="polite"></div>
+				<button id="start-run-btn" class="start-run-btn">Start Run</button>
+			</div>
+		</header>
 
-		   <div class="run-box">
-			   <button id="start-run-btn" class="start-run-btn">Start Run</button>
-		   </div>
+		<div class="run-box"><!-- kept for JS compatibility, hidden via CSS --></div>
 
 		<main>
-			<main>
 				<div class="stage">
 					<section class="layout layout--home">
 
@@ -288,12 +329,10 @@
 			<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 			<script>
-				// Live Date/Time script: updates notes meta and header datetime each minute
-
-				// Live Date/Time script: updates ONLY the notes-meta field
+				// Live Date/Time — updates notes-meta and the header date/time pill
 				(function () {
 					const notesMeta = document.getElementById('notes-meta');
-					if (!notesMeta) return;
+					const headerMeta = document.getElementById('notes-meta-header');
 
 					function formatNow(d) {
 						const date = d.toLocaleDateString(undefined, {
@@ -309,7 +348,9 @@
 					}
 
 					function update() {
-						notesMeta.textContent = formatNow(new Date());
+						const str = formatNow(new Date());
+						if (notesMeta) notesMeta.textContent = str;
+						if (headerMeta) headerMeta.textContent = str;
 					}
 
 					// initial update
