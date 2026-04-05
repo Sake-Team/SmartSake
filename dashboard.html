@@ -1805,12 +1805,16 @@ const tempSeries = {
 							refreshModalChart();
 						}
 
-						// Push to zone panel if open
-						if (window._zonePanelPush) {
-							for (let i = 1; i <= 6; i++) {
-								const tVal = tempSeries['temp' + i][tempSeries['temp' + i].length - 1];
-								const fVal = fansSeries['fan'  + i][fansSeries['fan'  + i].length - 1];
-								window._zonePanelPush(i, label, tVal, fVal);
+						// Push to active zone panel only — no need to iterate all 6 zones
+						if (window._zonePanelPush && window._getActiveZone) {
+							const az = window._getActiveZone();
+							if (az >= 1 && az <= 6) {
+								const panelLabel = window._elapsedMode
+									? elapsedLabels[elapsedLabels.length - 1]
+									: label;
+								const tVal = tempSeries['temp' + az][tempSeries['temp' + az].length - 1];
+								const fVal = fansSeries['fan'  + az][fansSeries['fan'  + az].length - 1];
+								window._zonePanelPush(az, panelLabel, tVal, fVal);
 							}
 						}
 						// Hook for target-projection refresh
@@ -1871,6 +1875,28 @@ const tempSeries = {
 					function applyElapsedMode(on) {
 						elapsedMode = on;
 						window._elapsedMode = on;
+
+						// ── tempChart: swap tick callback + axis title ─────────────────
+						if (on) {
+							tempChart.options.scales.x.ticks.callback = function (val) {
+								var h = Math.floor(val / 60), m = Math.round(val % 60);
+								return h > 0 ? h + 'h ' + String(m).padStart(2, '0') + 'm' : m + 'm';
+							};
+							tempChart.options.scales.x.title.text = 'Elapsed time';
+						} else {
+							tempChart.options.scales.x.ticks.callback = function (val) {
+								var startMs = window._runStartMs;
+								if (!startMs) {
+									var h = Math.floor(val / 60), m = Math.round(val % 60);
+									return h > 0 ? h + 'h ' + String(m).padStart(2, '0') + 'm' : m + 'm';
+								}
+								var ts = new Date(startMs + val * 60 * 1000);
+								return ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+							};
+							tempChart.options.scales.x.title.text = 'Clock time';
+						}
+						tempChart.update('none');
+
 						var dispLabels = on ? elapsedLabels : labels;
 						// Update all small charts' label arrays
 						[envChart, fansChart, weightChart].forEach(function (ch) {
@@ -1880,10 +1906,13 @@ const tempSeries = {
 							ch.options.scales.x.max = undefined;
 							ch.update('none');
 						});
-						// tempChart uses linear x-axis — doesn't use labels array
 						// Re-apply the active time window with the new label set
 						if (typeof applyTimeWindow === 'function') {
 							applyTimeWindow(activeWindowMinutes || 0);
+						}
+						// Rebuild zone detail card if open (label arrays need to switch)
+						if (window._openZdcCard && window._getActiveZone && window._getActiveZone() !== null) {
+							window._openZdcCard(window._getActiveZone());
 						}
 						// Update open modal if any
 						if (chartModal && chartModal.style.display === 'flex' && modalChart) {
@@ -1911,11 +1940,12 @@ const tempSeries = {
 						applyElapsedMode(on);
 					};
 
-					// ── Time-window filter (All / 1h / 30m / 15m) ─────────────────────
+					// ── Time-window filter ─────────────────────────────────────────────
 					var activeWindowMinutes = 0; // 0 = show all
 
 					function applyTimeWindow(minutes) {
 						activeWindowMinutes = minutes;
+						window._activeWindowMinutes = minutes;
 						var total = sampleTimestamps.length;
 
 						// Determine start index based on the requested window
@@ -1953,7 +1983,26 @@ const tempSeries = {
 							}
 							ch.update('none');
 						});
+
+						// -- Zone detail card charts: clip via their own label array (x hidden but min/max clips) --
+						if (window._zdcCharts) {
+							window._zdcCharts.forEach(function (ch) {
+								if (!ch) return;
+								var lbls = ch.data.labels;
+								if (!lbls || !lbls.length) return;
+								if (minutes === 0) {
+									ch.options.scales.x.min = undefined;
+									ch.options.scales.x.max = undefined;
+								} else {
+									ch.options.scales.x.min = lbls[startIdx] !== undefined ? lbls[startIdx] : undefined;
+									ch.options.scales.x.max = lbls[lbls.length - 1] !== undefined ? lbls[lbls.length - 1] : undefined;
+								}
+								ch.update('none');
+							});
+						}
 					}
+
+					window._applyTimeWindow = applyTimeWindow;
 
 					// Wire time-window buttons
 					var twBtns = document.querySelectorAll('#time-window-btns .tw-btn');
@@ -2334,15 +2383,18 @@ const tempSeries = {
 						if (zdcTempChart) { zdcTempChart.destroy(); zdcTempChart = null; }
 						if (zdcFanChart)  { zdcFanChart.destroy();  zdcFanChart  = null; }
 
-						// Slice shared dashboard data arrays — avoid holding extra references
-						const labels   = (window._dashLabels || []).slice();
+						// Use elapsed or clock labels based on current toggle state
+						const srcLabels = window._elapsedMode
+							? (window._dashElapsedLabels || window._dashLabels || [])
+							: (window._dashLabels || []);
+						const cardLabels = srcLabels.slice();
 						const tempData = ((window._dashTempSeries || {})['temp' + zone] || []).slice();
 						const fanData  = ((window._dashFansSeries  || {})['fan'  + zone] || []).slice();
 
 						zdcTempChart = new Chart(tempCanvas.getContext('2d'), {
 							type: 'line',
 							data: {
-								labels: labels,
+								labels: cardLabels,
 								datasets: [{ data: tempData, borderColor: color, backgroundColor: color + '22',
 									borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: true }]
 							},
@@ -2352,7 +2404,7 @@ const tempSeries = {
 						zdcFanChart = new Chart(fanCanvas.getContext('2d'), {
 							type: 'line',
 							data: {
-								labels: labels.slice(), // fan chart owns its own label array
+								labels: cardLabels.slice(),
 								datasets: [{ data: fanData, borderColor: '#52a0e0',
 									backgroundColor: 'rgba(82,160,224,0.10)',
 									borderWidth: 1.5, pointRadius: 0, stepped: true, fill: true }]
@@ -2363,6 +2415,13 @@ const tempSeries = {
 								})
 							})
 						});
+
+						// Register charts so applyTimeWindow can clip them
+						window._zdcCharts = [zdcTempChart, zdcFanChart];
+						// Apply current time window immediately
+						if (window._applyTimeWindow) {
+							window._applyTimeWindow(window._activeWindowMinutes || 0);
+						}
 
 						// Highlight active zone button
 						document.querySelectorAll('.zone-combined').forEach(function (el) {
@@ -2382,6 +2441,7 @@ const tempSeries = {
 						card.hidden = true;
 						if (zdcTempChart) { zdcTempChart.destroy(); zdcTempChart = null; }
 						if (zdcFanChart)  { zdcFanChart.destroy();  zdcFanChart  = null; }
+						window._zdcCharts = null; // unregister so applyTimeWindow skips them
 						document.querySelectorAll('.zone-combined').forEach(function (el) {
 							el.classList.remove('zone-combined--active');
 						});
@@ -2504,6 +2564,10 @@ const tempSeries = {
 						var dryEl = document.getElementById('temp-' + zone + '-dry');
 						if (dryEl) tempEl.textContent = dryEl.textContent;
 					};
+
+					// Expose for elapsed toggle and time-window callbacks in other IIFEs
+					window._openZdcCard    = openCard;
+					window._getActiveZone  = function () { return activeZone; };
 				})();
 
 
@@ -2636,38 +2700,82 @@ const tempSeries = {
 
 					function clearRunData() {
 						runStartTime = null;
+						// Uses _zoneElCache built below — elements are already looked up
+						for (let i = 0; i < 6; i++) {
+							const { zoneBtn, wet } = _zoneElCache[i];
+							if (zoneBtn) zoneBtn.classList.remove('zone-temp-cold','zone-temp-ok','zone-temp-warm','zone-temp-hot');
+							if (wet) wet.classList.remove('temp-good','temp-warning','temp-danger','temp-too-hot','temp-too-cold');
+						}
+					}
+
+					// Pre-cache DOM refs once — avoid repeated getElementById in the hot path
+					const _zoneElCache = (function () {
+						const cache = [];
 						for (let i = 1; i <= 6; i++) {
-							const dryElement = document.getElementById(`temp-${i}-dry`);
-							const zoneButton = dryElement ? dryElement.closest('.zone-combined') : null;
-							if (zoneButton) {
-								zoneButton.classList.remove(
-									'zone-temp-cold',
-									'zone-temp-ok',
-									'zone-temp-warm',
-									'zone-temp-hot'
-								);
+							const dry = document.getElementById('temp-' + i + '-dry');
+							cache.push({
+								dry:     dry,
+								zoneBtn: dry ? dry.closest('.zone-combined') : null,
+								wet:     document.getElementById('temp-' + i + '-wet')
+							});
+						}
+						return cache;
+					}());
+
+					// Optimised version using cached refs
+					function applyDeviationColorsCached() {
+						const dev = parseFloat(localStorage.getItem('sakeDeviationAllowanceC'));
+						const deviationAllowance = Number.isFinite(dev) ? dev : 5.0;
+						const half = deviationAllowance * 0.5;
+						const currentTargets = getCurrentTargets();
+						const latestTemps = window.getLatestDryBulbNumeric
+							? window.getLatestDryBulbNumeric() : null;
+
+						for (let i = 0; i < 6; i++) {
+							const { zoneBtn, wet } = _zoneElCache[i];
+							const actualTemp = latestTemps ? latestTemps['temp' + (i + 1)] : null;
+							const targetTemp = currentTargets ? currentTargets['temp' + (i + 1)] : null;
+
+							if (zoneBtn) {
+								zoneBtn.classList.remove('zone-temp-cold','zone-temp-ok','zone-temp-warm','zone-temp-hot');
+								if (actualTemp !== null) {
+									if (Number.isFinite(targetTemp)) {
+										const diff = actualTemp - targetTemp;
+										if      (diff >  deviationAllowance) zoneBtn.classList.add('zone-temp-hot');
+										else if (diff >  half)               zoneBtn.classList.add('zone-temp-warm');
+										else if (diff >= -half)              zoneBtn.classList.add('zone-temp-ok');
+										else                                 zoneBtn.classList.add('zone-temp-cold');
+									} else {
+										if      (actualTemp >= 40) zoneBtn.classList.add('zone-temp-hot');
+										else if (actualTemp >= 35) zoneBtn.classList.add('zone-temp-warm');
+										else if (actualTemp >= 25) zoneBtn.classList.add('zone-temp-ok');
+										else                       zoneBtn.classList.add('zone-temp-cold');
+									}
+								}
 							}
 
-							const tempElement = document.getElementById(`temp-${i}-wet`);
-							if (tempElement) {
-								tempElement.classList.remove(
-									'temp-good',
-									'temp-warning',
-									'temp-danger',
-									'temp-too-hot',
-									'temp-too-cold'
-								);
+							if (wet) {
+								wet.classList.remove('temp-good','temp-warning','temp-danger','temp-too-hot','temp-too-cold');
+								if (actualTemp !== null && Number.isFinite(targetTemp)) {
+									const diff = actualTemp - targetTemp;
+									if      (diff >  deviationAllowance) wet.classList.add('temp-too-hot');
+									else if (diff <= -deviationAllowance) wet.classList.add('temp-too-cold');
+									else if (Math.abs(diff) > half)      wet.classList.add('temp-warning');
+									else                                 wet.classList.add('temp-good');
+								}
 							}
 						}
-
 					}
+					// Replace global reference with the cached version
+					applyDeviationColors = applyDeviationColorsCached;
 
 					window.setRunStartTime = setRunStartTime;
 					window.clearRunData = clearRunData;
-					window.applyDeviationColors = applyDeviationColors;
-					window.addEventListener('sake-ideal-temp-updated', applyDeviationColors);
-
-					setInterval(applyDeviationColors, 5000);
+					window.applyDeviationColors = applyDeviationColorsCached;
+					window.addEventListener('sake-ideal-temp-updated', applyDeviationColorsCached);
+					// Removed standalone setInterval — applyDeviationColors is called every 3s
+					// from updateTemperatureDisplay() inside the polling loop, so a separate
+					// 5s timer is redundant and wastes CPU on a Pi.
 				})();
 
 
