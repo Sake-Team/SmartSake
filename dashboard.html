@@ -11,6 +11,24 @@
 		.replay-banner strong { color:#aaffaa; }
 		.replay-export-btn { background:#1a5a1a; border:1px solid #3a9a3a; color:#7fff7f; padding:.25rem .7rem; border-radius:4px; cursor:pointer; font-size:.8rem; }
 		.replay-export-btn:hover { background:#2a6a2a; }
+
+		/* Fan state + mode badges on zone cards */
+		.zone-fan-badges { display:flex; align-items:center; gap:3px; margin-top:2px; }
+		.fan-badge { font-size:0.65rem; font-weight:700; padding:1px 5px; border-radius:3px;
+		             background:#ddd; color:#555; line-height:1.4; letter-spacing:0.02em; }
+		.fan-badge--on  { background:#d4f0d4; color:#1a6e1a; border:1px solid #88cc88; }
+		.fan-badge--off { background:#f0f0f0; color:#888;    border:1px solid #ccc; }
+		.mode-badge { font-size:0.6rem; font-weight:600; padding:1px 4px; border-radius:3px; line-height:1.4; }
+		.mode-badge--pid    { background:#ddeeff; color:#1a55a0; border:1px solid #88b0dd; }
+		.mode-badge--manual { background:#fff0d4; color:#7a4a00; border:1px solid #ddaa55; }
+		.mode-badge--rule   { background:#f0e8ff; color:#5a1a8a; border:1px solid #bb88ee; }
+		@media (prefers-color-scheme:dark) {
+			.fan-badge--on  { background:#1a3e1a; color:#88ee88; border-color:#3a7a3a; }
+			.fan-badge--off { background:#2a2a2a; color:#888;    border-color:#555; }
+			.mode-badge--pid    { background:#0f2040; color:#88bbff; border-color:#2255aa; }
+			.mode-badge--manual { background:#3a2800; color:#ffcc77; border-color:#885500; }
+			.mode-badge--rule   { background:#200040; color:#cc88ff; border-color:#6622aa; }
+		}
 	</style>
 </head>
 
@@ -63,6 +81,10 @@
 										<span class="temp__unit">°C</span>
 									</div>
 								</div>
+								<div class="zone-fan-badges">
+									<span class="fan-badge" id="fan-badge-1">--</span>
+									<span class="mode-badge" id="mode-badge-1"></span>
+								</div>
 							</a>
 							<a class="zone-combined" href="zone2.html" id="zone-link-2" role="button" aria-label="Zone 2">
 								<span class="zone-combined__label">Zone 2</span>
@@ -71,6 +93,10 @@
 										<span class="temp__num" id="temp-2-dry">--</span>
 										<span class="temp__unit">°C</span>
 									</div>
+								</div>
+								<div class="zone-fan-badges">
+									<span class="fan-badge" id="fan-badge-2">--</span>
+									<span class="mode-badge" id="mode-badge-2"></span>
 								</div>
 							</a>
 							<a class="zone-combined" href="zone3.html" id="zone-link-3" role="button" aria-label="Zone 3">
@@ -81,6 +107,10 @@
 										<span class="temp__unit">°C</span>
 									</div>
 								</div>
+								<div class="zone-fan-badges">
+									<span class="fan-badge" id="fan-badge-3">--</span>
+									<span class="mode-badge" id="mode-badge-3"></span>
+								</div>
 							</a>
 							<a class="zone-combined" href="zone4.html" id="zone-link-4" role="button" aria-label="Zone 4">
 								<span class="zone-combined__label">Zone 4</span>
@@ -89,6 +119,10 @@
 										<span class="temp__num" id="temp-4-dry">--</span>
 										<span class="temp__unit">°C</span>
 									</div>
+								</div>
+								<div class="zone-fan-badges">
+									<span class="fan-badge" id="fan-badge-4">--</span>
+									<span class="mode-badge" id="mode-badge-4"></span>
 								</div>
 							</a>
 							<a class="zone-combined" href="zone5.html" id="zone-link-5" role="button" aria-label="Zone 5">
@@ -99,6 +133,10 @@
 										<span class="temp__unit">°C</span>
 									</div>
 								</div>
+								<div class="zone-fan-badges">
+									<span class="fan-badge" id="fan-badge-5">--</span>
+									<span class="mode-badge" id="mode-badge-5"></span>
+								</div>
 							</a>
 							<a class="zone-combined" href="zone6.html" id="zone-link-6" role="button" aria-label="Zone 6">
 								<span class="zone-combined__label">Zone 6</span>
@@ -107,6 +145,10 @@
 										<span class="temp__num" id="temp-6-dry">--</span>
 										<span class="temp__unit">°C</span>
 									</div>
+								</div>
+								<div class="zone-fan-badges">
+									<span class="fan-badge" id="fan-badge-6">--</span>
+									<span class="mode-badge" id="mode-badge-6"></span>
 								</div>
 							</a>
 						</section>
@@ -877,6 +919,9 @@
 						if (window.stopTemperatureReading) {
 							window.stopTemperatureReading();
 						}
+						if (window.stopFanPolling) {
+							window.stopFanPolling();
+						}
 						if (window.clearRunData) {
 							window.clearRunData();
 						}
@@ -1088,6 +1133,9 @@
 
 							if (window.stopTemperatureReading) {
 								window.stopTemperatureReading();
+							}
+							if (window.stopFanPolling) {
+								window.stopFanPolling();
 							}
 							if (window.clearRunData) {
 								window.clearRunData();
@@ -1405,6 +1453,83 @@
 				window.getLatestDryBulbNumeric  = getLatestDryBulbNumeric;
 				// NOTE: auto-start removed — the mode controller calls startTemperatureReading()
 				// after pre-populating historical data so charts don't get out-of-order points.
+			})();
+
+			// ── Fan state + PID mode badge poller ────────────────────────────────
+			(function () {
+				'use strict';
+
+				var _fanPollId = null;
+
+				function _applyFanBadges(data) {
+					var zones = (data && data.zones) ? data.zones : {};
+					for (var z = 1; z <= 6; z++) {
+						var zd   = zones[String(z)] || {};
+						var state = zd.state;   // 'on' | 'off' | null
+						var mode  = zd.mode;    // 'pid' | 'manual' | 'rule' | 'none'
+						var sp    = zd.setpoint; // number | null
+
+						var fanEl  = document.getElementById('fan-badge-' + z);
+						var modeEl = document.getElementById('mode-badge-' + z);
+						if (!fanEl || !modeEl) continue;
+
+						// Fan on/off badge
+						fanEl.className = 'fan-badge';
+						if (state === 'on') {
+							fanEl.textContent = 'ON';
+							fanEl.classList.add('fan-badge--on');
+						} else if (state === 'off') {
+							fanEl.textContent = 'OFF';
+							fanEl.classList.add('fan-badge--off');
+						} else {
+							fanEl.textContent = '--';
+						}
+
+						// Mode badge
+						modeEl.className = 'mode-badge';
+						modeEl.textContent = '';
+						if (mode === 'pid') {
+							modeEl.textContent = sp !== null && sp !== undefined
+								? 'PID ' + Number(sp).toFixed(1) + '°'
+								: 'PID';
+							modeEl.classList.add('mode-badge--pid');
+						} else if (mode === 'manual') {
+							modeEl.textContent = 'MAN';
+							modeEl.classList.add('mode-badge--manual');
+						} else if (mode === 'rule') {
+							modeEl.textContent = 'RULE';
+							modeEl.classList.add('mode-badge--rule');
+						}
+					}
+				}
+
+				async function fetchFanState() {
+					try {
+						var res = await fetch('/api/fan-state');
+						if (!res.ok) return;
+						_applyFanBadges(await res.json());
+					} catch (e) { /* silent */ }
+				}
+
+				function startFanPolling() {
+					if (_fanPollId) return;
+					fetchFanState();
+					_fanPollId = setInterval(fetchFanState, 5000);
+				}
+
+				function stopFanPolling() {
+					if (_fanPollId) { clearInterval(_fanPollId); _fanPollId = null; }
+					// Reset badges
+					for (var z = 1; z <= 6; z++) {
+						var el = document.getElementById('fan-badge-' + z);
+						if (el) { el.className = 'fan-badge'; el.textContent = '--'; }
+						var mel = document.getElementById('mode-badge-' + z);
+						if (mel) { mel.className = 'mode-badge'; mel.textContent = ''; }
+					}
+				}
+
+				window.startFanPolling = startFanPolling;
+				window.stopFanPolling  = stopFanPolling;
 			})();
 
 				// Live-updating charts for temperature, humidity, and fans + modal with scroll/zoom
@@ -4107,9 +4232,11 @@ const tempSeries = {
 					});
 				}
 				if (window.startTemperatureReading) window.startTemperatureReading();
+				if (window.startFanPolling) window.startFanPolling();
 			})
 			.catch(function () {
 				if (window.startTemperatureReading) window.startTemperatureReading();
+				if (window.startFanPolling) window.startFanPolling();
 			});
 
 		fetch('/api/runs/' + runId + '/zones/1')

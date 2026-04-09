@@ -12,9 +12,11 @@ from flask import Flask, jsonify, request, send_from_directory, abort
 
 import db
 
-BASE_DIR = os.path.dirname(__file__)
-SENSOR_JSON = os.path.join(BASE_DIR, "sensor_latest.json")
-SCALE_JSON  = os.path.join(BASE_DIR, "scale_data.json")
+BASE_DIR        = os.path.dirname(__file__)
+SENSOR_JSON     = os.path.join(BASE_DIR, "sensor_latest.json")
+SCALE_JSON      = os.path.join(BASE_DIR, "scale_data.json")
+FAN_STATE_JSON  = os.path.join(BASE_DIR, "fan_state.json")
+PID_CONFIG_FILE = os.path.join(BASE_DIR, "pid_config.json")
 
 app = Flask(__name__, static_folder=BASE_DIR, static_url_path="")
 
@@ -64,10 +66,19 @@ def api_latest():
         val = tcs.get(f"TC{i}")
         result[f"tc{i}"] = round(val, 2) if isinstance(val, (int, float)) else None
 
-    # Fan states — WriteSensors.py does not write these to sensor_latest.json yet;
-    # include as null so the response shape matches DB sensor_readings rows.
+    # Fan states — read from fan_state.json written by WriteSensors.py PID loop.
+    fan_state_data = {}
+    if os.path.exists(FAN_STATE_JSON):
+        try:
+            with open(FAN_STATE_JSON) as f:
+                fan_state_data = json.load(f)
+        except Exception:
+            pass
+    fzones = fan_state_data.get("zones", {})
     for i in range(1, 7):
-        result[f"fan{i}"] = None
+        z = fzones.get(str(i), {})
+        state = z.get("state")
+        result[f"fan{i}"] = 1 if state == "on" else (0 if state == "off" else None)
 
     # SHT30 environmental sensor
     sht = raw.get("sht30", {})
@@ -619,6 +630,58 @@ def api_export_csv(run_id):
         mimetype="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
+
+
+# ── Fan state (PID output) ────────────────────────────────────────────────────
+
+@app.route("/api/fan-state", methods=["GET"])
+def api_fan_state():
+    """Return the latest fan_state.json written by the PID/fan-control loop."""
+    if not os.path.exists(FAN_STATE_JSON):
+        return jsonify({"timestamp": None, "zones": {str(z): {"state": None, "mode": "none",
+                        "setpoint": None, "pid_out": None} for z in range(1, 7)}})
+    try:
+        with open(FAN_STATE_JSON) as f:
+            return jsonify(json.load(f))
+    except Exception:
+        return jsonify({"error": "could not read fan_state.json"}), 500
+
+
+# ── PID configuration ──────────────────────────────────────────────────────────
+
+@app.route("/api/pid-config", methods=["GET"])
+def api_get_pid_config():
+    """Return current PID gains from pid_config.json."""
+    if not os.path.exists(PID_CONFIG_FILE):
+        return jsonify({"error": "pid_config.json not found"}), 404
+    try:
+        with open(PID_CONFIG_FILE) as f:
+            return jsonify(json.load(f))
+    except Exception:
+        return jsonify({"error": "could not read pid_config.json"}), 500
+
+
+@app.route("/api/pid-config", methods=["POST"])
+def api_save_pid_config():
+    """Save PID gains to pid_config.json. Body: JSON object with zone keys."""
+    body = request.get_json(force=True, silent=True)
+    if not isinstance(body, dict):
+        return jsonify({"error": "expected JSON object"}), 400
+    # Validate each zone entry
+    for key, val in body.items():
+        if key == "comment":
+            continue
+        if not isinstance(val, dict):
+            return jsonify({"error": f"gains for '{key}' must be an object"}), 400
+        for gain in ("Kp", "Ki", "Kd"):
+            if gain in val and not isinstance(val[gain], (int, float)):
+                return jsonify({"error": f"{gain} for '{key}' must be a number"}), 400
+    try:
+        with open(PID_CONFIG_FILE, "w") as f:
+            json.dump(body, f, indent=2)
+        return jsonify(body), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
