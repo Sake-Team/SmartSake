@@ -125,7 +125,7 @@
 
       let currentMode = 'auto';
 
-      function computeWetBulbC(TdbC, RH) {
+      function fmtTemp(v) { return (Math.round(v / 0.2) * 0.2).toFixed(1); } function computeWetBulbC(TdbC, RH) {
         const R = Math.min(100, Math.max(1, RH));
         return TdbC * Math.atan(0.151977 * Math.sqrt(R + 8.313659)) +
                Math.atan(TdbC + R) - Math.atan(R - 1.676331) +
@@ -145,15 +145,15 @@
           const RH = data.sht30 && data.sht30.humidity_rh != null
             ? parseFloat(data.sht30.humidity_rh) : null;
 
-          if (dryEl) dryEl.textContent = dryC != null ? dryC.toFixed(1) : '--';
+          if (dryEl) dryEl.textContent = dryC != null ? fmtTemp(dryC) : '--';
           if (wetEl && dryC != null && RH != null)
-            wetEl.textContent = computeWetBulbC(dryC, RH).toFixed(1);
+            wetEl.textContent = fmtTemp(computeWetBulbC(dryC, RH));
 
           // Zone PID state
           const zone = data.zones && data.zones[ZONE];
           if (zone) {
             if (!document.activeElement || document.activeElement !== setpointIn)
-              setpointIn.value = parseFloat(zone.setpoint_c).toFixed(1);
+              setpointIn.value = fmtTemp(parseFloat(zone.setpoint_c));
 
             currentMode = zone.mode;
             modeAuto.classList.toggle('zone-mode-btn--active', zone.mode === 'auto');

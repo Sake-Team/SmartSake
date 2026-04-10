@@ -337,6 +337,25 @@ main { padding: 8px 16px 16px; transform: translateX(-8px); }
 .mid--disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
 .mid--disabled:hover { background: #ffffff; color: #222; transform: none; }
 
+/* ---- Curve builder ---- */
+.curve-toggle { display: flex; gap: 0; border: 1px solid #d0d0d8; border-radius: 6px; overflow: hidden; margin-bottom: 10px; }
+.curve-toggle-btn { flex: 1; padding: 7px 0; border: none; background: #f5f5f8; color: #555; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: background 150ms, color 150ms; }
+.curve-toggle-btn--active { background: #157efb; color: #fff; }
+.curve-toggle-btn:not(.curve-toggle-btn--active):hover { background: #e8e8f0; }
+.curve-panel { margin-top: 6px; }
+.curve-table-wrap { max-height: 180px; overflow-y: auto; border: 1px solid #e1e1e6; border-radius: 6px; }
+.curve-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.curve-table thead { position: sticky; top: 0; background: #f5f5f8; z-index: 1; }
+.curve-table th { padding: 5px 4px; border-bottom: 1px solid #d0d0d8; font-weight: 600; color: #444; text-align: center; }
+.curve-table td { border-bottom: 1px solid #f0f0f5; }
+.curve-cell { width: 100%; border: none; padding: 4px 3px; text-align: center; font-size: 0.82rem; background: transparent; outline: none; }
+.curve-cell:focus { background: #eef4ff; }
+.curve-actions { display: flex; gap: 8px; margin-top: 8px; }
+.curve-add-btn { flex: 2; padding: 6px; border: 1px solid #d0d0d8; border-radius: 6px; background: #f5f5f8; color: #333; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+.curve-add-btn:hover { background: #e8e8f0; }
+.curve-clear-btn { flex: 1; padding: 6px; border: 1px solid #d0d0d8; border-radius: 6px; background: #fff; color: #888; font-size: 0.82rem; cursor: pointer; }
+.curve-clear-btn:hover { background: #f5f5f8; }
+
 /* ---- Zone page PID controls ---- */
 .zone-temp-card { display: flex; flex-direction: column; gap: 6px; }
 .zone-temp-label { font-size: 0.85rem; color: #666; font-weight: 500; }

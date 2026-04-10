@@ -140,11 +140,48 @@
 						</div>
 
 						<div class="modal-input-section">
-							<label for="target-csv-upload">Select Koji Strain:</label>
-							<input type="file" id="target-csv-upload" accept=".csv" class="upload-input">
-							<div id="upload-status" class="upload-status"></div>
-							<small class="help-text">Upload a CSV with target temperatures over
-								time</small>
+							<div class="curve-toggle">
+								<button type="button" id="btn-show-builder" class="curve-toggle-btn curve-toggle-btn--active">Build Curve</button>
+								<button type="button" id="btn-show-upload" class="curve-toggle-btn">Upload CSV</button>
+							</div>
+
+							<!-- Curve builder panel -->
+							<div id="panel-builder" class="curve-panel">
+								<div class="curve-table-wrap">
+									<table class="curve-table">
+										<thead>
+											<tr>
+												<th>Min</th>
+												<th>Z1 °C</th><th>Z2 °C</th><th>Z3 °C</th>
+												<th>Z4 °C</th><th>Z5 °C</th><th>Z6 °C</th>
+											</tr>
+										</thead>
+										<tbody id="curve-tbody">
+											<tr>
+												<td><input type="number" step="1" min="0" class="curve-cell row-time" placeholder="0"></td>
+												<td><input type="number" step="0.2" min="0" max="60" class="curve-cell row-z1" placeholder="38.0"></td>
+												<td><input type="number" step="0.2" min="0" max="60" class="curve-cell row-z2" placeholder="38.0"></td>
+												<td><input type="number" step="0.2" min="0" max="60" class="curve-cell row-z3" placeholder="38.0"></td>
+												<td><input type="number" step="0.2" min="0" max="60" class="curve-cell row-z4" placeholder="38.0"></td>
+												<td><input type="number" step="0.2" min="0" max="60" class="curve-cell row-z5" placeholder="38.0"></td>
+												<td><input type="number" step="0.2" min="0" max="60" class="curve-cell row-z6" placeholder="38.0"></td>
+											</tr>
+										</tbody>
+									</table>
+								</div>
+								<div class="curve-actions">
+									<button type="button" id="add-row-btn" class="curve-add-btn">+ Add Row</button>
+									<button type="button" id="clear-table-btn" class="curve-clear-btn">Clear</button>
+								</div>
+							</div>
+
+							<!-- CSV upload panel -->
+							<div id="panel-upload" class="curve-panel" style="display:none;">
+								<label for="target-csv-upload">Select Koji Strain CSV:</label>
+								<input type="file" id="target-csv-upload" accept=".csv" class="upload-input">
+								<div id="upload-status" class="upload-status"></div>
+								<small class="help-text">CSV columns: time_minutes, temp1..temp6</small>
+							</div>
 						</div>
 
 						<div class="modal-input-section">
@@ -618,6 +655,14 @@
 						}
 						localStorage.setItem('currentRunName', runName);
 
+						// Load curve from builder or CSV upload into targetTemperatures
+						if (window.readCurveBuilder && window.setTargetTemperatures) {
+							const built = window.readCurveBuilder();
+							if (built.length > 0) {
+								window.setTargetTemperatures(built);
+							}
+						}
+
 						startDataCollection();
 						if (window.startTemperatureReading) {
 							window.startTemperatureReading();
@@ -885,7 +930,7 @@
 							if (dryEl) {
 								const dry = currentDryBulb[`temp${i}`];
 								dryEl.textContent =
-									(typeof dry === 'number' && !Number.isNaN(dry)) ? dry.toFixed(1) : '--';
+									(typeof dry === 'number' && !Number.isNaN(dry)) ? fmtTemp(dry) : '--';
 
 								const zoneButton = dryEl.closest('.zone-combined');
 								if (zoneButton) {
@@ -919,7 +964,12 @@
 
 					// Approximate wet-bulb temperature (°C) from dry-bulb (°C) and RH (%)
 					// Using Stull (2011) empirical formula – good for 0–50 °C and 5–99% RH.
-					function computeWetBulbC(TdbC, RH) {
+					// Round temperature to nearest 0.2 °C, display with 1 decimal place
+				function fmtTemp(v) {
+					return (Math.round(v / 0.2) * 0.2).toFixed(1);
+				}
+
+				function computeWetBulbC(TdbC, RH) {
 						const R = Math.min(100, Math.max(1, RH)); // clamp 1–100
 						const T = TdbC;
 
@@ -959,7 +1009,7 @@
 
 								if (dryC != null && RH != null) {
 									const wetC = computeWetBulbC(dryC, RH);
-									currentTemperatures[`temp${i}`] = wetC.toFixed(1);
+									currentTemperatures[`temp${i}`] = fmtTemp(wetC);
 								} else {
 									currentTemperatures[`temp${i}`] = '--';
 								}
@@ -1638,8 +1688,92 @@
 					window.clearRunData = clearRunData;
 					window.applyDeviationColors = applyDeviationColors;
 					window.setupFileUploadHandler = setupFileUploadHandler;
+					window.setTargetTemperatures = function (arr) { targetTemperatures = arr; };
 
 					setInterval(applyDeviationColors, 5000);
+				})();
+
+
+				// Curve builder — panel toggle, add/clear rows, read on run start
+				(function () {
+					const btnBuilder = document.getElementById('btn-show-builder');
+					const btnUpload  = document.getElementById('btn-show-upload');
+					const panelBuilder = document.getElementById('panel-builder');
+					const panelUpload  = document.getElementById('panel-upload');
+					const tbody = document.getElementById('curve-tbody');
+					const addRowBtn   = document.getElementById('add-row-btn');
+					const clearBtn    = document.getElementById('clear-table-btn');
+
+					if (!btnBuilder || !tbody) return;
+
+					// ---- Toggle panels ----
+					function showPanel(which) {
+						panelBuilder.style.display = which === 'builder' ? '' : 'none';
+						panelUpload.style.display  = which === 'upload'  ? '' : 'none';
+						btnBuilder.classList.toggle('curve-toggle-btn--active', which === 'builder');
+						btnUpload.classList.toggle('curve-toggle-btn--active',  which === 'upload');
+					}
+					btnBuilder.addEventListener('click', function () { showPanel('builder'); });
+					btnUpload.addEventListener('click',  function () { showPanel('upload');  });
+
+					// ---- Row template ----
+					function makeRow() {
+						const tr = document.createElement('tr');
+						const cols = ['row-time','row-z1','row-z2','row-z3','row-z4','row-z5','row-z6'];
+						const steps = ['1','0.2','0.2','0.2','0.2','0.2','0.2'];
+						cols.forEach(function (cls, i) {
+							const td = document.createElement('td');
+							const inp = document.createElement('input');
+							inp.type = 'number';
+							inp.step = steps[i];
+							inp.min = '0';
+							if (i > 0) inp.max = '60';
+							inp.className = 'curve-cell ' + cls;
+							inp.placeholder = i === 0 ? '0' : '38.0';
+							td.appendChild(inp);
+							tr.appendChild(td);
+						});
+						return tr;
+					}
+
+					// ---- Add / Clear ----
+					addRowBtn.addEventListener('click', function () {
+						const row = makeRow();
+						tbody.appendChild(row);
+						// scroll the table wrap to show the new row
+						const wrap = tbody.closest('.curve-table-wrap');
+						if (wrap) wrap.scrollTop = wrap.scrollHeight;
+						row.querySelector('input').focus();
+					});
+
+					clearBtn.addEventListener('click', function () {
+						tbody.innerHTML = '';
+						tbody.appendChild(makeRow());
+					});
+
+					// ---- Read table → targetTemperatures ----
+					window.readCurveBuilder = function () {
+						const rows = tbody.querySelectorAll('tr');
+						const result = [];
+						rows.forEach(function (tr) {
+							const time = parseFloat(tr.querySelector('.row-time').value);
+							const z = ['z1','z2','z3','z4','z5','z6'].map(function (k) {
+								return parseFloat(tr.querySelector('.row-' + k).value);
+							});
+							if (!isNaN(time) && z.some(function (v) { return !isNaN(v); })) {
+								result.push({
+									time_minutes: time,
+									temp1: isNaN(z[0]) ? null : z[0],
+									temp2: isNaN(z[1]) ? null : z[1],
+									temp3: isNaN(z[2]) ? null : z[2],
+									temp4: isNaN(z[3]) ? null : z[3],
+									temp5: isNaN(z[4]) ? null : z[4],
+									temp6: isNaN(z[5]) ? null : z[5]
+								});
+							}
+						});
+						return result.sort(function (a, b) { return a.time_minutes - b.time_minutes; });
+					};
 				})();
 
 
