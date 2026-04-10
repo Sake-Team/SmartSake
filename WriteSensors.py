@@ -41,13 +41,15 @@ class SakeHTTPHandler(SimpleHTTPRequestHandler):
                 setpoint_c = data.get('setpoint_c')
                 mode = data.get('mode')
                 manual_state = data.get('manual_state')
+                alarm_thresholds = data.get('alarm_thresholds')
 
                 if relay_ctrl and zone_num in range(1, 7):
                     relay_ctrl.update_zone(
                         zone_num,
                         setpoint_c=float(setpoint_c) if setpoint_c is not None else None,
                         mode=mode,
-                        manual_state=bool(manual_state) if manual_state is not None else None
+                        manual_state=bool(manual_state) if manual_state is not None else None,
+                        alarm_thresholds=alarm_thresholds if isinstance(alarm_thresholds, dict) else None,
                     )
                     relay_ctrl.save_config()
                     self._respond(200, {'ok': True})

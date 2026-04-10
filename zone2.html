@@ -61,6 +61,24 @@
               <button class="mid" id="fan-off-btn" disabled>Fan OFF</button>
             </div>
 
+            <!-- Alarm threshold settings -->
+            <details class="zone-alarm-settings">
+              <summary class="zone-alarm-settings-toggle">Alarm Thresholds</summary>
+              <div class="zone-alarm-settings-grid">
+                <label class="zone-thr-label">Warn High<input type="number" id="thr-warn-high" class="zone-setpoint-input" step="0.5" min="0" max="60" placeholder="42.0"></label>
+                <label class="zone-thr-label">Crit High<input type="number" id="thr-crit-high" class="zone-setpoint-input" step="0.5" min="0" max="60" placeholder="45.0"></label>
+                <label class="zone-thr-label">Warn Low<input type="number" id="thr-warn-low" class="zone-setpoint-input" step="0.5" min="0" max="60" placeholder="30.0"></label>
+                <label class="zone-thr-label">Crit Low<input type="number" id="thr-crit-low" class="zone-setpoint-input" step="0.5" min="0" max="60" placeholder="25.0"></label>
+                <button id="thresholds-apply" class="zone-apply-btn zone-thr-apply">Apply</button>
+              </div>
+            </details>
+
+            <!-- Alarm banner -->
+            <div class="zone-alarm-banner" id="alarm-banner" style="display:none">
+              <span class="zone-alarm-icon" id="alarm-icon">&#9888;</span>
+              <span id="alarm-reason">--</span>
+            </div>
+
             <!-- Status row -->
             <div class="zone-status-row">
               <div class="zone-status-chip" id="relay-indicator">
@@ -122,6 +140,12 @@
       const modeManual = document.getElementById('mode-manual');
       const fanOn      = document.getElementById('fan-on-btn');
       const fanOff     = document.getElementById('fan-off-btn');
+      const alarmBanner  = document.getElementById('alarm-banner');
+      const alarmReason  = document.getElementById('alarm-reason');
+      const thrWarnHigh  = document.getElementById('thr-warn-high');
+      const thrCritHigh  = document.getElementById('thr-crit-high');
+      const thrWarnLow   = document.getElementById('thr-warn-low');
+      const thrCritLow   = document.getElementById('thr-crit-low');
 
       let currentMode = 'auto';
 
@@ -166,6 +190,26 @@
             relayDot.className = 'zone-status-dot ' + (on ? 'zone-status-dot--on' : 'zone-status-dot--off');
             relayLabel.textContent = on ? 'Fan ON' : 'Fan OFF';
             if (pidOut) pidOut.textContent = zone.pid_output != null ? zone.pid_output : '--';
+            // Alarm state
+            if (alarmBanner) {
+              const level = zone.alarm_level;
+              if (level) {
+                alarmBanner.style.display = '';
+                alarmBanner.className = 'zone-alarm-banner zone-alarm-banner--' + level;
+                if (alarmReason) alarmReason.textContent = zone.alarm_reason || '';
+              } else {
+                alarmBanner.style.display = 'none';
+              }
+            }
+
+            // Populate threshold inputs (skip if field is focused)
+            if (zone.alarm_thresholds) {
+              const t = zone.alarm_thresholds;
+              if (thrWarnHigh && document.activeElement !== thrWarnHigh) thrWarnHigh.value = t.warn_high_c ?? '';
+              if (thrCritHigh && document.activeElement !== thrCritHigh) thrCritHigh.value = t.crit_high_c ?? '';
+              if (thrWarnLow  && document.activeElement !== thrWarnLow)  thrWarnLow.value  = t.warn_low_c  ?? '';
+              if (thrCritLow  && document.activeElement !== thrCritLow)  thrCritLow.value  = t.crit_low_c  ?? '';
+            }
           }
         } catch (e) {
           console.warn('Zone poll error:', e);
@@ -203,6 +247,16 @@
       // ---- Manual fan controls ----
       fanOn.addEventListener('click',  function () { postZoneUpdate({ mode: 'manual', manual_state: true  }); });
       fanOff.addEventListener('click', function () { postZoneUpdate({ mode: 'manual', manual_state: false }); });
+
+      // ---- Alarm threshold apply ----
+      document.getElementById('thresholds-apply').addEventListener('click', function () {
+        const wh = parseFloat(thrWarnHigh.value);
+        const ch = parseFloat(thrCritHigh.value);
+        const wl = parseFloat(thrWarnLow.value);
+        const cl = parseFloat(thrCritLow.value);
+        if ([wh, ch, wl, cl].some(isNaN)) return;
+        postZoneUpdate({ alarm_thresholds: { warn_high_c: wh, crit_high_c: ch, warn_low_c: wl, crit_low_c: cl } });
+      });
     })();
     </script>
   </body>

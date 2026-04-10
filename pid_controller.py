@@ -29,6 +29,14 @@ PID_KI = 0.1               # integral gain
 PID_KD = 0.5               # derivative gain
 
 
+DEFAULT_ALARM_THRESHOLDS = {
+    'warn_high_c': 42.0,   # approaching upper danger zone
+    'crit_high_c': 45.0,   # enzyme kill zone
+    'warn_low_c':  30.0,   # fermentation slowing
+    'crit_low_c':  25.0,   # fermentation stalled
+}
+
+
 class ZoneController:
     """Manages PID and relay state for a single zone."""
 
@@ -40,6 +48,9 @@ class ZoneController:
         self.manual_state = False   # relay state when mode == 'manual'
         self.pid_output = 0.0       # 0–100 (% duty cycle)
         self.relay_state = False    # current physical relay state
+        self.alarm_level = None     # None, 'warning', 'critical'
+        self.alarm_reason = None    # human-readable string
+        self.alarm_thresholds = dict(DEFAULT_ALARM_THRESHOLDS)
 
         # Negative gains: for cooling, output must be positive when temp > setpoint.
         # simple-pid computes: output = Kp*(setpoint - measurement) + ...
@@ -55,6 +66,30 @@ class ZoneController:
         """Called from the main sensor loop with the latest thermocouple reading."""
         if self.mode == 'auto' and temp_c is not None:
             self.pid_output = self.pid(temp_c)
+        self.check_alarms(temp_c)
+
+    def check_alarms(self, temp_c):
+        """Evaluate temperature against thresholds; set alarm_level and alarm_reason."""
+        if temp_c is None:
+            self.alarm_level = None
+            self.alarm_reason = None
+            return
+        t = self.alarm_thresholds
+        if temp_c >= t['crit_high_c']:
+            self.alarm_level = 'critical'
+            self.alarm_reason = f'{temp_c:.1f}°C ≥ crit high {t["crit_high_c"]}°C'
+        elif temp_c <= t['crit_low_c']:
+            self.alarm_level = 'critical'
+            self.alarm_reason = f'{temp_c:.1f}°C ≤ crit low {t["crit_low_c"]}°C'
+        elif temp_c >= t['warn_high_c']:
+            self.alarm_level = 'warning'
+            self.alarm_reason = f'{temp_c:.1f}°C ≥ warn high {t["warn_high_c"]}°C'
+        elif temp_c <= t['warn_low_c']:
+            self.alarm_level = 'warning'
+            self.alarm_reason = f'{temp_c:.1f}°C ≤ warn low {t["warn_low_c"]}°C'
+        else:
+            self.alarm_level = None
+            self.alarm_reason = None
 
     def set_setpoint(self, sp: float):
         self.setpoint = sp
@@ -67,12 +102,22 @@ class ZoneController:
     def set_manual(self, state: bool):
         self.manual_state = state
 
+    def set_alarm_thresholds(self, thresholds: dict):
+        """Update alarm thresholds. Only valid keys are accepted."""
+        valid = {'warn_high_c', 'crit_high_c', 'warn_low_c', 'crit_low_c'}
+        for k, v in thresholds.items():
+            if k in valid:
+                self.alarm_thresholds[k] = float(v)
+
     def to_dict(self) -> dict:
         return {
             'setpoint_c': self.setpoint,
             'mode': self.mode,
             'relay_state': self.relay_state,
-            'pid_output': round(self.pid_output, 1)
+            'pid_output': round(self.pid_output, 1),
+            'alarm_level': self.alarm_level,
+            'alarm_reason': self.alarm_reason,
+            'alarm_thresholds': dict(self.alarm_thresholds),
         }
 
 
@@ -95,7 +140,8 @@ class RelayController:
             if zone_num in self.zones:
                 self.zones[zone_num].update(temp)
 
-    def update_zone(self, zone_num: int, setpoint_c: float = None, mode: str = None, manual_state: bool = None):
+    def update_zone(self, zone_num: int, setpoint_c: float = None, mode: str = None,
+                    manual_state: bool = None, alarm_thresholds: dict = None):
         """Update a single zone's config (called from HTTP POST handler)."""
         zone = self.zones.get(zone_num)
         if zone is None:
@@ -106,6 +152,8 @@ class RelayController:
             zone.set_mode(mode)
         if manual_state is not None:
             zone.set_manual(manual_state)
+        if alarm_thresholds is not None:
+            zone.set_alarm_thresholds(alarm_thresholds)
         return True
 
     def run_relay_thread(self):
@@ -139,7 +187,7 @@ class RelayController:
         return {z: zone.to_dict() for z, zone in self.zones.items()}
 
     def load_config(self, path='zone_config.json'):
-        """Load persisted setpoints and modes. Silent if file missing."""
+        """Load persisted setpoints, modes, and alarm thresholds. Silent if file missing."""
         if not os.path.exists(path):
             return
         try:
@@ -152,13 +200,21 @@ class RelayController:
                         self.zones[z].set_setpoint(float(cfg['setpoint_c']))
                     if 'mode' in cfg:
                         self.zones[z].set_mode(cfg['mode'])
+                    if 'alarm_thresholds' in cfg:
+                        self.zones[z].set_alarm_thresholds(cfg['alarm_thresholds'])
         except Exception as e:
             print(f"[PID] Config load failed: {e}")
 
     def save_config(self, path='zone_config.json'):
-        """Persist setpoints and modes atomically."""
-        data = {z: {'setpoint_c': zone.setpoint, 'mode': zone.mode}
-                for z, zone in self.zones.items()}
+        """Persist setpoints, modes, and alarm thresholds atomically."""
+        data = {
+            z: {
+                'setpoint_c': zone.setpoint,
+                'mode': zone.mode,
+                'alarm_thresholds': dict(zone.alarm_thresholds),
+            }
+            for z, zone in self.zones.items()
+        }
         tmp = path + '.tmp'
         try:
             with open(tmp, 'w') as f:

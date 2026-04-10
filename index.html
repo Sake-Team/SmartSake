@@ -1015,6 +1015,20 @@
 								}
 							}
 
+							// Alarm state from zone PID data
+							for (let i = 1; i <= 6; i++) {
+								const zone = data.zones && data.zones[i];
+								const card = document.querySelector(`.zone-combined[href="zone${i}.html"]`);
+								if (card) {
+									card.classList.remove('zone-combined--warn', 'zone-combined--crit');
+									if (zone && zone.alarm_level === 'critical') {
+										card.classList.add('zone-combined--crit');
+									} else if (zone && zone.alarm_level === 'warning') {
+										card.classList.add('zone-combined--warn');
+									}
+								}
+							}
+
 							// Fans not yet in sensor JSON — leave at last known state
 							updateTemperatureDisplay();
 
