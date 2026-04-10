@@ -6,18 +6,78 @@ import json
 import threading
 from datetime import datetime
 from http.server import HTTPServer, SimpleHTTPRequestHandler
+from urllib.parse import urlparse
 
 from sensors import init_sht30, read_sht30, discover_devices, read_temp_c, format_device_id, MAX_THERMOCOUPLES
 from load_cell_hx711 import HX711, HX711_DAT_PIN, HX711_CLK_PIN, TARE_OFFSET, CALIBRATION_FACTOR, UNITS, SAMPLES_PER_READ, log_weight
+from pid_controller import RelayController
 
 CSV_FILE = "sensor_data.csv"
 JSON_FILE = "sensor_latest.json"
 MAX_CSV_ROWS = 43200  # ~24 hrs at 2-second interval
 
-# Shared state updated by the HX711 background thread
+# Shared state updated by background threads
 weight_state = {'kg': None, 'raw': None}
+relay_ctrl = None  # set in __main__ before threads start
 
 
+# -----------------------------------------------
+# HTTP SERVER (GET static files + POST zone config)
+# -----------------------------------------------
+class SakeHTTPHandler(SimpleHTTPRequestHandler):
+    """Serves static files and handles zone config POST requests."""
+
+    def log_message(self, format, *args):
+        pass  # suppress per-request console noise
+
+    def do_POST(self):
+        if urlparse(self.path).path == '/update_zone':
+            try:
+                length = int(self.headers.get('Content-Length', 0))
+                body = self.rfile.read(length)
+                data = json.loads(body)
+
+                zone_num = int(data.get('zone', 0))
+                setpoint_c = data.get('setpoint_c')
+                mode = data.get('mode')
+                manual_state = data.get('manual_state')
+
+                if relay_ctrl and zone_num in range(1, 7):
+                    relay_ctrl.update_zone(
+                        zone_num,
+                        setpoint_c=float(setpoint_c) if setpoint_c is not None else None,
+                        mode=mode,
+                        manual_state=bool(manual_state) if manual_state is not None else None
+                    )
+                    relay_ctrl.save_config()
+                    self._respond(200, {'ok': True})
+                else:
+                    self._respond(400, {'error': 'invalid zone or relay not initialized'})
+            except Exception as e:
+                self._respond(500, {'error': str(e)})
+        else:
+            self._respond(404, {'error': 'not found'})
+
+    def _respond(self, code, payload):
+        body = json.dumps(payload).encode()
+        self.send_response(code)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Content-Length', str(len(body)))
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        self.wfile.write(body)
+
+
+def start_web_server(port=8080):
+    """Serve the current directory over HTTP in a background thread."""
+    httpd = HTTPServer(("", port), SakeHTTPHandler)
+    print(f"Web server running at http://<pi-ip>:{port}")
+    httpd.serve_forever()
+
+
+# -----------------------------------------------
+# HX711 LOAD CELL THREAD
+# -----------------------------------------------
 def run_hx711_thread():
     """Background thread: reads HX711 every 0.5 s, updates weight_state."""
     try:
@@ -28,7 +88,6 @@ def run_hx711_thread():
 
         while True:
             try:
-                # get_weight returns (weight, raw_avg) — one read batch, no extra call
                 weight, raw_avg = hx.get_weight(samples=SAMPLES_PER_READ, units=UNITS)
                 weight_state['kg'] = weight
                 weight_state['raw'] = raw_avg
@@ -40,13 +99,15 @@ def run_hx711_thread():
         print(f"HX711 thread failed to initialize: {e} -- running without scale")
 
 
+# -----------------------------------------------
+# DATA WRITERS
+# -----------------------------------------------
 def write_csv(timestamp, sht_temp, sht_humidity, tc_readings):
     """Append a row to the CSV file, rotating when MAX_CSV_ROWS is exceeded."""
     file_exists = os.path.isfile(CSV_FILE)
     with open(CSV_FILE, "a", newline="") as f:
         writer = csv.writer(f)
         if not file_exists:
-            # Write header on first run
             headers = ["timestamp", "sht30_temp_c", "sht30_humidity_rh"]
             headers += [f"TC{ch}_temp_c" for ch, _ in tc_readings]
             writer.writerow(headers)
@@ -54,7 +115,6 @@ def write_csv(timestamp, sht_temp, sht_humidity, tc_readings):
         row += [f"{temp:.2f}" if temp is not None else "ERROR" for _, temp in tc_readings]
         writer.writerow(row)
 
-    # Rotation: if file exceeds MAX_CSV_ROWS lines, archive and start fresh
     try:
         with open(CSV_FILE, "r") as f:
             line_count = sum(1 for _ in f)
@@ -77,7 +137,8 @@ def write_json(timestamp, sht_temp, sht_humidity, tc_readings):
             f"TC{ch}": round(temp, 2) if temp is not None else None
             for ch, temp in tc_readings
         },
-        "weight_kg": round(weight_state['kg'], 4) if weight_state['kg'] is not None else None
+        "weight_kg": round(weight_state['kg'], 4) if weight_state['kg'] is not None else None,
+        "zones": relay_ctrl.get_zone_states() if relay_ctrl else {}
     }
     tmp_file = JSON_FILE + ".tmp"
     with open(tmp_file, "w") as f:
@@ -85,22 +146,27 @@ def write_json(timestamp, sht_temp, sht_humidity, tc_readings):
     os.replace(tmp_file, JSON_FILE)
 
 
-def start_web_server(port=8080):
-    """Serve the current directory over HTTP in a background thread."""
-    handler = SimpleHTTPRequestHandler
-    httpd = HTTPServer(("", port), handler)
-    print(f"Web server running at http://<pi-ip>:{port}")
-    httpd.serve_forever()
-
-
+# -----------------------------------------------
+# MAIN
+# -----------------------------------------------
 if __name__ == "__main__":
     # Start web server
     server_thread = threading.Thread(target=start_web_server, daemon=True)
     server_thread.start()
 
-    # Start HX711 weight thread (fails gracefully if no scale attached)
+    # Start HX711 weight thread (fails gracefully if scale not attached)
     hx_thread = threading.Thread(target=run_hx711_thread, daemon=True)
     hx_thread.start()
+
+    # Start PID / relay controller
+    try:
+        relay_ctrl = RelayController()
+        relay_ctrl.load_config()
+        relay_thread = threading.Thread(target=relay_ctrl.run_relay_thread, daemon=True)
+        relay_thread.start()
+        print("Relay/PID controller started.")
+    except Exception as e:
+        print(f"Relay/PID init failed: {e} -- running without relay control")
 
     # Initialize SHT30
     try:
@@ -152,13 +218,18 @@ if __name__ == "__main__":
                 tc_readings.append((ch, None))
                 print(f"TC{ch}: ERROR ({e})")
 
-        # Log weight state
+        # Update PID with latest readings
+        if relay_ctrl:
+            relay_ctrl.update_all(tc_readings)
+
         if weight_state['kg'] is not None:
             print(f"Weight: {weight_state['kg']:.3f} {UNITS}  (raw: {weight_state['raw']:.0f})")
 
-        # Write outputs
         write_csv(timestamp, sht_temp, sht_humidity, tc_readings)
         write_json(timestamp, sht_temp, sht_humidity, tc_readings)
+
+        if relay_ctrl:
+            relay_ctrl.save_config()
 
         print("-" * 40)
         time.sleep(2)
