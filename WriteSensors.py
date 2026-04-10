@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 from sensors import init_sht30, read_sht30, discover_devices, read_temp_c, format_device_id, MAX_THERMOCOUPLES
 from load_cell_hx711 import HX711, HX711_DAT_PIN, HX711_CLK_PIN, TARE_OFFSET, CALIBRATION_FACTOR, UNITS, SAMPLES_PER_READ, log_weight
 from pid_controller import RelayController
+from historian import Historian
 
 CSV_FILE = "sensor_data.csv"
 JSON_FILE = "sensor_latest.json"
@@ -18,7 +19,9 @@ MAX_CSV_ROWS = 43200  # ~24 hrs at 2-second interval
 
 # Shared state updated by background threads
 weight_state = {'kg': None, 'raw': None}
-relay_ctrl = None  # set in __main__ before threads start
+relay_ctrl = None   # set in __main__ before threads start
+historian = None    # set in __main__ before threads start
+active_run_id = None  # current run being logged; None when no run active
 
 
 # -----------------------------------------------
@@ -30,8 +33,56 @@ class SakeHTTPHandler(SimpleHTTPRequestHandler):
     def log_message(self, format, *args):
         pass  # suppress per-request console noise
 
+    def do_GET(self):
+        """Handle /export_run?run_id=N as a CSV download; fall back to static files."""
+        parsed = urlparse(self.path)
+        if parsed.path == '/export_run':
+            self._handle_export_run(parsed.query)
+        else:
+            super().do_GET()
+
+    def _handle_export_run(self, query_string):
+        from urllib.parse import parse_qs
+        global historian
+        params = parse_qs(query_string)
+        run_id_list = params.get('run_id', [])
+        if not run_id_list or not historian:
+            self._respond(400, {'error': 'missing run_id or historian not ready'})
+            return
+        try:
+            raw = run_id_list[0]
+            if raw == 'active':
+                run_id = active_run_id
+            else:
+                run_id = int(raw)
+            if run_id is None:
+                self._respond(404, {'error': 'no active run'})
+                return
+            import tempfile, os
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.csv', mode='w') as tmp:
+                tmp_path = tmp.name
+            historian.export_run_csv(run_id, tmp_path)
+            with open(tmp_path, 'rb') as f:
+                data = f.read()
+            os.unlink(tmp_path)
+            filename = f'run_{run_id}.csv'
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/csv')
+            self.send_header('Content-Disposition', f'attachment; filename="{filename}"')
+            self.send_header('Content-Length', str(len(data)))
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(data)
+        except Exception as e:
+            self._respond(500, {'error': str(e)})
+
     def do_POST(self):
-        if urlparse(self.path).path == '/update_zone':
+        path = urlparse(self.path).path
+        if path == '/start_run':
+            self._handle_start_run()
+        elif path == '/end_run':
+            self._handle_end_run()
+        elif path == '/update_zone':
             try:
                 length = int(self.headers.get('Content-Length', 0))
                 body = self.rfile.read(length)
@@ -59,6 +110,40 @@ class SakeHTTPHandler(SimpleHTTPRequestHandler):
                 self._respond(500, {'error': str(e)})
         else:
             self._respond(404, {'error': 'not found'})
+
+    def _handle_start_run(self):
+        global active_run_id
+        try:
+            length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(length)
+            data = json.loads(body)
+            name = str(data.get('name', 'Unnamed Run')).strip() or 'Unnamed Run'
+            if historian:
+                active_run_id = historian.start_run(name)
+                print(f"[Run] Started run '{name}' (id={active_run_id})")
+                self._respond(200, {'ok': True, 'run_id': active_run_id})
+            else:
+                self._respond(503, {'error': 'historian not initialized'})
+        except Exception as e:
+            self._respond(500, {'error': str(e)})
+
+    def _handle_end_run(self):
+        global active_run_id
+        try:
+            length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(length) if length else b'{}'
+            data = json.loads(body) if body else {}
+            notes = data.get('notes')
+            rid = active_run_id
+            if historian and rid is not None:
+                historian.end_run(rid, notes=notes)
+                active_run_id = None
+                print(f"[Run] Ended run id={rid}")
+                self._respond(200, {'ok': True, 'run_id': rid})
+            else:
+                self._respond(400, {'error': 'no active run'})
+        except Exception as e:
+            self._respond(500, {'error': str(e)})
 
     def _respond(self, code, payload):
         body = json.dumps(payload).encode()
@@ -170,6 +255,17 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Relay/PID init failed: {e} -- running without relay control")
 
+    # Initialize SQLite historian
+    try:
+        historian = Historian()
+        active_run_id = historian.get_active_run()
+        if active_run_id:
+            print(f"[Historian] Resuming active run id={active_run_id}")
+        else:
+            print("[Historian] No active run — waiting for /start_run")
+    except Exception as e:
+        print(f"[Historian] Init failed: {e} -- running without historian")
+
     # Initialize SHT30
     try:
         sht30 = init_sht30()
@@ -232,6 +328,16 @@ if __name__ == "__main__":
 
         if relay_ctrl:
             relay_ctrl.save_config()
+
+        # Log to SQLite historian if a run is active
+        if historian and active_run_id is not None:
+            zone_states = relay_ctrl.get_zone_states() if relay_ctrl else {}
+            historian.log_reading(
+                active_run_id, timestamp,
+                sht_temp, sht_humidity,
+                tc_readings, weight_state['kg'],
+                zone_states
+            )
 
         print("-" * 40)
         time.sleep(2)

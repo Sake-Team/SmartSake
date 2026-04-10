@@ -1329,6 +1329,15 @@ header {
   font-size: 1.1rem;
 }
 
+/* Export run download link */
+.export-run-link {
+  font-size: 0.85rem;
+  color: #b12020;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 /* Alarm threshold settings (collapsible) */
 .zone-alarm-settings {
   margin-top: 10px;

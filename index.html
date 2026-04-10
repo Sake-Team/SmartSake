@@ -202,7 +202,10 @@
 					<div class="modal-content">
 						<p>Are you sure you would like to end the run?</p>
 						<p>This will stop data collection and finalize the current monitoring
-							session.</p>
+							session. A CSV report will be saved on the Pi.</p>
+						<p id="export-run-link-wrap" style="display:none">
+							<a id="export-run-link" href="#" class="export-run-link" target="_blank">&#8593; Download run CSV</a>
+						</p>
 
 						<div class="modal-button-section">
 							<button type="button" class="modal-cancel-btn" id="cancel-end-btn">Cancel</button>
@@ -612,7 +615,16 @@
 					// ---------- Start button (open start modal or end modal) ----------
 					startBtn.addEventListener('click', function () {
 						if (startBtn.classList.contains('end-run-btn-active')) {
-							if (endModal) endModal.style.display = 'flex';
+							if (endModal) {
+							endModal.style.display = 'flex';
+							// Populate export link with active run_id if available
+							const exportLink = document.getElementById('export-run-link');
+							const exportWrap = document.getElementById('export-run-link-wrap');
+							if (exportLink && exportWrap && startBtn.classList.contains('end-run-btn-active')) {
+								exportLink.href = '/export_run?run_id=active';
+								exportWrap.style.display = '';
+							}
+						}
 						} else {
 							const fileInput = document.getElementById('target-csv-upload');
 							const uploadStatus = document.getElementById('upload-status');
@@ -654,6 +666,13 @@
 							runNameDisplay.textContent = '- ' + runName;
 						}
 						localStorage.setItem('currentRunName', runName);
+
+						// Notify historian backend of new run
+						fetch('/start_run', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ name: runName })
+						}).catch(function (e) { console.warn('start_run POST failed:', e); });
 
 						// Load curve from builder or CSV upload into targetTemperatures
 						if (window.readCurveBuilder && window.setTargetTemperatures) {
@@ -704,6 +723,13 @@
 
 						confirmEndBtn.addEventListener('click', function () {
 							const currentRunName = localStorage.getItem('currentRunName') || 'UnknownRun';
+
+							// Notify historian backend to close run and write report
+							fetch('/end_run', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ notes: '' })
+							}).catch(function (e) { console.warn('end_run POST failed:', e); });
 
 							stopDataCollectionAndExport(currentRunName);
 
