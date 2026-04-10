@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Load Cell Reader - Sake Table Scale System
+Load Cell Calibration Tool - Sake Table Scale System
 Hardware: 233 FX29X 040A 0200 L ND Load Cell + SparkFun HX711 (SEN-13879)
 Platform: Raspberry Pi 4B
 Team: Benjamin Lin, Anastasia Myers, Makenna Hull, Natalie Cupples
 
-Designed to integrate with the main sake brewing control system.
-Outputs live weight readings every 2 seconds to console and shared data file.
+Standalone CALIBRATION TOOL ONLY.
+# Main data loop has moved to WriteSensors.py
 """
 
 import RPi.GPIO as GPIO
@@ -156,15 +156,18 @@ class HX711:
     def set_scale(self, factor):
         self._scale = factor
 
-    def get_weight(self, samples=10, units="kg"):
-        raw = self.read_average(samples) - self._offset
+    def get_weight(self, samples=10, units="kg") -> tuple:
+        """Read weight. Returns (weight_value, raw_avg) — one read batch, two outputs."""
+        raw_avg = self.read_average(samples)
+        raw = raw_avg - self._offset
         grams = raw / self._scale
         if units == "kg":
-            return grams / 1000.0
+            weight_value = grams / 1000.0
         elif units == "lbs":
-            return grams / 453.592
+            weight_value = grams / 453.592
         else:
-            return grams
+            weight_value = grams
+        return weight_value, raw_avg
 
     def power_down(self):
         GPIO.output(self.CLK, False)
@@ -237,70 +240,16 @@ def log_weight(weight, units):
 
 
 # -----------------------------------------------
-# MAIN LOOP
-# -----------------------------------------------
-def main():
-    print("\n" + "="*55)
-    print("  Sake Table Scale -- Load Cell Monitor")
-    print("  233 FX29X + HX711 SEN-13879 | RPi 4B")
-    print("="*55)
-    print(f"  DAT Pin:  GPIO {HX711_DAT_PIN} (Physical Pin 29)")
-    print(f"  CLK Pin:  GPIO {HX711_CLK_PIN} (Physical Pin 31)")
-    print(f"  Interval: {READ_INTERVAL_SEC}s  |  Avg samples: {SAMPLES_PER_READ}")
-    print(f"  Units:    {UNITS}")
-    print(f"  Log file: {DATA_LOG_FILE}")
-    print("="*55)
-
-    hx = HX711(HX711_DAT_PIN, HX711_CLK_PIN, gain=128)
-    hx._offset = TARE_OFFSET
-    hx.set_scale(CALIBRATION_FACTOR)
-
-    if TARE_OFFSET == 0 and CALIBRATION_FACTOR == 1.0:
-        print("\n  WARNING: Default calibration values detected!")
-        print("  Run:  python3 load_cell_hx711.py --calibrate\n")
-        run_cal = input("  Run calibration now? (y/n): ").strip().lower()
-        if run_cal == "y":
-            new_offset, new_factor = calibrate(hx)
-            hx._offset = new_offset
-            hx.set_scale(new_factor)
-        else:
-            print("  Continuing with uncalibrated readings...\n")
-
-    print("\n  Reading live weight data -- press Ctrl+C to stop\n")
-    print(f"  {'Time':<12} {'Weight':>12}  {'Raw ADC':>12}")
-    print("  " + "-"*40)
-
-    try:
-        while True:
-            try:
-                weight = hx.get_weight(samples=SAMPLES_PER_READ, units=UNITS)
-                raw_avg = hx.read_average(samples=5)
-                timestamp = datetime.now().strftime("%H:%M:%S")
-
-                print(f"  {timestamp:<12} {weight:>10.3f} {UNITS}  {raw_avg:>12.0f}")
-                log_weight(weight, UNITS)
-
-            except TimeoutError as e:
-                print(f"  [ERROR] {e}")
-
-            time.sleep(READ_INTERVAL_SEC)
-
-    except KeyboardInterrupt:
-        print("\n\n  Stopped by user.")
-    finally:
-        GPIO.cleanup()
-        print("  GPIO cleaned up. Goodbye.\n")
-
-
-# -----------------------------------------------
 # ENTRY POINT
 # -----------------------------------------------
 if __name__ == "__main__":
     import sys
+    # Main data loop has moved to WriteSensors.py
     if "--calibrate" in sys.argv:
         GPIO.setmode(GPIO.BCM)
         hx = HX711(HX711_DAT_PIN, HX711_CLK_PIN)
         calibrate(hx)
         GPIO.cleanup()
     else:
-        main()
+        print("  Sake Table Scale -- Calibration Tool")
+        print("  Usage: python3 load_cell_hx711.py --calibrate")

@@ -2,45 +2,46 @@ import glob
 import time
 import csv
 import os
-import board
-import adafruit_sht31d
+import json
+import threading
 from datetime import datetime
 from http.server import HTTPServer, SimpleHTTPRequestHandler
-import threading
 
-# Base directory for 1-Wire devices
-W1_BASE = "/sys/bus/w1/devices"
-MAX_THERMOCOUPLES = 6
+from sensors import init_sht30, read_sht30, discover_devices, read_temp_c, format_device_id, MAX_THERMOCOUPLES
+from load_cell_hx711 import HX711, HX711_DAT_PIN, HX711_CLK_PIN, TARE_OFFSET, CALIBRATION_FACTOR, UNITS, SAMPLES_PER_READ, log_weight
+
 CSV_FILE = "sensor_data.csv"
 JSON_FILE = "sensor_latest.json"
+MAX_CSV_ROWS = 43200  # ~24 hrs at 2-second interval
 
-def init_sht30():
-    i2c = board.I2C()
-    return adafruit_sht31d.SHT31D(i2c)
+# Shared state updated by the HX711 background thread
+weight_state = {'kg': None, 'raw': None}
 
-def read_sht30(sensor):
-    return sensor.temperature, sensor.relative_humidity
 
-def discover_devices():
-    return sorted(glob.glob(f"{W1_BASE}/3b-*"))
+def run_hx711_thread():
+    """Background thread: reads HX711 every 0.5 s, updates weight_state."""
+    try:
+        hx = HX711(HX711_DAT_PIN, HX711_CLK_PIN, gain=128)
+        hx._offset = TARE_OFFSET
+        hx.set_scale(CALIBRATION_FACTOR)
+        print("HX711 initialized.")
 
-def read_temp_c(device_folder):
-    device_file = f"{device_folder}/w1_slave"
-    with open(device_file, "r") as f:
-        lines = f.readlines()
-    if not lines[0].strip().endswith("YES"):
-        raise RuntimeError("CRC check failed")
-    temp_pos = lines[1].find("t=")
-    if temp_pos == -1:
-        raise RuntimeError("Temperature data not found")
-    temp_milli_c = int(lines[1][temp_pos + 2:])
-    return temp_milli_c / 1000.0
+        while True:
+            try:
+                # get_weight returns (weight, raw_avg) — one read batch, no extra call
+                weight, raw_avg = hx.get_weight(samples=SAMPLES_PER_READ, units=UNITS)
+                weight_state['kg'] = weight
+                weight_state['raw'] = raw_avg
+                log_weight(weight, UNITS)
+            except Exception as e:
+                print(f"HX711 read error: {e}")
+            time.sleep(0.5)
+    except Exception as e:
+        print(f"HX711 thread failed to initialize: {e} -- running without scale")
 
-def format_device_id(device_folder: str) -> str:
-    return device_folder.split("/")[-1]
 
 def write_csv(timestamp, sht_temp, sht_humidity, tc_readings):
-    """Append a row to the CSV file."""
+    """Append a row to the CSV file, rotating when MAX_CSV_ROWS is exceeded."""
     file_exists = os.path.isfile(CSV_FILE)
     with open(CSV_FILE, "a", newline="") as f:
         writer = csv.writer(f)
@@ -53,9 +54,19 @@ def write_csv(timestamp, sht_temp, sht_humidity, tc_readings):
         row += [f"{temp:.2f}" if temp is not None else "ERROR" for _, temp in tc_readings]
         writer.writerow(row)
 
+    # Rotation: if file exceeds MAX_CSV_ROWS lines, archive and start fresh
+    try:
+        with open(CSV_FILE, "r") as f:
+            line_count = sum(1 for _ in f)
+        if line_count > MAX_CSV_ROWS:
+            datestr = datetime.now().strftime("%Y%m%d_%H%M%S")
+            os.rename(CSV_FILE, f"{CSV_FILE}.{datestr}.bak")
+    except Exception as e:
+        print(f"CSV rotation error: {e}")
+
+
 def write_json(timestamp, sht_temp, sht_humidity, tc_readings):
-    """Write latest readings to a JSON file for the HTML page to fetch."""
-    import json
+    """Write latest readings to sensor_latest.json atomically."""
     data = {
         "timestamp": timestamp,
         "sht30": {
@@ -65,10 +76,14 @@ def write_json(timestamp, sht_temp, sht_humidity, tc_readings):
         "thermocouples": {
             f"TC{ch}": round(temp, 2) if temp is not None else None
             for ch, temp in tc_readings
-        }
+        },
+        "weight_kg": round(weight_state['kg'], 4) if weight_state['kg'] is not None else None
     }
-    with open(JSON_FILE, "w") as f:
+    tmp_file = JSON_FILE + ".tmp"
+    with open(tmp_file, "w") as f:
         json.dump(data, f)
+    os.replace(tmp_file, JSON_FILE)
+
 
 def start_web_server(port=8080):
     """Serve the current directory over HTTP in a background thread."""
@@ -77,10 +92,15 @@ def start_web_server(port=8080):
     print(f"Web server running at http://<pi-ip>:{port}")
     httpd.serve_forever()
 
+
 if __name__ == "__main__":
-    # Start web server in background
+    # Start web server
     server_thread = threading.Thread(target=start_web_server, daemon=True)
     server_thread.start()
+
+    # Start HX711 weight thread (fails gracefully if no scale attached)
+    hx_thread = threading.Thread(target=run_hx711_thread, daemon=True)
+    hx_thread.start()
 
     # Initialize SHT30
     try:
@@ -131,6 +151,10 @@ if __name__ == "__main__":
             except Exception as e:
                 tc_readings.append((ch, None))
                 print(f"TC{ch}: ERROR ({e})")
+
+        # Log weight state
+        if weight_state['kg'] is not None:
+            print(f"Weight: {weight_state['kg']:.3f} {UNITS}  (raw: {weight_state['raw']:.0f})")
 
         # Write outputs
         write_csv(timestamp, sht_temp, sht_humidity, tc_readings)

@@ -365,16 +365,18 @@
 								if (wetEl && wetEl.textContent !== '--') {
 									temps.push(wetEl.textContent);
 								} else {
-									temps.push((70 + Math.random() * 10).toFixed(1));
+									temps.push(null); // no live reading available — record as missing, not fake
 								}
 							}
 						}
 
-						const humidity = (60 + Math.random() * 20).toFixed(1);
+						const liveHumidity = window.getCurrentHumidity ? window.getCurrentHumidity() : null;
+						const humidity = (liveHumidity != null) ? parseFloat(liveHumidity).toFixed(1) : null;
 
+						// Fan state not yet wired to hardware — record as empty rather than fake
 						const fans = [];
 						for (let i = 1; i <= 6; i++) {
-							fans.push(Math.random() > 0.5 ? 'On' : 'Off');
+							fans.push('');
 						}
 
 						const notes = localStorage.getItem('currentNotes') || '';
@@ -849,8 +851,9 @@
 				})();
 				*/
 
-				// Simulated live temperature readings (dry-bulb 20–50 °C) + humidity + fans,
-				// but DISPLAY wet-bulb temperature based on humidity.
+				// Live temperature readings from sensor_latest.json (served by WriteSensors.py).
+				// Dry-bulb temps come from MAX31850K thermocouples (TC1–TC6).
+				// Wet-bulb is computed from dry-bulb + SHT30 humidity using Stull (2011).
 				(function () {
 					// Latest displayed temperatures (wet-bulb °C)
 					let currentTemperatures = {
@@ -864,7 +867,7 @@
 						temp4: null, temp5: null, temp6: null
 					};
 
-					// Latest fan states (1 = on, 0 = off)
+					// Latest fan states (1 = on, 0 = off) — not yet in sensor JSON
 					let currentFans = {
 						fan1: 0, fan2: 0, fan3: 0,
 						fan4: 0, fan5: 0, fan6: 0
@@ -872,7 +875,7 @@
 
 					let currentHumidity = null;
 					let temperatureReadingActive = false;
-					let simIntervalId = null;
+					let fetchIntervalId = null;
 
 					function updateTemperatureDisplay() {
 						for (let i = 1; i <= 6; i++) {
@@ -930,44 +933,53 @@
 						return Tw;
 					}
 
-					// Generate random sample:
-					//   dry-bulb: 20–50 °C
-					//   RH: 40–80 %
-					//   wet-bulb: computed from Tdb & RH
-					//   fans ON when wet-bulb > 40 °C
-					function generateRandomSample() {
+					// Fetch live data from sensor_latest.json and update display + charts.
+					async function fetchSensorData() {
 						if (!temperatureReadingActive) return;
 
-						// One humidity value for this sample
-						currentHumidity = (40 + Math.random() * 40).toFixed(1); // 40–80 % RH
-						const RH = parseFloat(currentHumidity);
+						try {
+							const response = await fetch('sensor_latest.json?_=' + Date.now());
+							if (!response.ok) {
+								console.warn('sensor_latest.json fetch failed:', response.statusText);
+								return;
+							}
+							const data = await response.json();
 
-						for (let i = 1; i <= 6; i++) {
-							// Dry-bulb temperature for this zone
-							const dryC = 20 + Math.random() * 30; // 20–50 °C
-							currentDryBulb[`temp${i}`] = dryC;
+							// Humidity from SHT30
+							const RH = (data.sht30 && data.sht30.humidity_rh != null)
+								? parseFloat(data.sht30.humidity_rh) : null;
+							currentHumidity = (RH != null) ? RH.toFixed(1) : null;
 
-							// Compute wet-bulb from dry-bulb + RH
-							const wetC = computeWetBulbC(dryC, RH);
-							currentTemperatures[`temp${i}`] = wetC.toFixed(1);
+							// Thermocouples → dry-bulb, compute wet-bulb
+							for (let i = 1; i <= 6; i++) {
+								const tcKey = `TC${i}`;
+								const dryC = (data.thermocouples && data.thermocouples[tcKey] != null)
+									? parseFloat(data.thermocouples[tcKey]) : null;
+								currentDryBulb[`temp${i}`] = dryC;
 
-							// Fan ON when *displayed* (wet-bulb) temp > 40 °C
-							currentFans[`fan${i}`] = wetC > 40 ? 1 : 0;
-						}
+								if (dryC != null && RH != null) {
+									const wetC = computeWetBulbC(dryC, RH);
+									currentTemperatures[`temp${i}`] = wetC.toFixed(1);
+								} else {
+									currentTemperatures[`temp${i}`] = '--';
+								}
+							}
 
-						updateTemperatureDisplay();
+							// Fans not yet in sensor JSON — leave at last known state
+							updateTemperatureDisplay();
 
-						// Push to charts if chart logic is present
-						if (window.pushSensorSample) {
-							window.pushSensorSample({
-								time: new Date(),
-								// charts see wet-bulb temps
-								temps: { ...currentTemperatures },
-								humidity: currentHumidity,
-								fans: { ...currentFans },
-								// dry-bulb available if you ever want it
-								dryBulb: { ...currentDryBulb }
-							});
+							if (window.pushSensorSample) {
+								window.pushSensorSample({
+									time: data.timestamp ? new Date(data.timestamp) : new Date(),
+									temps: { ...currentTemperatures },
+									humidity: currentHumidity,
+									fans: { ...currentFans },
+									dryBulb: { ...currentDryBulb },
+									weight: data.weight_kg != null ? data.weight_kg : null
+								});
+							}
+						} catch (err) {
+							console.warn('Error fetching sensor_latest.json:', err);
 						}
 					}
 
@@ -975,18 +987,18 @@
 						if (temperatureReadingActive) return;
 						temperatureReadingActive = true;
 
-						// Immediate first sample
-						generateRandomSample();
+						// Immediate first fetch
+						fetchSensorData();
 
-						// Then update every 5 seconds
-						simIntervalId = setInterval(generateRandomSample, 5000);
+						// Then poll every 5 seconds
+						fetchIntervalId = setInterval(fetchSensorData, 5000);
 					}
 
 					function stopTemperatureReading() {
 						temperatureReadingActive = false;
-						if (simIntervalId) {
-							clearInterval(simIntervalId);
-							simIntervalId = null;
+						if (fetchIntervalId) {
+							clearInterval(fetchIntervalId);
+							fetchIntervalId = null;
 						}
 
 						currentTemperatures = {
@@ -998,11 +1010,7 @@
 							temp4: null, temp5: null, temp6: null
 						};
 						currentHumidity = null;
-
-						currentFans = {
-							fan1: 0, fan2: 0, fan3: 0,
-							fan4: 0, fan5: 0, fan6: 0
-						};
+						currentFans = { fan1: 0, fan2: 0, fan3: 0, fan4: 0, fan5: 0, fan6: 0 };
 
 						updateTemperatureDisplay();
 					}
@@ -1011,22 +1019,19 @@
 						return currentTemperatures; // wet-bulb
 					}
 
+					function getCurrentHumidity() {
+						return currentHumidity;
+					}
+
 					// Expose globally for other code
 					window.getCurrentTemperatures = getCurrentTemperatures;
+					window.getCurrentHumidity = getCurrentHumidity;
 					window.startTemperatureReading = startTemperatureReading;
 					window.stopTemperatureReading = stopTemperatureReading;
 
-					// Auto-start simulator on page load
+					// Auto-start on page load
 					window.addEventListener("load", startTemperatureReading);
-
-
-					// If you ever want it to auto-start on page load, you can call:
-					// startTemperatureReading();
 				})();
-
-				// Duplicate legacy simulator removed — using the wet-bulb simulator defined earlier.
-				// The active simulator above exposes startTemperatureReading/stopTemperatureReading/getCurrentTemperatures
-				// and will call startTemperatureReading() if you want readings to begin automatically.
 
 				// Live-updating charts for temperature, humidity, and fans + modal with scroll/zoom
 				(function () {
@@ -1216,9 +1221,9 @@
 							Object.values(fansSeries).forEach(arr => arr.push(null));
 						}
 
-						// weight (generate sample data point)
-						const weightVal = 10 + Math.random() * 5; // Sample weight between 10-15 kg
-						weightData.push(weightVal);
+						// weight from sensor_latest.json (null if scale not attached)
+						const weightVal = (sample.weight != null) ? parseFloat(sample.weight) : null;
+						weightData.push((weightVal != null && !isNaN(weightVal)) ? weightVal : null);
 
 						// keep arrays bounded
 						if (labels.length > maxPoints) {

@@ -334,6 +334,8 @@ main { padding: 8px 16px 16px; transform: translateX(-8px); }
 .mid:hover { background: #e0e0e0; color: #111; transform: translateY(-2px); }
 .mid:focus { outline: 3px solid rgba(21, 126, 251, 0.18); outline-offset: 3px; }
 .mid:focus-visible { outline: 3px solid rgba(21, 126, 251, 0.18); outline-offset: 3px; }
+.mid--disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+.mid--disabled:hover { background: #ffffff; color: #222; transform: none; }
 
 @media (max-width: 768px) {
 	.mid { height: 66px; font-size: 0.9rem; }
