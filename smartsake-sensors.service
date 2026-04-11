@@ -1,0 +1,17 @@
+[Unit]
+Description=SmartSake Sensor Collector
+After=network.target smartsake-server.service
+Wants=smartsake-server.service
+
+[Service]
+Type=simple
+User=kojitable
+WorkingDirectory=/home/kojitable/ClaudeAgents
+ExecStart=/usr/bin/python3 /home/kojitable/ClaudeAgents/WriteSensors.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,4425 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<title>Sake Table - Dashboard</title>
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<link rel="stylesheet" href="styles.css">
+	<style>
+		.replay-banner { background:#1a3a1a; color:#7fff7f; text-align:center; padding:.5rem 1rem; font-size:.85rem; display:flex; align-items:center; justify-content:center; gap:1rem; flex-wrap:wrap; }
+		.replay-banner strong { color:#aaffaa; }
+		.replay-export-btn { background:#1a5a1a; border:1px solid #3a9a3a; color:#7fff7f; padding:.25rem .7rem; border-radius:4px; cursor:pointer; font-size:.8rem; }
+		.replay-export-btn:hover { background:#2a6a2a; }
+
+		/* Fan state + mode badges on zone cards */
+		.zone-fan-badges { display:flex; align-items:center; gap:3px; margin-top:2px; }
+		.fan-badge { font-size:0.65rem; font-weight:700; padding:1px 5px; border-radius:3px;
+		             background:#ddd; color:#555; line-height:1.4; letter-spacing:0.02em; }
+		.fan-badge--on  { background:#d4f0d4; color:#1a6e1a; border:1px solid #88cc88; }
+		.fan-badge--off { background:#f0f0f0; color:#888;    border:1px solid #ccc; }
+		.mode-badge { font-size:0.6rem; font-weight:600; padding:1px 4px; border-radius:3px; line-height:1.4; }
+		.mode-badge--pid    { background:#ddeeff; color:#1a55a0; border:1px solid #88b0dd; }
+		.mode-badge--manual { background:#fff0d4; color:#7a4a00; border:1px solid #ddaa55; }
+		.mode-badge--rule   { background:#f0e8ff; color:#5a1a8a; border:1px solid #bb88ee; }
+		@media (prefers-color-scheme:dark) {
+			.fan-badge--on  { background:#1a3e1a; color:#88ee88; border-color:#3a7a3a; }
+			.fan-badge--off { background:#2a2a2a; color:#888;    border-color:#555; }
+			.mode-badge--pid    { background:#0f2040; color:#88bbff; border-color:#2255aa; }
+			.mode-badge--manual { background:#3a2800; color:#ffcc77; border-color:#885500; }
+			.mode-badge--rule   { background:#200040; color:#cc88ff; border-color:#6622aa; }
+		}
+	</style>
+</head>
+
+<body>
+	<div id="replay-banner" class="replay-banner" style="display:none"></div>
+	<div class="page-wrapper">
+		<header class="header">
+			<div class="header-inner">
+				<img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" id="sake-logo-egg" class="sake-logo-egg" />
+				<h1 class="header-title">Home <span id="run-name-display" class="run-name-header"></span></h1>
+				<button id="settings-btn" class="settings-btn" type="button" aria-label="Open settings" title="Settings">&#9881;</button>
+			</div>
+			<div class="header-right">
+				<div class="notes__meta" id="notes-meta" aria-live="polite"></div>
+				<div class="chart-controls-group">
+					<div class="time-window-btns" id="time-window-btns" role="group" aria-label="Chart time window">
+						<button class="tw-btn tw-btn--active" data-minutes="0" type="button">All</button>
+						<button class="tw-btn" data-minutes="15" type="button">15m</button>
+						<button class="tw-btn" data-minutes="30" type="button">30m</button>
+						<button class="tw-btn" data-minutes="60" type="button">1h</button>
+						<button class="tw-btn" data-minutes="180" type="button">3h</button>
+						<button class="tw-btn" data-minutes="360" type="button">6h</button>
+						<button class="tw-btn" data-minutes="720" type="button">12h</button>
+						<button class="tw-btn" data-minutes="1080" type="button">18h</button>
+						<button class="tw-btn" data-minutes="1440" type="button">24h</button>
+						<button class="tw-btn" data-minutes="1800" type="button">30h</button>
+						<button class="tw-btn" data-minutes="2160" type="button">36h</button>
+						<button class="tw-btn" data-minutes="2520" type="button">42h</button>
+						<button class="tw-btn" data-minutes="2880" type="button">48h</button>
+						<button class="tw-btn" data-minutes="3240" type="button">54h</button>
+						<button class="tw-btn" data-minutes="3600" type="button">60h</button>
+					</div>
+					<button id="elapsed-toggle-btn" class="elapsed-toggle-btn" type="button" title="Toggle elapsed/clock time axis">Clock</button>
+				</div>
+				<button id="set-temp-btn" class="set-temp-btn" type="button">Set temp</button>
+				<button id="start-run-btn" class="start-run-btn">Start Run</button>
+			</div>
+		</header>
+
+		<main>
+			<div class="stage">
+					<section class="layout layout--home">
+
+						<section class="zones-combined">
+							<a class="zone-combined" href="zone1.html" id="zone-link-1" role="button" aria-label="Zone 1">
+								<span class="zone-combined__label">Zone 1</span>
+								<div class="temp__value-column">
+									<div class="temp__row">
+										<span class="temp__num" id="temp-1-dry">--</span>
+										<span class="temp__unit">°C</span>
+									</div>
+								</div>
+								<div class="zone-fan-badges">
+									<span class="fan-badge" id="fan-badge-1">--</span>
+									<span class="mode-badge" id="mode-badge-1"></span>
+								</div>
+							</a>
+							<a class="zone-combined" href="zone2.html" id="zone-link-2" role="button" aria-label="Zone 2">
+								<span class="zone-combined__label">Zone 2</span>
+								<div class="temp__value-column">
+									<div class="temp__row">
+										<span class="temp__num" id="temp-2-dry">--</span>
+										<span class="temp__unit">°C</span>
+									</div>
+								</div>
+								<div class="zone-fan-badges">
+									<span class="fan-badge" id="fan-badge-2">--</span>
+									<span class="mode-badge" id="mode-badge-2"></span>
+								</div>
+							</a>
+							<a class="zone-combined" href="zone3.html" id="zone-link-3" role="button" aria-label="Zone 3">
+								<span class="zone-combined__label">Zone 3</span>
+								<div class="temp__value-column">
+									<div class="temp__row">
+										<span class="temp__num" id="temp-3-dry">--</span>
+										<span class="temp__unit">°C</span>
+									</div>
+								</div>
+								<div class="zone-fan-badges">
+									<span class="fan-badge" id="fan-badge-3">--</span>
+									<span class="mode-badge" id="mode-badge-3"></span>
+								</div>
+							</a>
+							<a class="zone-combined" href="zone4.html" id="zone-link-4" role="button" aria-label="Zone 4">
+								<span class="zone-combined__label">Zone 4</span>
+								<div class="temp__value-column">
+									<div class="temp__row">
+										<span class="temp__num" id="temp-4-dry">--</span>
+										<span class="temp__unit">°C</span>
+									</div>
+								</div>
+								<div class="zone-fan-badges">
+									<span class="fan-badge" id="fan-badge-4">--</span>
+									<span class="mode-badge" id="mode-badge-4"></span>
+								</div>
+							</a>
+							<a class="zone-combined" href="zone5.html" id="zone-link-5" role="button" aria-label="Zone 5">
+								<span class="zone-combined__label">Zone 5</span>
+								<div class="temp__value-column">
+									<div class="temp__row">
+										<span class="temp__num" id="temp-5-dry">--</span>
+										<span class="temp__unit">°C</span>
+									</div>
+								</div>
+								<div class="zone-fan-badges">
+									<span class="fan-badge" id="fan-badge-5">--</span>
+									<span class="mode-badge" id="mode-badge-5"></span>
+								</div>
+							</a>
+							<a class="zone-combined" href="zone6.html" id="zone-link-6" role="button" aria-label="Zone 6">
+								<span class="zone-combined__label">Zone 6</span>
+								<div class="temp__value-column">
+									<div class="temp__row">
+										<span class="temp__num" id="temp-6-dry">--</span>
+										<span class="temp__unit">°C</span>
+									</div>
+								</div>
+								<div class="zone-fan-badges">
+									<span class="fan-badge" id="fan-badge-6">--</span>
+									<span class="mode-badge" id="mode-badge-6"></span>
+								</div>
+							</a>
+						</section>
+
+					<!-- Zone temperature state legend -->
+				<div class="zone-temp-legend" aria-label="Temperature state legend">
+					<span class="zone-temp-legend__item zone-temp-ok">In range</span>
+					<span class="zone-temp-legend__item zone-temp-warm">Warm</span>
+					<span class="zone-temp-legend__item zone-temp-hot">Too hot</span>
+					<span class="zone-temp-legend__item zone-temp-cold">Too cold</span>
+				</div>
+
+				<!-- Humidity + Weight quick-view cards (like zone buttons) -->
+				<div class="env-weight-stats">
+					<div class="ew-stat-card ew-stat-card--humidity">
+						<span class="ew-stat-card__label">Humidity</span>
+						<div class="ew-stat-card__value-row">
+							<span class="ew-stat-card__value" id="ew-humidity-val">—</span>
+							<span class="ew-stat-card__unit">%</span>
+						</div>
+						<span class="ew-stat-card__sub" id="ew-wetbulb-val">WB —°C</span>
+					</div>
+					<div class="ew-stat-card ew-stat-card--weight">
+						<span class="ew-stat-card__label">Weight</span>
+						<div class="ew-stat-card__value-row">
+							<span class="ew-stat-card__value" id="ew-weight-val">—</span>
+							<span class="ew-stat-card__unit">lbs</span>
+						</div>
+						<span class="ew-stat-card__sub" id="ew-weight-loss-val">Loss —%</span>
+					</div>
+				</div>
+
+				<!-- Zone detail modal (opens when a zone button is clicked) -->
+					<div id="zone-detail-card" class="modal-overlay zone-modal-overlay" role="dialog" aria-modal="true" aria-label="Zone detail" hidden>
+					<div class="modal-popup zone-modal-popup">
+						<div class="zone-detail-card__header">
+							<h3 class="zone-detail-card__title" id="zdc-title">Zone</h3>
+							<div class="zone-detail-card__header-actions">								<button type="button" class="zone-detail-card__close" id="zdc-close" aria-label="Close zone detail">&times;</button>
+							</div>
+						</div>
+						<div class="zone-detail-card__temp-row">
+							<span class="zone-detail-card__temp-val" id="zdc-temp">--</span>
+							<span class="zone-detail-card__temp-unit">&deg;C</span>
+							<span class="zone-detail-card__temp-label">(current)</span>
+						</div>
+						<div class="zone-detail-card__chart-wrap">
+							<span class="zone-detail-card__chart-label">Temperature over time</span>
+							<canvas id="zdc-temp-chart"></canvas>
+						</div>
+						<div class="zone-detail-card__chart-wrap">
+							<span class="zone-detail-card__chart-label">Fan on/off over time</span>
+							<canvas id="zdc-fan-chart"></canvas>
+						</div>
+						<div class="zone-detail-card__fan-section">
+							<span class="zone-detail-card__fan-label">Manual Fan Control</span>
+							<span class="zone-detail-card__fan-status" id="zdc-fan-status"></span>
+							<div class="zone-detail-card__fan-btns">
+								<button class="zone-detail-card__fan-btn" data-action="off" data-duration="60">Off for 1 hr</button>
+								<button class="zone-detail-card__fan-btn" data-action="on" data-duration="60">On for 1 hr</button>
+								<button class="zone-detail-card__fan-btn" data-action="off" data-duration="">Off until end</button>
+								<button class="zone-detail-card__fan-btn" data-action="on" data-duration="">On until end</button>
+								<button class="zone-detail-card__fan-btn zone-detail-card__fan-btn--auto" id="zdc-fan-auto" style="display:none;">Return to automatic</button>
+							</div>
+						</div>
+
+					</div>
+					</div>
+
+						<div class="notes-wrap">
+							<div class="notes" aria-label="Notes">
+								<label class="sr-only" for="notes-input">Notes</label>
+								<textarea id="notes-input" class="notes__input" placeholder="Enter notes..."
+									aria-label="Notes input"></textarea>
+							</div>
+						</div>
+
+						<div class="left">
+							<div class="long long--top-left home-temp-chart-card">
+								<div class="temp-chart-header-row">
+									<span class="temp-chart-title-left chart-title--single-line">Temperature over time</span>
+								</div>
+								<div id="overlay-chips" class="overlay-chips-row"></div>
+								<div class="temp-chart-live-wrap">
+									<canvas id="temp-chart" class="metric-chart"></canvas>
+								</div>
+							</div>
+
+							<div class="long long--top-left home-side-title-chart-card home-humidity-chart-card">
+								<div class="env-chart-header">
+									<span class="home-humidity-title chart-title--single-line">Environment</span>
+								</div>
+								<div class="env-chart-live-wrap">
+									<canvas id="humidity-chart" class="metric-chart"></canvas>
+								</div>
+							</div>
+
+							<div class="long long--top-left home-temp-chart-card home-fans-chart-card">
+								<span class="temp-chart-title-left chart-title--single-line">Fans on/off over time</span>
+								<div class="temp-chart-live-wrap">
+									<canvas id="fans-chart" class="metric-chart"></canvas>
+								</div>
+							</div>
+
+						<div class="long long--top-left home-side-title-chart-card home-humidity-chart-card">
+							<div class="weight-chart-header-row">
+								<span class="home-humidity-title chart-title--single-line">Weight over time</span>
+								<button type="button" id="wt-zero-btn" class="wt-zero-btn" title="Zero the scale at current reading">Zero</button>
+							</div>
+							<div class="env-chart-live-wrap">
+								<canvas id="weight-chart" class="metric-chart"></canvas>
+							</div>
+						</div>
+
+
+				</div>
+					</section><!-- /.layout--home -->
+				</div><!-- /.stage -->
+			</main>
+
+			<!-- Settings modal -->
+			<div id="settings-modal" class="modal-overlay">
+				<div class="modal-popup settings-modal-popup">
+					<div class="modal-header">
+						<h3 class="modal-title">Settings</h3>
+						<button type="button" class="modal-close" id="settings-modal-close" aria-label="Close settings">&times;</button>
+					</div>
+					<div class="modal-content settings-modal-content">
+
+						<section class="settings-section">
+							<h4 class="settings-section__title">Reference Curve</h4>
+							<div class="settings-curve-row">
+								<select id="settings-curve-select" class="settings-curve-select">
+									<option value="">— None —</option>
+								</select>
+								<button type="button" id="settings-apply-curve" class="btn-apply-curve">Apply</button>
+							</div>
+							<p class="settings-curve-hint" id="settings-curve-status"></p>
+						</section>
+
+<section class="settings-section">
+							<h4 class="settings-section__title">Theme</h4>
+							<div class="theme-picker" id="theme-picker"></div>
+						</section>
+
+						<div class="settings-footer">
+							<button type="button" id="settings-reset-btn" class="settings-reset-btn">Reset to defaults</button>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Modal popup for Start run -->
+			<div id="start-run-modal" class="modal-overlay">
+				<div class="modal-popup">
+					<div class="modal-header">
+						<h3 class="modal-title">Start New Run</h3>
+						<button type="button" class="modal-close" id="close-modal"
+							aria-label="Close modal">&times;</button>
+					</div>
+					<div class="modal-content">
+						<p>This will begin collecting data from all temperature sensors and
+							start the monitoring process.</p>
+
+						<div class="modal-input-section">
+							<label for="run-name">Run Name:</label>
+							<input type="text" id="run-name" name="run-name" placeholder="Enter run name..." />
+						</div>
+
+						<div class="modal-input-section">
+							<label for="start-curve-select">Reference Curve (optional):</label>
+							<select id="start-curve-select" class="settings-curve-select">
+								<option value="">— None —</option>
+							</select>
+						</div>
+
+						<div class="modal-input-section">
+							<button type="button" class="modal-enter-btn" id="enter-run-btn">Start</button>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Modal popup for End run confirmation -->
+			<div id="end-run-modal" class="modal-overlay">
+				<div class="modal-popup">
+					<div class="modal-header">
+						<h3 class="modal-title">End Current Run</h3>
+						<button type="button" class="modal-close" id="close-end-modal"
+							aria-label="Close modal">&times;</button>
+					</div>
+					<div class="modal-content">
+						<p>Are you sure you would like to end the run?</p>
+						<p>This will stop data collection and finalize the current monitoring
+							session.</p>
+
+						<div class="modal-button-section">
+							<button type="button" class="modal-cancel-btn" id="cancel-end-btn">Cancel</button>
+							<button type="button" class="modal-confirm-btn" id="confirm-end-btn">End Run</button>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Modal popup for setting ideal temperature -->
+			<div id="set-temp-modal" class="modal-overlay">
+				<div class="modal-popup">
+					<div class="modal-header">
+						<h3 class="modal-title">Set Temperature</h3>
+						<button type="button" class="modal-close" id="close-set-temp-modal"
+							aria-label="Close set temperature modal">&times;</button>
+					</div>
+					<div class="modal-content">
+						<!-- Apply to all zones row -->
+						<div class="set-temp-apply-all-row">
+							<label class="set-temp-apply-all-label">Apply to all zones (°C):</label>
+							<div class="set-temp-apply-all-controls">
+								<input type="number" id="ideal-temp-all-input" step="0.1" min="0" max="100"
+									placeholder="e.g. 32.0" />
+								<button type="button" class="modal-apply-all-btn" id="apply-all-temp-btn">Apply to All</button>
+							</div>
+						</div>
+
+						<!-- Per-zone temperature inputs -->
+						<div class="set-temp-zones-grid">
+							<div class="set-temp-zone-row">
+								<span class="set-temp-zone-label">Zone 1</span>
+								<span class="set-temp-zone-current" id="ideal-temp-current-1">-- °C</span>
+								<input type="number" id="ideal-temp-zone-1" class="set-temp-zone-input" step="0.1" min="0" max="100" placeholder="32.0" />
+							</div>
+							<div class="set-temp-zone-row">
+								<span class="set-temp-zone-label">Zone 2</span>
+								<span class="set-temp-zone-current" id="ideal-temp-current-2">-- °C</span>
+								<input type="number" id="ideal-temp-zone-2" class="set-temp-zone-input" step="0.1" min="0" max="100" placeholder="32.0" />
+							</div>
+							<div class="set-temp-zone-row">
+								<span class="set-temp-zone-label">Zone 3</span>
+								<span class="set-temp-zone-current" id="ideal-temp-current-3">-- °C</span>
+								<input type="number" id="ideal-temp-zone-3" class="set-temp-zone-input" step="0.1" min="0" max="100" placeholder="32.0" />
+							</div>
+							<div class="set-temp-zone-row">
+								<span class="set-temp-zone-label">Zone 4</span>
+								<span class="set-temp-zone-current" id="ideal-temp-current-4">-- °C</span>
+								<input type="number" id="ideal-temp-zone-4" class="set-temp-zone-input" step="0.1" min="0" max="100" placeholder="32.0" />
+							</div>
+							<div class="set-temp-zone-row">
+								<span class="set-temp-zone-label">Zone 5</span>
+								<span class="set-temp-zone-current" id="ideal-temp-current-5">-- °C</span>
+								<input type="number" id="ideal-temp-zone-5" class="set-temp-zone-input" step="0.1" min="0" max="100" placeholder="32.0" />
+							</div>
+							<div class="set-temp-zone-row">
+								<span class="set-temp-zone-label">Zone 6</span>
+								<span class="set-temp-zone-current" id="ideal-temp-current-6">-- °C</span>
+								<input type="number" id="ideal-temp-zone-6" class="set-temp-zone-input" step="0.1" min="0" max="100" placeholder="32.0" />
+							</div>
+						</div>
+
+						<div class="modal-input-section">
+							<label for="deviation-allowance-input">Deviation Allowance (°C):</label>
+							<input type="number" id="deviation-allowance-input" name="deviation-allowance-input" step="0.1"
+								min="0" max="30" placeholder="e.g. 5.0" />
+						</div>
+
+						<p id="deviation-current" class="deviation-current" style="margin-top:10px;">
+							<span class="deviation-current__label">Current allowance:</span>
+							<span id="deviation-current-value" class="deviation-current__value">5.0 °C</span>
+						</p>
+
+						<div class="modal-button-section">
+							<button type="button" class="modal-cancel-btn" id="cancel-set-temp-btn">Cancel</button>
+							<button type="button" class="modal-confirm-btn" id="save-set-temp-btn">Save</button>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Recovery popup for crashed / unfinished runs -->
+			<div id="recovery-modal" class="modal-overlay">
+				<div class="modal-popup">
+					<div class="modal-header">
+						<h3 class="modal-title">Recovered Run Detected</h3>
+						<button type="button" class="modal-close" id="recovery-close-btn"
+							aria-label="Close recovery popup">&times;</button>
+					</div>
+					<div class="modal-content">
+						<p>We detected autosaved data from a previous session that didn't end
+							cleanly.</p>
+						<p>You can export the recovered run as a CSV or discard it and start
+							fresh.</p>
+
+						<div class="modal-button-section">
+							<button type="button" class="modal-cancel-btn" id="recovery-discard-btn">Discard</button>
+							<button type="button" class="modal-confirm-btn" id="recovery-export-btn">Export recovered
+								CSV</button>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Void Sake Co. Arcade -->
+			<div id="arcade-modal" class="modal-overlay">
+				<div class="modal-popup arcade-modal-popup">
+					<div class="modal-header">
+						<h3 class="modal-title arcade-modal-title">☽ VOID SAKE CO. ARCADE ☽</h3>
+						<button type="button" class="modal-close" id="arcade-close-btn"
+							aria-label="Close arcade">&times;</button>
+					</div>
+					<div class="modal-content" style="padding:0;overflow:hidden;border-radius:0 0 8px 8px;">
+						<canvas id="arcade-canvas" width="560" height="380" aria-label="Void Sake Co. Arcade"></canvas>
+					</div>
+				</div>
+			</div>
+
+			<!-- Full-page Chart Modal -->
+			<div id="chart-modal" class="modal-overlay">
+				<div class="modal-popup chart-modal-popup">
+					<div class="modal-header">
+						<h3 class="modal-title" id="chart-modal-title">Chart</h3>
+						<button type="button" class="modal-close" id="chart-modal-close"
+							aria-label="Close chart">&times;</button>
+					</div>
+					<div class="modal-content chart-modal-content">
+						<div class="chart-toolbar">
+							<div class="chart-range-btns" role="group" aria-label="Time range">
+								<button class="chart-range-btn" data-range="15">15 min</button>
+								<button class="chart-range-btn" data-range="60">1 hr</button>
+								<button class="chart-range-btn active" data-range="0">All</button>
+							</div>
+							<div class="chart-y-controls">
+								<label for="chart-y-min">Y min</label>
+								<input type="number" id="chart-y-min" class="chart-y-input" step="0.5" placeholder="auto">
+								<label for="chart-y-max">Y max</label>
+								<input type="number" id="chart-y-max" class="chart-y-input" step="0.5" placeholder="auto">
+								<button id="chart-y-reset" class="chart-y-reset-btn" title="Reset Y axis">&#x21BA;</button>
+							</div>
+						</div>
+						<div class="chart-modal-canvas-wrap">
+							<canvas id="chart-modal-canvas"></canvas>
+						</div>
+						<p class="chart-modal-help">Click legend items to toggle series. Press ESC or click outside to close.</p>
+					</div>
+				</div>
+			</div>
+
+
+
+			<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+			<script>
+				// Live Date/Time script: updates notes meta and header datetime each minute
+
+				// Live Date/Time script: updates ONLY the notes-meta field
+				(function () {
+					const notesMeta = document.getElementById('notes-meta');
+					if (!notesMeta) return;
+
+					function formatNow(d) {
+						const date = d.toLocaleDateString(undefined, {
+							month: 'short',
+							day: 'numeric',
+							year: 'numeric'
+						});
+						const time = d.toLocaleTimeString(undefined, {
+							hour: '2-digit',
+							minute: '2-digit'
+						});
+						return `${date}\n${time}`;
+					}
+
+					function update() {
+						notesMeta.textContent = formatNow(new Date());
+					}
+
+					// initial update
+					update();
+
+					// align with next minute
+					const msToNext = 60000 - (Date.now() % 60000);
+					let timer = setTimeout(function () {
+						update();
+						timer = setInterval(update, 60000);
+					}, msToNext);
+
+					document.addEventListener('visibilitychange', function () {
+						if (document.visibilityState === 'visible') update();
+					});
+				})();
+
+				// Set temperature modal + per-zone ideal temperature storage
+				(function () {
+					const DEVIATION_ALLOWANCE_KEY = 'sakeDeviationAllowanceC';
+					const ZONE_COUNT = 6;
+
+					function zoneKey(z) { return 'sakeIdealTempC_' + z; }
+
+					function getIdealTempForZone(zone) {
+						const raw = localStorage.getItem(zoneKey(zone));
+						const parsed = raw === null ? NaN : parseFloat(raw);
+						return Number.isFinite(parsed) ? parsed : null;
+					}
+
+					function getDeviationAllowance() {
+						const raw = localStorage.getItem(DEVIATION_ALLOWANCE_KEY);
+						const parsed = raw === null ? NaN : parseFloat(raw);
+						return Number.isFinite(parsed) ? parsed : 5.0;
+					}
+
+					function updateCurrentLabel() {
+						for (let z = 1; z <= ZONE_COUNT; z++) {
+							const el = document.getElementById('ideal-temp-current-' + z);
+							if (el) {
+								const val = getIdealTempForZone(z);
+								el.textContent = val === null ? '-- °C' : val.toFixed(1) + ' °C';
+							}
+						}
+						const deviationCurrentValue = document.getElementById('deviation-current-value');
+						if (deviationCurrentValue) {
+							deviationCurrentValue.textContent = getDeviationAllowance().toFixed(1) + ' °C';
+						}
+					}
+
+					const setTempModal = document.getElementById('set-temp-modal');
+					const deviationAllowanceInput = document.getElementById('deviation-allowance-input');
+
+					function openSetTempModal() {
+						if (!setTempModal) return;
+						for (let z = 1; z <= ZONE_COUNT; z++) {
+							const input = document.getElementById('ideal-temp-zone-' + z);
+							if (input) {
+								const val = getIdealTempForZone(z);
+								input.value = val === null ? '' : val.toFixed(1);
+								input.setCustomValidity('');
+							}
+						}
+						if (deviationAllowanceInput) {
+							deviationAllowanceInput.value = getDeviationAllowance().toFixed(1);
+							deviationAllowanceInput.setCustomValidity('');
+						}
+						const allInput = document.getElementById('ideal-temp-all-input');
+						if (allInput) { allInput.value = ''; allInput.setCustomValidity(''); }
+						updateCurrentLabel();
+						setTempModal.style.display = 'flex';
+						const first = document.getElementById('ideal-temp-zone-1');
+						if (first) { first.focus(); first.select(); }
+					}
+
+					function closeSetTempModal() {
+						if (setTempModal) setTempModal.style.display = 'none';
+					}
+
+					function saveIdealTemp() {
+						const deviationValue = parseFloat(deviationAllowanceInput ? deviationAllowanceInput.value : '');
+						if (!Number.isFinite(deviationValue) || deviationValue < 0 || deviationValue > 30) {
+							if (deviationAllowanceInput) {
+								deviationAllowanceInput.setCustomValidity('Please enter a value between 0 and 30 °C.');
+								deviationAllowanceInput.reportValidity();
+							}
+							return;
+						}
+						if (deviationAllowanceInput) deviationAllowanceInput.setCustomValidity('');
+
+						// Validate each zone input
+						const newTemps = {};
+						for (let z = 1; z <= ZONE_COUNT; z++) {
+							const input = document.getElementById('ideal-temp-zone-' + z);
+							if (!input || input.value.trim() === '') {
+								newTemps[z] = null;
+								continue;
+							}
+							const val = parseFloat(input.value);
+							if (!Number.isFinite(val) || val < 0 || val > 100) {
+								input.setCustomValidity('Please enter a value between 0 and 100 °C.');
+								input.reportValidity();
+								return;
+							}
+							input.setCustomValidity('');
+							newTemps[z] = val;
+						}
+
+						// Persist per-zone values
+						for (let z = 1; z <= ZONE_COUNT; z++) {
+							if (newTemps[z] === null) {
+								localStorage.removeItem(zoneKey(z));
+							} else {
+								localStorage.setItem(zoneKey(z), newTemps[z].toFixed(1));
+							}
+						}
+						localStorage.setItem(DEVIATION_ALLOWANCE_KEY, deviationValue.toFixed(1));
+						updateCurrentLabel();
+						window.dispatchEvent(new CustomEvent('sake-ideal-temp-updated', {
+							detail: { deviationAllowance: deviationValue.toFixed(1) }
+						}));
+						closeSetTempModal();
+					}
+
+					// Wire main buttons
+					const setTempBtn = document.getElementById('set-temp-btn');
+					const closeSetTempModalBtn = document.getElementById('close-set-temp-modal');
+					const cancelSetTempBtn = document.getElementById('cancel-set-temp-btn');
+					const saveSetTempBtn = document.getElementById('save-set-temp-btn');
+					if (setTempBtn) setTempBtn.addEventListener('click', openSetTempModal);
+					if (closeSetTempModalBtn) closeSetTempModalBtn.addEventListener('click', closeSetTempModal);
+					if (cancelSetTempBtn) cancelSetTempBtn.addEventListener('click', closeSetTempModal);
+					if (saveSetTempBtn) saveSetTempBtn.addEventListener('click', saveIdealTemp);
+
+					// Apply-to-all button
+					const applyAllBtn = document.getElementById('apply-all-temp-btn');
+					const applyAllInput = document.getElementById('ideal-temp-all-input');
+					if (applyAllBtn && applyAllInput) {
+						applyAllBtn.addEventListener('click', function () {
+							const val = parseFloat(applyAllInput.value);
+							if (!Number.isFinite(val) || val < 0 || val > 100) {
+								applyAllInput.setCustomValidity('Please enter a value between 0 and 100 °C.');
+								applyAllInput.reportValidity();
+								return;
+							}
+							applyAllInput.setCustomValidity('');
+							for (let z = 1; z <= ZONE_COUNT; z++) {
+								const input = document.getElementById('ideal-temp-zone-' + z);
+								if (input) { input.value = val.toFixed(1); input.setCustomValidity(''); }
+							}
+						});
+						applyAllInput.addEventListener('input', function () {
+							applyAllInput.setCustomValidity('');
+						});
+						applyAllInput.addEventListener('keydown', function (e) {
+							if (e.key === 'Enter') { e.preventDefault(); applyAllBtn.click(); }
+						});
+					}
+
+					// Per-zone input listeners
+					for (let z = 1; z <= ZONE_COUNT; z++) {
+						(function (zone) {
+							const input = document.getElementById('ideal-temp-zone-' + zone);
+							if (!input) return;
+							input.addEventListener('input', function () { input.setCustomValidity(''); });
+							input.addEventListener('keydown', function (e) {
+								if (e.key === 'Enter') { e.preventDefault(); saveIdealTemp(); }
+							});
+						}(z));
+					}
+
+					if (deviationAllowanceInput) {
+						deviationAllowanceInput.addEventListener('input', function () {
+							deviationAllowanceInput.setCustomValidity('');
+						});
+					}
+
+					if (setTempModal) {
+						setTempModal.addEventListener('click', function (e) {
+							if (e.target === setTempModal) closeSetTempModal();
+						});
+					}
+
+					document.addEventListener('keydown', function (e) {
+						if (e.key === 'Escape' && setTempModal && setTempModal.style.display === 'flex') {
+							closeSetTempModal();
+						}
+					});
+
+					// Public API — zone parameter optional; without it returns zone 1 for backward compat
+					window.getIdealTemperature = function (zone) {
+						return getIdealTempForZone(zone !== undefined ? zone : 1);
+					};
+					window.getIdealTemperatureForZone = getIdealTempForZone;
+					window.getDeviationAllowance = getDeviationAllowance;
+
+					updateCurrentLabel();
+				})();
+
+				// Modal + run state + autosave + recovery
+				(function () {
+					const RUN_STATE_KEY = 'sakeRunState';
+					const RUN_IN_PROGRESS_KEY = 'sakeRunInProgress';
+
+					// DOM elements
+					const startBtn = document.getElementById('start-run-btn');
+					const startModal = document.getElementById('start-run-modal');
+					const closeStartBtn = document.getElementById('close-modal');
+					const enterBtn = document.getElementById('enter-run-btn');
+					const runNameInput = document.getElementById('run-name');
+					const runNameDisplay = document.getElementById('run-name-display');
+
+					const endModal = document.getElementById('end-run-modal');
+					const closeEndBtn = document.getElementById('close-end-modal');
+					const cancelEndBtn = document.getElementById('cancel-end-btn');
+					const confirmEndBtn = document.getElementById('confirm-end-btn');
+
+					const recoveryModal = document.getElementById('recovery-modal');
+					const recoveryExport = document.getElementById('recovery-export-btn');
+					const recoveryDiscard = document.getElementById('recovery-discard-btn');
+					const recoveryClose = document.getElementById('recovery-close-btn');
+
+					let collectedData = [];
+					let dataCollectionInterval = null;
+					let runStartTime = null;
+
+					// ---------- Autosave helpers ----------
+					function saveRunState() {
+						try {
+							const state = {
+								collectedData,
+								runStartTime: runStartTime ? runStartTime.toISOString() : null,
+								runName: localStorage.getItem('currentRunName') || null
+							};
+							localStorage.setItem(RUN_STATE_KEY, JSON.stringify(state));
+						} catch (e) {
+							console.warn('Autosave failed:', e);
+						}
+					}
+
+					function loadRunState() {
+						try {
+							const raw = localStorage.getItem(RUN_STATE_KEY);
+							if (!raw) return;
+
+							const state = JSON.parse(raw);
+							if (Array.isArray(state.collectedData)) {
+								collectedData = state.collectedData;
+							}
+							if (state.runStartTime) {
+								runStartTime = new Date(state.runStartTime);
+							}
+							console.log('Recovered autosaved run:', collectedData.length, 'rows restored');
+						} catch (e) {
+							console.warn('Failed to load autosaved run:', e);
+							localStorage.removeItem(RUN_STATE_KEY);
+						}
+					}
+
+					// ---------- Data generation ----------
+					function generateSensorData() {
+						const timestamp = new Date().toISOString();
+						const temps = [];
+
+						const csvTemps = window.getCurrentTemperatures ? window.getCurrentTemperatures() : null;
+
+						for (let i = 1; i <= 6; i++) {
+							if (csvTemps && csvTemps[`temp${i}`] && csvTemps[`temp${i}`] !== '--') {
+								temps.push(csvTemps[`temp${i}`]);
+							} else {
+								const wetEl = document.getElementById(`temp-${i}-wet`);
+								if (wetEl && wetEl.textContent !== '--') {
+									temps.push(wetEl.textContent);
+								} else {
+									temps.push((70 + Math.random() * 10).toFixed(1));
+								}
+							}
+						}
+
+						const humidity = (60 + Math.random() * 20).toFixed(1);
+
+						const liveFans = window.getCurrentFans ? window.getCurrentFans() : null;
+						const fans = [];
+						for (let i = 1; i <= 6; i++) {
+							if (liveFans && (liveFans[`fan${i}`] === 1 || liveFans[`fan${i}`] === 0)) {
+								fans.push(liveFans[`fan${i}`] === 1 ? 'On' : 'Off');
+							} else {
+								fans.push('Off');
+							}
+						}
+
+						const notes = localStorage.getItem('currentNotes') || '';
+
+						return {
+							timestamp,
+							temp1: temps[0],
+							temp2: temps[1],
+							temp3: temps[2],
+							temp4: temps[3],
+							temp5: temps[4],
+							temp6: temps[5],
+							humidity,
+							fan1: fans[0],
+							fan2: fans[1],
+							fan3: fans[2],
+							fan4: fans[3],
+							fan5: fans[4],
+							fan6: fans[5],
+							notes: notes.replace(/[\r\n]/g, ' ')
+						};
+					}
+
+					// ---------- Start / stop collection ----------
+					function startDataCollection() {
+						if (dataCollectionInterval) return;
+						collectedData = [];
+						runStartTime = new Date();
+
+						localStorage.setItem(RUN_IN_PROGRESS_KEY, 'true');
+
+						collectedData.push(generateSensorData());
+						saveRunState();
+
+						dataCollectionInterval = setInterval(function () {
+							collectedData.push(generateSensorData());
+							saveRunState();
+						}, 30000);
+					}
+
+					function resumeDataCollection() {
+						if (dataCollectionInterval) return;
+
+						if (!runStartTime) {
+							runStartTime = new Date();
+						}
+
+						localStorage.setItem(RUN_IN_PROGRESS_KEY, 'true');
+						saveRunState();
+
+						dataCollectionInterval = setInterval(function () {
+							collectedData.push(generateSensorData());
+							saveRunState();
+						}, 30000);
+					}
+
+					function stopDataCollectionAndExport(runName) {
+						if (dataCollectionInterval) {
+							clearInterval(dataCollectionInterval);
+							dataCollectionInterval = null;
+						}
+
+						if (collectedData.length > 0) {
+							collectedData.push(generateSensorData());
+						}
+
+						let csvContent = 'Timestamp,Temp1,Temp2,Temp3,Temp4,Temp5,Temp6,Humidity,' +
+							'Fan1,Fan2,Fan3,Fan4,Fan5,Fan6,Notes\n';
+
+						collectedData.forEach(function (data) {
+							csvContent += `${data.timestamp},${data.temp1},${data.temp2},${data.temp3},${data.temp4},` +
+								`${data.temp5},${data.temp6},${data.humidity},${data.fan1},${data.fan2},` +
+								`${data.fan3},${data.fan4},${data.fan5},${data.fan6},"${data.notes}"\n`;
+						});
+
+						const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+						const link = document.createElement('a');
+						if (link.download !== undefined) {
+							const url = URL.createObjectURL(blob);
+							link.setAttribute('href', url);
+							link.setAttribute('download', `${runName}.csv`);
+							link.style.visibility = 'hidden';
+							document.body.appendChild(link);
+							link.click();
+							document.body.removeChild(link);
+						}
+
+						collectedData = [];
+						localStorage.removeItem(RUN_STATE_KEY);
+						localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+
+						const notesInput = document.getElementById('notes-input');
+						if (notesInput) {
+							notesInput.value = '';
+							localStorage.removeItem('currentNotes');
+						}
+					}
+
+					// Expose for recovery export
+					window.sakeExportRecoveredRun = function () {
+						const currentRunName = localStorage.getItem('currentRunName') || 'RecoveredRun';
+
+						if (recoveryModal) {
+							recoveryModal.style.display = 'none';
+						}
+
+						stopDataCollectionAndExport(currentRunName);
+
+						if (window.stopTemperatureReading) {
+							window.stopTemperatureReading();
+						}
+						if (window.stopFanPolling) {
+							window.stopFanPolling();
+						}
+						if (window.clearRunData) {
+							window.clearRunData();
+						}
+						localStorage.removeItem('currentNotes');
+
+						if (runNameDisplay) {
+							runNameDisplay.textContent = '';
+						}
+						localStorage.removeItem('currentRunName');
+
+						if (startBtn) {
+							startBtn.textContent = 'Start Run';
+							startBtn.classList.remove('end-run-btn-active');
+							startBtn.style.pointerEvents = 'auto';
+							startBtn.style.cursor = 'pointer';
+						}
+					};
+
+					// ---------- Load autosave and restore active run ----------
+					loadRunState();
+					const savedRunName = localStorage.getItem('currentRunName');
+					const inProgress = localStorage.getItem(RUN_IN_PROGRESS_KEY) === 'true';
+					const activeRunDetected = inProgress && !!savedRunName;
+
+					// Initialize UI state
+					if (runNameDisplay) {
+						runNameDisplay.textContent = activeRunDetected && savedRunName ? ('- ' + savedRunName) : '';
+					}
+					if (startBtn) {
+						startBtn.textContent = activeRunDetected ? 'End Run' : 'Start Run';
+						startBtn.classList.toggle('end-run-btn-active', activeRunDetected);
+						startBtn.style.pointerEvents = 'auto';
+						startBtn.style.cursor = 'pointer';
+					}
+
+					if (activeRunDetected) {
+						resumeDataCollection();
+
+						if (window.startTemperatureReading) {
+							window.startTemperatureReading();
+						}
+						if (window.setRunStartTime) {
+							const resumeFrom = runStartTime ? runStartTime.getTime() : Date.now();
+							window.setRunStartTime(resumeFrom);
+						}
+					} else {
+						if (!savedRunName) {
+							localStorage.removeItem(RUN_STATE_KEY);
+							localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+						}
+
+						if (recoveryModal) {
+							recoveryModal.style.display = 'none';
+						}
+
+						if (recoveryExport) {
+							recoveryExport.addEventListener('click', function () {
+								if (window.sakeExportRecoveredRun) {
+									window.sakeExportRecoveredRun();
+								}
+								localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+								if (recoveryModal) recoveryModal.style.display = 'none';
+							});
+						}
+
+						if (recoveryDiscard) {
+							recoveryDiscard.addEventListener('click', function () {
+								localStorage.removeItem(RUN_STATE_KEY);
+								localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+								localStorage.removeItem('currentRunName');
+								if (runNameDisplay) runNameDisplay.textContent = '';
+								if (recoveryModal) recoveryModal.style.display = 'none';
+							});
+						}
+
+						if (recoveryClose) {
+							recoveryClose.addEventListener('click', function () {
+								localStorage.removeItem(RUN_STATE_KEY);
+								localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+								localStorage.removeItem('currentRunName');
+								if (runNameDisplay) runNameDisplay.textContent = '';
+								if (recoveryModal) recoveryModal.style.display = 'none';
+							});
+						}
+
+						document.addEventListener('keydown', function (e) {
+							if (e.key === 'Escape' && recoveryModal && recoveryModal.style.display === 'flex') {
+								localStorage.removeItem(RUN_STATE_KEY);
+								localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+								localStorage.removeItem('currentRunName');
+								if (runNameDisplay) runNameDisplay.textContent = '';
+								recoveryModal.style.display = 'none';
+							}
+						});
+					}
+
+					// ---------- Guard: if core elements are missing, stop here ----------
+					if (!startBtn || !startModal || !closeStartBtn || !enterBtn || !runNameInput) {
+						return;
+					}
+
+					// ---------- Start button (open start modal or end modal) ----------
+					startBtn.addEventListener('click', function () {
+						if (startBtn.classList.contains('end-run-btn-active')) {
+							if (endModal) endModal.style.display = 'flex';
+						} else {
+							startModal.style.display = 'flex';
+							runNameInput.focus();
+						}
+					});
+
+					// ---------- Start modal close ----------
+					closeStartBtn.addEventListener('click', function () {
+						startModal.style.display = 'none';
+					});
+
+					startModal.addEventListener('click', function (e) {
+						if (e.target === startModal) {
+							startModal.style.display = 'none';
+						}
+					});
+
+					document.addEventListener('keydown', function (e) {
+						if (e.key === 'Escape' && startModal.style.display === 'flex') {
+							startModal.style.display = 'none';
+						}
+					});
+
+					// Populate the start-modal curve dropdown
+					(function () {
+						var sel = document.getElementById('start-curve-select');
+						if (!sel) return;
+						fetch('/api/reference-curves')
+							.then(function (r) { return r.json(); })
+							.then(function (curves) {
+								curves.forEach(function (c) {
+									var opt = document.createElement('option');
+									opt.value = c.id;
+									opt.textContent = c.name;
+									sel.appendChild(opt);
+								});
+							})
+							.catch(function () {});
+					})();
+
+					// ---------- Confirm Start Run ----------
+					enterBtn.addEventListener('click', async function () {
+						const runName = runNameInput.value.trim();
+						if (!runName) return;
+
+						enterBtn.disabled = true;
+						try {
+							const res = await fetch('/api/runs', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ name: runName })
+							});
+							const run = await res.json();
+
+							const startCurveId = Number(document.getElementById('start-curve-select')?.value);
+							if (window._parsedTargetRows && window._parsedTargetRows.length > 0) {
+								await fetch('/api/runs/' + run.id + '/target', {
+									method: 'POST',
+									headers: { 'Content-Type': 'application/json' },
+									body: JSON.stringify(window._parsedTargetRows)
+								});
+							} else if (startCurveId) {
+								await fetch('/api/runs/' + run.id + '/target/from-curve/' + startCurveId, { method: 'POST' });
+							}
+
+							startModal.style.display = 'none';
+							runNameInput.value = '';
+							location.href = 'dashboard.html?run=' + run.id + '&mode=live';
+						} catch (err) {
+							alert('Failed to start run: ' + err.message);
+							enterBtn.disabled = false;
+						}
+					});
+
+					runNameInput.addEventListener('keydown', function (e) {
+						if (e.key === 'Enter') {
+							enterBtn.click();
+						}
+					});
+
+					// ---------- End Run modal ----------
+					if (endModal && closeEndBtn && cancelEndBtn && confirmEndBtn) {
+						closeEndBtn.addEventListener('click', function () {
+							endModal.style.display = 'none';
+						});
+
+						cancelEndBtn.addEventListener('click', function () {
+							endModal.style.display = 'none';
+						});
+
+						endModal.addEventListener('click', function (e) {
+							if (e.target === endModal) {
+								endModal.style.display = 'none';
+							}
+						});
+
+						confirmEndBtn.addEventListener('click', function () {
+							// In URL-param live mode (_runId set), the mode controller handles export
+							if (window._runId) return;
+
+							const currentRunName = localStorage.getItem('currentRunName') || 'UnknownRun';
+
+							stopDataCollectionAndExport(currentRunName);
+
+							if (window.stopTemperatureReading) {
+								window.stopTemperatureReading();
+							}
+							if (window.stopFanPolling) {
+								window.stopFanPolling();
+							}
+							if (window.clearRunData) {
+								window.clearRunData();
+							}
+
+							localStorage.removeItem('currentNotes');
+
+							if (runNameDisplay) {
+								runNameDisplay.textContent = '';
+							}
+
+							localStorage.removeItem('currentRunName');
+							startBtn.textContent = 'Start Run';
+							startBtn.classList.remove('end-run-btn-active');
+							endModal.style.display = 'none';
+						});
+
+						document.addEventListener('keydown', function (e) {
+							if (e.key === 'Escape' && endModal.style.display === 'flex') {
+								endModal.style.display = 'none';
+							}
+						});
+					}
+				})();
+
+
+				// Notes localStorage functionality
+				(function () {
+					const notesInput = document.getElementById('notes-input');
+					if (!notesInput) return;
+
+					const savedNotes = localStorage.getItem('currentNotes');
+					if (savedNotes) {
+						notesInput.value = savedNotes;
+					}
+
+					let saveTimeout;
+					notesInput.addEventListener('input', function () {
+						clearTimeout(saveTimeout);
+						saveTimeout = setTimeout(function () {
+							localStorage.setItem('currentNotes', notesInput.value);
+						}, 500);
+					});
+
+					notesInput.addEventListener('blur', function () {
+						clearTimeout(saveTimeout);
+						localStorage.setItem('currentNotes', notesInput.value);
+					});
+				})();
+
+				/* FOR LATER Live temperature readings from CSV file
+				(function () {
+					const CSV_FILE_PATH = 'data/temperature_readings.csv';
+	
+					let currentTemperatures = {
+						temp1: '--', temp2: '--', temp3: '--',
+						temp4: '--', temp5: '--', temp6: '--'
+					};
+					let currentHumidity = null;
+					let temperatureReadingActive = false;
+	
+					function parseCSVData(csvText) {
+						const lines = csvText.trim().split('\n');
+						if (lines.length < 2) return null;
+	
+						const lastLine = lines[lines.length - 1];
+						const values = lastLine.split(',');
+	
+						// Expected: timestamp,temp1,...,temp6,humidity,...
+						if (values.length >= 8) {
+							const sample = {
+								timestamp: values[0],
+								temp1: parseFloat(values[1]),
+								temp2: parseFloat(values[2]),
+								temp3: parseFloat(values[3]),
+								temp4: parseFloat(values[4]),
+								temp5: parseFloat(values[5]),
+								temp6: parseFloat(values[6]),
+								humidity: parseFloat(values[7])
+							};
+							return sample;
+						}
+						return null;
+					}
+	
+					async function readCSVFile() {
+						if (!temperatureReadingActive) return;
+	
+						try {
+							const response = await fetch(CSV_FILE_PATH);
+							if (!response.ok) {
+								console.warn('Could not read CSV file:', response.statusText);
+								return;
+							}
+	
+							const csvText = await response.text();
+							const sample = parseCSVData(csvText);
+	
+							if (sample) {
+								currentTemperatures = {
+									temp1: sample.temp1.toFixed(1),
+									temp2: sample.temp2.toFixed(1),
+									temp3: sample.temp3.toFixed(1),
+									temp4: sample.temp4.toFixed(1),
+									temp5: sample.temp5.toFixed(1),
+									temp6: sample.temp6.toFixed(1)
+								};
+								currentHumidity = isNaN(sample.humidity) ? null : sample.humidity;
+	
+								updateTemperatureDisplay();
+	
+								// 🔴 NEW: push data point to charts, if chart code is loaded
+								if (window.pushSensorSample) {
+									window.pushSensorSample({
+										time: sample.timestamp ? new Date(sample.timestamp) : new Date(),
+										temps: { ...currentTemperatures },
+										humidity: currentHumidity
+									});
+								}
+							}
+						} catch (error) {
+							console.warn('Error reading CSV file:', error);
+							generateFallbackTemperatures();
+						}
+					}
+	
+					function generateFallbackTemperatures() {
+						if (!temperatureReadingActive) return;
+	
+						for (let i = 1; i <= 6; i++) {
+							const temp = (70 + Math.random() * 10).toFixed(1);
+							currentTemperatures[`temp${i}`] = temp;
+						}
+						currentHumidity = 60 + Math.random() * 20;
+	
+						updateTemperatureDisplay();
+	
+						if (window.pushSensorSample) {
+							window.pushSensorSample({
+								time: new Date(),
+								temps: { ...currentTemperatures },
+								humidity: currentHumidity
+							});
+						}
+					}
+	
+					function updateTemperatureDisplay() {
+						for (let i = 1; i <= 6; i++) {
+							const tempElement = document.getElementById(`temp-${i}`);
+							if (tempElement) {
+								tempElement.textContent = currentTemperatures[`temp${i}`] || '--';
+							}
+						}
+					}
+	
+					function startTemperatureReading() {
+						temperatureReadingActive = true;
+						readCSVFile();
+					}
+	
+					function stopTemperatureReading() {
+						temperatureReadingActive = false;
+						currentTemperatures = {
+							temp1: '--', temp2: '--', temp3: '--',
+							temp4: '--', temp5: '--', temp6: '--'
+						};
+						currentHumidity = null;
+						updateTemperatureDisplay();
+					}
+	
+					function getCurrentTemperatures() {
+						return currentTemperatures;
+					}
+	
+					window.getCurrentTemperatures = getCurrentTemperatures;
+					window.startTemperatureReading = startTemperatureReading;
+					window.stopTemperatureReading = stopTemperatureReading;
+	
+					const savedRunName = localStorage.getItem('currentRunName');
+					if (savedRunName) {
+						temperatureReadingActive = true;
+					}
+	
+					setInterval(readCSVFile, 5000);
+				})();
+				*/
+
+
+			// ── Live sensor poller ──────────────────────────────────────────────
+			// Polls /api/latest every 3 s, rounds temps to nearest 0.5 °C, feeds
+			// pushSensorSample() and publishes via BroadcastChannel + localStorage.
+			(function () {
+				'use strict';
+
+				// Round to nearest 0.5 for consistent, readable display values.
+				function roundHalf(v) { return Math.round(v * 2) / 2; }
+
+				let currentDryBulb = { temp1:null, temp2:null, temp3:null, temp4:null, temp5:null, temp6:null };
+				let currentFans    = { fan1:0, fan2:0, fan3:0, fan4:0, fan5:0, fan6:0 };
+				let currentHumidity = null;
+				let pollIntervalId  = null;
+				let lastTimestamp   = null;
+
+				const bc = (typeof BroadcastChannel !== 'undefined')
+					? new BroadcastChannel('sake-sensor') : null;
+
+				function updateTemperatureDisplay() {
+					for (let i = 1; i <= 6; i++) {
+						const dryEl = document.getElementById(`temp-${i}-dry`);
+						const val   = currentDryBulb[`temp${i}`];
+						if (dryEl) {
+							dryEl.textContent = (val !== null && !Number.isNaN(val))
+								? val.toFixed(1) : '--';
+						}
+					}
+					// Delegate all zone-button coloring to applyDeviationColors so there
+					// is one source of truth (avoids poller vs. setpoint oscillation).
+					if (window.applyDeviationColors) window.applyDeviationColors();
+				}
+
+				async function fetchAndApply() {
+					try {
+						const res = await fetch('/api/latest');
+						if (!res.ok) return;
+						const d = await res.json();
+
+						// Deduplicate — skip if timestamp unchanged
+						if (d.timestamp && d.timestamp === lastTimestamp) return;
+						lastTimestamp = d.timestamp;
+
+						// Store rounded values so display + coloring are consistent
+						for (let i = 1; i <= 6; i++) {
+							const val = d[`tc${i}`];
+							currentDryBulb[`temp${i}`] = (val !== null && val !== undefined)
+								? roundHalf(parseFloat(val)) : null;
+						}
+
+						for (let i = 1; i <= 6; i++) {
+							const v = d[`fan${i}`];
+							currentFans[`fan${i}`] = (v !== null && v !== undefined) ? Number(v) : 0;
+						}
+
+						currentHumidity = (d.humidity !== null && d.humidity !== undefined)
+							? roundHalf(parseFloat(d.humidity)) : null;
+
+						updateTemperatureDisplay();
+
+						// Feed charts — temps already rounded
+						if (window.pushSensorSample) {
+							const temps = {};
+							for (let i = 1; i <= 6; i++) {
+								const v = currentDryBulb[`temp${i}`];
+								temps[`temp${i}`] = (v !== null) ? v.toFixed(1) : '--';
+							}
+							window.pushSensorSample({
+								time:     d.timestamp ? new Date(d.timestamp) : new Date(),
+								temps,
+								humidity: currentHumidity,
+								sht_temp: (d.sht_temp !== null && d.sht_temp !== undefined) ? roundHalf(parseFloat(d.sht_temp)) : null,
+								fans:     { ...currentFans },
+								weight:   d.weight_lbs
+							});
+						}
+
+						// Publish rounded values so zone pages stay consistent
+						const sample = {
+							timestamp: d.timestamp || new Date().toISOString(),
+							tc1: currentDryBulb.temp1, tc2: currentDryBulb.temp2,
+							tc3: currentDryBulb.temp3, tc4: currentDryBulb.temp4,
+							tc5: currentDryBulb.temp5, tc6: currentDryBulb.temp6,
+							fan1: currentFans.fan1, fan2: currentFans.fan2,
+							fan3: currentFans.fan3, fan4: currentFans.fan4,
+							fan5: currentFans.fan5, fan6: currentFans.fan6,
+							humidity: currentHumidity,
+							weight_lbs: d.weight_lbs
+						};
+						try { localStorage.setItem('sakeLatestSample', JSON.stringify(sample)); } catch(e) {}
+						if (bc) { try { bc.postMessage(sample); } catch(e) {} }
+
+					} catch (err) {
+						console.warn('Sensor poll failed:', err);
+					}
+				}
+
+				function startTemperatureReading() {
+					if (pollIntervalId) return;
+					fetchAndApply();
+					pollIntervalId = setInterval(fetchAndApply, 3000);
+				}
+
+				function stopTemperatureReading() {
+					if (pollIntervalId) { clearInterval(pollIntervalId); pollIntervalId = null; }
+					currentDryBulb  = { temp1:null, temp2:null, temp3:null, temp4:null, temp5:null, temp6:null };
+					currentFans     = { fan1:0, fan2:0, fan3:0, fan4:0, fan5:0, fan6:0 };
+					currentHumidity = null;
+					lastTimestamp   = null;
+					updateTemperatureDisplay();
+				}
+
+				function getCurrentTemperatures() {
+					const out = {};
+					for (let i = 1; i <= 6; i++) {
+						const v = currentDryBulb[`temp${i}`];
+						out[`temp${i}`] = (v !== null) ? v.toFixed(1) : '--';
+					}
+					return out;
+				}
+
+				// Expose raw numeric values for applyDeviationColors (avoids DOM text scraping)
+				function getLatestDryBulbNumeric() { return { ...currentDryBulb }; }
+
+				window.startTemperatureReading  = startTemperatureReading;
+				window.stopTemperatureReading   = stopTemperatureReading;
+				window.getCurrentTemperatures   = getCurrentTemperatures;
+				window.getLatestDryBulbNumeric  = getLatestDryBulbNumeric;
+				// NOTE: auto-start removed — the mode controller calls startTemperatureReading()
+				// after pre-populating historical data so charts don't get out-of-order points.
+			})();
+
+			// ── Fan state + PID mode badge poller ────────────────────────────────
+			(function () {
+				'use strict';
+
+				var _fanPollId = null;
+
+				function _applyFanBadges(data) {
+					var zones = (data && data.zones) ? data.zones : {};
+					for (var z = 1; z <= 6; z++) {
+						var zd   = zones[String(z)] || {};
+						var state = zd.state;   // 'on' | 'off' | null
+						var mode  = zd.mode;    // 'pid' | 'manual' | 'rule' | 'none'
+						var sp    = zd.setpoint; // number | null
+
+						var fanEl  = document.getElementById('fan-badge-' + z);
+						var modeEl = document.getElementById('mode-badge-' + z);
+						if (!fanEl || !modeEl) continue;
+
+						// Fan on/off badge
+						fanEl.className = 'fan-badge';
+						if (state === 'on') {
+							fanEl.textContent = 'ON';
+							fanEl.classList.add('fan-badge--on');
+						} else if (state === 'off') {
+							fanEl.textContent = 'OFF';
+							fanEl.classList.add('fan-badge--off');
+						} else {
+							fanEl.textContent = '--';
+						}
+
+						// Mode badge
+						modeEl.className = 'mode-badge';
+						modeEl.textContent = '';
+						if (mode === 'pid') {
+							modeEl.textContent = sp !== null && sp !== undefined
+								? 'PID ' + Number(sp).toFixed(1) + '°'
+								: 'PID';
+							modeEl.classList.add('mode-badge--pid');
+						} else if (mode === 'manual') {
+							modeEl.textContent = 'MAN';
+							modeEl.classList.add('mode-badge--manual');
+						} else if (mode === 'rule') {
+							modeEl.textContent = 'RULE';
+							modeEl.classList.add('mode-badge--rule');
+						}
+					}
+				}
+
+				async function fetchFanState() {
+					try {
+						var res = await fetch('/api/fan-state');
+						if (!res.ok) return;
+						_applyFanBadges(await res.json());
+					} catch (e) { /* silent */ }
+				}
+
+				function startFanPolling() {
+					if (_fanPollId) return;
+					fetchFanState();
+					_fanPollId = setInterval(fetchFanState, 5000);
+				}
+
+				function stopFanPolling() {
+					if (_fanPollId) { clearInterval(_fanPollId); _fanPollId = null; }
+					// Reset badges
+					for (var z = 1; z <= 6; z++) {
+						var el = document.getElementById('fan-badge-' + z);
+						if (el) { el.className = 'fan-badge'; el.textContent = '--'; }
+						var mel = document.getElementById('mode-badge-' + z);
+						if (mel) { mel.className = 'mode-badge'; mel.textContent = ''; }
+					}
+				}
+
+				window.startFanPolling = startFanPolling;
+				window.stopFanPolling  = stopFanPolling;
+			})();
+
+				// Live-updating charts for temperature, humidity, and fans + modal with scroll/zoom
+				(function () {
+					const tempCanvas = document.getElementById('temp-chart');
+					const humCanvas = document.getElementById('humidity-chart');
+					const fansCanvas = document.getElementById('fans-chart');
+					const weightCanvas = document.getElementById('weight-chart');
+
+					if (!tempCanvas || !humCanvas || !fansCanvas || !weightCanvas || !window.Chart) return;
+
+					const tempCtx = tempCanvas.getContext('2d');
+					const humCtx = humCanvas.getContext('2d');
+					const fansCtx = fansCanvas.getContext('2d');
+					const weightCtx = weightCanvas.getContext('2d');
+
+					const maxPoints = 2880; // ~4 hrs at 5s polling, ~24 hrs at 30s polling
+					const labels = [];
+					const sampleTimestamps = []; // parallel ms timestamps for time-range filtering
+					const humidityData = [];
+					const shtTempData  = []; // SHT30 dry-bulb (probe)
+					const wetBulbData  = []; // calculated wet-bulb
+					const elapsedLabels = []; // HH:MM:SS from run start
+const tempSeries = {
+						temp1: [],
+						temp2: [],
+						temp3: [],
+						temp4: [],
+						temp5: [],
+						temp6: []
+					};
+
+					// {x: elapsed_min, y: val} parallel arrays — used by tempChart's linear x-axis
+					// so target curves can span the full profile without needing shared labels
+					const tempSeriesXY = {
+						temp1: [],
+						temp2: [],
+						temp3: [],
+						temp4: [],
+						temp5: [],
+						temp6: []
+					};
+
+					const fansSeries = {
+						fan1: [],
+						fan2: [],
+						fan3: [],
+						fan4: [],
+						fan5: [],
+						fan6: []
+					};
+
+					const weightData = [];
+					const rawWeightData = []; // unmodified lbs readings (tare not applied)
+					var weightTare = (function () {
+						var v = parseFloat(localStorage.getItem('sakeWeightTare') || '');
+						return isFinite(v) ? v : 0;
+					})();
+
+					// Wet-bulb via psychrometric equation + Newton-Raphson iteration.
+					// More accurate than Stull (2011) at high RH (>85 %) and T > 35 °C (koji conditions).
+					function calcWetBulb(T, RH) {
+						if (T == null || RH == null || isNaN(T) || isNaN(RH) || RH <= 0 || RH > 100) return null;
+						// Tetens saturation vapour pressure (hPa)
+						function es(t) { return 6.1078 * Math.exp(17.27 * t / (t + 237.3)); }
+						var ea = es(T) * RH / 100;      // actual vapour pressure
+						var P  = 1013.25;               // sea-level pressure (hPa)
+						var A  = 6.6e-4;                // psychrometric coefficient
+						// Initial guess: midpoint between dry-bulb and dew point
+						var lnr = Math.log(ea / 6.1078);
+						var Td  = 237.3 * lnr / (17.27 - lnr);
+						var wb  = (T + Td) / 2;
+						for (var i = 0; i < 12; i++) {
+							var esw = es(wb);
+							var f   = esw - A * P * (T - wb) - ea;
+							var df  = 17.27 * 237.3 / Math.pow(wb + 237.3, 2) * esw + A * P;
+							wb -= f / df;
+							if (Math.abs(f / df) < 1e-6) break;
+						}
+						return Math.round(wb * 2) / 2; // round to 0.5 °C
+					}
+
+					// Elapsed-time mode flag and helpers
+					var elapsedMode = false;
+					function fmtElapsed(ms) {
+						if (ms < 0) ms = 0;
+						var s = Math.floor(ms / 1000);
+						var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+						return (h > 0 ? h + 'h ' : '') + (m > 0 || h > 0 ? String(m).padStart(2,'0') + 'm ' : '') + String(sec).padStart(2,'0') + 's';
+					}
+					function getRunStartMs() {
+						// Read from the deviation-colors IIFE's exported value
+						return (window._runStartMs && Number.isFinite(window._runStartMs)) ? window._runStartMs : null;
+					}
+
+					// Small dashboard charts
+
+					function getZoneColor(n) {
+						return getComputedStyle(document.documentElement).getPropertyValue('--zone-color-' + n).trim()
+							|| ['#e05252','#52a0e0','#52e07c','#e0c952','#c052e0','#e09052'][n - 1];
+					}
+					const tempChart = new Chart(tempCtx, {
+						type: 'line',
+						data: {
+							datasets: [
+								{ label: 'Zone 1', data: tempSeriesXY.temp1, borderColor: getZoneColor(1), borderWidth: 2.5, pointRadius: 0, tension: 0.3 },
+								{ label: 'Zone 2', data: tempSeriesXY.temp2, borderColor: getZoneColor(2), borderWidth: 2.5, pointRadius: 0, tension: 0.3 },
+								{ label: 'Zone 3', data: tempSeriesXY.temp3, borderColor: getZoneColor(3), borderWidth: 2.5, pointRadius: 0, tension: 0.3 },
+								{ label: 'Zone 4', data: tempSeriesXY.temp4, borderColor: getZoneColor(4), borderWidth: 2.5, pointRadius: 0, tension: 0.3 },
+								{ label: 'Zone 5', data: tempSeriesXY.temp5, borderColor: getZoneColor(5), borderWidth: 2.5, pointRadius: 0, tension: 0.3 },
+								{ label: 'Zone 6', data: tempSeriesXY.temp6, borderColor: getZoneColor(6), borderWidth: 2.5, pointRadius: 0, tension: 0.3 }
+							]
+						},
+						options: {
+							animation: false,
+							responsive: true,
+							maintainAspectRatio: false,
+							scales: {
+								x: {
+									type: 'linear',
+									ticks: {
+										autoSkip: true,
+										maxTicksLimit: 8,
+										color: '#aaa',
+										callback: function (val) {
+											var h = Math.floor(val / 60), m = Math.round(val % 60);
+											return h > 0 ? h + 'h ' + String(m).padStart(2, '0') + 'm' : m + 'm';
+										}
+									},
+									title: { display: true, text: 'Elapsed time', color: '#888', font: { size: 10 } },
+									grid: { color: '#2a2a2a' }
+								},
+								y: {
+									title: { display: true, text: 'Temperature (°C)', color: '#aaa' },
+									ticks: { color: '#aaa' },
+									grid: { color: '#2a2a2a' }
+								}
+							},
+							plugins: {
+								legend: {
+									position: 'bottom',
+									labels: {
+										color: '#ccc', usePointStyle: true, boxWidth: 10,
+										font: { size: 11 }, padding: 8,
+										filter: function (item, data) {
+											return !data.datasets[item.datasetIndex]._isTarget;
+										}
+									}
+								}
+							}
+						}
+					});
+
+						// Environmental chart (dry bulb probe, wet bulb calculated, humidity)
+					const ENV_DRY_COLOR = '#f0a040'; // amber for dry bulb
+					const ENV_WET_COLOR = '#40c0d0'; // teal for wet bulb
+					const ENV_HUM_COLOR = '#7070e0'; // indigo for humidity
+					const envChart = new Chart(humCtx, {
+						type: 'line',
+						data: {
+							labels,
+							datasets: [
+								{ label: 'Dry Bulb (°C)', data: shtTempData, yAxisID: 'yTemp',
+								  borderColor: ENV_DRY_COLOR, backgroundColor: ENV_DRY_COLOR + '22',
+								  borderWidth: 2.5, pointRadius: 0, tension: 0.3, fill: false },
+								{ label: 'Wet Bulb (°C)', data: wetBulbData, yAxisID: 'yTemp',
+								  borderColor: ENV_WET_COLOR, backgroundColor: ENV_WET_COLOR + '22',
+								  borderWidth: 2.5, pointRadius: 0, tension: 0.3, fill: false },
+								{ label: 'Humidity (%)', data: humidityData, yAxisID: 'yHum',
+								  borderColor: ENV_HUM_COLOR, backgroundColor: ENV_HUM_COLOR + '22',
+								  borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false,
+								  borderDash: [4, 3] }
+							]
+						},
+						options: {
+							animation: false, responsive: true, maintainAspectRatio: false,
+							scales: {
+								x: { ticks: { color: '#aaa', autoSkip: true, maxTicksLimit: 8 }, grid: { color: '#2a2a2a' } },
+								yTemp: { type: 'linear', position: 'left',
+									ticks: { color: ENV_DRY_COLOR }, grid: { color: '#2a2a2a' },
+									title: { display: true, text: 'Temp (°C)', color: '#aaa' } },
+								yHum: { type: 'linear', position: 'right', min: 0, max: 100,
+									ticks: { color: ENV_HUM_COLOR }, grid: { drawOnChartArea: false },
+									title: { display: true, text: 'Humidity (%)', color: ENV_HUM_COLOR } }
+							},
+							plugins: {
+								legend: {
+									position: 'bottom',
+									labels: { color: '#ccc', usePointStyle: true, boxWidth: 10, font: { size: 11 },
+									          padding: 8 }
+								}
+							}
+						}
+					});
+					const humChart = envChart; // keep alias for existing references
+
+					const fansChart = new Chart(fansCtx, {
+						type: 'line',
+						data: {
+							labels,
+							datasets: [
+								{ label: 'Fan 1', data: fansSeries.fan1, borderColor: getZoneColor(1), borderWidth: 2, pointRadius: 0, stepped: true },
+								{ label: 'Fan 2', data: fansSeries.fan2, borderColor: getZoneColor(2), borderWidth: 2, pointRadius: 0, stepped: true },
+								{ label: 'Fan 3', data: fansSeries.fan3, borderColor: getZoneColor(3), borderWidth: 2, pointRadius: 0, stepped: true },
+								{ label: 'Fan 4', data: fansSeries.fan4, borderColor: getZoneColor(4), borderWidth: 2, pointRadius: 0, stepped: true },
+								{ label: 'Fan 5', data: fansSeries.fan5, borderColor: getZoneColor(5), borderWidth: 2, pointRadius: 0, stepped: true },
+								{ label: 'Fan 6', data: fansSeries.fan6, borderColor: getZoneColor(6), borderWidth: 2, pointRadius: 0, stepped: true }
+							]
+						},
+						options: {
+							animation: false,
+							responsive: true,
+							maintainAspectRatio: false,
+							scales: {
+								x: {
+									ticks: { autoSkip: true, maxTicksLimit: 6 }
+								},
+								y: {
+									min: -0.1,
+									max: 1.1,
+									ticks: {
+										stepSize: 1,
+										callback: v => (v === 0 ? 'Off' : v === 1 ? 'On' : '')
+									},
+									title: { display: true, text: 'Fan state' }
+								}
+							},
+							plugins: {
+								legend: {
+									position: 'bottom',
+									labels: {
+										color: '#ccc', usePointStyle: true, boxWidth: 10,
+										font: { size: 11 }, padding: 8
+									}
+								}
+							}
+						}
+					});
+
+					const weightChart = new Chart(weightCtx, {
+						type: 'line',
+						data: {
+							labels,
+							datasets: [
+								{ label: 'Weight (lbs)', data: weightData, borderWidth: 2.5, pointRadius: 2,
+								  borderColor: 'rgb(75, 192, 192)', backgroundColor: 'rgba(75, 192, 192, 0.15)',
+								  spanGaps: true }
+							]
+						},
+						options: {
+							animation: false,
+							responsive: true,
+							maintainAspectRatio: false,
+							scales: {
+								x: {
+									ticks: {
+										autoSkip: true,
+										maxTicksLimit: 6,
+										// Format numeric elapsed-min labels as "Xh Ym"
+										callback: function (val) {
+											if (typeof val === 'number') {
+												var h = Math.floor(val / 60), m = Math.round(val % 60);
+												return h > 0 ? h + 'h ' + String(m).padStart(2,'0') + 'm' : m + 'm';
+											}
+											return val;
+										}
+									}
+								},
+								y: {
+									title: { display: true, text: 'Weight (lbs)' }
+								}
+							},
+							plugins: {
+								legend: { display: false }
+							}
+						}
+					});
+
+					// This gets called from the simulator
+					window.pushSensorSample = function (sample) {
+						const t = sample.time instanceof Date ? sample.time : new Date(sample.time);
+						const label = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+						labels.push(label);
+						sampleTimestamps.push(t.getTime());
+
+						// temps (raw for modal/zone cards; XY for tempChart linear axis)
+						for (let i = 1; i <= 6; i++) {
+							const key = `temp${i}`;
+							const val = parseFloat(sample.temps[key]);
+							const numVal = isNaN(val) ? null : val;
+							tempSeries[key].push(numVal);
+							// _elapsedMinNum computed below — push XY after it's calculated
+						}
+
+						// humidity + env probe data
+						const humVal = parseFloat(sample.humidity);
+						humidityData.push(isNaN(humVal) ? null : humVal);
+						const shtVal = (sample.sht_temp != null) ? parseFloat(sample.sht_temp) : null;
+						shtTempData.push(shtVal !== null && !isNaN(shtVal) ? shtVal : null);
+						wetBulbData.push(calcWetBulb(shtVal, isNaN(humVal) ? null : humVal));
+
+						// elapsed time label
+						const runStart = getRunStartMs();
+						elapsedLabels.push(runStart ? fmtElapsed(t.getTime() - runStart) : label);
+
+						// Track numeric elapsed minutes for phase2 stage markers / overlays
+						var _elapsedMinNum = runStart ? (t.getTime() - runStart) / 60000 : 0;
+						window._sampleElapsedMin = _elapsedMinNum;
+						if (window._chartElapsedMins) window._chartElapsedMins.push(_elapsedMinNum);
+
+						// Push {x, y} to tempSeriesXY for the linear-axis tempChart
+						for (let i = 1; i <= 6; i++) {
+							const key = `temp${i}`;
+							const raw = tempSeries[key][tempSeries[key].length - 1]; // already pushed above
+							tempSeriesXY[key].push({ x: _elapsedMinNum, y: raw });
+						}
+
+						// fans (optional)
+						if (sample.fans) {
+							for (let i = 1; i <= 6; i++) {
+								const key = `fan${i}`;
+								const v = parseFloat(sample.fans[key]);
+								fansSeries[key].push(isNaN(v) ? null : v);
+							}
+						} else {
+							Object.values(fansSeries).forEach(arr => arr.push(null));
+						}
+
+						// weight (real sensor data)
+						const wRaw = sample.weight != null ? parseFloat(sample.weight) : null;
+						const wRawVal = (wRaw !== null && !isNaN(wRaw)) ? wRaw : null;
+						rawWeightData.push(wRawVal);
+						weightData.push(wRawVal !== null ? wRawVal - weightTare : null);
+
+						// keep arrays bounded
+						if (labels.length > maxPoints) {
+							labels.shift();
+							sampleTimestamps.shift();
+							elapsedLabels.shift();
+							Object.values(tempSeries).forEach(arr => arr.shift());
+							Object.values(tempSeriesXY).forEach(arr => arr.shift());
+							humidityData.shift();
+							shtTempData.shift();
+							wetBulbData.shift();
+							Object.values(fansSeries).forEach(arr => arr.shift());
+							weightData.shift();
+							rawWeightData.shift();
+							if (window._chartElapsedMins) window._chartElapsedMins.shift();
+						}
+
+						tempChart.update('none');
+						humChart.update('none');
+						fansChart.update('none');
+						weightChart.update('none');
+
+						// Update env/weight quick-view stat cards
+						(function () {
+							var hEl = document.getElementById('ew-humidity-val');
+							var wbEl = document.getElementById('ew-wetbulb-val');
+							var wtEl = document.getElementById('ew-weight-val');
+							var wlEl = document.getElementById('ew-weight-loss-val');
+							if (hEl) hEl.textContent = (!isNaN(humVal) && humVal != null) ? humVal.toFixed(1) : '—';
+							if (wbEl) {
+								var wb = wetBulbData.length ? wetBulbData[wetBulbData.length - 1] : null;
+								wbEl.textContent = wb != null ? 'WB ' + wb.toFixed(1) + '°C' : 'WB —';
+							}
+							if (wtEl) wtEl.textContent = (wRaw != null && !isNaN(wRaw)) ? wRaw.toFixed(2) : '—';
+							if (wlEl) {
+								if (weightTare !== 0 && wRaw != null && !isNaN(wRaw)) {
+									var delta = wRaw - weightTare;
+									wlEl.textContent = (delta >= 0 ? '+' : '') + delta.toFixed(2) + ' lbs';
+								} else {
+									wlEl.textContent = '';
+								}
+							}
+						})();
+
+						// Share latest sample for zone pages (live updates)
+						try {
+							const latest = {
+								timestamp: t.toISOString()
+							};
+							for (let i = 1; i <= 6; i++) {
+								const tempKey = `temp${i}`;
+								latest[tempKey] = sample.temps ? sample.temps[tempKey] : null;
+								const fanKey = `fan${i}`;
+								latest[fanKey] = sample.fans ? sample.fans[fanKey] : null;
+							}
+							latest.humidity = sample.humidity ?? null;
+							localStorage.setItem('sakeLatestSample', JSON.stringify(latest));
+						} catch (e) {
+							// ignore storage errors
+						}
+
+						// If modal is open, refresh it with the new data point
+						if (chartModal && chartModal.style.display === 'flex') {
+							refreshModalChart();
+						}
+
+						// Push to active zone panel only — no need to iterate all 6 zones
+						if (window._zonePanelPush && window._getActiveZone) {
+							const az = window._getActiveZone();
+							if (az >= 1 && az <= 6) {
+								const panelLabel = window._elapsedMode
+									? elapsedLabels[elapsedLabels.length - 1]
+									: label;
+								const tVal = tempSeries['temp' + az][tempSeries['temp' + az].length - 1];
+								const fVal = fansSeries['fan'  + az][fansSeries['fan'  + az].length - 1];
+								window._zonePanelPush(az, panelLabel, tVal, fVal);
+							}
+						}
+						// Hook for target-projection refresh
+						if (window._afterSamplePush) window._afterSamplePush();
+					};
+
+					// Expose data arrays for zone panel
+					window._dashLabels     = labels;
+					window._dashTempSeries = tempSeries;
+					window._dashFansSeries = fansSeries;
+
+					// Expose chart instances + elapsed tracking for dashboard-phase2.js
+					window._tempChart        = tempChart;
+					window._envChart         = envChart;
+					window._weightChart      = weightChart;
+					window._fansChart        = fansChart;
+					window._chartLabels      = labels;
+					window._chartElapsedMins  = [];   // parallel numeric elapsed-min per label
+					window._sampleElapsedMin  = 0;
+					window._dashElapsedLabels = elapsedLabels; // expose for target projection
+					window._elapsedMode       = false;
+
+					// ── Weight Zero / tare button ──────────────────────────────────────────
+					(function () {
+						var zeroBtn = document.getElementById('wt-zero-btn');
+						if (!zeroBtn) return;
+						zeroBtn.addEventListener('click', function () {
+							var current = rawWeightData.length ? rawWeightData[rawWeightData.length - 1] : null;
+							if (current == null) { alert('No weight reading available yet.'); return; }
+							if (!confirm('Zero scale at ' + current.toFixed(2) + ' lbs?\nThe chart will read 0 from this point.')) return;
+							weightTare = current;
+							try { localStorage.setItem('sakeWeightTare', weightTare); } catch (e) {}
+							// Recompute tared values for all existing points
+							for (var i = 0; i < rawWeightData.length; i++) {
+								weightData[i] = rawWeightData[i] !== null ? rawWeightData[i] - weightTare : null;
+							}
+							weightChart.update('none');
+						});
+					})();
+
+					// Called by settings panel when zone colors change (skips target projection datasets)
+					window.updateChartColors = function () {
+						var zoneIdx = 0;
+						tempChart.data.datasets.forEach(function (ds) {
+							if (ds._isTarget) return;
+							zoneIdx++;
+							ds.borderColor = getZoneColor(zoneIdx);
+						});
+						tempChart.update('none');
+						// Sync fans chart to same zone colors
+						fansChart.data.datasets.forEach(function (ds, idx) {
+							ds.borderColor = getZoneColor(idx + 1);
+						});
+						fansChart.update('none');
+					};
+
+					// ── Elapsed time toggle ─────────────────────────────────────────────
+					function applyElapsedMode(on) {
+						elapsedMode = on;
+						window._elapsedMode = on;
+
+						// ── tempChart: swap tick callback + axis title ─────────────────
+						if (on) {
+							tempChart.options.scales.x.ticks.callback = function (val) {
+								var h = Math.floor(val / 60), m = Math.round(val % 60);
+								return h > 0 ? h + 'h ' + String(m).padStart(2, '0') + 'm' : m + 'm';
+							};
+							tempChart.options.scales.x.title.text = 'Elapsed time';
+						} else {
+							tempChart.options.scales.x.ticks.callback = function (val) {
+								var startMs = window._runStartMs;
+								if (!startMs) {
+									var h = Math.floor(val / 60), m = Math.round(val % 60);
+									return h > 0 ? h + 'h ' + String(m).padStart(2, '0') + 'm' : m + 'm';
+								}
+								var ts = new Date(startMs + val * 60 * 1000);
+								return ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+							};
+							tempChart.options.scales.x.title.text = 'Clock time';
+						}
+						tempChart.update('none');
+
+						var dispLabels = on ? elapsedLabels : labels;
+						// Update all small charts' label arrays
+						[envChart, fansChart, weightChart].forEach(function (ch) {
+							ch.data.labels = dispLabels;
+							// Reset window bounds so applyTimeWindow re-calculates with new labels
+							ch.options.scales.x.min = undefined;
+							ch.options.scales.x.max = undefined;
+							ch.update('none');
+						});
+						// Re-apply the active time window with the new label set
+						if (typeof applyTimeWindow === 'function') {
+							applyTimeWindow(activeWindowMinutes || 0);
+						}
+						// Rebuild zone detail card if open (label arrays need to switch)
+						if (window._openZdcCard && window._getActiveZone && window._getActiveZone() !== null) {
+							window._openZdcCard(window._getActiveZone());
+						}
+						// Update open modal if any
+						if (chartModal && chartModal.style.display === 'flex' && modalChart) {
+							refreshModalChart();
+						}
+					}
+
+					var elapsedToggleBtn = document.getElementById('elapsed-toggle-btn');
+					if (elapsedToggleBtn) {
+						elapsedToggleBtn.addEventListener('click', function () {
+							elapsedMode = !elapsedMode;
+							elapsedToggleBtn.textContent = elapsedMode ? 'Elapsed' : 'Clock';
+							elapsedToggleBtn.classList.toggle('elapsed-toggle-btn--active', elapsedMode);
+							applyElapsedMode(elapsedMode);
+						});
+					}
+
+					// Expose so mode controller can set elapsed mode on run start
+					window.setElapsedMode = function (on) {
+						if (elapsedToggleBtn) {
+							elapsedMode = on;
+							elapsedToggleBtn.textContent = on ? 'Elapsed' : 'Clock';
+							elapsedToggleBtn.classList.toggle('elapsed-toggle-btn--active', on);
+						}
+						applyElapsedMode(on);
+					};
+
+					// ── Time-window filter ─────────────────────────────────────────────
+					var activeWindowMinutes = 0; // 0 = show all
+
+					function applyTimeWindow(minutes) {
+						activeWindowMinutes = minutes;
+						window._activeWindowMinutes = minutes;
+						var total = sampleTimestamps.length;
+
+						// Determine start index based on the requested window
+						var startIdx = 0;
+						if (minutes > 0 && total > 0) {
+							var cutoff = sampleTimestamps[total - 1] - minutes * 60 * 1000;
+							for (var i = 0; i < total; i++) {
+								if (sampleTimestamps[i] >= cutoff) { startIdx = i; break; }
+							}
+						}
+
+						// -- tempChart uses a linear x-axis (elapsed minutes) --
+						if (total > 0 && window._chartElapsedMins && window._chartElapsedMins.length > 0) {
+							var elMins = window._chartElapsedMins;
+							if (minutes === 0) {
+								tempChart.options.scales.x.min = undefined;
+								tempChart.options.scales.x.max = undefined;
+							} else {
+								tempChart.options.scales.x.min = elMins[startIdx] != null ? elMins[startIdx] : undefined;
+								tempChart.options.scales.x.max = elMins[elMins.length - 1] != null ? elMins[elMins.length - 1] : undefined;
+							}
+							tempChart.update('none');
+						}
+
+						// -- label-based charts (env, fans, weight): set x.min/x.max via label value --
+						var dispLabels = elapsedMode ? elapsedLabels : labels;
+						[envChart, fansChart, weightChart].forEach(function (ch) {
+							if (!total || !dispLabels.length) return;
+							if (minutes === 0) {
+								ch.options.scales.x.min = undefined;
+								ch.options.scales.x.max = undefined;
+							} else {
+								ch.options.scales.x.min = dispLabels[startIdx] !== undefined ? dispLabels[startIdx] : undefined;
+								ch.options.scales.x.max = dispLabels[dispLabels.length - 1] !== undefined ? dispLabels[dispLabels.length - 1] : undefined;
+							}
+							ch.update('none');
+						});
+
+						// -- Zone detail card charts: clip via their own label array (x hidden but min/max clips) --
+						if (window._zdcCharts) {
+							window._zdcCharts.forEach(function (ch) {
+								if (!ch) return;
+								var lbls = ch.data.labels;
+								if (!lbls || !lbls.length) return;
+								if (minutes === 0) {
+									ch.options.scales.x.min = undefined;
+									ch.options.scales.x.max = undefined;
+								} else {
+									ch.options.scales.x.min = lbls[startIdx] !== undefined ? lbls[startIdx] : undefined;
+									ch.options.scales.x.max = lbls[lbls.length - 1] !== undefined ? lbls[lbls.length - 1] : undefined;
+								}
+								ch.update('none');
+							});
+						}
+					}
+
+					window._applyTimeWindow = applyTimeWindow;
+
+					// Wire time-window buttons
+					var twBtns = document.querySelectorAll('#time-window-btns .tw-btn');
+					twBtns.forEach(function (btn) {
+						btn.addEventListener('click', function () {
+							var mins = parseInt(btn.dataset.minutes, 10);
+							twBtns.forEach(function (b) { b.classList.remove('tw-btn--active'); });
+							btn.classList.add('tw-btn--active');
+							applyTimeWindow(mins);
+						});
+					});
+
+					// Re-apply window after each new sample so live mode stays in the selected window
+					var _origAfterSamplePush = window._afterSamplePush;
+					window._afterSamplePush = function () {
+						if (_origAfterSamplePush) _origAfterSamplePush();
+						if (activeWindowMinutes > 0) applyTimeWindow(activeWindowMinutes);
+					};
+
+					// ---------- Full-page chart modal + controls ----------
+					const chartModal = document.getElementById('chart-modal');
+					const chartModalClose = document.getElementById('chart-modal-close');
+					const chartModalTitle = document.getElementById('chart-modal-title');
+					const chartModalCanvas = document.getElementById('chart-modal-canvas');
+					const chartRangeBtns = document.querySelectorAll('.chart-range-btn');
+					const yMinInput = document.getElementById('chart-y-min');
+					const yMaxInput = document.getElementById('chart-y-max');
+					const yResetBtn = document.getElementById('chart-y-reset');
+
+					let modalChart = null;
+					let modalChartType = null; // 'temp' | 'humidity' | 'fans'
+					let activeRangeMinutes = 0; // 0 = All, 15 = 15 min, 60 = 1 hr
+
+					// Return indices [startIdx, endIdx) for the active time range
+					function getRangeIndices() {
+						const total = sampleTimestamps.length;
+						if (!total) return [0, 0];
+						if (activeRangeMinutes === 0) return [0, total];
+						const cutoff = sampleTimestamps[total - 1] - activeRangeMinutes * 60 * 1000;
+						let s = 0;
+						for (let i = 0; i < total; i++) {
+							if (sampleTimestamps[i] >= cutoff) { s = i; break; }
+						}
+						return [s, total];
+					}
+
+					function computeAutoYRange(type, s, e) {
+						if (type === 'fans') return { min: -0.1, max: 1.1 };
+						if (type === 'env') return { min: 0, max: 100 }; // humidity axis; temp axis is auto
+						let vals = [];
+						if (type === 'temp') {
+							Object.values(tempSeries).forEach(arr => {
+								vals = vals.concat(arr.slice(s, e).filter(v => v != null));
+							});
+						} else if (type === 'humidity') {
+							vals = humidityData.slice(s, e).filter(v => v != null);
+						}
+						if (!vals.length) return { min: 0, max: 1 };
+						const mn = Math.min(...vals), mx = Math.max(...vals);
+						const pad = (mx - mn) * 0.1 || 1;
+						return { min: mn - pad, max: mx + pad };
+					}
+
+					function getDatasetColors(type, idx) {
+						// Read from CSS vars (user-configurable via settings panel)
+						const style = getComputedStyle(document.documentElement);
+						const zoneColors = [1,2,3,4,5,6].map(n => style.getPropertyValue('--zone-color-' + n).trim() || ['#e05252','#52a0e0','#52e07c','#e0c952','#c052e0','#e09052'][n-1]);
+						if (type === 'temp') return zoneColors[idx % zoneColors.length];
+						if (type === 'fans') return zoneColors[idx % zoneColors.length];
+						return style.getPropertyValue('--theme-accent').trim() || '#52c0e0';
+					}
+
+					function buildDatasets(type, s, e) {
+						if (type === 'temp') {
+							// Actual zone datasets
+							const zoneDs = Object.keys(tempSeries).map((key, idx) => ({
+								label: tempChart.data.datasets[idx] ? tempChart.data.datasets[idx].label : ('Zone ' + (idx+1)),
+								borderColor: getDatasetColors('temp', idx),
+								backgroundColor: 'transparent',
+								borderWidth: 1.5,
+								pointRadius: 0,
+								tension: 0.3,
+								data: tempSeries[key].slice(s, e)
+							}));
+
+							// Target curve datasets (from reference curve / _targetProfile)
+							const profile = window._targetProfile || [];
+							const elMins  = window._chartElapsedMins || [];
+							if (profile.length && elMins.length) {
+								const sliceElMins = elMins.slice(s, e);
+								for (let z = 1; z <= 6; z++) {
+									// Use same color as zone but dimmed with dashes
+									const baseColor = getDatasetColors('temp', z - 1);
+									const interpVal = function (em) {
+										// linear interpolation into profile
+										var pts = profile;
+										if (!pts.length) return null;
+										var field = 'temp' + z + '_target';
+										if (em <= pts[0].elapsed_min) return pts[0][field] != null ? pts[0][field] : null;
+										for (var i = 1; i < pts.length; i++) {
+											if (em <= pts[i].elapsed_min) {
+												var t = (em - pts[i-1].elapsed_min) / (pts[i].elapsed_min - pts[i-1].elapsed_min);
+												var v0 = pts[i-1][field], v1 = pts[i][field];
+												return (v0 != null && v1 != null) ? v0 + t * (v1 - v0) : null;
+											}
+										}
+										return pts[pts.length - 1][field] != null ? pts[pts.length - 1][field] : null;
+									};
+									zoneDs.push({
+										label: 'Z' + z + ' Target',
+										borderColor: baseColor,
+										borderWidth: 1,
+										borderDash: [6, 4],
+										backgroundColor: 'transparent',
+										pointRadius: 0,
+										tension: 0.3,
+										data: sliceElMins.map(interpVal)
+									});
+								}
+							}
+
+							return zoneDs;
+						} else if (type === 'humidity') {
+							return [{
+								label: 'Humidity (%)',
+								borderColor: '#52c0e0',
+								backgroundColor: 'rgba(82,192,224,0.1)',
+								borderWidth: 1.5,
+								pointRadius: 0,
+								fill: true,
+								data: humidityData.slice(s, e)
+							}];
+						} else if (type === 'fans') {
+							return Object.keys(fansSeries).map((key, idx) => ({
+								label: fansChart.data.datasets[idx] ? fansChart.data.datasets[idx].label : ('Fan ' + (idx+1)),
+								borderColor: getDatasetColors('fans', idx),
+								backgroundColor: 'transparent',
+								borderWidth: 1.5,
+								pointRadius: 0,
+								stepped: true,
+								data: fansSeries[key].slice(s, e)
+							}));
+						} else if (type === 'env') {
+							return [
+								{ label: 'Dry Bulb (°C)', data: shtTempData.slice(s, e), yAxisID: 'yTemp',
+								  borderColor: '#f0a040', backgroundColor: 'transparent',
+								  borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+								{ label: 'Wet Bulb (°C)', data: wetBulbData.slice(s, e), yAxisID: 'yTemp',
+								  borderColor: '#40c0d0', backgroundColor: 'transparent',
+								  borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+								{ label: 'Humidity (%)', data: humidityData.slice(s, e), yAxisID: 'yHum',
+								  borderColor: '#7070e0', backgroundColor: 'transparent',
+								  borderWidth: 1, pointRadius: 0, tension: 0.3, borderDash: [4, 3] }
+							];
+						}
+						return [];
+					}
+
+					function applyYInputsToModal() {
+						if (!modalChart || modalChartType === 'fans' || modalChartType === 'env') return;
+						if (!modalChart.options.scales.y) return;
+						const mn = parseFloat(yMinInput ? yMinInput.value : '');
+						const mx = parseFloat(yMaxInput ? yMaxInput.value : '');
+						modalChart.options.scales.y.min = Number.isFinite(mn) ? mn : undefined;
+						modalChart.options.scales.y.max = Number.isFinite(mx) ? mx : undefined;
+						modalChart.update('none');
+					}
+
+					function syncYInputsToChart() {
+						if (!modalChart) return;
+						const sc = modalChart.options.scales.y;
+						if (yMinInput) yMinInput.value = sc.min != null ? sc.min.toFixed(1) : '';
+						if (yMaxInput) yMaxInput.value = sc.max != null ? sc.max.toFixed(1) : '';
+					}
+
+					function refreshModalChart() {
+						if (!modalChart || !modalChartType) return;
+						const [s, e] = getRangeIndices();
+						const sliceLabels = (elapsedMode ? elapsedLabels : labels).slice(s, e);
+						const datasets = buildDatasets(modalChartType, s, e);
+						// Preserve per-dataset visibility using Chart.js metadata
+						const hiddenState = modalChart.data.datasets.map(function (_, i) {
+							var meta = modalChart.getDatasetMeta(i);
+							return meta ? meta.hidden === true : false;
+						});
+						modalChart.data.labels = sliceLabels;
+						modalChart.data.datasets = datasets;
+						// Re-apply hidden state after dataset replacement
+						datasets.forEach(function (ds, i) { if (hiddenState[i]) ds.hidden = true; });
+						// Auto-fit Y only if inputs are empty and chart has a single 'y' axis
+						const mnVal = parseFloat(yMinInput ? yMinInput.value : '');
+						const mxVal = parseFloat(yMaxInput ? yMaxInput.value : '');
+						if (modalChartType !== 'env' && !Number.isFinite(mnVal) && !Number.isFinite(mxVal)) {
+							const { min, max } = computeAutoYRange(modalChartType, s, e);
+							if (modalChart.options.scales.y) {
+								modalChart.options.scales.y.min = modalChartType === 'fans' ? -0.1 : min;
+								modalChart.options.scales.y.max = modalChartType === 'fans' ? 1.1 : max;
+							}
+						}
+						modalChart.update('none');
+					}
+
+					function openChartModal(type) {
+						if (!chartModal || !chartModalCanvas) return;
+						modalChartType = type;
+
+						if (modalChart) { modalChart.destroy(); modalChart = null; }
+
+						const ctx = chartModalCanvas.getContext('2d');
+						const [s, e] = getRangeIndices();
+						const { min: autoMin, max: autoMax } = computeAutoYRange(type, s, e);
+
+						let yTitle = '';
+						if (type === 'temp') { chartModalTitle.textContent = 'Temperature over time'; yTitle = 'Temp (°C)'; }
+						else if (type === 'humidity') { chartModalTitle.textContent = 'Humidity over time'; yTitle = 'Humidity (%)'; }
+						else if (type === 'fans') { chartModalTitle.textContent = 'Fans on/off over time'; yTitle = 'Fan state'; }
+						else if (type === 'env') { chartModalTitle.textContent = 'Environment (Dry Bulb / Wet Bulb / Humidity)'; yTitle = ''; }
+
+						// Reset Y inputs to auto
+						if (yMinInput) yMinInput.value = (type === 'fans' || type === 'env') ? '' : autoMin.toFixed(1);
+						if (yMaxInput) yMaxInput.value = (type === 'fans' || type === 'env') ? '' : autoMax.toFixed(1);
+						const yFixed = (type === 'fans' || type === 'env');
+						if (yMinInput) yMinInput.disabled = yFixed;
+						if (yMaxInput) yMaxInput.disabled = yFixed;
+						if (yResetBtn) yResetBtn.disabled = yFixed;
+
+						const sliceDisplayLabels = elapsedMode ? elapsedLabels.slice(s, e) : labels.slice(s, e);
+						const envScales = type === 'env' ? {
+							x: { ticks: { color: '#aaa', autoSkip: true, maxTicksLimit: 12 }, grid: { color: '#2a2a2a' } },
+							yTemp: { type: 'linear', position: 'left', ticks: { color: '#aaa' }, grid: { color: '#2a2a2a' },
+								title: { display: true, text: 'Temp (°C)', color: '#aaa' } },
+							yHum: { type: 'linear', position: 'right', min: 0, max: 100,
+								ticks: { color: '#7070e0' }, grid: { drawOnChartArea: false },
+								title: { display: true, text: 'Humidity (%)', color: '#7070e0' } }
+						} : {
+							x: { ticks: { color: '#aaa', autoSkip: true, maxTicksLimit: 12 }, grid: { color: '#2a2a2a' } },
+							y: {
+								min: type === 'fans' ? -0.1 : autoMin,
+								max: type === 'fans' ? 1.1 : autoMax,
+								ticks: type === 'fans'
+									? { color: '#aaa', stepSize: 1, callback: v => v === 0 ? 'Off' : v === 1 ? 'On' : '' }
+									: { color: '#aaa' },
+								grid: { color: '#2a2a2a' },
+								title: { display: !!yTitle, text: yTitle, color: '#aaa' }
+							}
+						};
+						modalChart = new Chart(ctx, {
+							type: 'line',
+							data: {
+								labels: sliceDisplayLabels,
+								datasets: buildDatasets(type, s, e)
+							},
+							options: {
+								animation: false,
+								responsive: true,
+								maintainAspectRatio: false,
+								scales: envScales,
+								plugins: {
+									legend: {
+										position: 'bottom',
+										labels: { color: '#ccc', usePointStyle: true, boxWidth: 12 }
+									}
+								}
+							}
+						});
+
+						chartModal.style.display = 'flex';
+					}
+
+					function closeChartModal() {
+						if (modalChart) { modalChart.destroy(); modalChart = null; }
+						if (chartModal) chartModal.style.display = 'none';
+					}
+
+					// Range button clicks
+					chartRangeBtns.forEach(function (btn) {
+						btn.addEventListener('click', function () {
+							chartRangeBtns.forEach(b => b.classList.remove('active'));
+							btn.classList.add('active');
+							activeRangeMinutes = parseInt(btn.dataset.range, 10) || 0;
+							refreshModalChart();
+						});
+					});
+
+					// Y-axis inputs
+					if (yMinInput) yMinInput.addEventListener('change', applyYInputsToModal);
+					if (yMaxInput) yMaxInput.addEventListener('change', applyYInputsToModal);
+					if (yResetBtn) {
+						yResetBtn.addEventListener('click', function () {
+							if (!modalChart || !modalChartType || modalChartType === 'env') return;
+							if (!modalChart.options.scales.y) return;
+							const [s, e] = getRangeIndices();
+							const { min, max } = computeAutoYRange(modalChartType, s, e);
+							modalChart.options.scales.y.min = min;
+							modalChart.options.scales.y.max = max;
+							if (yMinInput) yMinInput.value = min.toFixed(1);
+							if (yMaxInput) yMaxInput.value = max.toFixed(1);
+							modalChart.update('none');
+						});
+					}
+
+					// Click small charts to expand
+					tempCanvas.addEventListener('click', function () { openChartModal('temp'); });
+					humCanvas.addEventListener('click', function () { openChartModal('env'); });
+					fansCanvas.addEventListener('click', function () { openChartModal('fans'); });
+
+					if (chartModalClose) chartModalClose.addEventListener('click', closeChartModal);
+					if (chartModal) {
+						chartModal.addEventListener('click', function (e) {
+							if (e.target === chartModal) closeChartModal();
+						});
+					}
+					document.addEventListener('keydown', function (e) {
+						if (e.key === 'Escape' && chartModal && chartModal.style.display === 'flex') closeChartModal();
+					});
+				})();
+
+
+				// ── Zone detail inline card ───────────────────────────────────────────
+				(function () {
+					'use strict';
+
+					// Cached DOM refs
+					const card      = document.getElementById('zone-detail-card');
+					const titleEl   = document.getElementById('zdc-title');
+					const tempEl    = document.getElementById('zdc-temp');
+					const closeBtn  = document.getElementById('zdc-close');
+					const notesTA   = null; // notes removed from zone modal
+					const fanStatus = document.getElementById('zdc-fan-status');
+					const fanAutoBtn = document.getElementById('zdc-fan-auto');
+					const tempCanvas = document.getElementById('zdc-temp-chart');
+					const fanCanvas  = document.getElementById('zdc-fan-chart');
+					const fanBtns    = card ? card.querySelectorAll('.zone-detail-card__fan-btn[data-action]') : [];
+
+					if (!card) return; // not on dashboard page
+
+					let zdcTempChart = null;
+					let zdcFanChart  = null;
+					let activeZone   = null;
+					let fanRequestPending = false;
+
+					// Chart options matching bubbly light style
+					const CHART_OPTS = {
+						animation: false,
+						responsive: true,
+						maintainAspectRatio: false,
+						scales: {
+							x: { display: false },
+							y: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: '#e8e8ec' } }
+						},
+						plugins: { legend: { display: false } }
+					};
+
+					function getRunId() {
+						return new URLSearchParams(location.search).get('run');
+					}
+
+					function openCard(zone) {
+						const runId = getRunId();
+						if (!runId) return; // no active run — let normal nav happen
+
+						// Toggle: clicking the same zone collapses the card
+						if (activeZone === zone) { closeCard(); return; }
+
+						activeZone = zone;
+						titleEl.textContent = 'Zone ' + zone;
+
+						// Current temp from dashboard display
+						const dryEl = document.getElementById('temp-' + zone + '-dry');
+						tempEl.textContent = dryEl ? dryEl.textContent : '--';
+
+						// Zone color
+						const fallback = ['#e05252','#52a0e0','#52e07c','#e0c952','#c052e0','#e09052'];
+						const color = getComputedStyle(document.documentElement)
+							.getPropertyValue('--zone-color-' + zone).trim() || fallback[zone - 1];
+
+						// Destroy old charts before creating new ones (prevent memory leak)
+						if (zdcTempChart) { zdcTempChart.destroy(); zdcTempChart = null; }
+						if (zdcFanChart)  { zdcFanChart.destroy();  zdcFanChart  = null; }
+
+						// Use elapsed or clock labels based on current toggle state
+						const srcLabels = window._elapsedMode
+							? (window._dashElapsedLabels || window._dashLabels || [])
+							: (window._dashLabels || []);
+						const cardLabels = srcLabels.slice();
+						const tempData = ((window._dashTempSeries || {})['temp' + zone] || []).slice();
+						const fanData  = ((window._dashFansSeries  || {})['fan'  + zone] || []).slice();
+
+						zdcTempChart = new Chart(tempCanvas.getContext('2d'), {
+							type: 'line',
+							data: {
+								labels: cardLabels,
+								datasets: [{ data: tempData, borderColor: color, backgroundColor: color + '22',
+									borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: true }]
+							},
+							options: CHART_OPTS
+						});
+
+						zdcFanChart = new Chart(fanCanvas.getContext('2d'), {
+							type: 'line',
+							data: {
+								labels: cardLabels.slice(),
+								datasets: [{ data: fanData, borderColor: '#52a0e0',
+									backgroundColor: 'rgba(82,160,224,0.10)',
+									borderWidth: 1.5, pointRadius: 0, stepped: true, fill: true }]
+							},
+							options: Object.assign({}, CHART_OPTS, {
+								scales: Object.assign({}, CHART_OPTS.scales, {
+									y: Object.assign({}, CHART_OPTS.scales.y, { min: 0, max: 1 })
+								})
+							})
+						});
+
+						// Register charts so applyTimeWindow can clip them
+						window._zdcCharts = [zdcTempChart, zdcFanChart];
+						// Apply current time window immediately
+						if (window._applyTimeWindow) {
+							window._applyTimeWindow(window._activeWindowMinutes || 0);
+						}
+
+						// Highlight active zone button
+						document.querySelectorAll('.zone-combined').forEach(function (el) {
+							el.classList.remove('zone-combined--active');
+						});
+						var activeLink = document.getElementById('zone-link-' + zone);
+						if (activeLink) activeLink.classList.add('zone-combined--active');
+
+						// Show card
+						card.hidden = false;
+
+						// Load fan override state
+						loadFanState(runId, zone);
+					}
+
+					function closeCard() {
+						card.hidden = true;
+						if (zdcTempChart) { zdcTempChart.destroy(); zdcTempChart = null; }
+						if (zdcFanChart)  { zdcFanChart.destroy();  zdcFanChart  = null; }
+						window._zdcCharts = null; // unregister so applyTimeWindow skips them
+						document.querySelectorAll('.zone-combined').forEach(function (el) {
+							el.classList.remove('zone-combined--active');
+						});
+						activeZone = null;
+					}
+
+					function loadFanState(runId, zone) {
+						fanStatus.textContent = '';
+						fanAutoBtn.style.display = 'none';
+						fanBtns.forEach(function (b) { b.classList.remove('zone-detail-card__fan-btn--active'); });
+
+						fetch('/api/runs/' + runId + '/fan-overrides')
+							.then(function (r) { return r.ok ? r.json() : { overrides: {} }; })
+							.then(function (d) {
+								var ov = (d.overrides || {})[zone];
+								if (!ov) { fanStatus.textContent = 'Automatic'; return; }
+								var expires = ov.expires_at
+									? ' (expires ' + new Date(ov.expires_at).toLocaleTimeString() + ')'
+									: ' (until end of run)';
+								fanStatus.textContent = 'Fan ' + ov.action.toUpperCase() + ' — manual override' + expires;
+								fanAutoBtn.style.display = '';
+								// Highlight matching button
+								fanBtns.forEach(function (b) {
+									var matchAction  = b.dataset.action === ov.action;
+									var matchDuration = ov.expires_at
+										? b.dataset.duration !== ''
+										: b.dataset.duration === '';
+									if (matchAction && matchDuration) {
+										b.classList.add('zone-detail-card__fan-btn--active');
+									}
+								});
+							})
+							.catch(function () { fanStatus.textContent = ''; });
+					}
+
+					// Fan override button clicks
+					fanBtns.forEach(function (btn) {
+						btn.addEventListener('click', function () {
+							var runId = getRunId();
+							if (!runId || !activeZone || fanRequestPending) return;
+							var action   = btn.dataset.action;
+							var duration = btn.dataset.duration !== '' ? parseInt(btn.dataset.duration, 10) : null;
+							if (!action) return;
+
+							fanRequestPending = true;
+							fanBtns.forEach(function (b) { b.disabled = true; });
+							fanStatus.textContent = 'Saving…';
+
+							fetch('/api/runs/' + runId + '/zones/' + activeZone + '/fan', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ action: action, duration_minutes: duration })
+							})
+								.then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+								.then(function () { loadFanState(runId, activeZone); })
+								.catch(function () { fanStatus.textContent = 'Error — try again'; })
+								.finally(function () {
+									fanRequestPending = false;
+									fanBtns.forEach(function (b) { b.disabled = false; });
+								});
+						});
+					});
+
+					// "Return to automatic" clears the override
+					if (fanAutoBtn) {
+						fanAutoBtn.addEventListener('click', function () {
+							var runId = getRunId();
+							if (!runId || !activeZone || fanRequestPending) return;
+							fanRequestPending = true;
+							fanAutoBtn.disabled = true;
+							fanStatus.textContent = 'Clearing…';
+
+							fetch('/api/runs/' + runId + '/zones/' + activeZone + '/fan', { method: 'DELETE' })
+								.then(function () { loadFanState(runId, activeZone); })
+								.catch(function () { fanStatus.textContent = 'Error — try again'; })
+								.finally(function () {
+									fanRequestPending = false;
+									fanAutoBtn.disabled = false;
+								});
+						});
+					}
+
+
+					// Intercept zone button clicks when a run is active
+					document.querySelectorAll('.zone-combined').forEach(function (link) {
+						link.addEventListener('click', function (e) {
+							if (!getRunId()) return; // no run — normal navigation
+							e.preventDefault();
+							var zoneNum = parseInt(link.id.replace('zone-link-', ''), 10);
+							if (zoneNum >= 1 && zoneNum <= 6) openCard(zoneNum);
+						});
+					});
+
+					// Close triggers
+					closeBtn.addEventListener('click', closeCard);
+					card.addEventListener('click', function (e) {
+						if (e.target === card) closeCard(); // click backdrop
+					});
+					document.addEventListener('keydown', function (e) {
+						if (e.key === 'Escape' && activeZone) closeCard();
+					});
+
+					// Live data push from polling loop
+					window._zonePanelPush = function (zone, label, temp, fan) {
+						if (activeZone !== zone || !zdcTempChart || !zdcFanChart) return;
+						var MAX = 120;
+						zdcTempChart.data.labels.push(label);
+						zdcTempChart.data.datasets[0].data.push(temp);
+						zdcFanChart.data.labels.push(label);
+						zdcFanChart.data.datasets[0].data.push(fan);
+						if (zdcTempChart.data.labels.length > MAX) {
+							zdcTempChart.data.labels.shift();
+							zdcTempChart.data.datasets[0].data.shift();
+							zdcFanChart.data.labels.shift();
+							zdcFanChart.data.datasets[0].data.shift();
+						}
+						// update() with 'none' mode skips animation — critical for Pi 4B performance
+						zdcTempChart.update('none');
+						zdcFanChart.update('none');
+						var dryEl = document.getElementById('temp-' + zone + '-dry');
+						if (dryEl) tempEl.textContent = dryEl.textContent;
+					};
+
+					// Expose for elapsed toggle and time-window callbacks in other IIFEs
+					window._openZdcCard    = openCard;
+					window._getActiveZone  = function () { return activeZone; };
+				})();
+
+
+				// Target temperature CSV upload and deviation detection
+				(function () {
+					const DEVIATION_ALLOWANCE_KEY = 'sakeDeviationAllowanceC';
+					let targetTemperatures = [];
+					let runStartTime = null;
+
+					function getDeviationAllowance() {
+						const stored = parseFloat(localStorage.getItem(DEVIATION_ALLOWANCE_KEY) || '');
+						return Number.isFinite(stored) ? stored : 5.0;
+					}
+
+					function parseTargetCSV(csvText) {
+						const lines = csvText.trim().split('\n');
+						if (lines.length < 2) return [];
+
+						const targets = [];
+						for (let i = 1; i < lines.length; i++) {
+							const values = lines[i].split(',');
+							if (values.length >= 7) {
+								targets.push({
+									time: parseFloat(values[0]),
+									temp1: parseFloat(values[1]),
+									temp2: parseFloat(values[2]),
+									temp3: parseFloat(values[3]),
+									temp4: parseFloat(values[4]),
+									temp5: parseFloat(values[5]),
+									temp6: parseFloat(values[6])
+								});
+							}
+						}
+						return targets.sort((a, b) => a.time - b.time);
+					}
+
+					function getCurrentTargets() {
+						if (!runStartTime) return null;
+
+						if (targetTemperatures.length === 0) {
+							// Build per-zone targets from individual localStorage keys
+							const result = { time: 0 };
+							let anySet = false;
+							for (let z = 1; z <= 6; z++) {
+								const raw = localStorage.getItem('sakeIdealTempC_' + z);
+								const val = parseFloat(raw || '');
+								result['temp' + z] = Number.isFinite(val) ? val : null;
+								if (Number.isFinite(val)) anySet = true;
+							}
+							return anySet ? result : null;
+						}
+
+						const elapsedMinutes = (Date.now() - runStartTime) / (1000 * 60);
+						let currentTarget = null;
+
+						for (let i = 0; i < targetTemperatures.length; i++) {
+							if (targetTemperatures[i].time <= elapsedMinutes) {
+								currentTarget = targetTemperatures[i];
+							} else {
+								break;
+							}
+						}
+						return currentTarget;
+					}
+
+					function applyDeviationColors() {
+						// Read deviation allowance directly from localStorage so this function
+						// works without depending on the setTempModal IIFE's closure.
+						const dev = parseFloat(localStorage.getItem('sakeDeviationAllowanceC'));
+						const deviationAllowance = Number.isFinite(dev) ? dev : 5.0;
+						const half = deviationAllowance * 0.5;
+
+						const currentTargets = getCurrentTargets();
+						// Use numeric values from poller (not DOM text scraping)
+						const latestTemps = window.getLatestDryBulbNumeric
+							? window.getLatestDryBulbNumeric() : null;
+
+						for (let i = 1; i <= 6; i++) {
+							const dryEl   = document.getElementById(`temp-${i}-dry`);
+							const zoneBtn = dryEl ? dryEl.closest('.zone-combined') : null;
+							const wetEl   = document.getElementById(`temp-${i}-wet`);
+
+							const actualTemp = latestTemps ? latestTemps[`temp${i}`] : null;
+							const targetTemp = currentTargets ? currentTargets[`temp${i}`] : null;
+
+							// ── Zone button color ────────────────────────────────
+							if (zoneBtn) {
+								zoneBtn.classList.remove('zone-temp-cold','zone-temp-ok','zone-temp-warm','zone-temp-hot');
+								if (actualTemp !== null) {
+									if (Number.isFinite(targetTemp)) {
+										// Target set — colour relative to setpoint
+										const diff = actualTemp - targetTemp;
+										if      (diff >  deviationAllowance) zoneBtn.classList.add('zone-temp-hot');
+										else if (diff >  half)               zoneBtn.classList.add('zone-temp-warm');
+										else if (diff >= -half)              zoneBtn.classList.add('zone-temp-ok');
+										else                                 zoneBtn.classList.add('zone-temp-cold');
+									} else {
+										// No target — use absolute thresholds as visual fallback
+										if      (actualTemp >= 40) zoneBtn.classList.add('zone-temp-hot');
+										else if (actualTemp >= 35) zoneBtn.classList.add('zone-temp-warm');
+										else if (actualTemp >= 25) zoneBtn.classList.add('zone-temp-ok');
+										else                       zoneBtn.classList.add('zone-temp-cold');
+									}
+								}
+							}
+
+							// ── Wet-bulb element color ────────────────────────
+							if (wetEl) {
+								wetEl.classList.remove('temp-good','temp-warning','temp-danger','temp-too-hot','temp-too-cold');
+								if (actualTemp !== null && Number.isFinite(targetTemp)) {
+									const diff = actualTemp - targetTemp;
+									if      (diff >  deviationAllowance) wetEl.classList.add('temp-too-hot');
+									else if (diff <= -deviationAllowance) wetEl.classList.add('temp-too-cold');
+									else if (Math.abs(diff) > half)      wetEl.classList.add('temp-warning');
+									else                                 wetEl.classList.add('temp-good');
+								}
+							}
+						}
+					}
+
+					function setRunStartTime(startTimeMs) {
+						if (typeof startTimeMs === 'number' && Number.isFinite(startTimeMs)) {
+							runStartTime = startTimeMs;
+						} else {
+							runStartTime = Date.now();
+						}
+						window._runStartMs = runStartTime; // expose for chart elapsed-time calc
+						applyDeviationColors();
+					}
+
+					function clearRunData() {
+						runStartTime = null;
+						// Uses _zoneElCache built below — elements are already looked up
+						for (let i = 0; i < 6; i++) {
+							const { zoneBtn, wet } = _zoneElCache[i];
+							if (zoneBtn) zoneBtn.classList.remove('zone-temp-cold','zone-temp-ok','zone-temp-warm','zone-temp-hot');
+							if (wet) wet.classList.remove('temp-good','temp-warning','temp-danger','temp-too-hot','temp-too-cold');
+						}
+					}
+
+					// Pre-cache DOM refs once — avoid repeated getElementById in the hot path
+					const _zoneElCache = (function () {
+						const cache = [];
+						for (let i = 1; i <= 6; i++) {
+							const dry = document.getElementById('temp-' + i + '-dry');
+							cache.push({
+								dry:     dry,
+								zoneBtn: dry ? dry.closest('.zone-combined') : null,
+								wet:     document.getElementById('temp-' + i + '-wet')
+							});
+						}
+						return cache;
+					}());
+
+					// Optimised version using cached refs
+					function applyDeviationColorsCached() {
+						const dev = parseFloat(localStorage.getItem('sakeDeviationAllowanceC'));
+						const deviationAllowance = Number.isFinite(dev) ? dev : 5.0;
+						const half = deviationAllowance * 0.5;
+						const currentTargets = getCurrentTargets();
+						const latestTemps = window.getLatestDryBulbNumeric
+							? window.getLatestDryBulbNumeric() : null;
+
+						for (let i = 0; i < 6; i++) {
+							const { zoneBtn, wet } = _zoneElCache[i];
+							const actualTemp = latestTemps ? latestTemps['temp' + (i + 1)] : null;
+							const targetTemp = currentTargets ? currentTargets['temp' + (i + 1)] : null;
+
+							if (zoneBtn) {
+								zoneBtn.classList.remove('zone-temp-cold','zone-temp-ok','zone-temp-warm','zone-temp-hot');
+								if (actualTemp !== null) {
+									if (Number.isFinite(targetTemp)) {
+										const diff = actualTemp - targetTemp;
+										if      (diff >  deviationAllowance) zoneBtn.classList.add('zone-temp-hot');
+										else if (diff >  half)               zoneBtn.classList.add('zone-temp-warm');
+										else if (diff >= -half)              zoneBtn.classList.add('zone-temp-ok');
+										else                                 zoneBtn.classList.add('zone-temp-cold');
+									} else {
+										if      (actualTemp >= 40) zoneBtn.classList.add('zone-temp-hot');
+										else if (actualTemp >= 35) zoneBtn.classList.add('zone-temp-warm');
+										else if (actualTemp >= 25) zoneBtn.classList.add('zone-temp-ok');
+										else                       zoneBtn.classList.add('zone-temp-cold');
+									}
+								}
+							}
+
+							if (wet) {
+								wet.classList.remove('temp-good','temp-warning','temp-danger','temp-too-hot','temp-too-cold');
+								if (actualTemp !== null && Number.isFinite(targetTemp)) {
+									const diff = actualTemp - targetTemp;
+									if      (diff >  deviationAllowance) wet.classList.add('temp-too-hot');
+									else if (diff <= -deviationAllowance) wet.classList.add('temp-too-cold');
+									else if (Math.abs(diff) > half)      wet.classList.add('temp-warning');
+									else                                 wet.classList.add('temp-good');
+								}
+							}
+						}
+					}
+					// Replace global reference with the cached version
+					applyDeviationColors = applyDeviationColorsCached;
+
+					window.setRunStartTime = setRunStartTime;
+					window.clearRunData = clearRunData;
+					window.applyDeviationColors = applyDeviationColorsCached;
+					window.addEventListener('sake-ideal-temp-updated', applyDeviationColorsCached);
+					// Removed standalone setInterval — applyDeviationColors is called every 3s
+					// from updateTemperatureDisplay() inside the polling loop, so a separate
+					// 5s timer is redundant and wastes CPU on a Pi.
+				})();
+
+
+				// Easter egg: Arcade — click the logo to open
+				(function () {
+					var logo    = document.getElementById('sake-logo-egg');
+					var modal   = document.getElementById('arcade-modal');
+					var closeBtn = document.getElementById('arcade-close-btn');
+					var canvas  = document.getElementById('arcade-canvas');
+					if (!logo || !modal || !canvas) return;
+					var ctx = canvas.getContext('2d');
+					var W = canvas.width, H = canvas.height;   // 560 × 380
+					var animId = null;
+					var scene  = 'hub';   // 'hub' | 'pong'
+
+					// ── Starfield ────────────────────────────────────────────
+					var stars = [];
+					(function () {
+						for (var i = 0; i < 120; i++) {
+							stars.push({
+								x: Math.random() * W, y: Math.random() * H,
+								r: Math.random() * 1.4 + 0.3,
+								speed: Math.random() * 0.4 + 0.1,
+								alpha: Math.random() * 0.7 + 0.3
+							});
+						}
+					}());
+					function drawStars() {
+						for (var i = 0; i < stars.length; i++) {
+							var s = stars[i];
+							s.y += s.speed;
+							if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
+							ctx.beginPath();
+							ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+							ctx.fillStyle = 'rgba(127,255,127,' + s.alpha + ')';
+							ctx.fill();
+						}
+					}
+
+					// ── Hub ──────────────────────────────────────────────────
+					var hubTick = 0;
+					var cards = [
+						{ key: '1', title: 'VOID PONG',     sub: 'Eldritch Pong', active: true  },
+						{ key: '2', title: 'KOJI RUNNER',    sub: 'Endless Run',   active: true  },
+						{ key: '3', title: 'SPORE INVADERS', sub: 'Space Invaders', active: true  },
+						{ key: '4', title: 'KOJI DIG',       sub: 'Dig & Inflate', active: true  }
+					];
+					function drawHub() {
+						ctx.fillStyle = '#03010a';
+						ctx.fillRect(0, 0, W, H);
+						drawStars();
+
+						// Title glow
+						ctx.save();
+						ctx.font = 'bold 22px monospace';
+						ctx.textAlign = 'center';
+						ctx.fillStyle = '#7fff7f';
+						ctx.shadowColor = '#7fff7f';
+						ctx.shadowBlur = 10 + 6 * Math.sin(hubTick * 0.05);
+						ctx.fillText('VOID SAKE CO. ARCADE', W / 2, 52);
+						ctx.restore();
+
+						// Cards
+						var cw = 118, ch = 72, gap = 12;
+						var totalW = 4 * cw + 3 * gap;
+						var cx0 = (W - totalW) / 2, cy0 = 120;
+						for (var i = 0; i < cards.length; i++) {
+							var c = cards[i];
+							var x = cx0 + i * (cw + gap);
+							ctx.save();
+							ctx.strokeStyle = c.active ? '#7fff7f' : '#1c3c1c';
+							ctx.lineWidth   = c.active ? 2 : 1;
+							ctx.shadowColor = c.active ? '#7fff7f' : 'transparent';
+							ctx.shadowBlur  = c.active ? 8 + 5 * Math.sin(hubTick * 0.06 + i) : 0;
+							ctx.strokeRect(x, cy0, cw, ch);
+							ctx.font = 'bold 14px monospace';
+							ctx.textAlign = 'center';
+							ctx.fillStyle = c.active ? '#7fff7f' : '#1c3c1c';
+							ctx.fillText('[' + c.key + ']', x + cw / 2, cy0 + 22);
+							ctx.font = '11px monospace';
+							ctx.fillStyle = c.active ? '#7fff7f' : '#1c3c1c';
+							ctx.fillText(c.title, x + cw / 2, cy0 + 40);
+							ctx.font = '9px monospace';
+							ctx.fillStyle = c.active ? '#5ab85a' : '#162a16';
+							ctx.fillText(c.sub, x + cw / 2, cy0 + 56);
+							ctx.restore();
+						}
+
+						// Controls hint
+						ctx.font = '10px monospace';
+						ctx.textAlign = 'center';
+						ctx.fillStyle = '#2a5a2a';
+						ctx.fillText('press key to select game   ESC closes', W / 2, H - 14);
+						hubTick++;
+					}
+
+					// ── VOID PONG ────────────────────────────────────────────
+					var pong = {};
+					function pongInit() {
+						pong = {
+							bx: W / 2, by: H / 2,
+							bvx: 3.5 * (Math.random() < 0.5 ? 1 : -1),
+							bvy: 2.5 * (Math.random() < 0.5 ? 1 : -1),
+							br: 10,
+							py: H / 2 - 35, ph: 70, pw: 12, pspeed: 5,
+							ay: H / 2 - 35, ah: 70, aw: 12, aspeed: 3.2,
+							pscore: 0, ascore: 0,
+							up: false, down: false,
+							tick: 0,
+							over: false, winner: ''
+						};
+					}
+
+					function drawEyeball(x, y, r) {
+						ctx.beginPath();
+						ctx.arc(x, y, r, 0, Math.PI * 2);
+						ctx.fillStyle = '#d4f5d4';
+						ctx.fill();
+						ctx.strokeStyle = '#7fff7f';
+						ctx.lineWidth = 1;
+						ctx.stroke();
+						ctx.beginPath();
+						ctx.arc(x, y, r * 0.5, 0, Math.PI * 2);
+						ctx.fillStyle = '#1a6b1a';
+						ctx.fill();
+						ctx.beginPath();
+						ctx.arc(x, y, r * 0.25, 0, Math.PI * 2);
+						ctx.fillStyle = '#000';
+						ctx.fill();
+						ctx.save();
+						ctx.strokeStyle = 'rgba(200,50,50,0.5)';
+						ctx.lineWidth = 0.7;
+						for (var v = 0; v < 4; v++) {
+							var ang = (v / 4) * Math.PI * 2;
+							ctx.beginPath();
+							ctx.moveTo(x + Math.cos(ang) * r * 0.55, y + Math.sin(ang) * r * 0.55);
+							ctx.lineTo(x + Math.cos(ang) * r * 0.9,  y + Math.sin(ang) * r * 0.9);
+							ctx.stroke();
+						}
+						ctx.restore();
+					}
+
+					function drawTentaclePaddle(x, y, h, tick, color) {
+						ctx.save();
+						ctx.strokeStyle = color;
+						ctx.lineWidth = 2.5;
+						ctx.shadowColor = color;
+						ctx.shadowBlur = 8;
+						var segs = 3, segH = h / segs;
+						for (var s = 0; s < segs; s++) {
+							var sy = y + s * segH;
+							var wob = Math.sin(tick * 0.12 + s * 1.3) * 4;
+							ctx.beginPath();
+							ctx.moveTo(x, sy);
+							ctx.quadraticCurveTo(x + wob, sy + segH / 2, x, sy + segH);
+							ctx.stroke();
+							ctx.beginPath();
+							ctx.arc(x + wob * 0.5, sy + segH / 2, 2, 0, Math.PI * 2);
+							ctx.fillStyle = color;
+							ctx.fill();
+						}
+						ctx.restore();
+					}
+
+					function pongStep() {
+						if (pong.over) return;
+						pong.tick++;
+						if (pong.up)   pong.py = Math.max(0, pong.py - pong.pspeed);
+						if (pong.down) pong.py = Math.min(H - pong.ph, pong.py + pong.pspeed);
+
+						// AI tracks ball
+						var aiMid = pong.ay + pong.ah / 2;
+						if (aiMid < pong.by - 4) pong.ay = Math.min(H - pong.ah, pong.ay + pong.aspeed);
+						if (aiMid > pong.by + 4) pong.ay = Math.max(0, pong.ay - pong.aspeed);
+
+						pong.bx += pong.bvx;
+						pong.by += pong.bvy;
+
+						// Top/bottom bounce
+						if (pong.by - pong.br <= 0) { pong.by = pong.br; pong.bvy *= -1; }
+						if (pong.by + pong.br >= H)  { pong.by = H - pong.br; pong.bvy *= -1; }
+
+						// Player paddle (left)
+						var px = 26;
+						if (pong.bvx < 0 &&
+							pong.bx - pong.br <= px &&
+							pong.bx - pong.br >= px - 6 &&
+							pong.by >= pong.py && pong.by <= pong.py + pong.ph) {
+							pong.bvx = Math.abs(pong.bvx) * 1.04;
+							pong.bvy = ((pong.by - (pong.py + pong.ph / 2)) / (pong.ph / 2)) * 5;
+						}
+
+						// AI paddle (right)
+						var ax = W - 26;
+						if (pong.bvx > 0 &&
+							pong.bx + pong.br >= ax &&
+							pong.bx + pong.br <= ax + 6 &&
+							pong.by >= pong.ay && pong.by <= pong.ay + pong.ah) {
+							pong.bvx = -Math.abs(pong.bvx) * 1.04;
+							pong.bvy = ((pong.by - (pong.ay + pong.ah / 2)) / (pong.ah / 2)) * 5;
+						}
+
+						// Speed cap
+						var spd = Math.sqrt(pong.bvx * pong.bvx + pong.bvy * pong.bvy);
+						if (spd > 9) { pong.bvx = pong.bvx / spd * 9; pong.bvy = pong.bvy / spd * 9; }
+
+						// Scoring
+						if (pong.bx < 0) {
+							pong.ascore++;
+							pong.bx = W/2; pong.by = H/2;
+							pong.bvx = 3.5; pong.bvy = 2.5 * (Math.random() < 0.5 ? 1 : -1);
+						}
+						if (pong.bx > W) {
+							pong.pscore++;
+							pong.bx = W/2; pong.by = H/2;
+							pong.bvx = -3.5; pong.bvy = 2.5 * (Math.random() < 0.5 ? 1 : -1);
+						}
+
+						if (pong.pscore >= 7) { pong.over = true; pong.winner = 'VOID ENTITY WINS'; }
+						if (pong.ascore >= 7) { pong.over = true; pong.winner = 'CRIMSON HOST WINS'; }
+					}
+
+					function drawPong() {
+						ctx.fillStyle = '#03010a';
+						ctx.fillRect(0, 0, W, H);
+
+						// Centre dashes
+						ctx.save();
+						ctx.strokeStyle = '#0a2a0a';
+						ctx.lineWidth = 1;
+						ctx.setLineDash([8, 8]);
+						ctx.beginPath(); ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H); ctx.stroke();
+						ctx.restore();
+
+						// Scores
+						ctx.font = 'bold 28px monospace';
+						ctx.textAlign = 'center';
+						ctx.fillStyle = '#3a7a3a';
+						ctx.fillText(pong.pscore, W/2 - 60, 36);
+						ctx.fillStyle = '#8a1a1a';
+						ctx.fillText(pong.ascore, W/2 + 60, 36);
+
+						// Paddles
+						drawTentaclePaddle(26, pong.py, pong.ph, pong.tick, '#7fff7f');
+						drawTentaclePaddle(W - 26, pong.ay, pong.ah, pong.tick * 0.8, '#cc2222');
+
+						// Ball
+						drawEyeball(pong.bx, pong.by, pong.br);
+
+						// Footer labels
+						ctx.font = '9px monospace';
+						ctx.fillStyle = '#2a5a2a'; ctx.textAlign = 'left';
+						ctx.fillText('YOU [↑↓]', 8, H - 6);
+						ctx.fillStyle = '#5a1a1a'; ctx.textAlign = 'right';
+						ctx.fillText('CRIMSON HOST', W - 8, H - 6);
+						ctx.fillStyle = '#1a3a1a'; ctx.textAlign = 'center';
+						ctx.fillText('ESC = hub', W/2, H - 6);
+
+						// Game-over overlay
+						if (pong.over) {
+							ctx.save();
+							ctx.fillStyle = 'rgba(3,1,10,0.78)';
+							ctx.fillRect(0, 0, W, H);
+							ctx.font = 'bold 26px monospace';
+							ctx.textAlign = 'center';
+							ctx.fillStyle = '#7fff7f';
+							ctx.shadowColor = '#7fff7f'; ctx.shadowBlur = 16;
+							ctx.fillText(pong.winner, W/2, H/2 - 16);
+							ctx.shadowBlur = 0;
+							ctx.font = '13px monospace';
+							ctx.fillStyle = '#5ab85a';
+							ctx.fillText('[ENTER] play again   [ESC] hub', W/2, H/2 + 20);
+							ctx.restore();
+						}
+					}
+
+					// ── KOJI DIG ─────────────────────────────────────────────
+					var dig = {};
+					var DT = 20, DC = 28, DR = 18, DOY = 20, PSPD = 2;
+					function dtc(c, r) { return [c * DT + DT/2, r * DT + DOY + DT/2]; }
+
+					function digInit() {
+						var grid = [];
+						for (var r = 0; r < DR; r++) {
+							var row = []; for (var c = 0; c < DC; c++) row.push(1); grid.push(row);
+						}
+						var ePos = [{c:24,r:3},{c:24,r:14},{c:14,r:3},{c:14,r:14}];
+						var enemies = [];
+						for (var i = 0; i < ePos.length; i++) {
+							var ep = ePos[i]; grid[ep.r][ep.c] = 0;
+							var tc0 = dtc(ep.c, ep.r);
+							enemies.push({c:ep.c, r:ep.r, x:tc0[0], y:tc0[1],
+								inflate:0, lastHit:0, dead:false, moveTimer: i * 30});
+						}
+						grid[9][1] = 0;
+						var pp = dtc(1, 9);
+						dig = {
+							grid:grid, enemies:enemies,
+							px:pp[0], py:pp[1], pc:1, pr:9,
+							vx:0, vy:0, pdir:[1,0],
+							pumping:false, pumpLen:0, pumpHitTimer:0,
+							score:0, lives:3, tick:0,
+							over:false, won:false, deadTimer:0, invincTimer:0,
+							left:false, right:false, up:false, down:false
+						};
+					}
+
+					function digStep() {
+						if (dig.over || dig.won) return;
+						dig.tick++;
+						if (dig.deadTimer > 0) { dig.deadTimer--; return; }
+						if (dig.invincTimer > 0) dig.invincTimer--;
+
+						// At tile center: steer
+						var tc1 = dtc(dig.pc, dig.pr);
+						if (Math.abs(dig.px - tc1[0]) < PSPD + 0.5 && Math.abs(dig.py - tc1[1]) < PSPD + 0.5) {
+							dig.px = tc1[0]; dig.py = tc1[1];
+							var wvx = 0, wvy = 0;
+							if      (dig.right) wvx =  PSPD;
+							else if (dig.left)  wvx = -PSPD;
+							else if (dig.down)  wvy =  PSPD;
+							else if (dig.up)    wvy = -PSPD;
+							if (wvx !== 0 || wvy !== 0) {
+								var wdc = wvx > 0 ? 1 : wvx < 0 ? -1 : 0;
+								var wdr = wvy > 0 ? 1 : wvy < 0 ? -1 : 0;
+								if (dig.pc+wdc >= 0 && dig.pc+wdc < DC && dig.pr+wdr >= 0 && dig.pr+wdr < DR) {
+									dig.vx = wvx; dig.vy = wvy; dig.pdir = [wdc, wdr];
+								} else { dig.vx = 0; dig.vy = 0; }
+							}
+							// stop if current direction hits boundary
+							if (dig.vx !== 0 || dig.vy !== 0) {
+								var cdc = dig.vx > 0 ? 1 : dig.vx < 0 ? -1 : 0;
+								var cdr = dig.vy > 0 ? 1 : dig.vy < 0 ? -1 : 0;
+								if (dig.pc+cdc < 0 || dig.pc+cdc >= DC || dig.pr+cdr < 0 || dig.pr+cdr >= DR)
+									{ dig.vx = 0; dig.vy = 0; }
+							}
+						}
+
+						dig.px += dig.vx; dig.py += dig.vy;
+						var nc = Math.floor(dig.px / DT);
+						var nr = Math.floor((dig.py - DOY) / DT);
+						if (nc >= 0 && nc < DC && nr >= 0 && nr < DR) {
+							if (nc !== dig.pc || nr !== dig.pr) { dig.pc = nc; dig.pr = nr; dig.grid[nr][nc] = 0; }
+						} else {
+							var tc2 = dtc(dig.pc, dig.pr);
+							dig.px = tc2[0]; dig.py = tc2[1]; dig.vx = 0; dig.vy = 0;
+						}
+
+						// Pump
+						dig.pumpHitTimer++;
+						if (dig.pumping) {
+							dig.pumpLen = Math.min(dig.pumpLen + 1.5, 5 * DT);
+							if (dig.pumpHitTimer % 10 === 0) {
+								for (var pi = 0; pi < dig.enemies.length; pi++) {
+									var pe = dig.enemies[pi];
+									if (pe.dead) continue;
+									var pex = pe.x - dig.px, pey = pe.y - dig.py;
+									var dot = pex * dig.pdir[0] + pey * dig.pdir[1];
+									var cross = Math.abs(pex * dig.pdir[1] - pey * dig.pdir[0]);
+									if (dot > 0 && dot <= dig.pumpLen && cross < DT * 0.7) {
+										pe.inflate++; pe.lastHit = dig.tick;
+										if (pe.inflate >= 3) { pe.dead = true; dig.score += 100; }
+									}
+								}
+							}
+						} else {
+							dig.pumpLen = 0;
+							for (var pi2 = 0; pi2 < dig.enemies.length; pi2++) {
+								var pe2 = dig.enemies[pi2];
+								if (!pe2.dead && pe2.inflate > 0 && dig.tick - pe2.lastHit > 60) pe2.inflate = 0;
+							}
+						}
+
+						// Enemies
+						for (var ei = 0; ei < dig.enemies.length; ei++) {
+							var en = dig.enemies[ei];
+							if (en.dead || en.inflate >= 2) continue;
+							en.moveTimer++;
+							if (en.moveTimer >= 25) {
+								en.moveTimer = 0;
+								var dirs = [{dc:1,dr:0},{dc:-1,dr:0},{dc:0,dr:1},{dc:0,dr:-1}];
+								dirs.sort(function() { return Math.random() - 0.5; });
+								var best = null, bestScore = Infinity;
+								for (var d = 0; d < dirs.length; d++) {
+									var enc2 = en.c + dirs[d].dc, enr2 = en.r + dirs[d].dr;
+									if (enc2 < 0 || enc2 >= DC || enr2 < 0 || enr2 >= DR) continue;
+									var dist = Math.abs(enc2 - dig.pc) + Math.abs(enr2 - dig.pr);
+									var noise = dig.tick % 50 < 35 ? 0 : 20;
+									var sc = dist + noise;
+									if (sc < bestScore) { bestScore = sc; best = {c:enc2, r:enr2}; }
+								}
+								if (best) {
+									en.c = best.c; en.r = best.r;
+									var etc = dtc(en.c, en.r); en.x = etc[0]; en.y = etc[1];
+								}
+							}
+							// Collision
+							if (dig.invincTimer === 0) {
+								var ddx = en.x - dig.px, ddy = en.y - dig.py;
+								if (ddx*ddx + ddy*ddy < (DT*0.65)*(DT*0.65)) {
+									dig.lives--;
+									if (dig.lives <= 0) { dig.over = true; return; }
+									var rp = dtc(1, 9); dig.px = rp[0]; dig.py = rp[1]; dig.pc = 1; dig.pr = 9;
+									dig.vx = 0; dig.vy = 0; dig.deadTimer = 60; dig.invincTimer = 150;
+									return;
+								}
+							}
+						}
+
+						var allDead = true;
+						for (var wi = 0; wi < dig.enemies.length; wi++) {
+							if (!dig.enemies[wi].dead) { allDead = false; break; }
+						}
+						if (allDead) dig.won = true;
+					}
+
+					function drawDig() {
+						ctx.fillStyle = '#03010a';
+						ctx.fillRect(0, 0, W, H);
+
+						// Soil
+						for (var r = 0; r < DR; r++) {
+							for (var c = 0; c < DC; c++) {
+								if (dig.grid[r][c]) {
+									var tx = c * DT, ty = r * DT + DOY;
+									ctx.fillStyle = '#2a1505';
+									ctx.fillRect(tx, ty, DT, DT);
+									ctx.fillStyle = '#3d2008';
+									ctx.fillRect(tx + 4, ty + 5, 2, 2);
+									ctx.fillRect(tx + 13, ty + 12, 2, 2);
+									ctx.fillRect(tx + 8,  ty + 15, 2, 2);
+								}
+							}
+						}
+
+						// Enemies
+						for (var i = 0; i < dig.enemies.length; i++) {
+							var e = dig.enemies[i];
+							if (e.dead) continue;
+							var er = DT * 0.38 + e.inflate * DT * 0.18;
+							ctx.save();
+							ctx.beginPath(); ctx.arc(e.x, e.y, er, 0, Math.PI * 2);
+							ctx.fillStyle = 'rgba(' + (150 + e.inflate * 30) + ',50,60,0.9)';
+							ctx.shadowColor = '#aa2233'; ctx.shadowBlur = 8; ctx.fill();
+							ctx.fillStyle = '#fff';
+							ctx.beginPath(); ctx.arc(e.x - 3, e.y - 2, 2.5, 0, Math.PI * 2); ctx.fill();
+							ctx.beginPath(); ctx.arc(e.x + 3, e.y - 2, 2.5, 0, Math.PI * 2); ctx.fill();
+							ctx.fillStyle = '#111';
+							ctx.beginPath(); ctx.arc(e.x - 3, e.y - 2, 1.2, 0, Math.PI * 2); ctx.fill();
+							ctx.beginPath(); ctx.arc(e.x + 3, e.y - 2, 1.2, 0, Math.PI * 2); ctx.fill();
+							if (e.inflate > 0) {
+								ctx.strokeStyle = 'rgba(255,160,60,0.7)'; ctx.lineWidth = 1.5;
+								for (var ci = 0; ci < e.inflate * 2; ci++) {
+									var ca = (ci / (e.inflate * 2)) * Math.PI * 2;
+									ctx.beginPath();
+									ctx.moveTo(e.x + Math.cos(ca) * er * 0.55, e.y + Math.sin(ca) * er * 0.55);
+									ctx.lineTo(e.x + Math.cos(ca) * er, e.y + Math.sin(ca) * er);
+									ctx.stroke();
+								}
+							}
+							ctx.restore();
+						}
+
+						// Pump beam
+						if (dig.pumping && dig.pumpLen > 0) {
+							ctx.save();
+							ctx.strokeStyle = '#ffdd44'; ctx.lineWidth = 2.5;
+							ctx.shadowColor = '#ffdd44'; ctx.shadowBlur = 6; ctx.globalAlpha = 0.85;
+							ctx.beginPath();
+							ctx.moveTo(dig.px, dig.py);
+							ctx.lineTo(dig.px + dig.pdir[0] * dig.pumpLen, dig.py + dig.pdir[1] * dig.pumpLen);
+							ctx.stroke(); ctx.restore();
+						}
+
+						// Player
+						if (dig.invincTimer === 0 || dig.tick % 8 < 5) {
+							ctx.save();
+							ctx.beginPath(); ctx.arc(dig.px, dig.py, DT * 0.38, 0, Math.PI * 2);
+							ctx.fillStyle = '#e8c030'; ctx.shadowColor = '#ffee44'; ctx.shadowBlur = 8; ctx.fill();
+							ctx.strokeStyle = '#fff8a0'; ctx.lineWidth = 1.5; ctx.stroke();
+							var fd = dig.pdir;
+							ctx.fillStyle = '#222';
+							ctx.beginPath(); ctx.arc(dig.px+fd[0]*2-fd[1]*3, dig.py+fd[1]*2-fd[0]*3, 1.8, 0, Math.PI*2); ctx.fill();
+							ctx.beginPath(); ctx.arc(dig.px+fd[0]*2+fd[1]*3, dig.py+fd[1]*2+fd[0]*3, 1.8, 0, Math.PI*2); ctx.fill();
+							ctx.restore();
+						}
+
+						// HUD
+						ctx.fillStyle = '#050208'; ctx.fillRect(0, 0, W, DOY);
+						ctx.font = '12px monospace'; ctx.fillStyle = '#7fff7f'; ctx.textAlign = 'left';
+						ctx.fillText('SCORE: ' + dig.score, 8, 15);
+						ctx.fillStyle = '#e8c030'; ctx.textAlign = 'center';
+						for (var li = 0; li < dig.lives; li++) {
+							ctx.beginPath(); ctx.arc(W/2 - 20 + li * 18, 10, 5, 0, Math.PI*2); ctx.fill();
+						}
+						ctx.font = '9px monospace'; ctx.fillStyle = '#2a5a2a'; ctx.textAlign = 'right';
+						ctx.fillText('[↑↓←→] dig  [SPC] pump  ESC=hub', W - 6, 15);
+
+						// Overlay
+						if (dig.over || dig.won) {
+							ctx.save();
+							ctx.fillStyle = 'rgba(3,1,10,0.8)'; ctx.fillRect(0, 0, W, H);
+							ctx.font = 'bold 24px monospace'; ctx.textAlign = 'center';
+							ctx.fillStyle = dig.won ? '#7fff7f' : '#cc3333';
+							ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 16;
+							ctx.fillText(dig.won ? 'KOJI TRIUMPHS!' : 'MOLD TAKES ROOT', W/2, H/2 - 16);
+							ctx.shadowBlur = 0; ctx.font = '13px monospace'; ctx.fillStyle = '#5ab85a';
+							ctx.fillText('[ENTER] play again   [ESC] hub', W/2, H/2 + 20);
+							ctx.restore();
+						}
+					}
+
+					// ── KOJI RUNNER ──────────────────────────────────────────
+					var run = {};
+					var RUN_GND = 285;
+					var RUN_GRAV = 0.55, RUN_JUMP = -12;
+
+					function runBgSpores() {
+						var out = [];
+						for (var i = 0; i < 10; i++)
+							out.push({x: Math.random() * W, y: 60 + Math.random() * 180,
+								r: 6 + Math.random() * 22, spd: 0.25 + Math.random() * 0.45});
+						return out;
+					}
+
+					function runSpawn() {
+						// Pick obstacle pattern
+						var patterns = [
+							[{ox:0, h:44+Math.random()*36, w:16}],
+							[{ox:0, h:38+Math.random()*28, w:14}, {ox:26, h:52+Math.random()*24, w:14}],
+							[{ox:0, h:32, w:12}, {ox:18, h:48, w:12}, {ox:36, h:32, w:12}]
+						];
+						var maxPat = run.score < 400 ? 2 : 3;
+						var pat = patterns[Math.floor(Math.random() * maxPat)];
+						var spikes = [];
+						for (var i = 0; i < pat.length; i++)
+							spikes.push({x: W + 24 + pat[i].ox, h: pat[i].h, w: pat[i].w});
+						run.obstacles.push(spikes);
+					}
+
+					function runInit() {
+						run = {
+							py: RUN_GND, vy: 0, onGround: true, jumpsLeft: 2,
+							squish: 0, scrollX: 0,
+							obstacles: [], spawnTimer: 0,
+							bgSpores: runBgSpores(),
+							score: 0, tick: 0, over: false
+						};
+						runSpawn();
+					}
+
+					function runStep() {
+						if (run.over) return;
+						run.tick++;
+						run.score = Math.floor(run.tick / 8);
+						var spd = 4 + run.score * 0.004;
+						run.scrollX += spd;
+						if (run.squish > 0) run.squish--;
+
+						// Physics
+						if (!run.onGround) { run.vy += RUN_GRAV; run.py += run.vy; }
+						if (run.py >= RUN_GND) {
+							if (!run.onGround) run.squish = 7;
+							run.py = RUN_GND; run.vy = 0; run.onGround = true; run.jumpsLeft = 2;
+						}
+
+						// BG parallax
+						for (var i = 0; i < run.bgSpores.length; i++) {
+							run.bgSpores[i].x -= run.bgSpores[i].spd;
+							if (run.bgSpores[i].x + run.bgSpores[i].r < 0)
+								run.bgSpores[i].x = W + run.bgSpores[i].r;
+						}
+
+						// Move + cull obstacles
+						for (var i = run.obstacles.length - 1; i >= 0; i--) {
+							var obs = run.obstacles[i];
+							for (var j = 0; j < obs.length; j++) obs[j].x -= spd;
+							var rightX = -Infinity;
+							for (var j = 0; j < obs.length; j++) rightX = Math.max(rightX, obs[j].x + obs[j].w);
+							if (rightX < -10) run.obstacles.splice(i, 1);
+						}
+
+						// Spawn
+						run.spawnTimer++;
+						if (run.spawnTimer >= Math.max(38, 82 - run.score * 0.06)) {
+							run.spawnTimer = 0; runSpawn();
+						}
+
+						// Collision: player circle (cx=80, cy=py-15, r=14) vs spike AABB
+						var pcx = 80, pcy = run.py - 15, pr = 13;
+						for (var i = 0; i < run.obstacles.length; i++) {
+							for (var j = 0; j < run.obstacles[i].length; j++) {
+								var sp = run.obstacles[i][j];
+								var sx = sp.x, sy = RUN_GND - sp.h, sw = sp.w, sh = sp.h;
+								var nx = Math.max(sx, Math.min(pcx, sx + sw));
+								var ny = Math.max(sy, Math.min(pcy, sy + sh));
+								var dx = pcx - nx, dy = pcy - ny;
+								if (dx*dx + dy*dy < pr*pr) { run.over = true; return; }
+							}
+						}
+					}
+
+					function drawRun() {
+						ctx.fillStyle = '#03010a'; ctx.fillRect(0, 0, W, H);
+
+						// BG spore blobs
+						for (var i = 0; i < run.bgSpores.length; i++) {
+							var s = run.bgSpores[i];
+							ctx.save(); ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+							ctx.fillStyle = 'rgba(50,110,50,0.11)'; ctx.fill(); ctx.restore();
+						}
+
+						// Obstacles (heat spikes)
+						for (var i = 0; i < run.obstacles.length; i++) {
+							for (var j = 0; j < run.obstacles[i].length; j++) {
+								var sp = run.obstacles[i][j];
+								ctx.save();
+								ctx.fillStyle = '#dd3322'; ctx.shadowColor = '#ff5533'; ctx.shadowBlur = 10;
+								ctx.beginPath();
+								ctx.moveTo(sp.x + sp.w/2, RUN_GND - sp.h);
+								ctx.lineTo(sp.x + sp.w,   RUN_GND);
+								ctx.lineTo(sp.x,           RUN_GND);
+								ctx.closePath(); ctx.fill();
+								ctx.strokeStyle = 'rgba(255,130,60,0.55)'; ctx.lineWidth = 1;
+								ctx.beginPath();
+								ctx.moveTo(sp.x + sp.w/2, RUN_GND - sp.h + 5);
+								ctx.lineTo(sp.x + sp.w/2, RUN_GND - 4);
+								ctx.stroke(); ctx.restore();
+							}
+						}
+
+						// Ground line
+						ctx.save(); ctx.strokeStyle = '#4a8a2a'; ctx.lineWidth = 2;
+						ctx.shadowColor = '#4a8a2a'; ctx.shadowBlur = 6;
+						ctx.beginPath(); ctx.moveTo(0, RUN_GND); ctx.lineTo(W, RUN_GND); ctx.stroke();
+						ctx.restore();
+
+						// Ground dots (scrolling)
+						ctx.fillStyle = '#1a3a0a';
+						var goff = run.scrollX % 36;
+						for (var gx = -goff; gx < W; gx += 36) ctx.fillRect(gx, RUN_GND + 5, 3, 3);
+
+						// Player spore
+						var pcx = 80, pcy = run.py - 15;
+						var sx = run.squish > 0 ? 1.3 : 1, sy2 = run.squish > 0 ? 0.7 : 1;
+						var bob = run.onGround ? Math.sin(run.tick * 0.35) * 2 : 0;
+						ctx.save();
+						ctx.translate(pcx, run.py);
+						ctx.scale(sx, sy2);
+						ctx.translate(0, -15 + bob);
+						ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI*2);
+						ctx.fillStyle = '#e8c030'; ctx.shadowColor = '#ffee44'; ctx.shadowBlur = 10; ctx.fill();
+						ctx.strokeStyle = '#fff8a0'; ctx.lineWidth = 1.5; ctx.stroke();
+						ctx.fillStyle = '#222';
+						ctx.beginPath(); ctx.arc(4, -3, 2.5, 0, Math.PI*2); ctx.fill();
+						ctx.beginPath(); ctx.arc(-2, -3, 2.5, 0, Math.PI*2); ctx.fill();
+						ctx.fillStyle = 'rgba(255,255,200,0.5)';
+						ctx.beginPath(); ctx.arc(-2, -7, 2, 0, Math.PI*2); ctx.fill();
+						ctx.restore();
+
+						// Air arc when jumping
+						if (!run.onGround) {
+							ctx.save(); ctx.strokeStyle = 'rgba(180,255,100,0.25)'; ctx.lineWidth = 1;
+							ctx.beginPath(); ctx.arc(pcx, pcy, 20, Math.PI, 0); ctx.stroke(); ctx.restore();
+						}
+
+						// HUD
+						ctx.fillStyle = '#03010a'; ctx.fillRect(0, 0, W, 28);
+						ctx.font = 'bold 13px monospace'; ctx.fillStyle = '#7fff7f'; ctx.textAlign = 'left';
+						ctx.fillText('DIST: ' + run.score + 'm', 8, 20);
+						ctx.font = '9px monospace'; ctx.fillStyle = '#2a5a2a'; ctx.textAlign = 'right';
+						ctx.fillText('[SPC/↑] jump (×2)  ESC=hub', W - 6, 20);
+
+						// Game over overlay
+						if (run.over) {
+							ctx.save();
+							ctx.fillStyle = 'rgba(3,1,10,0.82)'; ctx.fillRect(0, 0, W, H);
+							ctx.font = 'bold 24px monospace'; ctx.textAlign = 'center';
+							ctx.fillStyle = '#cc3333'; ctx.shadowColor = '#cc3333'; ctx.shadowBlur = 16;
+							ctx.fillText('HEAT TAKES YOU', W/2, H/2 - 28);
+							ctx.shadowBlur = 0;
+							ctx.font = '18px monospace'; ctx.fillStyle = '#7fff7f';
+							ctx.fillText('DIST: ' + run.score + 'm', W/2, H/2 + 4);
+							ctx.font = '13px monospace'; ctx.fillStyle = '#5ab85a';
+							ctx.fillText('[ENTER] run again   [ESC] hub', W/2, H/2 + 28);
+							ctx.restore();
+						}
+					}
+
+					// ── SPORE INVADERS ───────────────────────────────────────
+					var inv = {};
+					var IC = 10, IR = 5, IW = 28, IH = 18, IXG = 46, IYG = 32;
+					var IX0 = Math.floor((W - (IC - 1) * IXG - IW) / 2);
+					var IY0 = 36;
+
+					function invInit() {
+						var es = [];
+						for (var r = 0; r < IR; r++)
+							for (var c = 0; c < IC; c++)
+								es.push({r:r, c:c, x:IX0+c*IXG, y:IY0+r*IYG, dead:false, fr:0});
+						var bxs = [72, W/2 - 22, W - 72 - 44];
+						var bars = [];
+						for (var i = 0; i < 3; i++)
+							bars.push({x:bxs[i], y:H - 76, w:44, h:22, hp:4});
+						inv = {
+							enemies:es, barriers:bars,
+							dx:1, dropping:false, dropLeft:0,
+							px:W/2, py:H - 34, pspeed:4,
+							left:false, right:false,
+							pbullet:null, ebullets:[],
+							eshootTimer:0, eshootInterval:70,
+							score:0, lives:3, tick:0,
+							over:false, won:false
+						};
+					}
+
+					function invAlive() {
+						var n = 0;
+						for (var i = 0; i < inv.enemies.length; i++) if (!inv.enemies[i].dead) n++;
+						return n;
+					}
+
+					function invStep() {
+						if (inv.over || inv.won) return;
+						inv.tick++;
+						if (inv.left)  inv.px = Math.max(20, inv.px - inv.pspeed);
+						if (inv.right) inv.px = Math.min(W - 20, inv.px + inv.pspeed);
+
+						// Enemy group movement
+						var spd = 1.0 + (IC * IR - invAlive()) * 0.04;
+						if (inv.dropping) {
+							for (var i = 0; i < inv.enemies.length; i++)
+								if (!inv.enemies[i].dead) inv.enemies[i].y += 0.7;
+							inv.dropLeft -= 0.7;
+							if (inv.dropLeft <= 0) inv.dropping = false;
+						} else {
+							for (var i = 0; i < inv.enemies.length; i++)
+								if (!inv.enemies[i].dead) inv.enemies[i].x += inv.dx * spd;
+							var minX = Infinity, maxX = -Infinity;
+							for (var i = 0; i < inv.enemies.length; i++) {
+								if (!inv.enemies[i].dead) {
+									if (inv.enemies[i].x < minX) minX = inv.enemies[i].x;
+									if (inv.enemies[i].x + IW > maxX) maxX = inv.enemies[i].x + IW;
+								}
+							}
+							if (maxX >= W - 8 || minX <= 8) {
+								inv.dx *= -1; inv.dropping = true; inv.dropLeft = 16;
+							}
+						}
+						if (inv.tick % 28 === 0)
+							for (var i = 0; i < inv.enemies.length; i++) inv.enemies[i].fr ^= 1;
+
+						// Player bullet
+						if (inv.pbullet) {
+							inv.pbullet.y -= 7;
+							if (inv.pbullet.y < 0) inv.pbullet = null;
+						}
+
+						// Enemy shooting
+						inv.eshootTimer++;
+						if (inv.eshootTimer >= inv.eshootInterval) {
+							inv.eshootTimer = 0;
+							var cols = {};
+							for (var i = 0; i < inv.enemies.length; i++) {
+								var e = inv.enemies[i];
+								if (!e.dead && (!cols[e.c] || e.r > cols[e.c].r)) cols[e.c] = e;
+							}
+							var shooters = [];
+							for (var k in cols) shooters.push(cols[k]);
+							if (shooters.length) {
+								var s = shooters[Math.floor(Math.random() * shooters.length)];
+								inv.ebullets.push({x:s.x + IW/2, y:s.y + IH, vy:5.5});
+							}
+							inv.eshootInterval = 28 + Math.floor(Math.random() * 32);
+						}
+						for (var i = inv.ebullets.length - 1; i >= 0; i--) {
+							inv.ebullets[i].y += inv.ebullets[i].vy;
+							if (inv.ebullets[i].y > H) inv.ebullets.splice(i, 1);
+						}
+
+						// Player bullet hits enemy
+						if (inv.pbullet) {
+							for (var i = 0; i < inv.enemies.length; i++) {
+								var e = inv.enemies[i];
+								if (e.dead) continue;
+								if (inv.pbullet.x >= e.x && inv.pbullet.x <= e.x+IW &&
+									inv.pbullet.y >= e.y && inv.pbullet.y <= e.y+IH) {
+									e.dead = true;
+									inv.score += e.r < 2 ? 30 : e.r < 4 ? 20 : 10;
+									inv.pbullet = null; break;
+								}
+							}
+						}
+						// Player bullet hits barrier
+						if (inv.pbullet) {
+							for (var i = 0; i < inv.barriers.length; i++) {
+								var b = inv.barriers[i];
+								if (!b.hp) continue;
+								if (inv.pbullet.x >= b.x && inv.pbullet.x <= b.x+b.w &&
+									inv.pbullet.y >= b.y && inv.pbullet.y <= b.y+b.h) {
+									b.hp--; inv.pbullet = null; break;
+								}
+							}
+						}
+						// Enemy bullets hit barriers
+						for (var i = inv.ebullets.length - 1; i >= 0; i--) {
+							var eb = inv.ebullets[i];
+							for (var j = 0; j < inv.barriers.length; j++) {
+								var b = inv.barriers[j];
+								if (!b.hp) continue;
+								if (eb.x >= b.x && eb.x <= b.x+b.w && eb.y >= b.y && eb.y <= b.y+b.h) {
+									b.hp--; inv.ebullets.splice(i, 1); break;
+								}
+							}
+						}
+						// Enemy bullets hit player
+						for (var i = inv.ebullets.length - 1; i >= 0; i--) {
+							var eb = inv.ebullets[i];
+							if (eb.x >= inv.px-18 && eb.x <= inv.px+18 &&
+								eb.y >= inv.py-18 && eb.y <= inv.py+8) {
+								inv.lives--; inv.ebullets.splice(i, 1);
+								if (!inv.lives) { inv.over = true; return; }
+							}
+						}
+						// Enemies reach player
+						for (var i = 0; i < inv.enemies.length; i++) {
+							if (!inv.enemies[i].dead && inv.enemies[i].y + IH >= inv.py - 10) {
+								inv.over = true; return;
+							}
+						}
+						if (!invAlive()) inv.won = true;
+					}
+
+					function drawInvEnemy(x, y, row, fr) {
+						var cols = ['#44ffee','#cc44ff','#ffcc44','#ff8844','#ff4444'];
+						var col = cols[row % 5];
+						ctx.save(); ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 5;
+						ctx.fillRect(x+4, y+4, IW-8, IH-6);           // body
+						ctx.fillRect(x+5, y, 4, 5);                    // left antenna
+						ctx.fillRect(x+IW-9, y, 4, 5);                 // right antenna
+						if (fr === 0) {
+							ctx.fillRect(x, y+IH-8, 5, 5);             // legs out
+							ctx.fillRect(x+IW-5, y+IH-8, 5, 5);
+						} else {
+							ctx.fillRect(x+3, y+IH-4, 5, 4);           // legs in
+							ctx.fillRect(x+IW-8, y+IH-4, 5, 4);
+						}
+						ctx.fillStyle = '#000';
+						ctx.fillRect(x+8, y+7, 3, 3);                  // eyes
+						ctx.fillRect(x+IW-11, y+7, 3, 3);
+						ctx.restore();
+					}
+
+					function drawInv() {
+						ctx.fillStyle = '#03010a';
+						ctx.fillRect(0, 0, W, H);
+
+						// Enemies
+						for (var i = 0; i < inv.enemies.length; i++) {
+							var e = inv.enemies[i];
+							if (!e.dead) drawInvEnemy(e.x, e.y, e.r, e.fr);
+						}
+						// Barriers
+						for (var i = 0; i < inv.barriers.length; i++) {
+							var b = inv.barriers[i];
+							if (!b.hp) continue;
+							ctx.save();
+							ctx.globalAlpha = 0.25 + (b.hp / 4) * 0.75;
+							ctx.fillStyle = '#4aaa4a'; ctx.shadowColor = '#4aaa4a'; ctx.shadowBlur = 6;
+							ctx.fillRect(b.x, b.y, b.w, b.h);
+							ctx.restore();
+						}
+						// Player bullet
+						if (inv.pbullet) {
+							ctx.save(); ctx.fillStyle = '#7fff7f';
+							ctx.shadowColor = '#7fff7f'; ctx.shadowBlur = 8;
+							ctx.fillRect(inv.pbullet.x - 1, inv.pbullet.y, 3, 10);
+							ctx.restore();
+						}
+						// Enemy bullets
+						for (var i = 0; i < inv.ebullets.length; i++) {
+							var eb = inv.ebullets[i];
+							ctx.fillStyle = '#ff8844';
+							ctx.fillRect(eb.x - 1, eb.y, 3, 8);
+						}
+						// Player ship
+						ctx.save();
+						ctx.fillStyle = '#7fff7f'; ctx.shadowColor = '#7fff7f'; ctx.shadowBlur = 10;
+						ctx.beginPath();
+						ctx.moveTo(inv.px, inv.py - 18);
+						ctx.lineTo(inv.px + 18, inv.py + 8);
+						ctx.lineTo(inv.px - 18, inv.py + 8);
+						ctx.closePath(); ctx.fill();
+						ctx.fillRect(inv.px - 2, inv.py - 22, 4, 8);  // cannon
+						ctx.restore();
+						// Ground line
+						ctx.fillStyle = '#1a3a1a';
+						ctx.fillRect(0, H - 22, W, 1);
+						// HUD
+						ctx.fillStyle = '#03010a'; ctx.fillRect(0, 0, W, 28);
+						ctx.font = '13px monospace'; ctx.fillStyle = '#7fff7f'; ctx.textAlign = 'left';
+						ctx.fillText('SCORE: ' + inv.score, 8, 20);
+						ctx.textAlign = 'center';
+						for (var li = 0; li < inv.lives; li++) {
+							var lx = W/2 - 22 + li * 22;
+							ctx.save(); ctx.fillStyle = '#7fff7f';
+							ctx.beginPath(); ctx.moveTo(lx, H-18); ctx.lineTo(lx+8, H-7); ctx.lineTo(lx-8, H-7); ctx.closePath(); ctx.fill();
+							ctx.restore();
+						}
+						ctx.font = '9px monospace'; ctx.fillStyle = '#2a5a2a'; ctx.textAlign = 'right';
+						ctx.fillText('[←→] move  [SPC] shoot  ESC=hub', W - 6, 20);
+						// Overlay
+						if (inv.over || inv.won) {
+							ctx.save();
+							ctx.fillStyle = 'rgba(3,1,10,0.8)'; ctx.fillRect(0, 0, W, H);
+							ctx.font = 'bold 24px monospace'; ctx.textAlign = 'center';
+							ctx.fillStyle = inv.won ? '#7fff7f' : '#cc3333';
+							ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 16;
+							ctx.fillText(inv.won ? 'SPORES CLEARED!' : 'KOJI INVADED', W/2, H/2 - 16);
+							ctx.shadowBlur = 0; ctx.font = '13px monospace'; ctx.fillStyle = '#5ab85a';
+							ctx.fillText('[ENTER] play again   [ESC] hub', W/2, H/2 + 20);
+							ctx.restore();
+						}
+					}
+
+					// ── Game loop ────────────────────────────────────────────
+					function loop() {
+						if (scene === 'hub')  drawHub();
+						else if (scene === 'pong') { pongStep(); drawPong(); }
+						else if (scene === 'dig')  { digStep();  drawDig();  }
+						else if (scene === 'run')  { runStep();  drawRun();  }
+						else if (scene === 'inv')  { invStep();  drawInv();  }
+						animId = requestAnimationFrame(loop);
+					}
+
+					// ── Input ────────────────────────────────────────────────
+					function onKeyDown(e) {
+						if (modal.style.display !== 'flex') return;
+						if (e.key === 'Escape') {
+							if (scene === 'hub') closeArcade();
+							else scene = 'hub';
+							return;
+						}
+						if (scene === 'hub') {
+							if (e.key === '1') { pongInit(); scene = 'pong'; }
+							if (e.key === '2') { runInit();  scene = 'run';  }
+							if (e.key === '3') { invInit();  scene = 'inv';  }
+							if (e.key === '4') { digInit();  scene = 'dig';  }
+						} else if (scene === 'pong') {
+							if (e.key === 'ArrowUp')   { pong.up   = true; e.preventDefault(); }
+							if (e.key === 'ArrowDown') { pong.down = true; e.preventDefault(); }
+							if (e.key === 'Enter' && pong.over) pongInit();
+						} else if (scene === 'dig') {
+							if (e.key === 'ArrowUp')    { dig.up    = true; e.preventDefault(); }
+							if (e.key === 'ArrowDown')  { dig.down  = true; e.preventDefault(); }
+							if (e.key === 'ArrowLeft')  { dig.left  = true; e.preventDefault(); }
+							if (e.key === 'ArrowRight') { dig.right = true; e.preventDefault(); }
+							if (e.key === ' ')          { dig.pumping = true; e.preventDefault(); }
+							if (e.key === 'Enter' && (dig.over || dig.won)) digInit();
+						} else if (scene === 'run') {
+							if ((e.key === ' ' || e.key === 'ArrowUp') && !run.over) {
+								if (run.jumpsLeft > 0) { run.vy = RUN_JUMP; run.onGround = false; run.jumpsLeft--; }
+								e.preventDefault();
+							}
+							if (e.key === 'Enter' && run.over) runInit();
+						} else if (scene === 'inv') {
+							if (e.key === 'ArrowLeft')  { inv.left  = true; e.preventDefault(); }
+							if (e.key === 'ArrowRight') { inv.right = true; e.preventDefault(); }
+							if (e.key === ' ') {
+								if (!inv.pbullet) inv.pbullet = {x: inv.px, y: inv.py - 22};
+								e.preventDefault();
+							}
+							if (e.key === 'Enter' && (inv.over || inv.won)) invInit();
+						}
+					}
+					function onKeyUp(e) {
+						if (e.key === 'ArrowUp')    { pong.up   = false; dig.up    = false; }
+						if (e.key === 'ArrowDown')  { pong.down = false; dig.down  = false; }
+						if (e.key === 'ArrowLeft')  { dig.left  = false; inv.left  = false; }
+						if (e.key === 'ArrowRight') { dig.right = false; inv.right = false; }
+						if (e.key === ' ')            dig.pumping = false;
+					}
+
+					// ── Modal wiring ─────────────────────────────────────────
+					function openArcade() {
+						scene = 'hub';
+						modal.style.display = 'flex';
+						if (!animId) loop();
+					}
+					function closeArcade() {
+						modal.style.display = 'none';
+						if (animId) { cancelAnimationFrame(animId); animId = null; }
+					}
+
+					logo.addEventListener('click', openArcade);
+					if (closeBtn) closeBtn.addEventListener('click', closeArcade);
+					modal.addEventListener('click', function (e) { if (e.target === modal) closeArcade(); });
+					document.addEventListener('keydown', onKeyDown);
+					document.addEventListener('keyup',   onKeyUp);
+				})();
+			</script>
+
+
+	</div> <!-- end page-wrapper -->
+
+	<script>
+	// ── Settings panel ────────────────────────────────────────────────────────
+	(function () {
+		'use strict';
+
+		const THEMES = {
+			dark:    { label: 'Dark',    themeBg: '#111111', themeSurface: '#181818', themeBorder: '#2e2e2e', themeText: '#dddddd', themeAccent: '#52a0e0', themeGrid: '#2a2a2a',    chartBgTemp: '#181818', chartBgEnv: '#181818', chartBgFans: '#181818', chartBgWeight: '#181818' },
+			light:   { label: 'Light',   themeBg: '#f4f4f6', themeSurface: '#ffffff', themeBorder: '#d8d8e0', themeText: '#1a1a2e', themeAccent: '#2277cc', themeGrid: '#e0e0e8',    chartBgTemp: '#ffffff', chartBgEnv: '#ffffff', chartBgFans: '#ffffff', chartBgWeight: '#ffffff' },
+			galaxy:  { label: 'Galaxy',  themeBg: '#0a0a1a', themeSurface: '#0f0f2a', themeBorder: '#2a1f5a', themeText: '#e0d8ff', themeAccent: '#a855f7', themeGrid: '#1a1240',   chartBgTemp: '#0f0f2a', chartBgEnv: '#0f0f2a', chartBgFans: '#0f0f2a', chartBgWeight: '#0f0f2a' },
+			ocean:   { label: 'Ocean',   themeBg: '#021a2b', themeSurface: '#032538', themeBorder: '#0a4060', themeText: '#a8d8f0', themeAccent: '#00b4d8', themeGrid: '#083050',   chartBgTemp: '#032538', chartBgEnv: '#032538', chartBgFans: '#032538', chartBgWeight: '#032538' },
+			sakura:  { label: 'Sakura',  themeBg: '#1a0a10', themeSurface: '#260f18', themeBorder: '#4a1f30', themeText: '#f0d8e0', themeAccent: '#e05080', themeGrid: '#3a1525',   chartBgTemp: '#260f18', chartBgEnv: '#260f18', chartBgFans: '#260f18', chartBgWeight: '#260f18' },
+			forest:  { label: 'Forest',  themeBg: '#081a0f', themeSurface: '#0f2416', themeBorder: '#1e4a28', themeText: '#c8e8d0', themeAccent: '#4caf80', themeGrid: '#143320',   chartBgTemp: '#0f2416', chartBgEnv: '#0f2416', chartBgFans: '#0f2416', chartBgWeight: '#0f2416' },
+			amber:   { label: 'Amber',   themeBg: '#1a1000', themeSurface: '#241800', themeBorder: '#4a3800', themeText: '#f5e0a0', themeAccent: '#f0a020', themeGrid: '#382800',   chartBgTemp: '#241800', chartBgEnv: '#241800', chartBgFans: '#241800', chartBgWeight: '#241800' }
+		};
+
+		const DEFAULTS = {
+			theme: 'dark',
+			themeBg: '#111111', themeSurface: '#181818', themeBorder: '#2e2e2e',
+			themeText: '#dddddd', themeAccent: '#52a0e0', themeGrid: '#2a2a2a',
+			chartBgTemp: '#181818', chartBgEnv: '#181818', chartBgFans: '#181818', chartBgWeight: '#181818'
+		};
+		const STORAGE_KEY = 'sakeSettings';
+
+		function loadSettings() {
+			try { return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')); }
+			catch (e) { return Object.assign({}, DEFAULTS); }
+		}
+
+		function saveSettings(s) {
+			try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch (e) {}
+		}
+
+		function applyCSSVars(s) {
+			const root = document.documentElement;
+			root.style.setProperty('--zone-color-1', '#e05252');
+			root.style.setProperty('--zone-color-2', '#52a0e0');
+			root.style.setProperty('--zone-color-3', '#52e07c');
+			root.style.setProperty('--zone-color-4', '#e0c952');
+			root.style.setProperty('--zone-color-5', '#c052e0');
+			root.style.setProperty('--zone-color-6', '#e09052');
+			root.style.setProperty('--theme-bg',      s.themeBg);
+			root.style.setProperty('--theme-surface', s.themeSurface);
+			root.style.setProperty('--theme-border',  s.themeBorder);
+			root.style.setProperty('--theme-text',    s.themeText);
+			root.style.setProperty('--theme-accent',  s.themeAccent);
+			root.style.setProperty('--theme-grid',    s.themeGrid);
+		}
+
+		function applyChartBg(s) {
+			var map = {
+				chartBgTemp:   document.getElementById('temp-chart'),
+				chartBgEnv:    document.getElementById('humidity-chart'),
+				chartBgFans:   document.getElementById('fans-chart'),
+				chartBgWeight: document.getElementById('weight-chart')
+			};
+			Object.keys(map).forEach(function (key) {
+				if (map[key] && s[key]) map[key].style.background = s[key];
+			});
+		}
+
+		// Apply on load
+		applyCSSVars(loadSettings());
+		applyChartBg(loadSettings());
+		// Sync chart dataset colors after CSS vars are set
+		if (window.updateChartColors) window.updateChartColors();
+
+		const modal     = document.getElementById('settings-modal');
+		const openBtn   = document.getElementById('settings-btn');
+		const closeBtn  = document.getElementById('settings-modal-close');
+		const resetBtn  = document.getElementById('settings-reset-btn');
+
+		// ── Theme picker ──────────────────────────────────────────────────────
+		(function () {
+			var picker = document.getElementById('theme-picker');
+			if (!picker) return;
+			Object.keys(THEMES).forEach(function (key) {
+				var t = THEMES[key];
+				var card = document.createElement('button');
+				card.type = 'button';
+				card.className = 'theme-card';
+				card.dataset.theme = key;
+				card.innerHTML =
+					'<div class="theme-card__swatch">' +
+						'<span style="background:' + t.themeBg + '"></span>' +
+						'<span style="background:' + t.themeSurface + '"></span>' +
+						'<span style="background:' + t.themeAccent + '"></span>' +
+					'</div>' +
+					'<span class="theme-card__label">' + t.label + '</span>' +
+					'<span class="theme-card__check">&#10003;</span>';
+				card.addEventListener('click', function () {
+					var s = loadSettings();
+					Object.keys(t).forEach(function (k) {
+						if (k !== 'label') s[k] = t[k];
+					});
+					s.theme = key;
+					saveSettings(s);
+					applyCSSVars(s);
+					applyChartBg(s);
+					if (window.updateChartColors) window.updateChartColors();
+					updateThemeCards(key);
+				});
+				picker.appendChild(card);
+			});
+		})();
+
+		function updateThemeCards(activeKey) {
+			document.querySelectorAll('.theme-card').forEach(function (c) {
+				c.classList.toggle('theme-card--active', c.dataset.theme === activeKey);
+			});
+		}
+
+		function populateInputs(s) {
+			updateThemeCards(s.theme || 'dark');
+		}
+
+		function openSettings() {
+			if (!modal) return;
+			populateInputs(loadSettings());
+			modal.style.display = 'flex';
+		}
+
+		function closeSettings() {
+			if (modal) modal.style.display = 'none';
+		}
+
+
+		if (resetBtn) {
+			resetBtn.addEventListener('click', function () {
+				const s = Object.assign({}, DEFAULTS);
+				saveSettings(s);
+				applyCSSVars(s);
+				applyChartBg(s);
+				populateInputs(s);
+				if (window.updateChartColors) window.updateChartColors();
+			});
+		}
+
+		if (openBtn)  openBtn.addEventListener('click', function () { openSettings(); });
+		if (closeBtn) closeBtn.addEventListener('click', closeSettings);
+		if (modal) {
+			modal.addEventListener('click', function (e) {
+				if (e.target === modal) closeSettings();
+			});
+		}
+		document.addEventListener('keydown', function (e) {
+			if (e.key === 'Escape' && modal && modal.style.display === 'flex') closeSettings();
+		});
+
+		// Expose so chart code can read current zone colors
+		window.getSakeSettings = loadSettings;
+
+		// ── Reference curve quick-apply ───────────────────────────────────
+		(function () {
+			var sel    = document.getElementById('settings-curve-select');
+			var btn    = document.getElementById('settings-apply-curve');
+			var status = document.getElementById('settings-curve-status');
+			if (!sel || !btn) return;
+
+			// Populate dropdown
+			fetch('/api/reference-curves')
+				.then(function (r) { return r.json(); })
+				.then(function (curves) {
+					curves.forEach(function (c) {
+						var opt = document.createElement('option');
+						opt.value = c.id;
+						opt.textContent = c.name;
+						sel.appendChild(opt);
+					});
+				})
+				.catch(function () {});
+
+			btn.addEventListener('click', function () {
+				var runId = window._runId;
+				if (!runId) { status.textContent = 'No active run'; status.style.color = '#ff9f9f'; return; }
+				var curveId = sel.value;
+				if (!curveId) {
+					// Clear target
+					fetch('/api/runs/' + runId + '/target', { method: 'DELETE' })
+						.then(function () {
+							window._targetProfile = [];
+							if (window._refreshProjection) window._refreshProjection();
+							status.textContent = 'Target curve cleared';
+							status.style.color = '#7fff7f';
+						});
+					return;
+				}
+				btn.disabled = true;
+				fetch('/api/runs/' + runId + '/target/from-curve/' + curveId, { method: 'POST' })
+					.then(function (r) {
+						if (!r.ok) throw new Error('Failed');
+						return fetch('/api/runs/' + runId + '/target');
+					})
+					.then(function (r) { return r.json(); })
+					.then(function (data) {
+						window._targetProfile = Array.isArray(data) ? data : [];
+						if (window._refreshProjection) window._refreshProjection();
+						status.textContent = 'Curve applied!';
+						status.style.color = '#7fff7f';
+					})
+					.catch(function () {
+						status.textContent = 'Failed to apply curve';
+						status.style.color = '#ff9f9f';
+					})
+					.finally(function () { btn.disabled = false; });
+			});
+		})();
+	})();
+
+
+	// ── Dashboard mode controller ─────────────────────────────────────────────
+	(function () {
+		'use strict';
+		const params = new URLSearchParams(location.search);
+		const runId  = parseInt(params.get('run'), 10) || null;
+		const mode   = params.get('mode') || 'live';
+
+		if (!runId) { location.href = 'home.html'; return; }
+
+		// Expose for dashboard-phase2.js IIFEs
+		window._runId = runId;
+
+		// Update zone links to carry run id + mode
+		for (let z = 1; z <= 6; z++) {
+			const a = document.getElementById('zone-link-' + z);
+			if (a) a.href = 'zone' + z + '.html?run=' + runId + '&mode=' + mode;
+		}
+
+		// ── REPLAY mode ───────────────────────────────────────────────────────
+		if (mode === 'replay') {
+			const banner = document.getElementById('replay-banner');
+			if (banner) {
+				banner.style.display = 'flex';
+				banner.innerHTML =
+					'<strong id="replay-run-name">Loading\u2026</strong>' +
+					'<span style="color:#888">\u2014 Read Only</span>' +
+					'<button class="replay-export-btn" id="replay-export-btn">Export CSV</button>' +
+					'<a href="history.html?run=' + runId + '" style="color:#aaffaa;text-decoration:underline;font-size:.85rem">\u2605 Rate this run</a>' +
+					'<a href="home.html" style="color:#aaffaa;text-decoration:underline;font-size:.85rem">\u2190 Home</a>';
+			}
+			const runBox = document.querySelector('.run-box');
+			if (runBox) runBox.style.display = 'none';
+			const notesInput = document.getElementById('notes-input');
+			if (notesInput) { notesInput.disabled = true; notesInput.placeholder = 'Notes (read only)'; }
+
+			// Chain readings after run fetch so _runStartMs is set before elapsed labels
+			fetch('/api/runs/' + runId)
+				.then(r => r.json())
+				.then(function (run) {
+					const el = document.getElementById('replay-run-name');
+					if (el) el.textContent = run.name;
+					const disp = document.getElementById('run-name-display');
+					if (disp) disp.textContent = '- ' + run.name;
+					// Set run start time BEFORE processing readings so elapsedLabels are correct
+					if (window.setRunStartTime && run.started_at) {
+						window.setRunStartTime(new Date(run.started_at).getTime());
+					}
+					return fetch('/api/runs/' + runId + '/readings?n=300');
+				})
+				.then(r => r.json())
+				.then(function (readings) {
+					if (!readings || !readings.length) return;
+					if (window.stopTemperatureReading) window.stopTemperatureReading();
+					readings.forEach(function (row) {
+						if (!window.pushSensorSample) return;
+						window.pushSensorSample({
+							time: new Date(row.recorded_at),
+							temps: { temp1:row.tc1, temp2:row.tc2, temp3:row.tc3, temp4:row.tc4, temp5:row.tc5, temp6:row.tc6 },
+							humidity: row.humidity,
+							sht_temp: row.sht_temp != null ? parseFloat(row.sht_temp) : null,
+							fans: { fan1:row.fan1||0, fan2:row.fan2||0, fan3:row.fan3||0, fan4:row.fan4||0, fan5:row.fan5||0, fan6:row.fan6||0 },
+							weight: row.weight_lbs
+						});
+					});
+					const last = readings[readings.length - 1];
+					for (let i = 1; i <= 6; i++) {
+						const el = document.getElementById('temp-' + i + '-dry');
+						if (el) el.textContent = last['tc'+i] != null ? parseFloat(last['tc'+i]).toFixed(1) : '--';
+					}
+				}).catch(function(){});
+
+			fetch('/api/runs/' + runId + '/zones/1')
+				.then(r => r.json())
+				.then(function (data) {
+					const ni = document.getElementById('notes-input');
+					if (ni && data.note) ni.value = data.note;
+				}).catch(function(){});
+
+			document.addEventListener('click', function (e) {
+				if (e.target && e.target.id === 'replay-export-btn')
+					location.href = '/api/runs/' + runId + '/export.csv';
+			});
+			return;
+		}
+
+		// ── LIVE mode ─────────────────────────────────────────────────────────
+		// Chain readings after run fetch so _runStartMs is set before elapsed labels
+		fetch('/api/runs/' + runId)
+			.then(r => r.json())
+			.then(function (run) {
+				localStorage.setItem('currentRunName', run.name);
+				const disp = document.getElementById('run-name-display');
+				if (disp) disp.textContent = '- ' + run.name;
+				const btn = document.getElementById('start-run-btn');
+				if (btn) { btn.textContent = 'End Run'; btn.classList.add('end-run-btn-active'); }
+				if (window.setRunStartTime && run.started_at) {
+					window.setRunStartTime(new Date(run.started_at).getTime());
+				}
+				return fetch('/api/runs/' + runId + '/readings?n=300');
+			})
+			.then(r => r.json())
+			.then(function (readings) {
+				if (readings && readings.length) {
+					if (window.stopTemperatureReading) window.stopTemperatureReading();
+					readings.forEach(function (row) {
+						if (!window.pushSensorSample) return;
+						window.pushSensorSample({
+							time: new Date(row.recorded_at),
+							temps: { temp1:row.tc1, temp2:row.tc2, temp3:row.tc3, temp4:row.tc4, temp5:row.tc5, temp6:row.tc6 },
+							humidity: row.humidity,
+							sht_temp: row.sht_temp != null ? parseFloat(row.sht_temp) : null,
+							fans: { fan1:row.fan1||0, fan2:row.fan2||0, fan3:row.fan3||0, fan4:row.fan4||0, fan5:row.fan5||0, fan6:row.fan6||0 },
+							weight: row.weight_lbs
+						});
+					});
+				}
+				if (window.startTemperatureReading) window.startTemperatureReading();
+				if (window.startFanPolling) window.startFanPolling();
+			})
+			.catch(function () {
+				if (window.startTemperatureReading) window.startTemperatureReading();
+				if (window.startFanPolling) window.startFanPolling();
+			});
+
+		fetch('/api/runs/' + runId + '/zones/1')
+			.then(r => r.json())
+			.then(function (data) {
+				const ni = document.getElementById('notes-input');
+				if (ni && data.note) { ni.value = data.note; localStorage.setItem('currentNotes', data.note); }
+			}).catch(function(){});
+
+		const notesInput = document.getElementById('notes-input');
+		if (notesInput) {
+			let saveTimer;
+			notesInput.addEventListener('input', function () {
+				clearTimeout(saveTimer);
+				saveTimer = setTimeout(function () {
+					fetch('/api/runs/' + runId + '/zones/1', {
+						method: 'PUT', headers: {'Content-Type':'application/json'},
+						body: JSON.stringify({ note: notesInput.value })
+					}).catch(function(){});
+				}, 800);
+			});
+		}
+
+		const confirmEnd = document.getElementById('confirm-end-btn');
+		if (confirmEnd) {
+			confirmEnd.addEventListener('click', function () {
+				fetch('/api/runs/' + runId + '/end', { method: 'POST' })
+					.finally(function () {
+						// Trigger server-side CSV download (includes real readings + notes)
+						const dl = document.createElement('a');
+						dl.href = '/api/runs/' + runId + '/export.csv';
+						dl.download = '';
+						document.body.appendChild(dl);
+						dl.click();
+						document.body.removeChild(dl);
+						setTimeout(function () { location.href = 'home.html'; }, 600);
+					});
+			});
+		}
+
+		const runBox = document.querySelector('.run-box');
+		if (runBox) {
+			const homeBtn = document.createElement('a');
+			homeBtn.href = 'home.html';
+			homeBtn.textContent = '\u2190 Home';
+			homeBtn.style.cssText = 'color:#888;font-size:.85rem;text-decoration:underline;margin-left:.75rem;';
+			runBox.appendChild(homeBtn);
+		}
+	})();
+	</script>
+
+
+	<script>
+	// ── Target profile projected curves ────────────────────────────────────────
+	(function () {
+		'use strict';
+		var PROJ_ALPHA  = 0.45; // opacity for dashed target lines
+
+		// Hex #rrggbb → rgba(r,g,b,alpha)
+		function hexAlpha(hex, a) {
+			hex = hex.replace('#','');
+			if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+			var r = parseInt(hex.slice(0,2),16),
+			    g = parseInt(hex.slice(2,4),16),
+			    b = parseInt(hex.slice(4,6),16);
+			return 'rgba('+r+','+g+','+b+','+a+')';
+		}
+
+		// CSS zone color
+		function zoneColor(n) {
+			return (getComputedStyle(document.documentElement)
+				.getPropertyValue('--zone-color-'+n).trim()) ||
+				['#e05252','#52a0e0','#52e07c','#e0c952','#c052e0','#e09052'][n-1];
+		}
+
+		// Linear interpolation of target temp for zone z at elapsedMin
+		function interp(profile, z, em) {
+			if (!profile || !profile.length) return null;
+			var key = 'temp'+z+'_target', lo = null, hi = null;
+			for (var i = 0; i < profile.length; i++) {
+				var pt = profile[i];
+				if (pt.elapsed_min <= em) lo = pt;
+				else if (hi === null)     hi = pt;
+			}
+			if (!lo && !hi) return null;
+			if (!lo) { var vHi = parseFloat(hi[key]); return isNaN(vHi) ? null : vHi; }
+			if (!hi) { var vLo = parseFloat(lo[key]); return isNaN(vLo) ? null : vLo; }
+			var v0 = parseFloat(lo[key]), v1 = parseFloat(hi[key]);
+			if (isNaN(v0) || isNaN(v1)) return null;
+			var t = (em - lo.elapsed_min) / (hi.elapsed_min - lo.elapsed_min);
+			return v0 + t * (v1 - v0);
+		}
+
+		// Format wall-clock label "HH:MM"
+		function fmtClock(ms) {
+			var d = new Date(ms);
+			return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+		}
+
+		// Format elapsed label "Xh YYm ZZs"
+		function fmtElapsed(ms) {
+			if (ms < 0) ms = 0;
+			var s = Math.floor(ms/1000);
+			var h = Math.floor(s/3600), m = Math.floor((s%3600)/60);
+			return (h>0?h+'h ':'')+(m>0||h>0?String(m).padStart(2,'0')+'m ':'')+String(s%60).padStart(2,'0')+'s';
+		}
+
+		// Add 6 dashed target datasets to tempChart
+		function addTargetDatasets(chart) {
+			for (var z = 1; z <= 6; z++) {
+				var col = hexAlpha(zoneColor(z), PROJ_ALPHA);
+				chart.data.datasets.push({
+					label: 'T'+z+' Target',
+					_isTarget: true,
+					_zone: z,
+					data: [],
+					borderColor: col,
+					borderWidth: 1.5,
+					borderDash: [6, 4],
+					pointRadius: 0,
+					tension: 0.3,
+					fill: false
+				});
+			}
+		}
+
+		// Populate target datasets from the full profile as {x, y} points.
+		// Each target line spans the entire profile duration so it shows predictively
+		// ahead of the actual data as readings fill in from the left.
+		function refreshProjection() {
+			var chart   = window._tempChart;
+			var profile = window._targetProfile;
+			if (!chart || !profile || !profile.length) return;
+
+			chart.data.datasets.forEach(function (ds) {
+				if (!ds._isTarget) return;
+				var key = 'temp' + ds._zone + '_target';
+				ds.data = profile
+					.filter(function (pt) { return pt[key] != null && !isNaN(parseFloat(pt[key])); })
+					.map(function (pt) { return { x: pt.elapsed_min, y: parseFloat(pt[key]) }; });
+			});
+
+			chart.update('none');
+		}
+
+		// Patch updateChartColors to also refresh target dataset colors
+		function patchColorUpdater() {
+			var prev = window.updateChartColors;
+			window.updateChartColors = function () {
+				var chart = window._tempChart;
+				if (chart) {
+					chart.data.datasets.forEach(function (ds) {
+						if (ds._isTarget) {
+							ds.borderColor = hexAlpha(zoneColor(ds._zone), PROJ_ALPHA);
+						}
+					});
+				}
+				if (prev) prev();
+			};
+		}
+
+		// Wait for chart + run to be ready, then initialise
+		function init() {
+			if (!window._tempChart || !window._runId) { setTimeout(init, 250); return; }
+			addTargetDatasets(window._tempChart);
+			patchColorUpdater();
+
+			// Fetch target profile once
+			fetch('/api/runs/' + window._runId + '/target')
+				.then(function (r) { return r.json(); })
+				.then(function (data) {
+					window._targetProfile = Array.isArray(data) ? data : [];
+					if (window._targetProfile.length) refreshProjection();
+				})
+				.catch(function () { window._targetProfile = []; });
+
+			window._refreshProjection = refreshProjection;
+		}
+		init();
+	})();
+	</script>
+
+	<script src="dashboard-phase2.js"></script>
+</body>
+
+</html>

@@ -12,10 +12,10 @@
         <img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" class="sake-logo-egg">
         <h1 class="header-title">Zone 4 <span id="run-name-display" class="run-name-header"></span></h1>
       </div>
-    <div class="header-actions">
-      <div class="header-datetime" id="header-datetime"></div>
-    </div>
-  </header>
+      <div class="header-actions">
+        <div class="header-datetime" id="header-datetime"></div>
+      </div>
+    </header>
     <main>
       <div class="stage">
         <section class="layout">
@@ -107,31 +107,69 @@
 
     <script>
     (function () {
-      const ZONE = 4;
+      'use strict';
+      const params = new URLSearchParams(location.search);
+      const runId  = parseInt(params.get('run'), 10) || null;
+      const mode   = params.get('mode') || 'live';
+      const ZONE   = 4;
+
+      // ---- Nav: propagate ?run=&mode= to zone links + change "Home" -> "<- Dashboard" ----
+      document.querySelectorAll('.zones a').forEach(function (a) {
+        if (runId) a.href = a.getAttribute('href').split('?')[0] + '?run=' + runId + '&mode=' + mode;
+      });
+      const homeLink = document.querySelector('.home-link');
+      if (homeLink && runId) {
+        homeLink.href = 'dashboard.html?run=' + runId + '&mode=' + mode;
+        homeLink.textContent = '\u2190 Dashboard';
+      }
 
       // ---- Run name ----
-      const savedRunName = localStorage.getItem('currentRunName');
-      if (savedRunName) {
-        const el = document.getElementById('run-name-display');
-        if (el) el.textContent = '- ' + savedRunName;
+      const runNameDisplay = document.getElementById('run-name-display');
+      if (runId) {
+        fetch('/api/runs/' + runId)
+          .then(r => r.json())
+          .then(function (run) { if (runNameDisplay) runNameDisplay.textContent = '- ' + run.name; })
+          .catch(function () {
+            const s = localStorage.getItem('currentRunName');
+            if (s && runNameDisplay) runNameDisplay.textContent = '- ' + s;
+          });
+      } else {
+        const s = localStorage.getItem('currentRunName');
+        if (s && runNameDisplay) runNameDisplay.textContent = '- ' + s;
       }
 
       // ---- Notes ----
-      (function () {
-        const notesInput = document.getElementById('notes-input');
-        if (!notesInput) return;
-        const saved = localStorage.getItem('currentNotes');
-        if (saved) notesInput.value = saved;
-        let t;
-        notesInput.addEventListener('input', function () {
-          clearTimeout(t);
-          t = setTimeout(function () { localStorage.setItem('currentNotes', notesInput.value); }, 500);
-        });
-        notesInput.addEventListener('blur', function () {
-          clearTimeout(t);
-          localStorage.setItem('currentNotes', notesInput.value);
-        });
-      })();
+      const notesInput = document.getElementById('notes-input');
+      if (notesInput) {
+        if (mode === 'replay') {
+          notesInput.disabled = true;
+          notesInput.placeholder = 'Notes (read only)';
+        } else {
+          let saveTimer;
+          notesInput.addEventListener('input', function () {
+            clearTimeout(saveTimer);
+            saveTimer = setTimeout(function () {
+              if (runId) fetch('/api/runs/' + runId + '/zones/' + ZONE, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ note: notesInput.value })
+              }).catch(function () {});
+              localStorage.setItem('currentNotes', notesInput.value);
+            }, 800);
+          });
+        }
+        if (runId) {
+          fetch('/api/runs/' + runId + '/zones/' + ZONE)
+            .then(r => r.json())
+            .then(function (d) { if (d.note) notesInput.value = d.note; })
+            .catch(function () {
+              const s = localStorage.getItem('currentNotes');
+              if (s) notesInput.value = s;
+            });
+        } else {
+          const s = localStorage.getItem('currentNotes');
+          if (s) notesInput.value = s;
+        }
+      }
 
       // ---- Zone state polling ----
       const dryEl      = document.getElementById('zone-dry-temp');
@@ -153,77 +191,93 @@
 
       let currentMode = 'auto';
 
-      function fmtTemp(v) { return (Math.round(v / 0.2) * 0.2).toFixed(1); } function computeWetBulbC(TdbC, RH) {
+      function fmtTemp(v) { return (Math.round(v / 0.2) * 0.2).toFixed(1); }
+      function computeWetBulbC(TdbC, RH) {
         const R = Math.min(100, Math.max(1, RH));
         return TdbC * Math.atan(0.151977 * Math.sqrt(R + 8.313659)) +
                Math.atan(TdbC + R) - Math.atan(R - 1.676331) +
                0.00391838 * Math.pow(R, 1.5) * Math.atan(0.023101 * R) - 4.686035;
       }
 
+      async function updateUI(data) {
+        if (!data) return;
+
+        // Handle both nested and flat formats
+        const tcKey = 'TC' + ZONE;
+        const dryC = (data.thermocouples && data.thermocouples[tcKey] != null)
+          ? parseFloat(data.thermocouples[tcKey])
+          : (data['tc' + ZONE] != null ? parseFloat(data['tc' + ZONE]) : null);
+
+        const RH = (data.sht30 && data.sht30.humidity_rh != null)
+          ? parseFloat(data.sht30.humidity_rh)
+          : (data.humidity != null ? parseFloat(data.humidity) : null);
+
+        if (dryEl) dryEl.textContent = dryC != null ? fmtTemp(dryC) : '--';
+        if (wetEl && dryC != null && RH != null)
+          wetEl.textContent = fmtTemp(computeWetBulbC(dryC, RH));
+
+        // Zone PID state
+        const zone = (data.zones && data.zones[ZONE]) || data['zone' + ZONE];
+        if (zone) {
+          if (!document.activeElement || document.activeElement !== setpointIn)
+            setpointIn.value = fmtTemp(parseFloat(zone.setpoint_c));
+
+          currentMode = zone.mode;
+          modeAuto.classList.toggle('zone-mode-btn--active', zone.mode === 'auto');
+          modeManual.classList.toggle('zone-mode-btn--active', zone.mode === 'manual');
+
+          fanOn.disabled  = (zone.mode !== 'manual');
+          fanOff.disabled = (zone.mode !== 'manual');
+
+          const on = zone.relay_state;
+          relayDot.className = 'zone-status-dot ' + (on ? 'zone-status-dot--on' : 'zone-status-dot--off');
+          fanOn.classList.toggle('mid--fan-active',  on === true);
+          fanOff.classList.toggle('mid--fan-active', on === false && currentMode === 'manual');
+          relayLabel.textContent = on ? 'Fan ON' : 'Fan OFF';
+          if (pidOut) pidOut.textContent = zone.pid_output != null ? zone.pid_output : '--';
+          
+          // Alarm state
+          if (alarmBanner) {
+            const level = zone.alarm_level;
+            if (level) {
+              alarmBanner.style.display = '';
+              alarmBanner.className = 'zone-alarm-banner zone-alarm-banner--' + level;
+              if (alarmReason) alarmReason.textContent = zone.alarm_reason || '';
+            } else {
+              alarmBanner.style.display = 'none';
+            }
+          }
+
+          // Populate threshold inputs (skip if field is focused)
+          if (zone.alarm_thresholds) {
+            const t = zone.alarm_thresholds;
+            if (thrWarnHigh && document.activeElement !== thrWarnHigh) thrWarnHigh.value = t.warn_high_c ?? '';
+            if (thrCritHigh && document.activeElement !== thrCritHigh) thrCritHigh.value = t.crit_high_c ?? '';
+            if (thrWarnLow  && document.activeElement !== thrWarnLow)  thrWarnLow.value  = t.warn_low_c  ?? '';
+            if (thrCritLow  && document.activeElement !== thrCritLow)  thrCritLow.value  = t.crit_low_c  ?? '';
+          }
+        }
+      }
+
       async function pollSensorData() {
         try {
           const res = await fetch('sensor_latest.json?_=' + Date.now());
-          if (!res.ok) return;
-          const data = await res.json();
-
-          // Temperature
-          const tcKey = 'TC' + ZONE;
-          const dryC = data.thermocouples && data.thermocouples[tcKey] != null
-            ? parseFloat(data.thermocouples[tcKey]) : null;
-          const RH = data.sht30 && data.sht30.humidity_rh != null
-            ? parseFloat(data.sht30.humidity_rh) : null;
-
-          if (dryEl) dryEl.textContent = dryC != null ? fmtTemp(dryC) : '--';
-          if (wetEl && dryC != null && RH != null)
-            wetEl.textContent = fmtTemp(computeWetBulbC(dryC, RH));
-
-          // Zone PID state
-          const zone = data.zones && data.zones[ZONE];
-          if (zone) {
-            if (!document.activeElement || document.activeElement !== setpointIn)
-              setpointIn.value = fmtTemp(parseFloat(zone.setpoint_c));
-
-            currentMode = zone.mode;
-            modeAuto.classList.toggle('zone-mode-btn--active', zone.mode === 'auto');
-            modeManual.classList.toggle('zone-mode-btn--active', zone.mode === 'manual');
-
-            fanOn.disabled  = (zone.mode !== 'manual');
-            fanOff.disabled = (zone.mode !== 'manual');
-
-            const on = zone.relay_state;
-            relayDot.className = 'zone-status-dot ' + (on ? 'zone-status-dot--on' : 'zone-status-dot--off');
-            fanOn.classList.toggle('mid--fan-active',  on === true);
-            fanOff.classList.toggle('mid--fan-active', on === false && currentMode === 'manual');
-            relayLabel.textContent = on ? 'Fan ON' : 'Fan OFF';
-            if (pidOut) pidOut.textContent = zone.pid_output != null ? zone.pid_output : '--';
-            // Alarm state
-            if (alarmBanner) {
-              const level = zone.alarm_level;
-              if (level) {
-                alarmBanner.style.display = '';
-                alarmBanner.className = 'zone-alarm-banner zone-alarm-banner--' + level;
-                if (alarmReason) alarmReason.textContent = zone.alarm_reason || '';
-              } else {
-                alarmBanner.style.display = 'none';
-              }
-            }
-
-            // Populate threshold inputs (skip if field is focused)
-            if (zone.alarm_thresholds) {
-              const t = zone.alarm_thresholds;
-              if (thrWarnHigh && document.activeElement !== thrWarnHigh) thrWarnHigh.value = t.warn_high_c ?? '';
-              if (thrCritHigh && document.activeElement !== thrCritHigh) thrCritHigh.value = t.crit_high_c ?? '';
-              if (thrWarnLow  && document.activeElement !== thrWarnLow)  thrWarnLow.value  = t.warn_low_c  ?? '';
-              if (thrCritLow  && document.activeElement !== thrCritLow)  thrCritLow.value  = t.crit_low_c  ?? '';
-            }
-          }
+          if (res.ok) updateUI(await res.json());
         } catch (e) {
           console.warn('Zone poll error:', e);
         }
       }
 
-      pollSensorData();
-      setInterval(pollSensorData, 5000);
+      // Live mode via BroadcastChannel
+      if (typeof BroadcastChannel !== 'undefined') {
+        var bc = new BroadcastChannel('sake-sensor');
+        bc.onmessage = function (e) { updateUI(e.data); };
+      }
+
+      if (mode !== 'replay') {
+        pollSensorData();
+        setInterval(pollSensorData, 5000);
+      }
 
       // ---- POST helper ----
       async function postZoneUpdate(payload) {
@@ -234,27 +288,23 @@
             body: JSON.stringify({ zone: ZONE, ...payload })
           });
           if (!res.ok) console.warn('Zone update failed:', await res.text());
-          else pollSensorData(); // refresh immediately
+          else pollSensorData();
         } catch (e) {
           console.warn('Zone POST error:', e);
         }
       }
 
-      // ---- Setpoint apply ----
       document.getElementById('setpoint-apply').addEventListener('click', function () {
         const sp = parseFloat(setpointIn.value);
         if (!isNaN(sp) && sp >= 0 && sp <= 60) postZoneUpdate({ setpoint_c: sp });
       });
 
-      // ---- Mode buttons ----
       modeAuto.addEventListener('click', function () { postZoneUpdate({ mode: 'auto' }); });
       modeManual.addEventListener('click', function () { postZoneUpdate({ mode: 'manual' }); });
 
-      // ---- Manual fan controls ----
       fanOn.addEventListener('click',  function () { postZoneUpdate({ mode: 'manual', manual_state: true  }); });
       fanOff.addEventListener('click', function () { postZoneUpdate({ mode: 'manual', manual_state: false }); });
 
-      // ---- Alarm threshold apply ----
       document.getElementById('thresholds-apply').addEventListener('click', function () {
         const wh = parseFloat(thrWarnHigh.value);
         const ch = parseFloat(thrCritHigh.value);
@@ -265,19 +315,19 @@
       });
     })();
     </script>
-  <script>
-(function() {
-  function updateHeaderTime() {
-    var el = document.getElementById("header-datetime");
-    if (!el) return;
-    var now = new Date();
-    var dateStr = now.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-    var timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    el.innerHTML = dateStr + "<br>" + timeStr;
-  }
-  updateHeaderTime();
-  setInterval(updateHeaderTime, 1000);
-})();
-</script>
-</body>
+    <script>
+    (function() {
+      function updateHeaderTime() {
+        var el = document.getElementById("header-datetime");
+        if (!el) return;
+        var now = new Date();
+        var dateStr = now.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+        var timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        el.innerHTML = dateStr + "<br>" + timeStr;
+      }
+      updateHeaderTime();
+      setInterval(updateHeaderTime, 1000);
+    })();
+    </script>
+  </body>
 </html>

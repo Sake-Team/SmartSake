@@ -107,33 +107,71 @@
 
     <script>
     (function () {
+      'use strict';
       const ZONE = 5;
+      const params = new URLSearchParams(location.search);
+      const runId  = parseInt(params.get('run'), 10) || null;
+      const mode   = params.get('mode') || 'live';
 
-      // ---- Run name ----
-      const savedRunName = localStorage.getItem('currentRunName');
-      if (savedRunName) {
-        const el = document.getElementById('run-name-display');
-        if (el) el.textContent = '- ' + savedRunName;
+      // ---- Nav & Home Link (Merged) ----
+      document.querySelectorAll('.zones a').forEach(function (a) {
+        if (runId) a.href = a.getAttribute('href').split('?')[0] + '?run=' + runId + '&mode=' + mode;
+      });
+      const homeLink = document.querySelector('.home-link');
+      if (homeLink && runId) {
+        homeLink.href = 'dashboard.html?run=' + runId + '&mode=' + mode;
+        homeLink.textContent = '\u2190 Dashboard';
       }
 
-      // ---- Notes ----
-      (function () {
-        const notesInput = document.getElementById('notes-input');
-        if (!notesInput) return;
-        const saved = localStorage.getItem('currentNotes');
-        if (saved) notesInput.value = saved;
-        let t;
-        notesInput.addEventListener('input', function () {
-          clearTimeout(t);
-          t = setTimeout(function () { localStorage.setItem('currentNotes', notesInput.value); }, 500);
-        });
-        notesInput.addEventListener('blur', function () {
-          clearTimeout(t);
-          localStorage.setItem('currentNotes', notesInput.value);
-        });
-      })();
+      // ---- Run name (Merged) ----
+      const runNameDisplay = document.getElementById('run-name-display');
+      if (runId) {
+        fetch('/api/runs/' + runId)
+          .then(r => r.json())
+          .then(function (run) { if (runNameDisplay) runNameDisplay.textContent = '- ' + run.name; })
+          .catch(function () {
+            const s = localStorage.getItem('currentRunName');
+            if (s && runNameDisplay) runNameDisplay.textContent = '- ' + s;
+          });
+      } else {
+        const s = localStorage.getItem('currentRunName');
+        if (s && runNameDisplay) runNameDisplay.textContent = '- ' + s;
+      }
 
-      // ---- Zone state polling ----
+      // ---- Notes (Merged) ----
+      const notesInput = document.getElementById('notes-input');
+      if (notesInput) {
+        if (mode === 'replay') {
+          notesInput.disabled = true;
+          notesInput.placeholder = 'Notes (read only)';
+        } else {
+          let t;
+          notesInput.addEventListener('input', function () {
+            clearTimeout(t);
+            t = setTimeout(function () { 
+              if (runId) fetch('/api/runs/' + runId + '/zones/' + ZONE, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ note: notesInput.value })
+              }).catch(function () {});
+              localStorage.setItem('currentNotes', notesInput.value); 
+            }, 800);
+          });
+        }
+        if (runId) {
+          fetch('/api/runs/' + runId + '/zones/' + ZONE)
+            .then(r => r.json())
+            .then(function (d) { if (d.note) notesInput.value = d.note; })
+            .catch(function () {
+              const s = localStorage.getItem('currentNotes');
+              if (s) notesInput.value = s;
+            });
+        } else {
+          const s = localStorage.getItem('currentNotes');
+          if (s) notesInput.value = s;
+        }
+      }
+
+      // ---- Zone state polling (PID sensor logic from HEAD) ----
       const dryEl      = document.getElementById('zone-dry-temp');
       const wetEl      = document.getElementById('zone-wet-temp');
       const relayDot   = document.getElementById('relay-dot');
@@ -153,7 +191,8 @@
 
       let currentMode = 'auto';
 
-      function fmtTemp(v) { return (Math.round(v / 0.2) * 0.2).toFixed(1); } function computeWetBulbC(TdbC, RH) {
+      function fmtTemp(v) { return (Math.round(v / 0.2) * 0.2).toFixed(1); } 
+      function computeWetBulbC(TdbC, RH) {
         const R = Math.min(100, Math.max(1, RH));
         return TdbC * Math.atan(0.151977 * Math.sqrt(R + 8.313659)) +
                Math.atan(TdbC + R) - Math.atan(R - 1.676331) +
@@ -161,6 +200,7 @@
       }
 
       async function pollSensorData() {
+        if (mode === 'replay') return;
         try {
           const res = await fetch('sensor_latest.json?_=' + Date.now());
           if (!res.ok) return;
@@ -227,6 +267,7 @@
 
       // ---- POST helper ----
       async function postZoneUpdate(payload) {
+        if (mode === 'replay') return;
         try {
           const res = await fetch('/update_zone', {
             method: 'POST',
@@ -263,6 +304,12 @@
         if ([wh, ch, wl, cl].some(isNaN)) return;
         postZoneUpdate({ alarm_thresholds: { warn_high_c: wh, crit_high_c: ch, warn_low_c: wl, crit_low_c: cl } });
       });
+
+      // ---- Live updates (BroadcastChannel support) ----
+      if (typeof BroadcastChannel !== 'undefined') {
+        var bc = new BroadcastChannel('sake-sensor');
+        bc.onmessage = function (e) { pollSensorData(); };
+      }
     })();
     </script>
   <script>

@@ -1,165 +1,346 @@
 import glob
+import json
 import time
 import csv
 import os
-import json
+import signal
 import threading
-from datetime import datetime
-from http.server import HTTPServer, SimpleHTTPRequestHandler
-from urllib.parse import urlparse
+import board
+import adafruit_sht31d
+from datetime import datetime, timedelta
+import db as sakedb
+import fan_gpio
 
-from sensors import init_sht30, read_sht30, discover_devices, read_temp_c, format_device_id, MAX_THERMOCOUPLES
+from sensors import discover_devices, read_temp_c, format_device_id, MAX_THERMOCOUPLES
 from load_cell_hx711 import HX711, HX711_DAT_PIN, HX711_CLK_PIN, TARE_OFFSET, CALIBRATION_FACTOR, UNITS, SAMPLES_PER_READ, log_weight
-from pid_controller import RelayController
-from historian import Historian
 
 CSV_FILE = "sensor_data.csv"
 JSON_FILE = "sensor_latest.json"
 MAX_CSV_ROWS = 43200  # ~24 hrs at 2-second interval
 
+# SHT30 calibration offset (°C).  Positive = sensor reads too high; adjust until
+# readings match a reference thermometer placed at the same location.
+SHT30_TEMP_OFFSET_C = 0.0
+
 # Shared state updated by background threads
 weight_state = {'kg': None, 'raw': None}
-relay_ctrl = None   # set in __main__ before threads start
-historian = None    # set in __main__ before threads start
-active_run_id = None  # current run being logged; None when no run active
+_active_run_id = None
+
+# ── Deviation detection state ─────────────────────────────────────────────────
+# Keys: (run_id, zone) → {breach_start: datetime, event_id: int|None, max_dev: float}
+_deviation_tracking = {}
+
+# Cached target profile per run to avoid a DB query every loop iteration
+_cached_profile = {"run_id": None, "points": {}}  # points: {zone: [(elapsed_min, temp)]}
+
+# Threshold rules: track when a breach started per (run_id, zone, rule_id)
+_threshold_breach_start = {}
+
+DEVIATION_THRESHOLD_C = 2.0   # °C above/below target to trigger
+DEVIATION_HOLD_MIN    = 10.0  # minutes a breach must persist before logging
+
+# ── PID fan-control constants ─────────────────────────────────────────────────
+DEADBAND_DEG   = 0.5    # °C — within deadband, fan holds current state
+DEADBAND_HOLD  = 3      # consecutive ticks outside deadband required to switch
+INTEGRAL_CLAMP = 20.0   # anti-windup: max abs value of integral accumulator
+_SENSOR_LOOP_S = 2      # nominal loop interval (seconds), used as fallback dt
+
+_BASE_DIR       = os.path.dirname(os.path.abspath(__file__))
+PID_CONFIG_FILE = os.path.join(_BASE_DIR, "pid_config.json")
+FAN_STATE_JSON  = os.path.join(_BASE_DIR, "fan_state.json")
+
+# ── PID runtime state (one per zone, reset on import) ────────────────────────
+_pid_integrals   = {z: 0.0   for z in range(1, 7)}
+_pid_prev_errors = {z: 0.0   for z in range(1, 7)}
+_pid_hold_counts = {z: 0     for z in range(1, 7)}
+_pid_fan_on      = {z: False for z in range(1, 7)}
+_pid_last_time   = None     # datetime of last PID tick, for dt calculation
+
+# PID config cache
+_pid_cfg       = {}
+_pid_cfg_mtime = 0.0
+
+# Mode/setpoint side-channel populated by evaluate_fan_state → _write_fan_state_json
+_last_fan_mode     = {z: "none" for z in range(1, 7)}
+_last_fan_setpoint = {z: None   for z in range(1, 7)}
+_last_fan_pid_out  = {z: None   for z in range(1, 7)}
 
 
-# -----------------------------------------------
-# HTTP SERVER (GET static files + POST zone config)
-# -----------------------------------------------
-class SakeHTTPHandler(SimpleHTTPRequestHandler):
-    """Serves static files and handles zone config POST requests."""
+def _load_target_profile(run_id):
+    """Return {zone: [(elapsed_min, temp_target)]} — cached until run_id changes."""
+    if _cached_profile["run_id"] == run_id:
+        return _cached_profile["points"]
+    rows = sakedb.get_target_profile(run_id)
+    points = {}
+    col_map = {1: "temp1_target", 2: "temp2_target", 3: "temp3_target",
+               4: "temp4_target", 5: "temp5_target", 6: "temp6_target"}
+    for zone, col in col_map.items():
+        pts = [(r["elapsed_min"], r[col]) for r in rows if r[col] is not None]
+        if pts:
+            points[zone] = pts
+    _cached_profile["run_id"] = run_id
+    _cached_profile["points"] = points
+    return points
 
-    def log_message(self, format, *args):
-        pass  # suppress per-request console noise
 
-    def do_GET(self):
-        """Handle /export_run?run_id=N as a CSV download; fall back to static files."""
-        parsed = urlparse(self.path)
-        if parsed.path == '/export_run':
-            self._handle_export_run(parsed.query)
-        else:
-            super().do_GET()
+def _interp_target(profile_pts, elapsed_min):
+    """Linearly interpolate target temp at elapsed_min. Clamps at edges."""
+    if not profile_pts:
+        return None
+    if elapsed_min <= profile_pts[0][0]:
+        return profile_pts[0][1]
+    if elapsed_min >= profile_pts[-1][0]:
+        return profile_pts[-1][1]
+    for i in range(len(profile_pts) - 1):
+        t0, v0 = profile_pts[i]
+        t1, v1 = profile_pts[i + 1]
+        if t0 <= elapsed_min <= t1:
+            frac = (elapsed_min - t0) / (t1 - t0)
+            return v0 + frac * (v1 - v0)
+    return None
 
-    def _handle_export_run(self, query_string):
-        from urllib.parse import parse_qs
-        global historian
-        params = parse_qs(query_string)
-        run_id_list = params.get('run_id', [])
-        if not run_id_list or not historian:
-            self._respond(400, {'error': 'missing run_id or historian not ready'})
-            return
-        try:
-            raw = run_id_list[0]
-            if raw == 'active':
-                run_id = active_run_id
-            else:
-                run_id = int(raw)
-            if run_id is None:
-                self._respond(404, {'error': 'no active run'})
-                return
-            import tempfile, os
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.csv', mode='w') as tmp:
-                tmp_path = tmp.name
-            historian.export_run_csv(run_id, tmp_path)
-            with open(tmp_path, 'rb') as f:
-                data = f.read()
-            os.unlink(tmp_path)
-            filename = f'run_{run_id}.csv'
-            self.send_response(200)
-            self.send_header('Content-Type', 'text/csv')
-            self.send_header('Content-Disposition', f'attachment; filename="{filename}"')
-            self.send_header('Content-Length', str(len(data)))
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            self.wfile.write(data)
-        except Exception as e:
-            self._respond(500, {'error': str(e)})
 
-    def do_POST(self):
-        path = urlparse(self.path).path
-        if path == '/start_run':
-            self._handle_start_run()
-        elif path == '/end_run':
-            self._handle_end_run()
-        elif path == '/update_zone':
-            try:
-                length = int(self.headers.get('Content-Length', 0))
-                body = self.rfile.read(length)
-                data = json.loads(body)
+def _load_pid_config():
+    """Load pid_config.json, reloading automatically when the file changes."""
+    global _pid_cfg, _pid_cfg_mtime
+    try:
+        mtime = os.path.getmtime(PID_CONFIG_FILE)
+        if mtime != _pid_cfg_mtime:
+            with open(PID_CONFIG_FILE) as f:
+                _pid_cfg = json.load(f)
+            _pid_cfg_mtime = mtime
+    except Exception:
+        if not _pid_cfg:
+            _pid_cfg = {"default": {"Kp": 1.0, "Ki": 0.05, "Kd": 0.1}}
+    return _pid_cfg
 
-                zone_num = int(data.get('zone', 0))
-                setpoint_c = data.get('setpoint_c')
-                mode = data.get('mode')
-                manual_state = data.get('manual_state')
-                alarm_thresholds = data.get('alarm_thresholds')
 
-                if relay_ctrl and zone_num in range(1, 7):
-                    relay_ctrl.update_zone(
-                        zone_num,
-                        setpoint_c=float(setpoint_c) if setpoint_c is not None else None,
-                        mode=mode,
-                        manual_state=bool(manual_state) if manual_state is not None else None,
-                        alarm_thresholds=alarm_thresholds if isinstance(alarm_thresholds, dict) else None,
-                    )
-                    relay_ctrl.save_config()
-                    self._respond(200, {'ok': True})
+def _pid_gains(zone):
+    cfg = _load_pid_config()
+    default = cfg.get("default", {"Kp": 1.0, "Ki": 0.05, "Kd": 0.1})
+    return cfg.get(f"zone{zone}", default)
+
+
+def evaluate_fan_state(run, tc_readings):
+    """Return {zone: 'on'|'off'|None} based on overrides, rules, then PID.
+
+    Priority: manual override > enabled rules > PID auto-control > None.
+    For conflicting rules on the same zone, 'on' wins over 'off'.
+    Side-effect: updates _last_fan_mode/_last_fan_setpoint/_last_fan_pid_out.
+    """
+    global _pid_last_time, _pid_integrals, _pid_prev_errors
+    global _pid_hold_counts, _pid_fan_on
+    global _last_fan_mode, _last_fan_setpoint, _last_fan_pid_out
+
+    run_id = run["id"]
+    now = datetime.now()
+    started_at = datetime.fromisoformat(run["started_at"])
+    elapsed_min = (now - started_at).total_seconds() / 60
+
+    result = {z: None for z in range(1, 7)}
+    tc_map = {ch: temp for ch, temp in tc_readings}
+
+    # 1. Manual overrides take priority
+    overrides = sakedb.get_all_fan_overrides(run_id)
+    override_zones = set()
+    for zone, ov in overrides.items():
+        result[zone] = ov["action"]
+        override_zones.add(zone)
+
+    # 2. Evaluate fan rules for non-overridden zones
+    rules = sakedb.get_fan_rules(run_id)
+    rule_zones = set()
+    for rule in rules:
+        if not rule["enabled"]:
+            continue
+        zone = rule["zone"]
+        if zone in override_zones:
+            continue
+
+        fires = False
+        if rule["rule_type"] == "time_window":
+            fires = rule["elapsed_min_start"] <= elapsed_min < rule["elapsed_min_end"]
+
+        elif rule["rule_type"] == "threshold":
+            tc_val = tc_map.get(zone)
+            if tc_val is not None:
+                key = (run_id, zone, rule["id"])
+                exceeds = (rule["threshold_dir"] == "above" and tc_val > rule["threshold_temp_c"]) or \
+                          (rule["threshold_dir"] == "below" and tc_val < rule["threshold_temp_c"])
+                if exceeds:
+                    if key not in _threshold_breach_start:
+                        _threshold_breach_start[key] = now
+                    elapsed_breach = (now - _threshold_breach_start[key]).total_seconds() / 60
+                    fires = elapsed_breach >= rule["threshold_dur_min"]
                 else:
-                    self._respond(400, {'error': 'invalid zone or relay not initialized'})
-            except Exception as e:
-                self._respond(500, {'error': str(e)})
+                    _threshold_breach_start.pop(key, None)
+
+        if fires:
+            # 'on' wins over 'off' for the same zone
+            if result[zone] != "on":
+                result[zone] = rule["fan_action"]
+            rule_zones.add(zone)
+
+    # 3. PID auto-control for zones with no override/rule and a target profile
+    if _pid_last_time is None:
+        dt = float(_SENSOR_LOOP_S)
+    else:
+        dt = max(0.5, (now - _pid_last_time).total_seconds())
+    _pid_last_time = now
+
+    profile = _load_target_profile(run_id)
+    for zone in range(1, 7):
+        if zone in override_zones:
+            _last_fan_mode[zone]     = "manual"
+            _last_fan_setpoint[zone] = None
+            _last_fan_pid_out[zone]  = None
+            continue
+
+        if zone in rule_zones:
+            _last_fan_mode[zone]     = "rule"
+            _last_fan_setpoint[zone] = None
+            _last_fan_pid_out[zone]  = None
+            continue
+
+        pts    = profile.get(zone)
+        actual = tc_map.get(zone)
+        if pts is None or actual is None:
+            _last_fan_mode[zone]     = "none"
+            _last_fan_setpoint[zone] = None
+            _last_fan_pid_out[zone]  = None
+            continue
+
+        setpoint = _interp_target(pts, elapsed_min)
+        if setpoint is None:
+            _last_fan_mode[zone]     = "none"
+            _last_fan_setpoint[zone] = None
+            _last_fan_pid_out[zone]  = None
+            continue
+
+        _last_fan_setpoint[zone] = round(setpoint, 2)
+
+        # PID compute — error > 0 means actual > setpoint (too hot → fan on)
+        gains = _pid_gains(zone)
+        Kp = gains.get("Kp", 1.0)
+        Ki = gains.get("Ki", 0.05)
+        Kd = gains.get("Kd", 0.1)
+
+        error = actual - setpoint
+        _pid_integrals[zone] = max(-INTEGRAL_CLAMP,
+                               min(INTEGRAL_CLAMP,
+                               _pid_integrals[zone] + error * dt))
+        derivative = (error - _pid_prev_errors[zone]) / dt
+        _pid_prev_errors[zone] = error
+        pid_output = Kp * error + Ki * _pid_integrals[zone] + Kd * derivative
+        _last_fan_pid_out[zone] = round(pid_output, 3)
+
+        # Deadband + hold: prevent chattering around setpoint
+        current_on = _pid_fan_on[zone]
+        desired_on = pid_output > 0  # positive = too hot = cool with fan
+
+        if abs(error) <= DEADBAND_DEG:
+            fan_on = current_on          # within deadband — hold
+            _pid_hold_counts[zone] = 0
+        elif desired_on != current_on:
+            _pid_hold_counts[zone] += 1
+            if _pid_hold_counts[zone] >= DEADBAND_HOLD:
+                fan_on = desired_on
+                _pid_hold_counts[zone] = 0
+            else:
+                fan_on = current_on      # not yet — need more consecutive ticks
         else:
-            self._respond(404, {'error': 'not found'})
+            _pid_hold_counts[zone] = 0
+            fan_on = desired_on
 
-    def _handle_start_run(self):
-        global active_run_id
-        try:
-            length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(length)
-            data = json.loads(body)
-            name = str(data.get('name', 'Unnamed Run')).strip() or 'Unnamed Run'
-            if historian:
-                active_run_id = historian.start_run(name)
-                print(f"[Run] Started run '{name}' (id={active_run_id})")
-                self._respond(200, {'ok': True, 'run_id': active_run_id})
+        _pid_fan_on[zone] = fan_on
+        result[zone] = "on" if fan_on else "off"
+        _last_fan_mode[zone] = "pid"
+
+    return result
+
+
+def _write_fan_state_json(fan_states):
+    """Write fan_state.json with current states, modes, setpoints, and PID output."""
+    zones = {}
+    for z in range(1, 7):
+        zones[str(z)] = {
+            "state":    fan_states.get(z),
+            "mode":     _last_fan_mode.get(z, "none"),
+            "setpoint": _last_fan_setpoint.get(z),
+            "pid_out":  _last_fan_pid_out.get(z),
+        }
+    data = {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "zones": zones,
+    }
+    try:
+        with open(FAN_STATE_JSON, "w") as f:
+            json.dump(data, f)
+    except Exception as e:
+        print(f"Could not write fan_state.json: {e}")
+
+
+def check_deviations(run_id, tc_readings, run_started_at):
+    """Detect temp deviations from the target profile and log structured events."""
+    profile = _load_target_profile(run_id)
+    if not profile:
+        return  # No target profile — nothing to compare against
+
+    now = datetime.now()
+    started_at = datetime.fromisoformat(run_started_at)
+    elapsed_min = (now - started_at).total_seconds() / 60
+    tc_map = {ch: temp for ch, temp in tc_readings}
+
+    for zone in range(1, 7):
+        tc_val = tc_map.get(zone)
+        pts = profile.get(zone)
+        if tc_val is None or not pts:
+            continue
+
+        target = _interp_target(pts, elapsed_min)
+        if target is None:
+            continue
+
+        diff = tc_val - target
+        abs_diff = abs(diff)
+        direction = "above" if diff > 0 else "below"
+        key = (run_id, zone)
+        tracking = _deviation_tracking.get(key)
+
+        if abs_diff >= DEVIATION_THRESHOLD_C:
+            if tracking is None:
+                # Start tracking a new potential deviation
+                _deviation_tracking[key] = {
+                    "breach_start": now, "event_id": None, "max_dev": abs_diff
+                }
             else:
-                self._respond(503, {'error': 'historian not initialized'})
-        except Exception as e:
-            self._respond(500, {'error': str(e)})
+                tracking["max_dev"] = max(tracking["max_dev"], abs_diff)
+                if tracking["event_id"] is None:
+                    elapsed_breach = (now - tracking["breach_start"]).total_seconds() / 60
+                    if elapsed_breach >= DEVIATION_HOLD_MIN:
+                        # Breach persisted long enough — create DB event
+                        event_id = sakedb.create_deviation_event(
+                            run_id, zone, tracking["breach_start"].isoformat(),
+                            tracking["max_dev"], direction, DEVIATION_THRESHOLD_C
+                        )
+                        tracking["event_id"] = event_id
+                else:
+                    # Update max deviation on existing event
+                    sakedb.update_deviation_max(tracking["event_id"], tracking["max_dev"])
+        else:
+            if tracking is not None:
+                if tracking["event_id"] is not None:
+                    sakedb.close_deviation_event(
+                        tracking["event_id"], now.isoformat(), tracking["max_dev"]
+                    )
+                del _deviation_tracking[key]
 
-    def _handle_end_run(self):
-        global active_run_id
-        try:
-            length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(length) if length else b'{}'
-            data = json.loads(body) if body else {}
-            notes = data.get('notes')
-            rid = active_run_id
-            if historian and rid is not None:
-                historian.end_run(rid, notes=notes)
-                active_run_id = None
-                print(f"[Run] Ended run id={rid}")
-                self._respond(200, {'ok': True, 'run_id': rid})
-            else:
-                self._respond(400, {'error': 'no active run'})
-        except Exception as e:
-            self._respond(500, {'error': str(e)})
+def init_sht30():
+    i2c = board.I2C()
+    return adafruit_sht31d.SHT31D(i2c)
 
-    def _respond(self, code, payload):
-        body = json.dumps(payload).encode()
-        self.send_response(code)
-        self.send_header('Content-Type', 'application/json')
-        self.send_header('Content-Length', str(len(body)))
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.end_headers()
-        self.wfile.write(body)
-
-
-def start_web_server(port=8080):
-    """Serve the current directory over HTTP in a background thread."""
-    httpd = HTTPServer(("", port), SakeHTTPHandler)
-    print(f"Web server running at http://<pi-ip>:{port}")
-    httpd.serve_forever()
+def read_sht30(sensor):
+    return sensor.temperature - SHT30_TEMP_OFFSET_C, sensor.relative_humidity
 
 
 # -----------------------------------------------
@@ -213,7 +394,7 @@ def write_csv(timestamp, sht_temp, sht_humidity, tc_readings):
 
 
 def write_json(timestamp, sht_temp, sht_humidity, tc_readings):
-    """Write latest readings to sensor_latest.json atomically."""
+    """Write latest readings to a JSON file for the HTML page to fetch."""
     data = {
         "timestamp": timestamp,
         "sht30": {
@@ -225,7 +406,7 @@ def write_json(timestamp, sht_temp, sht_humidity, tc_readings):
             for ch, temp in tc_readings
         },
         "weight_kg": round(weight_state['kg'], 4) if weight_state['kg'] is not None else None,
-        "zones": relay_ctrl.get_zone_states() if relay_ctrl else {}
+        "zones": {}
     }
     tmp_file = JSON_FILE + ".tmp"
     with open(tmp_file, "w") as f:
@@ -233,38 +414,43 @@ def write_json(timestamp, sht_temp, sht_humidity, tc_readings):
     os.replace(tmp_file, JSON_FILE)
 
 
+def _handle_shutdown(signum, frame):
+    """Mark active run as completed on clean shutdown."""
+    if _active_run_id is not None:
+        try:
+            sakedb.end_run(_active_run_id)
+            print(f"Run {_active_run_id} marked as completed.")
+        except Exception as e:
+            print(f"Could not end run cleanly: {e}")
+    fan_gpio.cleanup()
+    raise SystemExit(0)
+
+
 # -----------------------------------------------
 # MAIN
 # -----------------------------------------------
 if __name__ == "__main__":
-    # Start web server
-    server_thread = threading.Thread(target=start_web_server, daemon=True)
-    server_thread.start()
+    signal.signal(signal.SIGTERM, _handle_shutdown)
+    signal.signal(signal.SIGINT, _handle_shutdown)
+
+    # Init DB and resolve active run
+    sakedb.init_db()
+    stale = sakedb.get_active_run()
+    if stale:
+        sakedb.mark_crashed(stale["id"])
+        print(f"Previous run '{stale['name']}' (id={stale['id']}) marked as crashed.")
+
+    # Note: server.py handles the web server / API.
+    # WriteSensors.py only collects sensor data.
+    # Run server.py separately: python server.py
+    print("Sensor collector started. Run 'python server.py' for the web interface.")
+    print("A new run will be created via the web UI; sensor data will attach to it.")
+
+    fan_gpio.init_fans()
 
     # Start HX711 weight thread (fails gracefully if scale not attached)
     hx_thread = threading.Thread(target=run_hx711_thread, daemon=True)
     hx_thread.start()
-
-    # Start PID / relay controller
-    try:
-        relay_ctrl = RelayController()
-        relay_ctrl.load_config()
-        relay_thread = threading.Thread(target=relay_ctrl.run_relay_thread, daemon=True)
-        relay_thread.start()
-        print("Relay/PID controller started.")
-    except Exception as e:
-        print(f"Relay/PID init failed: {e} -- running without relay control")
-
-    # Initialize SQLite historian
-    try:
-        historian = Historian()
-        active_run_id = historian.get_active_run()
-        if active_run_id:
-            print(f"[Historian] Resuming active run id={active_run_id}")
-        else:
-            print("[Historian] No active run — waiting for /start_run")
-    except Exception as e:
-        print(f"[Historian] Init failed: {e} -- running without historian")
 
     # Initialize SHT30
     try:
@@ -316,28 +502,45 @@ if __name__ == "__main__":
                 tc_readings.append((ch, None))
                 print(f"TC{ch}: ERROR ({e})")
 
-        # Update PID with latest readings
-        if relay_ctrl:
-            relay_ctrl.update_all(tc_readings)
-
         if weight_state['kg'] is not None:
             print(f"Weight: {weight_state['kg']:.3f} {UNITS}  (raw: {weight_state['raw']:.0f})")
 
         write_csv(timestamp, sht_temp, sht_humidity, tc_readings)
         write_json(timestamp, sht_temp, sht_humidity, tc_readings)
 
-        if relay_ctrl:
-            relay_ctrl.save_config()
+        # Write to database if a run is active
+        active = sakedb.get_active_run()
+        if active:
+            _active_run_id = active["id"]
+            reading = {
+                "recorded_at": timestamp,
+                "sht_temp": round(sht_temp, 2) if sht_temp is not None else None,
+                "humidity": round(sht_humidity, 2) if sht_humidity is not None else None,
+            }
+            for ch, temp in tc_readings:
+                reading[f"tc{ch}"] = round(temp, 2) if temp is not None else None
 
-        # Log to SQLite historian if a run is active
-        if historian and active_run_id is not None:
-            zone_states = relay_ctrl.get_zone_states() if relay_ctrl else {}
-            historian.log_reading(
-                active_run_id, timestamp,
-                sht_temp, sht_humidity,
-                tc_readings, weight_state['kg'],
-                zone_states
-            )
+            # Evaluate fan rules / PID and set GPIO
+            try:
+                fan_states = evaluate_fan_state(active, tc_readings)
+                for zone, state in fan_states.items():
+                    on = state == "on"
+                    fan_gpio.set_fan(zone, on)
+                    reading[f"fan{zone}"] = 1 if on else 0
+                _write_fan_state_json(fan_states)
+            except Exception as e:
+                print(f"Fan rule evaluation failed: {e}")
+
+            # Check for temperature deviations from target profile
+            try:
+                check_deviations(_active_run_id, tc_readings, active["started_at"])
+            except Exception as e:
+                print(f"Deviation check failed: {e}")
+
+            try:
+                sakedb.insert_reading(_active_run_id, reading)
+            except Exception as e:
+                print(f"DB write failed: {e}")
 
         print("-" * 40)
         time.sleep(2)
