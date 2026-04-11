@@ -6,22 +6,23 @@
 	<title>Sake Table - Dashboard</title>
 	<meta name="viewport" content="width=device-width,initial-scale=1">
 	<link rel="stylesheet" href="styles.css">
+	<link rel="stylesheet" href="customize.css">
 </head>
 
 <body>
 	<div class="page-wrapper">
-		   <header class="header">
-			   <div class="header-inner">
-				   <img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" id="sake-logo-egg" class="sake-logo-egg" />
-				   <h1 class="header-title">
-					   Home <span id="run-name-display" class="run-name-header"></span>
-				   </h1>
-			   </div>
-		   </header>
-
-		   <div class="run-box">
-			   <button id="start-run-btn" class="start-run-btn">Start Run</button>
-		   </div>
+  <header class="header">
+    <div class="header-inner">
+      <img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" id="sake-logo-egg" class="sake-logo-egg" />
+      <h1 class="header-title">Home <span id="run-name-display" class="run-name-header"></span></h1>
+    </div>
+    <div class="header-actions">
+      <div class="header-datetime" id="header-datetime"></div>
+      <div class="run-box">
+        <button id="start-run-btn" class="start-run-btn">Start Run</button>
+      </div>
+    </div>
+  </header>
 
 		<main>
 			<main>
@@ -29,7 +30,7 @@
 					<section class="layout layout--home">
 
 						<section class="zones-combined">
-							<a class="zone-combined" href="zone1.html" role="button" aria-label="Zone 1">
+							<a class="zone-combined" href="zone1.html" role="button" aria-label="Zone 1" data-widget-id="zone-1">
 								<span class="zone-combined__label">Zone 1</span>
 								<div class="temp__value-column">
 									<div class="temp__row">
@@ -38,7 +39,7 @@
 									</div>
 								</div>
 							</a>
-							<a class="zone-combined" href="zone2.html" role="button" aria-label="Zone 2">
+							<a class="zone-combined" href="zone2.html" role="button" aria-label="Zone 2" data-widget-id="zone-2">
 								<span class="zone-combined__label">Zone 2</span>
 								<div class="temp__value-column">
 									<div class="temp__row">
@@ -47,7 +48,7 @@
 									</div>
 								</div>
 							</a>
-							<a class="zone-combined" href="zone3.html" role="button" aria-label="Zone 3">
+							<a class="zone-combined" href="zone3.html" role="button" aria-label="Zone 3" data-widget-id="zone-3">
 								<span class="zone-combined__label">Zone 3</span>
 								<div class="temp__value-column">
 									<div class="temp__row">
@@ -56,7 +57,7 @@
 									</div>
 								</div>
 							</a>
-							<a class="zone-combined" href="zone4.html" role="button" aria-label="Zone 4">
+							<a class="zone-combined" href="zone4.html" role="button" aria-label="Zone 4" data-widget-id="zone-4">
 								<span class="zone-combined__label">Zone 4</span>
 								<div class="temp__value-column">
 									<div class="temp__row">
@@ -65,7 +66,7 @@
 									</div>
 								</div>
 							</a>
-							<a class="zone-combined" href="zone5.html" role="button" aria-label="Zone 5">
+							<a class="zone-combined" href="zone5.html" role="button" aria-label="Zone 5" data-widget-id="zone-5">
 								<span class="zone-combined__label">Zone 5</span>
 								<div class="temp__value-column">
 									<div class="temp__row">
@@ -74,7 +75,7 @@
 									</div>
 								</div>
 							</a>
-							<a class="zone-combined" href="zone6.html" role="button" aria-label="Zone 6">
+							<a class="zone-combined" href="zone6.html" role="button" aria-label="Zone 6" data-widget-id="zone-6">
 								<span class="zone-combined__label">Zone 6</span>
 								<div class="temp__value-column">
 									<div class="temp__row">
@@ -87,6 +88,7 @@
 
 						<div class="notes-wrap">
 							<div class="notes" aria-label="Notes">
+								<div class="notes__label">Notes</div>
 								<label class="sr-only" for="notes-input">Notes</label>
 								<textarea id="notes-input" class="notes__input" placeholder="Enter notes..."
 									aria-label="Notes input"></textarea>
@@ -94,29 +96,38 @@
 						</div>
 
 						<div class="left">
-							<div class="notes__meta" id="notes-meta" aria-live="polite">Date,
-								Time</div>
-							<div class="long long--top-left">
+							<div class="notes__meta" id="notes-meta" aria-live="polite"></div>
+							<div class="long long--top-left" data-widget-id="chart-temp">
 								<div class="chart-header">
 									<span>Temperature over time</span>
+									<span class="chart-header__expand" aria-hidden="true">&#x2197;</span>
 								</div>
 								<canvas id="temp-chart" class="metric-chart"></canvas>
 							</div>
 
-							<div class="long long--top-left">
-								<span>Humidity over time</span>
+							<div class="long long--top-left" data-widget-id="chart-humidity">
+								<div class="chart-header">
+									<span>Humidity over time</span>
+									<span class="chart-header__expand" aria-hidden="true">&#x2197;</span>
+								</div>
 								<canvas id="humidity-chart" class="metric-chart"></canvas>
 							</div>
 
-							<div class="long long--top-left">
-								<span>Fans on/off over time</span>
+							<div class="long long--top-left" data-widget-id="chart-fans">
+								<div class="chart-header">
+									<span>Fans on/off over time</span>
+									<span class="chart-header__expand" aria-hidden="true">&#x2197;</span>
+								</div>
 								<canvas id="fans-chart" class="metric-chart"></canvas>
 							</div>
 
-						<div class="long long--top-left">
-							<span>Weight over time</span>
-							<canvas id="weight-chart" class="metric-chart"></canvas>
-						</div>
+							<div class="long long--top-left" data-widget-id="chart-weight">
+								<div class="chart-header">
+									<span>Weight over time</span>
+									<span class="chart-header__expand" aria-hidden="true">&#x2197;</span>
+								</div>
+								<canvas id="weight-chart" class="metric-chart"></canvas>
+							</div>
 
 
 				</div>
@@ -291,12 +302,10 @@
 			<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 			<script>
-				// Live Date/Time script: updates notes meta and header datetime each minute
-
-				// Live Date/Time script: updates ONLY the notes-meta field
+				// Live Date/Time script: updates notes-meta and header-datetime
 				(function () {
 					const notesMeta = document.getElementById('notes-meta');
-					if (!notesMeta) return;
+					const headerDateTime = document.getElementById('header-datetime');
 
 					function formatNow(d) {
 						const date = d.toLocaleDateString(undefined, {
@@ -312,18 +321,20 @@
 					}
 
 					function update() {
-						notesMeta.textContent = formatNow(new Date());
+						const now = new Date();
+						if (notesMeta) notesMeta.textContent = formatNow(now);
+						if (headerDateTime) {
+							const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+							const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+							headerDateTime.innerHTML = dateStr + '<br>' + timeStr;
+						}
 					}
 
 					// initial update
 					update();
 
-					// align with next minute
-					const msToNext = 60000 - (Date.now() % 60000);
-					let timer = setTimeout(function () {
-						update();
-						timer = setInterval(update, 60000);
-					}, msToNext);
+					// Update every second to keep header-datetime fresh
+					setInterval(update, 1000);
 
 					document.addEventListener('visibilitychange', function () {
 						if (document.visibilityState === 'visible') update();
@@ -471,6 +482,7 @@
 
 						collectedData.forEach(function (data) {
 							csvContent += `${data.timestamp},${data.temp1},${data.temp2},${data.temp3},${data.temp4},` +
+								`${data.timestamp},${data.temp1},${data.temp2},${data.temp3},${data.temp4},` +
 								`${data.temp5},${data.temp6},${data.humidity},${data.fan1},${data.fan2},` +
 								`${data.fan3},${data.fan4},${data.fan5},${data.fan6},"${data.notes}"\n`;
 						});
@@ -2005,6 +2017,7 @@
 
 
 	</div> <!-- end page-wrapper -->
+	<script src="customize.js"></script>
 </body>
 
 </html>

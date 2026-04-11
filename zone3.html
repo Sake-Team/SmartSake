@@ -12,14 +12,17 @@
         <img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" class="sake-logo-egg">
         <h1 class="header-title">Zone 3 <span id="run-name-display" class="run-name-header"></span></h1>
       </div>
-    </header>
+    <div class="header-actions">
+      <div class="header-datetime" id="header-datetime"></div>
+    </div>
+  </header>
     <main>
       <div class="stage">
         <section class="layout">
           <section class="zones">
             <a class="zone" href="zone1.html" role="button" aria-label="Zone 1">Zone 1</a>
             <a class="zone" href="zone2.html" role="button" aria-label="Zone 2">Zone 2</a>
-            <a class="zone" href="zone3.html" role="button" aria-label="Zone 3">Zone 3</a>
+            <a class="zone zone--active" href="zone3.html" role="button" aria-label="Zone 3">Zone 3</a>
             <a class="zone" href="zone4.html" role="button" aria-label="Zone 4">Zone 4</a>
             <a class="zone" href="zone5.html" role="button" aria-label="Zone 5">Zone 5</a>
             <a class="zone" href="zone6.html" role="button" aria-label="Zone 6">Zone 6</a>
@@ -92,7 +95,8 @@
           </div>
 
           <div class="notes" aria-label="Notes">
-            <a class="home-link" href="index.html">Home</a>
+            <a class="home-link" href="index.html">&#8592; Home</a>
+            <div class="notes__label">Notes</div>
             <label class="sr-only" for="notes-input">Notes</label>
             <textarea id="notes-input" class="notes__input"
               placeholder="Enter notes..." aria-label="Notes input"></textarea>
@@ -188,6 +192,8 @@
 
             const on = zone.relay_state;
             relayDot.className = 'zone-status-dot ' + (on ? 'zone-status-dot--on' : 'zone-status-dot--off');
+            fanOn.classList.toggle('mid--fan-active',  on === true);
+            fanOff.classList.toggle('mid--fan-active', on === false && currentMode === 'manual');
             relayLabel.textContent = on ? 'Fan ON' : 'Fan OFF';
             if (pidOut) pidOut.textContent = zone.pid_output != null ? zone.pid_output : '--';
             // Alarm state
@@ -259,5 +265,19 @@
       });
     })();
     </script>
-  </body>
+  <script>
+(function() {
+  function updateHeaderTime() {
+    var el = document.getElementById("header-datetime");
+    if (!el) return;
+    var now = new Date();
+    var dateStr = now.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+    var timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    el.innerHTML = dateStr + "<br>" + timeStr;
+  }
+  updateHeaderTime();
+  setInterval(updateHeaderTime, 1000);
+})();
+</script>
+</body>
 </html>

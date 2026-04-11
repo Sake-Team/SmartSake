@@ -1,0 +1,291 @@
+/* =============================================
+   SmartSake — Customize System
+   Settings panel, theme swatches, drag-and-drop
+   ============================================= */
+
+/* ----- Settings Toggle FAB ----- */
+.settings-toggle {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-pill);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  box-shadow: var(--shadow-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 900;
+  color: var(--color-text-2);
+  transition: background var(--t), color var(--t), transform var(--t), box-shadow var(--t);
+}
+.settings-toggle:hover {
+  background: var(--color-bg-subtle);
+  transform: scale(1.08) rotate(30deg);
+  box-shadow: var(--shadow-hover);
+}
+.settings-toggle--active {
+  background: var(--color-accent);
+  color: #fff;
+  border-color: var(--color-accent);
+  transform: rotate(60deg);
+}
+.settings-toggle--active:hover {
+  transform: scale(1.08) rotate(90deg);
+}
+
+/* ----- Settings Panel ----- */
+.settings-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 300px;
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  box-shadow: -8px 0 40px rgba(0, 0, 0, 0.12);
+  z-index: 850;
+  transform: translateX(100%);
+  transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+.settings-panel--open {
+  transform: translateX(0);
+}
+
+.settings-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  background: var(--color-surface);
+  z-index: 1;
+}
+.settings-panel__title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--color-text-1);
+}
+.settings-panel__close {
+  background: none;
+  border: none;
+  font-size: 1.3rem;
+  line-height: 1;
+  color: var(--color-text-3);
+  cursor: pointer;
+  padding: 4px 7px;
+  border-radius: var(--r-sm);
+  font-family: inherit;
+  transition: background var(--t), color var(--t);
+}
+.settings-panel__close:hover { background: var(--color-bg-subtle); color: var(--color-text-1); }
+
+/* ----- Settings Sections ----- */
+.settings-section {
+  padding: 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+.settings-section:last-child { border-bottom: none; }
+
+.settings-section__label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-3);
+  margin-bottom: 14px;
+}
+
+/* ----- Theme Swatches ----- */
+.theme-swatches {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.theme-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 8px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--r-md);
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color var(--t), box-shadow var(--t), transform var(--t);
+}
+.theme-swatch:hover {
+  border-color: var(--color-border-strong);
+  transform: translateY(-1px);
+}
+.theme-swatch--active {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2.5px rgba(21, 126, 251, 0.18);
+}
+
+.theme-swatch__preview {
+  width: 38px;
+  height: 28px;
+  border-radius: 5px;
+  border: 2.5px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.theme-swatch__preview--custom {
+  background: conic-gradient(
+    #ff6b6b 0deg 72deg,
+    #157efb 72deg 144deg,
+    #22c55e 144deg 216deg,
+    #e6a817 216deg 288deg,
+    #a855f7 288deg 360deg
+  );
+  border-color: transparent;
+}
+
+.theme-swatch__label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--color-text-2);
+}
+
+/* ----- Custom Color Pickers ----- */
+.color-picker-row {
+  display: flex;
+  gap: 10px;
+}
+
+.color-picker-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-2);
+  flex: 1;
+  font-family: inherit;
+}
+
+.color-picker-label input[type="color"] {
+  width: 100%;
+  height: 36px;
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: var(--r-sm);
+  padding: 3px;
+  cursor: pointer;
+  background: var(--color-surface);
+  transition: border-color var(--t);
+}
+.color-picker-label input[type="color"]:hover { border-color: var(--color-accent); }
+
+/* ----- Edit Layout Button ----- */
+.settings-edit-btn {
+  width: 100%;
+  padding: 9px 16px;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: var(--r-sm);
+  font-size: 0.875rem;
+  font-weight: 700;
+  font-family: inherit;
+  color: var(--color-text-1);
+  cursor: pointer;
+  transition: background var(--t), border-color var(--t), color var(--t), box-shadow var(--t);
+  margin-bottom: 10px;
+  letter-spacing: -0.01em;
+}
+.settings-edit-btn:hover {
+  background: var(--color-bg-subtle);
+  border-color: var(--color-accent);
+}
+.settings-edit-btn.active {
+  background: var(--color-accent);
+  color: #fff;
+  border-color: var(--color-accent);
+  box-shadow: 0 2px 8px rgba(21,126,251,0.28);
+}
+
+.settings-hint {
+  font-size: 0.77rem;
+  color: var(--color-text-3);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ----- Drag & Drop States ----- */
+.layout-edit-mode .long,
+.layout-edit-mode .zone-combined {
+  cursor: grab;
+  transition: opacity var(--t), box-shadow var(--t), transform var(--t), outline var(--t);
+  outline: 1.5px dashed var(--color-border-strong);
+  outline-offset: 2px;
+}
+.layout-edit-mode .long:active,
+.layout-edit-mode .zone-combined:active {
+  cursor: grabbing;
+}
+
+/* Drag handle hint dot-grid */
+.layout-edit-mode .long::after,
+.layout-edit-mode .zone-combined::after {
+  content: '⠿';
+  position: absolute;
+  top: 7px;
+  right: 9px;
+  font-size: 0.85rem;
+  color: var(--color-text-3);
+  opacity: 0.6;
+  z-index: 10;
+  pointer-events: none;
+  line-height: 1;
+}
+
+.widget-dragging {
+  opacity: 0.35;
+  box-shadow: var(--shadow-modal) !important;
+  transform: scale(0.97) !important;
+}
+
+.widget-drag-over {
+  outline: 2px dashed var(--color-accent) !important;
+  outline-offset: 3px !important;
+  background: rgba(21, 126, 251, 0.04) !important;
+  transform: scale(1.01);
+}
+
+/* ----- Edit mode banner ----- */
+.edit-mode-banner {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%) translateY(-100%);
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 7px 20px;
+  border-radius: 0 0 var(--r-md) var(--r-md);
+  z-index: 1000;
+  letter-spacing: 0.02em;
+  transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+.layout-edit-mode .edit-mode-banner {
+  transform: translateX(-50%) translateY(0);
+}
