@@ -7,71 +7,72 @@
 	<link rel="stylesheet" href="styles.css">
 	<style>
 		/* ── Page chrome ────────────────────────────────────────── */
-		body { background: #f4f4f8; font-family: system-ui, sans-serif; color: #222; margin: 0; }
-		.page-header { background: #fff; border-bottom: 1px solid #e1e1e6; padding: 12px 24px; display: flex; align-items: center; gap: 16px; }
+		body { background: var(--color-bg); color: var(--color-text-1); margin: 0; }
+		.page-header { background: var(--color-surface); border-bottom: 1px solid var(--color-border); padding: 12px 24px; display: flex; align-items: center; gap: 16px; }
 		.page-header h1 { font-size: 1.15rem; font-weight: 700; margin: 0; }
-		.back-link { font-size: .82rem; color: #666; text-decoration: none; }
-		.back-link:hover { color: #222; }
+		.back-link { font-size: .82rem; color: var(--color-text-2); text-decoration: none; }
+		.back-link:hover { color: var(--color-text-1); }
 
 		main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
 
 		/* ── Tab bar ─────────────────────────────────────────────── */
-		.tabs { display: flex; gap: 0; border-bottom: 2px solid #e1e1e6; margin-bottom: 20px; }
-		.tab-btn { padding: 8px 20px; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; font-size: .9rem; color: #666; }
-		.tab-btn.is-active { color: #3a5a8a; border-bottom-color: #3a5a8a; font-weight: 600; }
+		.tabs { display: flex; gap: 0; border-bottom: 2px solid var(--color-border); margin-bottom: 20px; }
+		.tab-btn { padding: 8px 20px; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; font-size: .9rem; color: var(--color-text-2); }
+		.tab-btn.is-active { color: var(--color-accent); border-bottom-color: var(--color-accent); font-weight: 600; }
 
 		/* ── Cards / sections ────────────────────────────────────── */
-		.card { background: #fff; border: 1px solid #e1e1e6; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); padding: 20px; margin-bottom: 18px; }
+		.card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--r-md); box-shadow: var(--shadow-card); padding: 20px; margin-bottom: 18px; }
 		.card h2 { font-size: 1rem; font-weight: 700; margin: 0 0 14px; }
 
 		/* ── Run list ────────────────────────────────────────────── */
 		.run-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
-		.run-table th { text-align: left; padding: 6px 10px; border-bottom: 2px solid #e1e1e6; color: #888; font-weight: 600; font-size: .78rem; text-transform: uppercase; }
-		.run-table td { padding: 8px 10px; border-bottom: 1px solid #f0f0f4; vertical-align: middle; }
-		.run-table tr:hover td { background: #f7f7fb; }
-		.run-table tr.is-selected td { background: #eef4ff; }
+		.run-table th { text-align: left; padding: 6px 10px; border-bottom: 2px solid var(--color-border); color: var(--color-text-3); font-weight: 600; font-size: .78rem; text-transform: uppercase; }
+		.run-table td { padding: 8px 10px; border-bottom: 1px solid var(--color-border); vertical-align: middle; }
+		.run-table tr:hover td { background: var(--color-bg-subtle); }
+		.run-table tr.is-selected td { background: var(--color-bg-tinted); }
 		.stars { color: #d79b00; letter-spacing: -1px; }
-		.badge { display: inline-block; font-size: .72rem; padding: 1px 7px; border-radius: 10px; }
-		.badge--completed { background: #e6f4ea; color: #2a7d2a; }
-		.badge--crashed { background: #fde; color: #a00; }
-		.badge--active { background: #e8f0fe; color: #1a5c99; }
+		.badge { display: inline-block; font-size: .72rem; padding: 1px 7px; border-radius: var(--r-pill); }
+		.badge--completed { background: var(--color-success-bg); color: var(--color-success); }
+		.badge--crashed { background: var(--color-critical-bg); color: var(--color-critical); }
+		.badge--active { background: rgba(21,126,251,0.1); color: var(--color-accent); }
 
 		/* ── Metadata editor ─────────────────────────────────────── */
 		.meta-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px; }
-		.meta-form label { display: flex; flex-direction: column; gap: 4px; font-size: .82rem; color: #555; }
+		.meta-form label { display: flex; flex-direction: column; gap: 4px; font-size: .82rem; color: var(--color-text-2); }
 		.meta-form input, .meta-form select, .meta-form textarea {
-			border: 1px solid #d0d0d8; border-radius: 5px; padding: 5px 8px;
-			font-size: .85rem; font-family: inherit;
+			border: 1px solid var(--color-border); border-radius: var(--r-sm); padding: 5px 8px;
+			font-size: .85rem; font-family: inherit; background: var(--color-bg-subtle); color: var(--color-text-1);
 		}
 		.meta-form textarea { resize: vertical; min-height: 60px; grid-column: 1 / -1; }
 		.star-input { display: flex; gap: 4px; font-size: 1.4rem; }
-		.star-input span { cursor: pointer; color: #ddd; transition: color .1s; }
+		.star-input span { cursor: pointer; color: var(--color-border-strong); transition: color .1s; }
 		.star-input span.is-on { color: #d79b00; }
 		.meta-save-row { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
-		.save-status { font-size: .8rem; color: #2a7d2a; }
+		.save-status { font-size: .8rem; color: var(--color-success); }
 
 		/* ── Correlation charts ──────────────────────────────────── */
 		.corr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-		.corr-card { background: #fff; border: 1px solid #e1e1e6; border-radius: 8px; padding: 14px; }
-		.corr-card h3 { font-size: .85rem; color: #555; margin: 0 0 4px; }
-		.corr-r { font-size: .8rem; color: #888; margin: 0 0 8px; }
+		.corr-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--r-md); padding: 14px; }
+		.corr-card h3 { font-size: .85rem; color: var(--color-text-2); margin: 0 0 4px; }
+		.corr-r { font-size: .8rem; color: var(--color-text-3); margin: 0 0 8px; }
 		.corr-canvas-wrap { position: relative; height: 200px; }
-		.corr-need-more { font-size: .82rem; color: #aaa; padding: 20px 0; text-align: center; }
+		.corr-need-more { font-size: .82rem; color: var(--color-text-3); padding: 20px 0; text-align: center; }
 
 		/* ── Buttons ─────────────────────────────────────────────── */
-		.btn { padding: 7px 16px; border-radius: 6px; border: 1px solid #d0d0d8; cursor: pointer; font-size: .85rem; }
-		.btn--primary { background: #3a5a8a; color: #fff; border-color: #3a5a8a; }
-		.btn--primary:hover { background: #2d4870; }
+		.btn { padding: 7px 16px; border-radius: var(--r-sm); border: 1px solid var(--color-border); cursor: pointer; font-size: .85rem; background: var(--color-surface); color: var(--color-text-1); }
+		.btn--primary { background: var(--color-accent); color: #fff; border-color: var(--color-accent); }
+		.btn--primary:hover { background: var(--color-accent-hover); }
 		.btn--sm { padding: 4px 10px; font-size: .78rem; }
 
 		/* ── No-select panel ─────────────────────────────────────── */
-		.no-select-hint { color: #aaa; font-size: .85rem; text-align: center; padding: 30px 0; }
+		.no-select-hint { color: var(--color-text-3); font-size: .85rem; text-align: center; padding: 30px 0; }
 
 		@media (max-width: 680px) {
 			.corr-grid { grid-template-columns: 1fr; }
 			.meta-form { grid-template-columns: 1fr; }
 		}
 	</style>
+	<script src="customize.js" defer></script>
 </head>
 <body>
 <header class="page-header">

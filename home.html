@@ -21,9 +21,9 @@
 
     /* ── card ── */
     .hcard {
-      background: var(--theme-surface, #181818);
-      border: 1px solid var(--theme-border, rgba(255,255,255,0.07));
-      border-radius: 10px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--r-lg);
       padding: 1.1rem 1.35rem 1.25rem;
     }
 
@@ -33,14 +33,14 @@
       font-weight: 700;
       letter-spacing: 0.1em;
       text-transform: uppercase;
-      color: var(--theme-text-muted, #666);
+      color: var(--color-text-3);
       margin: 0 0 0.9rem;
     }
 
     /* ── active run meta line ── */
     .run-meta {
       font-size: 0.82rem;
-      color: var(--theme-text-muted, #888);
+      color: var(--color-text-2);
       margin: 0 0 1rem;
       line-height: 1.6;
     }
@@ -51,7 +51,7 @@
       align-items: center;
       gap: 5px;
       padding: 2px 9px 2px 6px;
-      border-radius: 999px;
+      border-radius: var(--r-pill);
       font-size: 0.7rem;
       font-weight: 700;
       vertical-align: middle;
@@ -74,19 +74,19 @@
     }
     .h-input-row input[type=text] {
       flex: 1;
-      background: rgba(255,255,255,0.055);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 7px;
-      color: var(--theme-text, #ddd);
+      background: var(--color-bg-subtle);
+      border: 1px solid var(--color-border);
+      border-radius: var(--r-sm);
+      color: var(--color-text-1);
       font-size: 0.9rem;
       padding: 0.48rem 0.8rem;
       outline: none;
       transition: border-color 0.15s;
     }
     .h-input-row input[type=text]:focus {
-      border-color: rgba(255,255,255,0.25);
+      border-color: var(--color-accent);
     }
-    .h-input-row input[type=text]::placeholder { color: #4a4a4a; }
+    .h-input-row input[type=text]::placeholder { color: var(--color-text-3); }
 
     /* ── field row (label + control) ── */
     .h-field {
@@ -98,21 +98,21 @@
     }
     .h-field-label {
       font-size: 0.78rem;
-      color: var(--theme-text-muted, #777);
+      color: var(--color-text-2);
       white-space: nowrap;
     }
     .h-field select {
-      background: rgba(255,255,255,0.055);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 5px;
-      color: var(--theme-text, #ccc);
+      background: var(--color-bg-subtle);
+      border: 1px solid var(--color-border);
+      border-radius: var(--r-sm);
+      color: var(--color-text-1);
       font-size: 0.8rem;
       padding: 3px 8px;
       outline: none;
     }
     .h-field input[type=file] {
       font-size: 0.78rem;
-      color: var(--theme-text-muted, #888);
+      color: var(--color-text-2);
     }
     .upload-status { font-size: 0.77rem; }
 
@@ -122,7 +122,7 @@
       align-items: center;
       justify-content: center;
       border: none;
-      border-radius: 7px;
+      border-radius: var(--r-sm);
       cursor: pointer;
       font-size: 0.82rem;
       font-weight: 600;
@@ -132,19 +132,19 @@
       white-space: nowrap;
     }
     .hbtn:hover { opacity: 0.82; }
-    .hbtn-primary { background: #d40000; color: #fff; }
+    .hbtn-primary { background: var(--color-brand); color: #fff; }
     .hbtn-secondary {
-      background: rgba(255,255,255,0.07);
-      border: 1px solid rgba(255,255,255,0.1);
-      color: var(--theme-text, #ccc);
+      background: var(--color-bg-subtle);
+      border: 1px solid var(--color-border);
+      color: var(--color-text-1);
     }
-    .hbtn-secondary:hover { background: rgba(255,255,255,0.11); opacity: 1; }
+    .hbtn-secondary:hover { background: var(--color-bg-tinted); opacity: 1; }
     .hbtn-ghost {
       background: transparent;
-      border: 1px solid rgba(255,255,255,0.1);
-      color: var(--theme-text-muted, #888);
+      border: 1px solid var(--color-border);
+      color: var(--color-text-2);
     }
-    .hbtn-ghost:hover { background: rgba(255,255,255,0.05); opacity: 1; }
+    .hbtn-ghost:hover { background: var(--color-bg-subtle); opacity: 1; }
     .hbtn-danger {
       background: rgba(160,30,30,0.2);
       border: 1px solid rgba(160,30,30,0.3);
@@ -157,7 +157,7 @@
     .hbtn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 
     /* ── divider between list rows ── */
-    .h-divider { border: none; border-top: 1px solid var(--theme-border, rgba(255,255,255,0.06)); margin: 0; }
+    .h-divider { border: none; border-top: 1px solid var(--color-border); margin: 0; }
 
     /* ── run list row ── */
     .run-row {
@@ -166,23 +166,23 @@
       align-items: center;
       padding: 0.65rem 0.4rem;
       cursor: pointer;
-      border-radius: 6px;
+      border-radius: var(--r-sm);
       transition: background 0.12s;
       gap: 0.5rem;
     }
-    .run-row:hover { background: rgba(255,255,255,0.04); }
+    .run-row:hover { background: var(--color-bg-subtle); }
     .run-row-info { flex: 1; min-width: 0; }
     .run-row-name {
       font-size: 0.88rem;
       font-weight: 600;
-      color: var(--theme-text, #e0e0e0);
+      color: var(--color-text-1);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .run-row-meta {
       font-size: 0.75rem;
-      color: var(--theme-text-muted, #666);
+      color: var(--color-text-2);
       margin-top: 2px;
     }
     .run-row-actions { display: flex; gap: 0.35rem; flex-shrink: 0; }
@@ -190,12 +190,13 @@
     /* ── empty state ── */
     .empty-msg {
       font-size: 0.85rem;
-      color: var(--theme-text-muted, #555);
+      color: var(--color-text-2);
       font-style: italic;
       margin: 0;
       padding: 0.25rem 0.4rem;
     }
   </style>
+  <script src="customize.js" defer></script>
 </head>
 <body>
   <div class="page-wrapper">
