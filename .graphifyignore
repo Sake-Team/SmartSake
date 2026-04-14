@@ -1,0 +1,15 @@
+# graphify ignore for SmartSake — code repo only
+node_modules/
+.git/
+.graphify/
+graphify-out/cache/
+backup/
+*.lock
+*.log
+*.map
+*.min.js
+*.min.css
+__pycache__/
+*.pyc
+.env
+.env.*

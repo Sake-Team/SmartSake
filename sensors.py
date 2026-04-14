@@ -22,7 +22,7 @@ def discover_devices():
     Discover MAX31850K devices.
     They usually appear as '3b-xxxxxxxxxxxx'
     """
-    return sorted(glob.glob(f"{W1_BASE}/3b-*"))
+    return sorted(glob.glob(f"{W1_BASE}/3b-*"))[:MAX_THERMOCOUPLES]
 
 def read_temp_c(device_folder):
     """
