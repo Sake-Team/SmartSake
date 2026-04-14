@@ -400,7 +400,7 @@
     const chart = window._weightChart;
     if (!chart || !samples.length) return;
     chart.data.labels = samples.map(s => s.elapsed_min);
-    chart.data.datasets[0].data = samples.map(s => s.weight_lbs);
+    chart.data.datasets[0].data = samples.map(s => s.weight_total_lbs != null ? s.weight_total_lbs : s.weight_lbs);
     chart.update("none");
   }
 

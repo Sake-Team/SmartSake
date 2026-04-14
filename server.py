@@ -8,15 +8,17 @@ Default port: 8080
 
 import json
 import os
+import time
 from flask import Flask, jsonify, request, send_from_directory, abort
 
 import db
+import fan_gpio
 
-BASE_DIR        = os.path.dirname(__file__)
-SENSOR_JSON     = os.path.join(BASE_DIR, "sensor_latest.json")
-SCALE_JSON      = os.path.join(BASE_DIR, "scale_data.json")
-FAN_STATE_JSON  = os.path.join(BASE_DIR, "fan_state.json")
-PID_CONFIG_FILE = os.path.join(BASE_DIR, "pid_config.json")
+BASE_DIR         = os.path.dirname(__file__)
+SENSOR_JSON      = os.path.join(BASE_DIR, "sensor_latest.json")
+FAN_STATE_JSON   = os.path.join(BASE_DIR, "fan_state.json")
+PID_CONFIG_FILE  = os.path.join(BASE_DIR, "pid_config.json")
+SCALE_CONFIG_FILE = os.path.join(BASE_DIR, "scale_config.json")
 
 app = Flask(__name__, static_folder=BASE_DIR, static_url_path="")
 
@@ -42,8 +44,8 @@ def api_latest():
     Returns the latest sensor readings in a flat format matching DB column names:
       tc1–tc6, sht_temp, humidity, weight_lbs, timestamp
 
-    Reads sensor_latest.json (written by WriteSensors.py) and scale_data.json,
-    then normalizes the nested sensor_latest structure into flat keys so the
+    Reads sensor_latest.json (written by WriteSensors.py) and normalizes the
+    nested structure into flat keys so the
     dashboard and zone pages use the same key names as the historical readings API.
     """
     raw = {}
@@ -87,26 +89,104 @@ def api_latest():
     result["sht_temp"] = round(sht_temp, 2) if isinstance(sht_temp, (int, float)) else None
     result["humidity"] = round(humidity,  2) if isinstance(humidity,  (int, float)) else None
 
-    # Scale data
-    if os.path.exists(SCALE_JSON):
-        try:
-            with open(SCALE_JSON) as f:
-                scale = json.load(f)
-            weight_val   = scale.get("weight_value")
-            weight_units = scale.get("weight_units", "lbs")
-            if isinstance(weight_val, (int, float)):
-                # Convert to lbs if needed
-                if str(weight_units).lower() in ("kg", "kilogram", "kilograms"):
-                    weight_val = round(weight_val * 2.20462, 3)
-                result["weight_lbs"] = round(weight_val, 3)
-            else:
-                result["weight_lbs"] = None
-        except Exception:
-            result["weight_lbs"] = None
-    else:
-        result["weight_lbs"] = None
+    # Scale data — read weight_kg_1..4 from sensor_latest.json
+    for i in range(1, 5):
+        key = f"weight_kg_{i}"
+        val = raw.get(key)
+        if isinstance(val, (int, float)):
+            result[f"weight_lbs_{i}"] = round(val * 2.20462, 3)
+        else:
+            result[f"weight_lbs_{i}"] = None
+    # weight_lbs alias for backwards compat with analytics queries
+    result["weight_lbs"] = result["weight_lbs_1"]
+
+    total = sum(
+        result[f"weight_lbs_{i}"]
+        for i in range(1, 5)
+        if result.get(f"weight_lbs_{i}") is not None
+    )
+    result["weight_total_lbs"] = round(total, 3) if total else None
 
     return jsonify(result)
+
+
+# ── Health gate ───────────────────────────────────────────────────────────────
+
+@app.route("/api/health")
+def api_health():
+    raw = {}
+    sensor_age_s = None
+
+    if os.path.exists(SENSOR_JSON):
+        try:
+            mtime = os.path.getmtime(SENSOR_JSON)
+            sensor_age_s = round(time.time() - mtime, 1)
+            with open(SENSOR_JSON) as f:
+                raw = json.load(f)
+        except Exception:
+            pass
+
+    # SHT30
+    sht_data = raw.get("sht30", {})
+    sht_temp = sht_data.get("temp_c")
+    sht_hum  = sht_data.get("humidity_rh")
+    if sht_temp is None or sht_hum is None:
+        sht_status = {"status": "missing"}
+    elif not (-10 <= sht_temp <= 80) or not (0 <= sht_hum <= 100):
+        sht_status = {"status": "error", "temp_c": sht_temp, "humidity": sht_hum}
+    else:
+        sht_status = {"status": "ok", "temp_c": sht_temp, "humidity": sht_hum}
+
+    # Thermocouples
+    tcs_raw = raw.get("thermocouples", {})
+    thermocouples = {}
+    for i in range(1, 7):
+        val = tcs_raw.get(f"TC{i}")
+        if val is None:
+            thermocouples[str(i)] = {"status": "missing"}
+        elif -10 <= val <= 200:
+            thermocouples[str(i)] = {"status": "ok", "temp_c": val}
+        else:
+            thermocouples[str(i)] = {"status": "missing"}
+
+    # Scales
+    scale_cfg = {}
+    try:
+        with open(SCALE_CONFIG_FILE) as f:
+            scale_cfg = json.load(f).get("scales", {})
+    except Exception:
+        pass
+
+    scales = {}
+    for i in range(1, 5):
+        cfg = scale_cfg.get(str(i), {})
+        if cfg.get("dat_pin") is None:
+            scales[str(i)] = {"status": "not_wired"}
+        else:
+            wkg = raw.get(f"weight_kg_{i}")
+            if wkg is not None:
+                scales[str(i)] = {"status": "ok", "weight_kg": wkg}
+            else:
+                scales[str(i)] = {"status": "no_data"}
+
+    # Relays
+    relays = {}
+    for i in range(1, 7):
+        pin = fan_gpio.FAN_PINS.get(i)
+        relays[str(i)] = {"status": "wired" if pin is not None else "not_wired"}
+
+    # Ready flag
+    tc_ok = any(v["status"] == "ok" for v in thermocouples.values())
+    ready = sht_status["status"] == "ok" and tc_ok
+
+    return jsonify({
+        "sht30": sht_status,
+        "thermocouples": thermocouples,
+        "scales": scales,
+        "relays": relays,
+        "ready": ready,
+        "sensor_age_s": sensor_age_s,
+    })
 
 
 # ── Runs ──────────────────────────────────────────────────────────────────────
@@ -534,6 +614,19 @@ def api_weight_analytics(run_id):
     # Include target band from runs table
     data["weight_target_min"] = run.get("weight_target_min")
     data["weight_target_max"] = run.get("weight_target_max")
+    # Add per-scale breakdown from live sensor_latest.json
+    raw_sensor = {}
+    if os.path.exists(SENSOR_JSON):
+        try:
+            with open(SENSOR_JSON) as f:
+                raw_sensor = json.load(f)
+        except Exception:
+            pass
+    breakdown = {}
+    for i in range(1, 5):
+        val = raw_sensor.get(f"weight_kg_{i}")
+        breakdown[str(i)] = round(val * 2.20462, 3) if isinstance(val, (int, float)) else None
+    data["weight_breakdown"] = breakdown
     return jsonify(data)
 
 
@@ -685,5 +778,5 @@ def api_save_pid_config():
 
 
 if __name__ == "__main__":
-    print("SmartSake server starting on http://0.0.0.0:8080")
+    # Dev only — use gunicorn in production (see systemd/smartsake-server.service)
     app.run(host="0.0.0.0", port=8080, debug=False)

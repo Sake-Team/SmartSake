@@ -14,42 +14,14 @@ import time
 import statistics
 import json
 import os
+import sys
 from datetime import datetime
-
-# -----------------------------------------------
-# GPIO PIN CONFIGURATION (BCM numbering)
-# -----------------------------------------------
-# HX711 DAT  -> GPIO 5  (Physical Pin 29)
-# HX711 CLK  -> GPIO 6  (Physical Pin 31)
-# HX711 VCC  -> 3.3V    (Physical Pin 1)
-# HX711 GND  -> GND     (Physical Pin 6)
-
-HX711_DAT_PIN = 5   # GPIO 5  | Physical Pin 29
-HX711_CLK_PIN = 6   # GPIO 6  | Physical Pin 31
-
-# -----------------------------------------------
-# CALIBRATION SETTINGS
-# -----------------------------------------------
-# 233 FX29X 040A 0200 L ND specs:
-#   Capacity:  200 lbf (889.6 N)
-#   Output:    2 mV/V nominal
-#   Excitation: 3-10V (using 3.3V from Pi)
-#
-# Run with --calibrate flag first, then update these:
-TARE_OFFSET        = 4166       # Raw ADC value with no load
-CALIBRATION_FACTOR = 8000     # Raw units per gram
-UNITS              = "kg"    # "kg", "lbs", or "g"
 
 # -----------------------------------------------
 # SYSTEM SETTINGS
 # -----------------------------------------------
 READ_INTERVAL_SEC  = 0.5       # Seconds between readings
 SAMPLES_PER_READ   = 10      # Readings averaged per output
-
-# Log file path - writes to same folder as this script
-SCRIPT_DIR         = os.path.dirname(os.path.abspath(__file__))
-DATA_LOG_FILE      = os.path.join(SCRIPT_DIR, "scale_data.json")
-ENABLE_DATA_LOG    = True
 
 
 # -----------------------------------------------
@@ -210,19 +182,41 @@ def calibrate(hx):
 
 
 # -----------------------------------------------
+# CONFIG LOADER
+# -----------------------------------------------
+def load_scale_config(path="scale_config.json"):
+    """Load scale_config.json and return {scale_id: HX711_instance} for configured scales."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    if not os.path.isabs(path):
+        path = os.path.join(script_dir, path)
+
+    with open(path) as f:
+        config = json.load(f)
+
+    instances = {}
+    for scale_id_str, cfg in config["scales"].items():
+        if cfg["dat_pin"] is None or cfg["clk_pin"] is None:
+            continue
+        try:
+            hx = HX711(cfg["dat_pin"], cfg["clk_pin"])
+            hx._offset = cfg["tare_offset"]
+            hx.set_scale(cfg["calibration_factor"])
+            instances[int(scale_id_str)] = hx
+        except Exception as e:
+            print(f"  [WARN] Scale {scale_id_str} failed to init: {e} -- skipping")
+
+    return instances
+
+
+# -----------------------------------------------
 # DATA LOGGING
 # -----------------------------------------------
-def log_weight(weight, units):
+def log_weight(scale_id, weight, units):
     """Write current weight to JSON for main system integration."""
-    global ENABLE_DATA_LOG
-
-    if not ENABLE_DATA_LOG:
-        return
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    data_file = os.path.join(script_dir, f"scale_{scale_id}_data.json")
 
     try:
-        log_dir = os.path.dirname(os.path.abspath(DATA_LOG_FILE))
-        os.makedirs(log_dir, exist_ok=True)
-
         data = {
             "timestamp": datetime.now().isoformat(),
             "weight_value": round(weight, 4),
@@ -230,26 +224,96 @@ def log_weight(weight, units):
             "sensor": "233_FX29X_040A_0200",
             "amplifier": "HX711_SEN13879"
         }
-
-        with open(DATA_LOG_FILE, "w") as f:
+        with open(data_file, "w") as f:
             json.dump(data, f, indent=2)
-
     except (IOError, OSError, PermissionError) as e:
-        print(f"  [WARN] Logging disabled -- {e}")
-        ENABLE_DATA_LOG = False   # Stop retrying after first failure
+        print(f"  [WARN] Scale {scale_id} log failed -- {e}")
+
+
+# -----------------------------------------------
+# CONFIG WRITE-BACK HELPER
+# -----------------------------------------------
+def _write_scale_config(config, path):
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(config, f, indent=2)
+    os.replace(tmp, path)
 
 
 # -----------------------------------------------
 # ENTRY POINT
 # -----------------------------------------------
 if __name__ == "__main__":
-    import sys
-    # Main data loop has moved to WriteSensors.py
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(script_dir, "scale_config.json")
+
     if "--calibrate" in sys.argv:
-        GPIO.setmode(GPIO.BCM)
-        hx = HX711(HX711_DAT_PIN, HX711_CLK_PIN)
-        calibrate(hx)
+        if "--scale" not in sys.argv:
+            print("  Usage: python3 load_cell_hx711.py --calibrate --scale N")
+            sys.exit(1)
+        scale_id = int(sys.argv[sys.argv.index("--scale") + 1])
+
+        with open(config_path) as f:
+            config = json.load(f)
+
+        scale_cfg = config["scales"].get(str(scale_id))
+        if scale_cfg is None:
+            print(f"Scale {scale_id} not found in scale_config.json.")
+            sys.exit(1)
+        if scale_cfg["dat_pin"] is None or scale_cfg["clk_pin"] is None:
+            print(f"Scale {scale_id} has no GPIO pins configured. Update scale_config.json first.")
+            sys.exit(1)
+
+        hx = HX711(scale_cfg["dat_pin"], scale_cfg["clk_pin"])
+        offset, factor = calibrate(hx)
+
+        config["scales"][str(scale_id)]["tare_offset"] = int(round(offset))
+        config["scales"][str(scale_id)]["calibration_factor"] = round(factor, 4)
+        _write_scale_config(config, config_path)
+
+        print(f"Scale {scale_id} calibrated. scale_config.json updated.")
         GPIO.cleanup()
+
+    elif "--tare" in sys.argv:
+        if "--scale" not in sys.argv:
+            print("  Usage: python3 load_cell_hx711.py --tare --scale N")
+            sys.exit(1)
+        scale_id = int(sys.argv[sys.argv.index("--scale") + 1])
+
+        with open(config_path) as f:
+            config = json.load(f)
+
+        scale_cfg = config["scales"].get(str(scale_id))
+        if scale_cfg is None:
+            print(f"Scale {scale_id} not found in scale_config.json.")
+            sys.exit(1)
+        if scale_cfg["dat_pin"] is None or scale_cfg["clk_pin"] is None:
+            print(f"Scale {scale_id} has no GPIO pins configured. Update scale_config.json first.")
+            sys.exit(1)
+
+        hx = HX711(scale_cfg["dat_pin"], scale_cfg["clk_pin"])
+        offset = hx.tare(30)
+
+        config["scales"][str(scale_id)]["tare_offset"] = int(round(offset))
+        _write_scale_config(config, config_path)
+
+        print(f"Scale {scale_id} tare updated. scale_config.json updated.")
+        GPIO.cleanup()
+
+    elif "--list" in sys.argv:
+        with open(config_path) as f:
+            config = json.load(f)
+
+        for scale_id_str, cfg in config["scales"].items():
+            pin_status = "configured" if cfg["dat_pin"] is not None else "not wired"
+            cal_status = "calibrated" if cfg["tare_offset"] != 0 else "uncalibrated"
+            print(f"Scale {scale_id_str} ({cfg['label']}): "
+                  f"pins={cfg['dat_pin']}/{cfg['clk_pin']} [{pin_status}], "
+                  f"calibration [{cal_status}]")
+
     else:
         print("  Sake Table Scale -- Calibration Tool")
-        print("  Usage: python3 load_cell_hx711.py --calibrate")
+        print("  Usage:")
+        print("    python3 load_cell_hx711.py --calibrate --scale N   # full calibration")
+        print("    python3 load_cell_hx711.py --tare --scale N        # re-tare only")
+        print("    python3 load_cell_hx711.py --list                  # show all scales")

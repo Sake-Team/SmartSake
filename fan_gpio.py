@@ -3,21 +3,27 @@ fan_gpio.py — GPIO fan control abstraction for SmartSake.
 
 GPIO pin numbers are BCM mode. Set FAN_PINS to match physical wiring.
 When RPi.GPIO is unavailable (dev machine), all functions are no-ops.
+
+RELAY POLARITY — SunFounder TS0012 (active-LOW):
+  GPIO.LOW  = relay coil energised = fan ON
+  GPIO.HIGH = relay coil de-energised = fan OFF
+  Initial state at boot must be GPIO.HIGH so relays start OFF.
 """
 
 import logging
 
 log = logging.getLogger(__name__)
 
-# Map zone number (1-6) to BCM GPIO pin.
-# Update these to match the actual hardware wiring.
+# BCM pin assignments for SunFounder TS0012 relay channels.
+# Avoids reserved pins: I2C=2/3, 1-Wire=4, HX711 Scale1=5/6.
+# Verify against your physical wiring before first run.
 FAN_PINS = {
-    1: None,
-    2: None,
-    3: None,
-    4: None,
-    5: None,
-    6: None,
+    1: 17,
+    2: 27,
+    3: 22,
+    4: 23,
+    5: 24,
+    6: 25,
 }
 
 _gpio_available = False
@@ -44,7 +50,7 @@ def init_fans():
     _GPIO.setwarnings(False)
     for zone, pin in FAN_PINS.items():
         if pin is not None:
-            _GPIO.setup(pin, _GPIO.OUT, initial=_GPIO.LOW)
+            _GPIO.setup(pin, _GPIO.OUT, initial=_GPIO.HIGH)  # HIGH = relay OFF at boot (active-LOW)
             log.info("Fan zone %d — GPIO pin %d initialized", zone, pin)
 
 
@@ -60,7 +66,7 @@ def set_fan(zone, on):
     pin = FAN_PINS.get(zone)
     if pin is None:
         return
-    _GPIO.output(pin, _GPIO.HIGH if on else _GPIO.LOW)
+    _GPIO.output(pin, _GPIO.LOW if on else _GPIO.HIGH)  # active-LOW: LOW = fan ON
 
 
 def cleanup():

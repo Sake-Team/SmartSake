@@ -1,0 +1,10 @@
+[Unit]
+Description=SmartSake Database Backup
+
+[Service]
+Type=oneshot
+User=pi
+WorkingDirectory=/home/pi/SmartSake
+ExecStart=/usr/bin/python3 /home/pi/SmartSake/backup_db.py
+StandardOutput=journal
+StandardError=journal

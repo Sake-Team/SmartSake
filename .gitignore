@@ -1,2 +1,6 @@
 __pycache__/
 graphify-out/
+backups/*.db
+.graphify_*.json
+.graphify_uncached.txt
+*.pyc

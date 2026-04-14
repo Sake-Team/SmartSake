@@ -176,6 +176,12 @@
 							<span class="ew-stat-card__unit">lbs</span>
 						</div>
 						<span class="ew-stat-card__sub" id="ew-weight-loss-val">Loss —%</span>
+						<div id="ew-scale-breakdown" style="font-size:0.7rem;color:var(--color-text-muted);margin-top:2px;display:flex;gap:6px;flex-wrap:wrap;">
+							<span id="ew-scale-1">S1 —</span>
+							<span id="ew-scale-2">S2 —</span>
+							<span id="ew-scale-3">S3 —</span>
+							<span id="ew-scale-4">S4 —</span>
+						</div>
 					</div>
 				</div>
 
@@ -309,6 +315,13 @@
 					<div class="modal-content">
 						<p>This will begin collecting data from all temperature sensors and
 							start the monitoring process.</p>
+
+						<div id="health-panel" style="margin-bottom:12px;">
+							<div id="health-loading" style="color:var(--color-text-2);font-size:0.85rem;">Checking sensors...</div>
+							<table id="health-table" style="display:none;width:100%;border-collapse:collapse;font-size:0.82rem;"><tbody id="health-tbody"></tbody></table>
+							<div id="health-age" style="font-size:0.78rem;margin-top:4px;"></div>
+							<div id="health-not-ready" style="display:none;color:var(--color-critical);font-size:0.8rem;margin-top:4px;">Fix sensor errors before starting</div>
+						</div>
 
 						<div class="modal-input-section">
 							<label for="run-name">Run Name:</label>
@@ -1028,8 +1041,72 @@
 						} else {
 							startModal.classList.add('is-open');
 							runNameInput.focus();
+							_fetchHealthPanel();
 						}
 					});
+
+					function _fetchHealthPanel() {
+						var loading = document.getElementById('health-loading');
+						var table = document.getElementById('health-table');
+						var tbody = document.getElementById('health-tbody');
+						var ageEl = document.getElementById('health-age');
+						var notReady = document.getElementById('health-not-ready');
+						var enterBtn2 = document.getElementById('enter-run-btn');
+						if (!loading || !table || !tbody || !ageEl || !notReady) return;
+						loading.style.display = '';
+						table.style.display = 'none';
+						ageEl.textContent = '';
+						notReady.style.display = 'none';
+						fetch('/api/health')
+							.then(function(r) { return r.json(); })
+							.then(function(h) {
+								loading.style.display = 'none';
+								tbody.innerHTML = '';
+								function _dot(status) {
+									var color = status === 'ok' || status === 'wired' ? 'var(--color-success)' :
+												status === 'no_data' ? 'var(--color-warning)' :
+												status === 'error' ? 'var(--color-critical)' :
+												'var(--color-text-2)';
+									return '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + color + ';margin-right:5px;vertical-align:middle;"></span>';
+								}
+								function _row(name, status) {
+									var tr = document.createElement('tr');
+									tr.innerHTML = '<td style="padding:2px 6px;color:var(--color-text-2);">' + name + '</td><td style="padding:2px 6px;">' + _dot(status) + status + '</td>';
+									tbody.appendChild(tr);
+								}
+								_row('SHT30', h.sht30 ? h.sht30.status : 'missing');
+								for (var i = 1; i <= 6; i++) {
+									var tc = h.thermocouples && h.thermocouples[String(i)];
+									_row('TC' + i, tc ? tc.status : 'missing');
+								}
+								for (var j = 1; j <= 4; j++) {
+									var sc = h.scales && h.scales[String(j)];
+									_row('Scale ' + j, sc ? sc.status : 'missing');
+								}
+								for (var k = 1; k <= 6; k++) {
+									var rel = h.relays && h.relays[String(k)];
+									_row('Relay ' + k, rel ? rel.status : 'not_wired');
+								}
+								table.style.display = '';
+								var age = h.sensor_age_s;
+								if (age !== null && age !== undefined) {
+									var ageColor = age > 30 ? 'var(--color-critical)' : age > 10 ? 'var(--color-warning)' : 'var(--color-text-2)';
+									ageEl.innerHTML = '<span style="color:' + ageColor + ';">Last reading: ' + age + 's ago</span>';
+								} else {
+									ageEl.textContent = 'No sensor data file';
+								}
+								if (!h.ready) {
+									notReady.style.display = '';
+									if (enterBtn2) enterBtn2.disabled = true;
+								} else {
+									notReady.style.display = 'none';
+									if (enterBtn2) enterBtn2.disabled = false;
+								}
+							})
+							.catch(function() {
+								loading.textContent = 'Could not reach /api/health';
+							});
+					}
 
 					// ---------- Start modal close ----------
 					closeStartBtn.addEventListener('click', function () {
@@ -1394,7 +1471,10 @@
 								humidity: currentHumidity,
 								sht_temp: (d.sht_temp !== null && d.sht_temp !== undefined) ? roundHalf(parseFloat(d.sht_temp)) : null,
 								fans:     { ...currentFans },
-								weight:   d.weight_lbs
+								weight:   d.weight_total_lbs != null ? d.weight_total_lbs : d.weight_lbs,
+								weight_total_lbs: d.weight_total_lbs,
+								weight_lbs_1: d.weight_lbs_1, weight_lbs_2: d.weight_lbs_2,
+								weight_lbs_3: d.weight_lbs_3, weight_lbs_4: d.weight_lbs_4
 							});
 						}
 
@@ -1408,7 +1488,10 @@
 							fan3: currentFans.fan3, fan4: currentFans.fan4,
 							fan5: currentFans.fan5, fan6: currentFans.fan6,
 							humidity: currentHumidity,
-							weight_lbs: d.weight_lbs
+							weight_lbs: d.weight_lbs,
+							weight_total_lbs: d.weight_total_lbs,
+							weight_lbs_1: d.weight_lbs_1, weight_lbs_2: d.weight_lbs_2,
+							weight_lbs_3: d.weight_lbs_3, weight_lbs_4: d.weight_lbs_4
 						};
 						try { localStorage.setItem('sakeLatestSample', JSON.stringify(sample)); } catch(e) {}
 						if (bc) { try { bc.postMessage(sample); } catch(e) {} }
@@ -1927,7 +2010,9 @@ const tempSeries = {
 						}
 
 						// weight (real sensor data)
-						const wRaw = sample.weight != null ? parseFloat(sample.weight) : null;
+						const wRaw = sample.weight_total_lbs != null
+							? parseFloat(sample.weight_total_lbs)
+							: (sample.weight != null ? parseFloat(sample.weight) : null);
 						const wRawVal = (wRaw !== null && !isNaN(wRaw)) ? wRaw : null;
 						rawWeightData.push(wRawVal);
 						weightData.push(wRawVal !== null ? wRawVal - weightTare : null);
@@ -1972,6 +2057,11 @@ const tempSeries = {
 								} else {
 									wlEl.textContent = '';
 								}
+							}
+							for (var _si = 1; _si <= 4; _si++) {
+								var _sel = document.getElementById('ew-scale-' + _si);
+								var _sv = sample['weight_lbs_' + _si];
+								if (_sel) _sel.textContent = 'S' + _si + ' ' + (_sv != null ? parseFloat(_sv).toFixed(2) : '—');
 							}
 						})();
 

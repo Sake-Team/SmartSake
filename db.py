@@ -140,6 +140,13 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_refcurve_points ON reference_curve_points(curve_id);
         """)
         _seed_reference_curves(conn)
+        # Add multi-scale weight columns if upgrading from older schema
+        for col in ("weight_lbs_1", "weight_lbs_2", "weight_lbs_3", "weight_lbs_4"):
+            try:
+                conn.execute(f"ALTER TABLE sensor_readings ADD COLUMN {col} REAL")
+            except Exception:
+                pass  # column already exists
+
         # Add weight/humidity target columns if upgrading from older schema
         for col, default in [
             ("weight_target_min", "NULL"),
@@ -309,7 +316,7 @@ def delete_run(run_id):
 # ── Sensor readings ───────────────────────────────────────────────────────────
 
 def insert_reading(run_id, data):
-    """data keys: tc1-tc6, sht_temp, humidity, fan1-fan6, weight_lbs (all optional)"""
+    """data keys: tc1-tc6, sht_temp, humidity, fan1-fan6, weight_lbs, weight_lbs_1..4 (all optional)"""
     with get_conn() as conn:
         conn.execute("""
             INSERT INTO sensor_readings
@@ -317,13 +324,15 @@ def insert_reading(run_id, data):
                  tc1, tc2, tc3, tc4, tc5, tc6,
                  sht_temp, humidity,
                  fan1, fan2, fan3, fan4, fan5, fan6,
-                 weight_lbs)
+                 weight_lbs,
+                 weight_lbs_1, weight_lbs_2, weight_lbs_3, weight_lbs_4)
             VALUES
                 (?, ?,
                  ?, ?, ?, ?, ?, ?,
                  ?, ?,
                  ?, ?, ?, ?, ?, ?,
-                 ?)
+                 ?,
+                 ?, ?, ?, ?)
         """, (
             run_id,
             data.get("recorded_at", datetime.now().isoformat()),
@@ -333,6 +342,8 @@ def insert_reading(run_id, data):
             data.get("fan1"), data.get("fan2"), data.get("fan3"),
             data.get("fan4"), data.get("fan5"), data.get("fan6"),
             data.get("weight_lbs"),
+            data.get("weight_lbs_1"), data.get("weight_lbs_2"),
+            data.get("weight_lbs_3"), data.get("weight_lbs_4"),
         ))
 
 
@@ -347,10 +358,12 @@ def get_latest_reading(run_id):
 
 def get_all_readings(run_id):
     with get_conn() as conn:
-        rows = conn.execute(
-            "SELECT * FROM sensor_readings WHERE run_id=? ORDER BY recorded_at ASC",
-            (run_id,)
-        ).fetchall()
+        rows = conn.execute("""
+            SELECT *,
+                   weight_lbs_1, weight_lbs_2, weight_lbs_3, weight_lbs_4,
+                   (COALESCE(weight_lbs_1,0)+COALESCE(weight_lbs_2,0)+COALESCE(weight_lbs_3,0)+COALESCE(weight_lbs_4,0)) AS weight_total_lbs
+            FROM sensor_readings WHERE run_id=? ORDER BY recorded_at ASC
+        """, (run_id,)).fetchall()
         return [dict(r) for r in rows]
 
 
@@ -390,7 +403,10 @@ def get_readings_sampled(run_id, n=300):
         stride = max(1, total // n)
         rows = conn.execute("""
             WITH rn AS (
-                SELECT *, (ROW_NUMBER() OVER (ORDER BY recorded_at ASC) - 1) AS rn
+                SELECT *,
+                       weight_lbs_1, weight_lbs_2, weight_lbs_3, weight_lbs_4,
+                       (COALESCE(weight_lbs_1,0)+COALESCE(weight_lbs_2,0)+COALESCE(weight_lbs_3,0)+COALESCE(weight_lbs_4,0)) AS weight_total_lbs,
+                       (ROW_NUMBER() OVER (ORDER BY recorded_at ASC) - 1) AS rn
                 FROM sensor_readings WHERE run_id = ?
             )
             SELECT * FROM rn WHERE rn % ? = 0
@@ -901,8 +917,12 @@ def get_weight_analytics(run_id):
     Returns dict with:
         initial_lbs, current_lbs, loss_lbs, loss_pct,
         rate_lbs_per_hr (loss rate over last 60 min),
-        samples: [{elapsed_min, weight_lbs}]  (max 120 points)
+        scale_count (number of non-null scales in most recent reading),
+        samples: [{elapsed_min, weight_lbs}]  (max 120 points, weight_lbs = total)
     """
+    _TOTAL = "(COALESCE(weight_lbs_1,0)+COALESCE(weight_lbs_2,0)+COALESCE(weight_lbs_3,0)+COALESCE(weight_lbs_4,0))"
+    _ANY = "(weight_lbs_1 IS NOT NULL OR weight_lbs_2 IS NOT NULL OR weight_lbs_3 IS NOT NULL OR weight_lbs_4 IS NOT NULL)"
+
     with get_conn() as conn:
         run = conn.execute(
             "SELECT started_at FROM runs WHERE id=?", (run_id,)
@@ -910,15 +930,17 @@ def get_weight_analytics(run_id):
         if not run:
             return None
 
-        first = conn.execute("""
-            SELECT weight_lbs, recorded_at FROM sensor_readings
-            WHERE run_id=? AND weight_lbs IS NOT NULL
+        first = conn.execute(f"""
+            SELECT {_TOTAL} AS total_lbs, recorded_at FROM sensor_readings
+            WHERE run_id=? AND {_ANY}
             ORDER BY recorded_at ASC LIMIT 1
         """, (run_id,)).fetchone()
 
-        last = conn.execute("""
-            SELECT weight_lbs, recorded_at FROM sensor_readings
-            WHERE run_id=? AND weight_lbs IS NOT NULL
+        last = conn.execute(f"""
+            SELECT {_TOTAL} AS total_lbs, recorded_at,
+                   weight_lbs_1, weight_lbs_2, weight_lbs_3, weight_lbs_4
+            FROM sensor_readings
+            WHERE run_id=? AND {_ANY}
             ORDER BY recorded_at DESC LIMIT 1
         """, (run_id,)).fetchone()
 
@@ -926,22 +948,27 @@ def get_weight_analytics(run_id):
             return {
                 "initial_lbs": None, "current_lbs": None,
                 "loss_lbs": None, "loss_pct": None,
-                "rate_lbs_per_hr": None, "samples": [],
+                "rate_lbs_per_hr": None, "scale_count": 0, "samples": [],
             }
 
-        initial_lbs = first["weight_lbs"]
-        current_lbs = last["weight_lbs"]
+        initial_lbs = first["total_lbs"]
+        current_lbs = last["total_lbs"]
         loss_lbs = round(initial_lbs - current_lbs, 3)
         loss_pct = round(loss_lbs / initial_lbs * 100, 2) if initial_lbs else None
 
+        scale_count = sum(
+            1 for i in range(1, 5)
+            if last[f"weight_lbs_{i}"] is not None
+        )
+
         # Rate over last 60 minutes (first vs last point in window)
         rate_lbs_per_hr = None
-        window = conn.execute("""
-            SELECT weight_lbs, recorded_at FROM sensor_readings
-            WHERE run_id=? AND weight_lbs IS NOT NULL
+        window = conn.execute(f"""
+            SELECT {_TOTAL} AS total_lbs, recorded_at FROM sensor_readings
+            WHERE run_id=? AND {_ANY}
               AND recorded_at >= datetime(
                   (SELECT MAX(recorded_at) FROM sensor_readings
-                   WHERE run_id=? AND weight_lbs IS NOT NULL),
+                   WHERE run_id=? AND {_ANY}),
                   '-60 minutes')
             ORDER BY recorded_at ASC
         """, (run_id, run_id)).fetchall()
@@ -952,24 +979,24 @@ def get_weight_analytics(run_id):
             hr_diff = (t1 - t0).total_seconds() / 3600
             if hr_diff > 0:
                 rate_lbs_per_hr = round(
-                    (window[0]["weight_lbs"] - window[-1]["weight_lbs"]) / hr_diff, 4
+                    (window[0]["total_lbs"] - window[-1]["total_lbs"]) / hr_diff, 4
                 )
 
         # Downsampled sparkline (max 120 points)
-        total = conn.execute(
-            "SELECT COUNT(*) FROM sensor_readings WHERE run_id=? AND weight_lbs IS NOT NULL",
+        total_count = conn.execute(
+            f"SELECT COUNT(*) FROM sensor_readings WHERE run_id=? AND {_ANY}",
             (run_id,)
         ).fetchone()[0]
-        stride = max(1, total // 120)
+        stride = max(1, total_count // 120)
         started_at = run["started_at"]
-        samples_raw = conn.execute("""
+        samples_raw = conn.execute(f"""
             WITH rn AS (
-                SELECT weight_lbs, recorded_at,
+                SELECT {_TOTAL} AS total_lbs, recorded_at,
                        (ROW_NUMBER() OVER (ORDER BY recorded_at ASC) - 1) AS rn
                 FROM sensor_readings
-                WHERE run_id=? AND weight_lbs IS NOT NULL
+                WHERE run_id=? AND {_ANY}
             )
-            SELECT weight_lbs, recorded_at FROM rn WHERE rn % ? = 0
+            SELECT total_lbs, recorded_at FROM rn WHERE rn % ? = 0
             ORDER BY recorded_at ASC
         """, (run_id, stride)).fetchall()
 
@@ -979,7 +1006,7 @@ def get_weight_analytics(run_id):
         for s in samples_raw:
             rec_dt = _dt.fromisoformat(s["recorded_at"])
             elapsed = round((rec_dt - start_dt).total_seconds() / 60, 1)
-            samples.append({"elapsed_min": elapsed, "weight_lbs": s["weight_lbs"]})
+            samples.append({"elapsed_min": elapsed, "weight_lbs": s["total_lbs"]})
 
         return {
             "initial_lbs": initial_lbs,
@@ -987,6 +1014,7 @@ def get_weight_analytics(run_id):
             "loss_lbs": loss_lbs,
             "loss_pct": loss_pct,
             "rate_lbs_per_hr": rate_lbs_per_hr,
+            "scale_count": scale_count,
             "samples": samples,
         }
 

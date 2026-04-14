@@ -12,7 +12,7 @@ import db as sakedb
 import fan_gpio
 
 from sensors import discover_devices, read_temp_c, format_device_id, MAX_THERMOCOUPLES
-from load_cell_hx711 import HX711, HX711_DAT_PIN, HX711_CLK_PIN, TARE_OFFSET, CALIBRATION_FACTOR, UNITS, SAMPLES_PER_READ, log_weight
+from load_cell_hx711 import HX711, SAMPLES_PER_READ, load_scale_config, log_weight
 
 CSV_FILE = "sensor_data.csv"
 JSON_FILE = "sensor_latest.json"
@@ -23,8 +23,14 @@ MAX_CSV_ROWS = 43200  # ~24 hrs at 2-second interval
 SHT30_TEMP_OFFSET_C = 0.0
 
 # Shared state updated by background threads
-weight_state = {'kg': None, 'raw': None}
+weight_state = {
+    1: {'kg': None, 'raw': None},
+    2: {'kg': None, 'raw': None},
+    3: {'kg': None, 'raw': None},
+    4: {'kg': None, 'raw': None},
+}
 _active_run_id = None
+_last_db_write_time: float = 0.0
 
 # ── Deviation detection state ─────────────────────────────────────────────────
 # Keys: (run_id, zone) → {breach_start: datetime, event_id: int|None, max_dev: float}
@@ -45,9 +51,10 @@ DEADBAND_HOLD  = 3      # consecutive ticks outside deadband required to switch
 INTEGRAL_CLAMP = 20.0   # anti-windup: max abs value of integral accumulator
 _SENSOR_LOOP_S = 2      # nominal loop interval (seconds), used as fallback dt
 
-_BASE_DIR       = os.path.dirname(os.path.abspath(__file__))
-PID_CONFIG_FILE = os.path.join(_BASE_DIR, "pid_config.json")
-FAN_STATE_JSON  = os.path.join(_BASE_DIR, "fan_state.json")
+_BASE_DIR         = os.path.dirname(os.path.abspath(__file__))
+PID_CONFIG_FILE   = os.path.join(_BASE_DIR, "pid_config.json")
+FAN_STATE_JSON    = os.path.join(_BASE_DIR, "fan_state.json")
+TC_ZONE_MAP_FILE  = os.path.join(_BASE_DIR, "tc_zone_map.json")
 
 # ── PID runtime state (one per zone, reset on import) ────────────────────────
 _pid_integrals   = {z: 0.0   for z in range(1, 7)}
@@ -280,6 +287,28 @@ def _write_fan_state_json(fan_states):
         print(f"Could not write fan_state.json: {e}")
 
 
+def _load_tc_zone_map():
+    try:
+        with open(TC_ZONE_MAP_FILE) as f:
+            raw = json.load(f)
+        return {k: int(v) for k, v in raw.items()}
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+    except Exception as e:
+        print(f"Could not load tc_zone_map.json: {e}")
+        return {}
+
+
+def _save_tc_zone_map(mapping):
+    try:
+        tmp = TC_ZONE_MAP_FILE + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(mapping, f)
+        os.replace(tmp, TC_ZONE_MAP_FILE)
+    except Exception as e:
+        print(f"Could not save tc_zone_map.json: {e}")
+
+
 def check_deviations(run_id, tc_readings, run_started_at):
     """Detect temp deviations from the target profile and log structured events."""
     profile = _load_target_profile(run_id)
@@ -346,25 +375,29 @@ def read_sht30(sensor):
 # -----------------------------------------------
 # HX711 LOAD CELL THREAD
 # -----------------------------------------------
-def run_hx711_thread():
-    """Background thread: reads HX711 every 0.5 s, updates weight_state."""
+def run_hx711_thread(scale_id, hx_instance):
+    """Background thread: reads HX711 every 0.5 s, updates weight_state[scale_id]."""
+    cfg_units = "kg"
     try:
-        hx = HX711(HX711_DAT_PIN, HX711_CLK_PIN, gain=128)
-        hx._offset = TARE_OFFSET
-        hx.set_scale(CALIBRATION_FACTOR)
-        print("HX711 initialized.")
+        with open(os.path.join(_BASE_DIR, "scale_config.json")) as f:
+            _sc = json.load(f)
+        cfg_units = _sc["scales"].get(str(scale_id), {}).get("units", "kg")
+    except Exception:
+        pass
 
+    try:
+        print(f"HX711 scale {scale_id} initialized.")
         while True:
             try:
-                weight, raw_avg = hx.get_weight(samples=SAMPLES_PER_READ, units=UNITS)
-                weight_state['kg'] = weight
-                weight_state['raw'] = raw_avg
-                log_weight(weight, UNITS)
+                weight, raw_avg = hx_instance.get_weight(samples=SAMPLES_PER_READ, units=cfg_units)
+                weight_state[scale_id]['kg'] = weight
+                weight_state[scale_id]['raw'] = raw_avg
+                log_weight(scale_id, weight, cfg_units)
             except Exception as e:
-                print(f"HX711 read error: {e}")
+                print(f"HX711 scale {scale_id} read error: {e}")
             time.sleep(0.5)
     except Exception as e:
-        print(f"HX711 thread failed to initialize: {e} -- running without scale")
+        print(f"HX711 scale {scale_id} thread failed: {e} -- running without scale")
 
 
 # -----------------------------------------------
@@ -405,7 +438,10 @@ def write_json(timestamp, sht_temp, sht_humidity, tc_readings):
             f"TC{ch}": round(temp, 2) if temp is not None else None
             for ch, temp in tc_readings
         },
-        "weight_kg": round(weight_state['kg'], 4) if weight_state['kg'] is not None else None,
+        "weight_kg_1": round(weight_state[1]['kg'], 4) if weight_state[1]['kg'] is not None else None,
+        "weight_kg_2": round(weight_state[2]['kg'], 4) if weight_state[2]['kg'] is not None else None,
+        "weight_kg_3": round(weight_state[3]['kg'], 4) if weight_state[3]['kg'] is not None else None,
+        "weight_kg_4": round(weight_state[4]['kg'], 4) if weight_state[4]['kg'] is not None else None,
         "zones": {}
     }
     tmp_file = JSON_FILE + ".tmp"
@@ -424,6 +460,16 @@ def _handle_shutdown(signum, frame):
             print(f"Could not end run cleanly: {e}")
     fan_gpio.cleanup()
     raise SystemExit(0)
+
+
+def _watchdog_thread():
+    """Warn if DB writes stop during an active run."""
+    while True:
+        time.sleep(10)
+        if _active_run_id is not None and _last_db_write_time > 0:
+            age = time.time() - _last_db_write_time
+            if age > 30:
+                print(f"[WATCHDOG] WARNING: No DB write in {age:.0f}s during active run {_active_run_id}")
 
 
 # -----------------------------------------------
@@ -447,10 +493,26 @@ if __name__ == "__main__":
     print("A new run will be created via the web UI; sensor data will attach to it.")
 
     fan_gpio.init_fans()
+    threading.Thread(target=_watchdog_thread, daemon=True).start()
 
-    # Start HX711 weight thread (fails gracefully if scale not attached)
-    hx_thread = threading.Thread(target=run_hx711_thread, daemon=True)
-    hx_thread.start()
+    # Load scale config and spawn one thread per configured scale
+    try:
+        _scale_instances = load_scale_config()
+    except Exception as _e:
+        print(f"Could not load scale_config.json: {_e} -- running without scales")
+        _scale_instances = {}
+    for _sid, _hx in _scale_instances.items():
+        _t = threading.Thread(target=run_hx711_thread, args=(_sid, _hx), daemon=True)
+        _t.start()
+
+    # Load SHT30 offset from config (overrides module-level default)
+    global SHT30_TEMP_OFFSET_C
+    try:
+        with open(os.path.join(_BASE_DIR, "scale_config.json")) as _f:
+            _cfg = json.load(_f)
+        SHT30_TEMP_OFFSET_C = float(_cfg.get("sensors", {}).get("sht30_temp_offset_c", SHT30_TEMP_OFFSET_C))
+    except Exception:
+        pass
 
     # Initialize SHT30
     try:
@@ -460,8 +522,8 @@ if __name__ == "__main__":
         sht30 = None
         print(f"SHT30 init failed: {e}")
 
-    device_id_to_channel = {}
-    next_channel = 1
+    device_id_to_channel = _load_tc_zone_map()
+    next_channel = max(device_id_to_channel.values(), default=0) + 1
 
     while True:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -473,6 +535,7 @@ if __name__ == "__main__":
                 if next_channel <= MAX_THERMOCOUPLES:
                     device_id_to_channel[device_id] = next_channel
                     next_channel += 1
+                    _save_tc_zone_map(device_id_to_channel)
 
         assigned = []
         for d in devices:
@@ -502,8 +565,9 @@ if __name__ == "__main__":
                 tc_readings.append((ch, None))
                 print(f"TC{ch}: ERROR ({e})")
 
-        if weight_state['kg'] is not None:
-            print(f"Weight: {weight_state['kg']:.3f} {UNITS}  (raw: {weight_state['raw']:.0f})")
+        for _sid in range(1, 5):
+            if weight_state[_sid]['kg'] is not None:
+                print(f"Scale {_sid}: {weight_state[_sid]['kg']:.3f} kg  (raw: {weight_state[_sid]['raw']:.0f})")
 
         write_csv(timestamp, sht_temp, sht_humidity, tc_readings)
         write_json(timestamp, sht_temp, sht_humidity, tc_readings)
@@ -537,8 +601,14 @@ if __name__ == "__main__":
             except Exception as e:
                 print(f"Deviation check failed: {e}")
 
+            for _sid in range(1, 5):
+                _wkg = weight_state[_sid]['kg']
+                reading[f"weight_lbs_{_sid}"] = round(_wkg * 2.20462, 4) if _wkg is not None else None
+            reading["weight_lbs"] = reading["weight_lbs_1"]
+
             try:
                 sakedb.insert_reading(_active_run_id, reading)
+                _last_db_write_time = time.time()
             except Exception as e:
                 print(f"DB write failed: {e}")
 
