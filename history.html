@@ -58,11 +58,7 @@
 		.corr-canvas-wrap { position: relative; height: 200px; }
 		.corr-need-more { font-size: .82rem; color: var(--color-text-3); padding: 20px 0; text-align: center; }
 
-		/* ── Buttons ─────────────────────────────────────────────── */
-		.btn { padding: 7px 16px; border-radius: var(--r-sm); border: 1px solid var(--color-border); cursor: pointer; font-size: .85rem; background: var(--color-surface); color: var(--color-text-1); }
-		.btn--primary { background: var(--color-accent); color: #fff; border-color: var(--color-accent); }
-		.btn--primary:hover { background: var(--color-accent-hover); }
-		.btn--sm { padding: 4px 10px; font-size: .78rem; }
+		/* ── Buttons — rely on styles.css canonical .btn system ── */
 
 		/* ── No-select panel ─────────────────────────────────────── */
 		.no-select-hint { color: var(--color-text-3); font-size: .85rem; text-align: center; padding: 30px 0; }
@@ -138,7 +134,7 @@
 				</label>
 			</form>
 			<div class="meta-save-row">
-				<button type="button" class="btn btn--primary" id="meta-save-btn">Save</button>
+				<button type="button" class="btn btn-primary" id="meta-save-btn">Save</button>
 				<span class="save-status" id="save-status" aria-live="polite"></span>
 			</div>
 		</div>
@@ -227,7 +223,7 @@
 				<td><span class="badge ${statusCls}">${r.status}</span></td>
 				<td>${starsHtml(r.quality_score)}</td>
 				<td>${r.koji_variety || '—'}</td>
-				<td><button class="btn btn--sm" data-select="${r.id}">Edit</button></td>
+				<td><button class="btn btn-secondary btn-sm" data-select="${r.id}">Edit</button></td>
 			</tr>`;
 		}).join('');
 		wrap.innerHTML = `<table class="run-table">

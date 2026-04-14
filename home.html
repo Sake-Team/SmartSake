@@ -116,44 +116,7 @@
     }
     .upload-status { font-size: 0.77rem; }
 
-    /* ── buttons ── */
-    .hbtn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border: none;
-      border-radius: var(--r-sm);
-      cursor: pointer;
-      font-size: 0.82rem;
-      font-weight: 600;
-      padding: 0.42rem 0.95rem;
-      text-decoration: none;
-      transition: opacity 0.13s, background 0.13s;
-      white-space: nowrap;
-    }
-    .hbtn:hover { opacity: 0.82; }
-    .hbtn-primary { background: var(--color-brand); color: #fff; }
-    .hbtn-secondary {
-      background: var(--color-bg-subtle);
-      border: 1px solid var(--color-border);
-      color: var(--color-text-1);
-    }
-    .hbtn-secondary:hover { background: var(--color-bg-tinted); opacity: 1; }
-    .hbtn-ghost {
-      background: transparent;
-      border: 1px solid var(--color-border);
-      color: var(--color-text-2);
-    }
-    .hbtn-ghost:hover { background: var(--color-bg-subtle); opacity: 1; }
-    .hbtn-danger {
-      background: rgba(160,30,30,0.2);
-      border: 1px solid rgba(160,30,30,0.3);
-      color: #ff8888;
-    }
-    .hbtn-danger:hover { background: rgba(160,30,30,0.3); opacity: 1; }
-    .hbtn-sm { padding: 0.28rem 0.65rem; font-size: 0.76rem; }
-
-    /* ── button group ── */
+    /* ── button row layout ── */
     .hbtn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 
     /* ── divider between list rows ── */
@@ -217,8 +180,8 @@
         </p>
         <div class="run-meta" id="active-detail"></div>
         <div class="hbtn-row">
-          <button class="hbtn hbtn-primary" id="resume-btn">Resume Run</button>
-          <button class="hbtn hbtn-ghost" id="mark-ended-btn">Mark as Ended</button>
+          <button class="btn btn-brand" id="resume-btn">Resume Run</button>
+          <button class="btn btn-ghost" id="mark-ended-btn">Mark as Ended</button>
         </div>
       </div>
 
@@ -227,7 +190,7 @@
         <p class="hcard-label">New Run</p>
         <div class="h-input-row">
           <input type="text" id="new-run-name" placeholder="Run name…" maxlength="80">
-          <button class="hbtn hbtn-primary" id="start-btn">Start</button>
+          <button class="btn btn-brand" id="start-btn">Start</button>
         </div>
         <div class="h-field">
           <span class="h-field-label">Reference curve (optional):</span>
@@ -246,8 +209,8 @@
       <div class="hcard">
         <p class="hcard-label">Tools</p>
         <div class="hbtn-row">
-          <a href="curves.html" class="hbtn hbtn-secondary">Curve Builder</a>
-          <a href="room-history.html" class="hbtn hbtn-secondary">Room History</a>
+          <a href="curves.html" class="btn btn-secondary">Curve Builder</a>
+          <a href="room-history.html" class="btn btn-secondary">Room History</a>
         </div>
       </div>
 
@@ -435,9 +398,9 @@
               '<div class="run-row-meta">' + fmtDate(run.started_at) + ' &mdash; ' + duration(run.started_at, run.ended_at) + '</div>' +
             '</div>' +
             '<div class="run-row-actions">' +
-              '<button class="hbtn hbtn-secondary hbtn-sm view-btn">View</button>' +
-              '<button class="hbtn hbtn-secondary hbtn-sm details-btn">Details</button>' +
-              '<button class="hbtn hbtn-danger hbtn-sm delete-btn">Delete</button>' +
+              '<button class="btn btn-secondary btn-sm view-btn">View</button>' +
+              '<button class="btn btn-secondary btn-sm details-btn">Details</button>' +
+              '<button class="btn btn-danger btn-sm delete-btn">Delete</button>' +
             '</div>';
 
           row.querySelector('.view-btn').onclick = function (e) {
