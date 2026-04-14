@@ -587,13 +587,13 @@
 						const allInput = document.getElementById('ideal-temp-all-input');
 						if (allInput) { allInput.value = ''; allInput.setCustomValidity(''); }
 						updateCurrentLabel();
-						setTempModal.style.display = 'flex';
+						setTempModal.classList.add('is-open');
 						const first = document.getElementById('ideal-temp-zone-1');
 						if (first) { first.focus(); first.select(); }
 					}
 
 					function closeSetTempModal() {
-						if (setTempModal) setTempModal.style.display = 'none';
+						if (setTempModal) setTempModal.classList.remove('is-open');
 					}
 
 					function saveIdealTemp() {
@@ -701,7 +701,7 @@
 					}
 
 					document.addEventListener('keydown', function (e) {
-						if (e.key === 'Escape' && setTempModal && setTempModal.style.display === 'flex') {
+						if (e.key === 'Escape' && setTempModal && setTempModal.classList.contains('is-open')) {
 							closeSetTempModal();
 						}
 					});
@@ -909,7 +909,7 @@
 						const currentRunName = localStorage.getItem('currentRunName') || 'RecoveredRun';
 
 						if (recoveryModal) {
-							recoveryModal.style.display = 'none';
+							recoveryModal.classList.remove('is-open');
 						}
 
 						stopDataCollectionAndExport(currentRunName);
@@ -972,7 +972,7 @@
 						}
 
 						if (recoveryModal) {
-							recoveryModal.style.display = 'none';
+							recoveryModal.classList.remove('is-open');
 						}
 
 						if (recoveryExport) {
@@ -981,7 +981,7 @@
 									window.sakeExportRecoveredRun();
 								}
 								localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
-								if (recoveryModal) recoveryModal.style.display = 'none';
+								if (recoveryModal) recoveryModal.classList.remove('is-open');
 							});
 						}
 
@@ -991,7 +991,7 @@
 								localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
 								localStorage.removeItem('currentRunName');
 								if (runNameDisplay) runNameDisplay.textContent = '';
-								if (recoveryModal) recoveryModal.style.display = 'none';
+								if (recoveryModal) recoveryModal.classList.remove('is-open');
 							});
 						}
 
@@ -1001,17 +1001,17 @@
 								localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
 								localStorage.removeItem('currentRunName');
 								if (runNameDisplay) runNameDisplay.textContent = '';
-								if (recoveryModal) recoveryModal.style.display = 'none';
+								if (recoveryModal) recoveryModal.classList.remove('is-open');
 							});
 						}
 
 						document.addEventListener('keydown', function (e) {
-							if (e.key === 'Escape' && recoveryModal && recoveryModal.style.display === 'flex') {
+							if (e.key === 'Escape' && recoveryModal && recoveryModal.classList.contains('is-open')) {
 								localStorage.removeItem(RUN_STATE_KEY);
 								localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
 								localStorage.removeItem('currentRunName');
 								if (runNameDisplay) runNameDisplay.textContent = '';
-								recoveryModal.style.display = 'none';
+								recoveryModal.classList.remove('is-open');
 							}
 						});
 					}
@@ -1024,27 +1024,27 @@
 					// ---------- Start button (open start modal or end modal) ----------
 					startBtn.addEventListener('click', function () {
 						if (startBtn.classList.contains('end-run-btn-active')) {
-							if (endModal) endModal.style.display = 'flex';
+							if (endModal) endModal.classList.add('is-open');
 						} else {
-							startModal.style.display = 'flex';
+							startModal.classList.add('is-open');
 							runNameInput.focus();
 						}
 					});
 
 					// ---------- Start modal close ----------
 					closeStartBtn.addEventListener('click', function () {
-						startModal.style.display = 'none';
+						startModal.classList.remove('is-open');
 					});
 
 					startModal.addEventListener('click', function (e) {
 						if (e.target === startModal) {
-							startModal.style.display = 'none';
+							startModal.classList.remove('is-open');
 						}
 					});
 
 					document.addEventListener('keydown', function (e) {
-						if (e.key === 'Escape' && startModal.style.display === 'flex') {
-							startModal.style.display = 'none';
+						if (e.key === 'Escape' && startModal.classList.contains('is-open')) {
+							startModal.classList.remove('is-open');
 						}
 					});
 
@@ -1090,7 +1090,7 @@
 								await fetch('/api/runs/' + run.id + '/target/from-curve/' + startCurveId, { method: 'POST' });
 							}
 
-							startModal.style.display = 'none';
+							startModal.classList.remove('is-open');
 							runNameInput.value = '';
 							location.href = 'dashboard.html?run=' + run.id + '&mode=live';
 						} catch (err) {
@@ -1108,16 +1108,16 @@
 					// ---------- End Run modal ----------
 					if (endModal && closeEndBtn && cancelEndBtn && confirmEndBtn) {
 						closeEndBtn.addEventListener('click', function () {
-							endModal.style.display = 'none';
+							endModal.classList.remove('is-open');
 						});
 
 						cancelEndBtn.addEventListener('click', function () {
-							endModal.style.display = 'none';
+							endModal.classList.remove('is-open');
 						});
 
 						endModal.addEventListener('click', function (e) {
 							if (e.target === endModal) {
-								endModal.style.display = 'none';
+								endModal.classList.remove('is-open');
 							}
 						});
 
@@ -1148,12 +1148,12 @@
 							localStorage.removeItem('currentRunName');
 							startBtn.textContent = 'Start Run';
 							startBtn.classList.remove('end-run-btn-active');
-							endModal.style.display = 'none';
+							endModal.classList.remove('is-open');
 						});
 
 						document.addEventListener('keydown', function (e) {
-							if (e.key === 'Escape' && endModal.style.display === 'flex') {
-								endModal.style.display = 'none';
+							if (e.key === 'Escape' && endModal.classList.contains('is-open')) {
+								endModal.classList.remove('is-open');
 							}
 						});
 					}
@@ -1629,6 +1629,15 @@ const tempSeries = {
 						return getComputedStyle(document.documentElement).getPropertyValue('--zone-color-' + n).trim()
 							|| ['#e05252','#52a0e0','#52e07c','#e0c952','#c052e0','#e09052'][n - 1];
 					}
+					function getThemeColors() {
+						const s = getComputedStyle(document.documentElement);
+						return {
+							surface: s.getPropertyValue('--color-surface').trim() || '#1e1e1e',
+							border:  s.getPropertyValue('--color-border').trim()  || 'rgba(255,255,255,0.09)',
+							text1:   s.getPropertyValue('--color-text-1').trim()  || '#f0f0f0',
+							text2:   s.getPropertyValue('--color-text-2').trim()  || '#a0a0a8',
+						};
+					}
 					const tempChart = new Chart(tempCtx, {
 						type: 'line',
 						data: {
@@ -1676,7 +1685,22 @@ const tempSeries = {
 											return !data.datasets[item.datasetIndex]._isTarget;
 										}
 									}
-								}
+								},
+								tooltip: (function() {
+									const c = getThemeColors();
+									return {
+										backgroundColor: c.surface,
+										borderColor: c.border,
+										borderWidth: 1,
+										titleColor: c.text1,
+										bodyColor: c.text2,
+										padding: 10,
+										bodyFont: { family: 'Inter, system-ui, sans-serif', size: 12 },
+										titleFont: { family: 'Inter, system-ui, sans-serif', size: 12, weight: '600' },
+										cornerRadius: 8,
+										displayColors: true,
+									};
+								})()
 							}
 						}
 					});
@@ -1718,7 +1742,22 @@ const tempSeries = {
 									position: 'bottom',
 									labels: { color: '#ccc', usePointStyle: true, boxWidth: 10, font: { size: 11 },
 									          padding: 8 }
-								}
+								},
+								tooltip: (function() {
+									const c = getThemeColors();
+									return {
+										backgroundColor: c.surface,
+										borderColor: c.border,
+										borderWidth: 1,
+										titleColor: c.text1,
+										bodyColor: c.text2,
+										padding: 10,
+										bodyFont: { family: 'Inter, system-ui, sans-serif', size: 12 },
+										titleFont: { family: 'Inter, system-ui, sans-serif', size: 12, weight: '600' },
+										cornerRadius: 8,
+										displayColors: true,
+									};
+								})()
 							}
 						}
 					});
@@ -1762,7 +1801,22 @@ const tempSeries = {
 										color: '#ccc', usePointStyle: true, boxWidth: 10,
 										font: { size: 11 }, padding: 8
 									}
-								}
+								},
+								tooltip: (function() {
+									const c = getThemeColors();
+									return {
+										backgroundColor: c.surface,
+										borderColor: c.border,
+										borderWidth: 1,
+										titleColor: c.text1,
+										bodyColor: c.text2,
+										padding: 10,
+										bodyFont: { family: 'Inter, system-ui, sans-serif', size: 12 },
+										titleFont: { family: 'Inter, system-ui, sans-serif', size: 12, weight: '600' },
+										cornerRadius: 8,
+										displayColors: true,
+									};
+								})()
 							}
 						}
 					});
@@ -1801,7 +1855,22 @@ const tempSeries = {
 								}
 							},
 							plugins: {
-								legend: { display: false }
+								legend: { display: false },
+								tooltip: (function() {
+									const c = getThemeColors();
+									return {
+										backgroundColor: c.surface,
+										borderColor: c.border,
+										borderWidth: 1,
+										titleColor: c.text1,
+										bodyColor: c.text2,
+										padding: 10,
+										bodyFont: { family: 'Inter, system-ui, sans-serif', size: 12 },
+										titleFont: { family: 'Inter, system-ui, sans-serif', size: 12, weight: '600' },
+										cornerRadius: 8,
+										displayColors: true,
+									};
+								})()
 							}
 						}
 					});
@@ -1924,7 +1993,7 @@ const tempSeries = {
 						}
 
 						// If modal is open, refresh it with the new data point
-						if (chartModal && chartModal.style.display === 'flex') {
+						if (chartModal && chartModal.classList.contains('is-open')) {
 							refreshModalChart();
 						}
 
@@ -2038,7 +2107,7 @@ const tempSeries = {
 							window._openZdcCard(window._getActiveZone());
 						}
 						// Update open modal if any
-						if (chartModal && chartModal.style.display === 'flex' && modalChart) {
+						if (chartModal && chartModal.classList.contains('is-open') && modalChart) {
 							refreshModalChart();
 						}
 					}
@@ -2387,17 +2456,32 @@ const tempSeries = {
 									legend: {
 										position: 'bottom',
 										labels: { color: '#ccc', usePointStyle: true, boxWidth: 12 }
-									}
+									},
+									tooltip: (function() {
+										const c = getThemeColors();
+										return {
+											backgroundColor: c.surface,
+											borderColor: c.border,
+											borderWidth: 1,
+											titleColor: c.text1,
+											bodyColor: c.text2,
+											padding: 10,
+											bodyFont: { family: 'Inter, system-ui, sans-serif', size: 12 },
+											titleFont: { family: 'Inter, system-ui, sans-serif', size: 12, weight: '600' },
+											cornerRadius: 8,
+											displayColors: true,
+										};
+									})()
 								}
 							}
 						});
 
-						chartModal.style.display = 'flex';
+						chartModal.classList.add('is-open');
 					}
 
 					function closeChartModal() {
 						if (modalChart) { modalChart.destroy(); modalChart = null; }
-						if (chartModal) chartModal.style.display = 'none';
+						if (chartModal) chartModal.classList.remove('is-open');
 					}
 
 					// Range button clicks
@@ -2439,7 +2523,7 @@ const tempSeries = {
 						});
 					}
 					document.addEventListener('keydown', function (e) {
-						if (e.key === 'Escape' && chartModal && chartModal.style.display === 'flex') closeChartModal();
+						if (e.key === 'Escape' && chartModal && chartModal.classList.contains('is-open')) closeChartModal();
 					});
 				})();
 
@@ -2468,16 +2552,33 @@ const tempSeries = {
 					let fanRequestPending = false;
 
 					// Chart options matching bubbly light style
-					const CHART_OPTS = {
-						animation: false,
-						responsive: true,
-						maintainAspectRatio: false,
-						scales: {
-							x: { display: false },
-							y: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: '#e8e8ec' } }
-						},
-						plugins: { legend: { display: false } }
-					};
+					const CHART_OPTS = (function() {
+						const c = getThemeColors();
+						return {
+							animation: false,
+							responsive: true,
+							maintainAspectRatio: false,
+							scales: {
+								x: { display: false },
+								y: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: '#e8e8ec' } }
+							},
+							plugins: {
+								legend: { display: false },
+								tooltip: {
+									backgroundColor: c.surface,
+									borderColor: c.border,
+									borderWidth: 1,
+									titleColor: c.text1,
+									bodyColor: c.text2,
+									padding: 10,
+									bodyFont: { family: 'Inter, system-ui, sans-serif', size: 12 },
+									titleFont: { family: 'Inter, system-ui, sans-serif', size: 12, weight: '600' },
+									cornerRadius: 8,
+									displayColors: true,
+								}
+							}
+						};
+					})();
 
 					function getRunId() {
 						return new URLSearchParams(location.search).get('run');

@@ -196,13 +196,20 @@
       const fanData  = [];
 
       if (tempCanvas && fanCanvas && window.Chart) {
+        function getThemeColors() {
+          const s = getComputedStyle(document.documentElement);
+          const get = (v) => s.getPropertyValue(v).trim();
+          return { surface: get('--color-surface')||'#1e1e1e', border: get('--color-border')||'rgba(255,255,255,0.09)', text1: get('--color-text-1')||'#f0f0f0', text2: get('--color-text-2')||'#a0a0a8' };
+        }
+        const tc = getThemeColors();
+        const TOOLTIP_DEFAULTS = { backgroundColor: tc.surface, borderColor: tc.border, borderWidth: 1, titleColor: tc.text1, bodyColor: tc.text2, padding: 10, cornerRadius: 8, bodyFont: { family: 'Inter, system-ui, sans-serif', size: 12 }, titleFont: { family: 'Inter, system-ui, sans-serif', size: 12, weight: '600' } };
         const CHART_DEFAULTS = {
           responsive: true, maintainAspectRatio: false, animation: false,
           scales: {
             x: { display: false },
             y: { ticks: { color: '#aaa' }, grid: { color: '#2a2a2a' } }
           },
-          plugins: { legend: { labels: { color: '#ccc' } } }
+          plugins: { legend: { labels: { color: '#ccc' } }, tooltip: TOOLTIP_DEFAULTS }
         };
 
         tempChart = new Chart(tempCanvas.getContext('2d'), {
