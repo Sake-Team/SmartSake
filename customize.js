@@ -99,7 +99,7 @@
   };
 
   // ---- State ----
-  let currentTheme  = localStorage.getItem('ss-theme')  || 'default';
+  let currentTheme  = localStorage.getItem('ss-theme')  || 'dark';
   let customBrand   = localStorage.getItem('ss-custom-brand')  || '#d40000';
   let customAccent  = localStorage.getItem('ss-custom-accent') || '#157efb';
   let editMode  = false;
@@ -250,7 +250,7 @@
   function togglePanel(force) {
     panelOpen = (force !== undefined) ? force : !panelOpen;
     const panel  = document.getElementById('settings-panel');
-    const toggle = document.getElementById('settings-toggle');
+    const toggle = document.getElementById('settings-toggle') || document.getElementById('settings-btn');
     if (panel)  panel.classList.toggle('settings-panel--open', panelOpen);
     if (toggle) toggle.classList.toggle('settings-toggle--active', panelOpen);
   }
@@ -354,6 +354,13 @@
   }
 
   function buildToggle() {
+    // Prefer the header-embedded #settings-btn if the page has one
+    var existing = document.getElementById('settings-btn');
+    if (existing) {
+      existing.addEventListener('click', function (e) { e.stopPropagation(); togglePanel(); });
+      return existing;
+    }
+    // Fallback: build a floating toggle for pages without a header button
     var btn = document.createElement('button');
     btn.id = 'settings-toggle';
     btn.className = 'settings-toggle';

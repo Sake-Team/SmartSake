@@ -253,9 +253,9 @@
     .rh-chart-wrap {
       position: relative;
     }
-    .rh-chart-wrap--temp   { height: 280px; }
-    .rh-chart-wrap--env    { height: 220px; }
-    .rh-chart-wrap--weight { height: 170px; }
+    .rh-chart-wrap--temp   { height: 320px; }
+    .rh-chart-wrap--env    { height: 260px; }
+    .rh-chart-wrap--weight { height: 220px; }
 
     .rh-chart-wrap canvas {
       position: absolute;
@@ -316,6 +316,7 @@
       <span class="rh-clock" id="rh-clock"></span>
       <a href="#" class="rh-nav-btn rh-nav-btn--active" id="rh-batch-link" style="display:none">Live Batch &rarr;</a>
       <a href="/" class="rh-nav-btn">Home</a>
+      <button id="settings-btn" class="settings-btn" type="button" aria-label="Open settings" title="Settings">&#9881;</button>
     </div>
   </header>
 
@@ -551,31 +552,65 @@
       setTimeout(function () { dotEl.classList.remove('pulse'); }, 900);
     }
 
-    // ── Chart defaults ─────────────────────────────────────────────────────────
-    Chart.defaults.color = '#888';
-    Chart.defaults.borderColor = '#2a2a2a';
+    // ── Theme-aware chart helpers ───────────────────────────────────────────────
+    function getThemeColors() {
+      var s = getComputedStyle(document.documentElement);
+      var g = function (v) { return s.getPropertyValue(v).trim(); };
+      return {
+        tick:    g('--color-text-3'),
+        grid:    g('--color-border'),
+        surface: g('--color-surface'),
+        border:  g('--color-border-strong'),
+        text1:   g('--color-text-1'),
+        text2:   g('--color-text-2'),
+      };
+    }
 
-    var BASE_SCALE_X = {
-      ticks: { color: '#aaa', maxTicksLimit: 8, maxRotation: 0, font: { size: 10 } },
-      grid: { color: '#2a2a2a' }
-    };
-    var BASE_SCALE_Y = {
-      ticks: { color: '#aaa', font: { size: 10 } },
-      grid: { color: '#2a2a2a' }
-    };
-    var BASE_PLUGINS = {
-      legend: { display: false },
-      tooltip: {
-        backgroundColor: '#181818',
-        borderColor: 'rgba(255,255,255,0.09)',
-        borderWidth: 1,
-        titleColor: '#aaa',
-        bodyColor: '#ddd',
-        padding: 8,
-        mode: 'index',
-        intersect: false
-      }
-    };
+    function buildBaseScales() {
+      var c = getThemeColors();
+      return {
+        x: {
+          ticks: { color: c.tick, maxTicksLimit: 8, maxRotation: 0, font: { size: 10 } },
+          grid: { color: c.grid }
+        },
+        y: {
+          ticks: { color: c.tick, font: { size: 10 } },
+          grid: { color: c.grid }
+        }
+      };
+    }
+
+    function buildBasePlugins() {
+      var c = getThemeColors();
+      return {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: c.surface,
+          borderColor: c.border,
+          borderWidth: 1,
+          titleColor: c.text2,
+          bodyColor: c.text1,
+          padding: 8,
+          mode: 'index',
+          intersect: false
+        }
+      };
+    }
+
+    function applyChartDefaults() {
+      var c = getThemeColors();
+      Chart.defaults.color = c.tick;
+      Chart.defaults.borderColor = c.grid;
+    }
+
+    applyChartDefaults();
+
+    // Re-render all charts when theme changes
+    var _rhThemeObserver = new MutationObserver(function () {
+      applyChartDefaults();
+      renderCharts();
+    });
+    _rhThemeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
     // ── Build temperature legend ───────────────────────────────────────────────
     function buildTempLegend() {
@@ -631,13 +666,12 @@
         options: {
           responsive: true, maintainAspectRatio: false, animation: false,
           interaction: { mode: 'index', intersect: false },
-          plugins: BASE_PLUGINS,
-          scales: {
-            x: BASE_SCALE_X,
-            y: Object.assign({}, BASE_SCALE_Y, {
-              title: { display: true, text: '°C', color: '#888', font: { size: 10 } }
+          plugins: buildBasePlugins(),
+          scales: Object.assign(buildBaseScales(), {
+            y: Object.assign(buildBaseScales().y, {
+              title: { display: true, text: '°C', color: getThemeColors().tick, font: { size: 10 } }
             })
-          }
+          })
         }
       });
 
@@ -663,19 +697,19 @@
         options: {
           responsive: true, maintainAspectRatio: false, animation: false,
           interaction: { mode: 'index', intersect: false },
-          plugins: BASE_PLUGINS,
+          plugins: buildBasePlugins(),
           scales: {
-            x: BASE_SCALE_X,
-            yT: Object.assign({}, BASE_SCALE_Y, {
+            x: buildBaseScales().x,
+            yT: Object.assign({}, buildBaseScales().y, {
               position: 'left',
-              title: { display: true, text: '°C', color: '#888', font: { size: 10 } }
+              title: { display: true, text: '°C', color: getThemeColors().tick, font: { size: 10 } }
             }),
             yH: {
               type: 'linear', position: 'right',
               min: 0, max: 100,
-              ticks: { color: '#aaa', font: { size: 10 } },
+              ticks: { color: getThemeColors().tick, font: { size: 10 } },
               grid: { drawOnChartArea: false },
-              title: { display: true, text: '%', color: '#888', font: { size: 10 } }
+              title: { display: true, text: '%', color: getThemeColors().tick, font: { size: 10 } }
             }
           }
         }
@@ -699,13 +733,12 @@
         options: {
           responsive: true, maintainAspectRatio: false, animation: false,
           interaction: { mode: 'index', intersect: false },
-          plugins: BASE_PLUGINS,
-          scales: {
-            x: BASE_SCALE_X,
-            y: Object.assign({}, BASE_SCALE_Y, {
-              title: { display: true, text: 'lbs', color: '#888', font: { size: 10 } }
+          plugins: buildBasePlugins(),
+          scales: Object.assign(buildBaseScales(), {
+            y: Object.assign(buildBaseScales().y, {
+              title: { display: true, text: 'lbs', color: getThemeColors().tick, font: { size: 10 } }
             })
-          }
+          })
         }
       });
     }

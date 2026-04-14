@@ -1714,13 +1714,24 @@ const tempSeries = {
 					}
 					function getThemeColors() {
 						const s = getComputedStyle(document.documentElement);
+						const g = v => s.getPropertyValue(v).trim();
 						return {
-							surface: s.getPropertyValue('--color-surface').trim() || '#1e1e1e',
-							border:  s.getPropertyValue('--color-border').trim()  || 'rgba(255,255,255,0.09)',
-							text1:   s.getPropertyValue('--color-text-1').trim()  || '#f0f0f0',
-							text2:   s.getPropertyValue('--color-text-2').trim()  || '#a0a0a8',
+							surface: g('--color-surface') || '#1e1e1e',
+							border:  g('--color-border')  || 'rgba(255,255,255,0.09)',
+							text1:   g('--color-text-1')  || '#f0f0f0',
+							text2:   g('--color-text-2')  || '#a0a0a8',
+							tick:    g('--color-text-3')  || '#666672',
+							grid:    g('--color-border')  || 'rgba(255,255,255,0.08)',
 						};
 					}
+					// Apply global Chart.js defaults from theme tokens
+					(function () {
+						const c = getThemeColors();
+						Chart.defaults.color = c.tick;
+						Chart.defaults.borderColor = c.grid;
+						Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+						Chart.defaults.font.size = 11;
+					})();
 					const tempChart = new Chart(tempCtx, {
 						type: 'line',
 						data: {

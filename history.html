@@ -74,6 +74,7 @@
 <header class="page-header">
 	<a href="home.html" class="back-link">&larr; Home</a>
 	<h1>Batch History</h1>
+	<button id="settings-btn" class="settings-btn" type="button" aria-label="Open settings" title="Settings">&#9881;</button>
 </header>
 
 <main>
@@ -327,6 +328,38 @@
 	let _corrLoaded = false;
 	const _corrCharts = {};
 
+	function getThemeColors() {
+		const s = getComputedStyle(document.documentElement);
+		const g = v => s.getPropertyValue(v).trim();
+		return {
+			tick:    g('--color-text-3'),
+			grid:    g('--color-border'),
+			surface: g('--color-surface'),
+			border:  g('--color-border-strong'),
+			text1:   g('--color-text-1'),
+			text2:   g('--color-text-2'),
+		};
+	}
+
+	function applyChartDefaults() {
+		const c = getThemeColors();
+		Chart.defaults.color = c.tick;
+		Chart.defaults.borderColor = c.grid;
+	}
+
+	applyChartDefaults();
+
+	// Re-render correlation charts when theme changes
+	new MutationObserver(() => {
+		applyChartDefaults();
+		// Destroy existing charts so they re-render with new colors on next load
+		Object.keys(_corrCharts).forEach(k => {
+			if (_corrCharts[k]) { _corrCharts[k].destroy(); delete _corrCharts[k]; }
+		});
+		_corrLoaded = false;
+		loadCorrelation();
+	}).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
 	function loadCorrelation() {
 		if (_corrLoaded) return;
 		_corrLoaded = true;
@@ -387,12 +420,20 @@
 						responsive: true,
 						maintainAspectRatio: false,
 						scales: {
-							x: { title: { display: true, text: varDef.xLabel } },
-							y: { min: 1, max: 5, ticks: { stepSize: 1 }, title: { display: true, text: 'Quality ★' } },
+							x: { title: { display: true, text: varDef.xLabel, color: getThemeColors().text2 },
+							     ticks: { color: getThemeColors().tick }, grid: { color: getThemeColors().grid } },
+							y: { min: 1, max: 5, ticks: { stepSize: 1, color: getThemeColors().tick },
+							     grid: { color: getThemeColors().grid },
+							     title: { display: true, text: 'Quality ★', color: getThemeColors().text2 } },
 						},
 						plugins: {
 							legend: { display: false },
 							tooltip: {
+								backgroundColor: getThemeColors().surface,
+								borderColor: getThemeColors().border,
+								borderWidth: 1,
+								titleColor: getThemeColors().text2,
+								bodyColor: getThemeColors().text1,
 								callbacks: {
 									label(ctx) {
 										const d = ctx.raw;
