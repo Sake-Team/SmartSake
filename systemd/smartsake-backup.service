@@ -5,6 +5,6 @@ Description=SmartSake Database Backup
 Type=oneshot
 User=pi
 WorkingDirectory=/home/pi/SmartSake
-ExecStart=/usr/bin/python3 /home/pi/SmartSake/backup_db.py
+ExecStart=/home/pi/SmartSake/.venv/bin/python backup_db.py
 StandardOutput=journal
 StandardError=journal

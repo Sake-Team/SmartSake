@@ -4,3 +4,4 @@ backups/*.db
 .graphify_*.json
 .graphify_uncached.txt
 *.pyc
+.venv/

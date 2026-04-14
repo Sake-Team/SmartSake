@@ -7,7 +7,7 @@ Wants=smartsake-sensors.service
 Type=simple
 User=pi
 WorkingDirectory=/home/pi/SmartSake
-ExecStart=/home/pi/.local/bin/gunicorn -w 2 -b 0.0.0.0:8080 --timeout 60 --access-logfile - server:app
+ExecStart=/home/pi/SmartSake/.venv/bin/gunicorn -w 2 -b 0.0.0.0:8080 --timeout 60 --access-logfile - server:app
 Environment=PYTHONUNBUFFERED=1
 Restart=always
 RestartSec=5
