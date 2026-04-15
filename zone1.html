@@ -5,12 +5,14 @@
     <title>Zone 1</title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <link rel="stylesheet" href="styles.css">
+  <script src="customize.js" defer></script>
   </head>
   <body class="zone-page">
     <header>
       <div class="header-inner">
         <img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" class="sake-logo-egg">
         <h1 class="header-title">Zone 1 <span id="run-name-display" class="run-name-header"></span></h1>
+        <button id="settings-btn" class="settings-btn" type="button" aria-label="Open settings" title="Settings">&#9881;</button>
       </div>
       <div class="header-actions">
         <div class="header-datetime" id="header-datetime"></div>
@@ -314,29 +316,36 @@
 
       function getThemeColors() {
         const s = getComputedStyle(document.documentElement);
-        const get = (v) => s.getPropertyValue(v).trim();
+        const g = v => s.getPropertyValue(v).trim();
         return {
-          surface: get('--color-surface') || '#1e1e1e',
-          border:  get('--color-border')  || 'rgba(255,255,255,0.09)',
-          text1:   get('--color-text-1')  || '#f0f0f0',
-          text2:   get('--color-text-2')  || '#a0a0a8',
+          surface: g('--color-surface') || '#1e1e1e',
+          border:  g('--color-border')  || 'rgba(255,255,255,0.09)',
+          text1:   g('--color-text-1')  || '#f0f0f0',
+          text2:   g('--color-text-2')  || '#a0a0a8',
+          tick:    g('--color-text-3')  || '#666672',
         };
       }
-      const tc = getThemeColors();
-      const TOOLTIP_DEFAULTS = {
-        backgroundColor: tc.surface, borderColor: tc.border, borderWidth: 1,
-        titleColor: tc.text1, bodyColor: tc.text2, padding: 10, cornerRadius: 8,
-        bodyFont: { family: 'Inter, system-ui, sans-serif', size: 12 },
-        titleFont: { family: 'Inter, system-ui, sans-serif', size: 12, weight: '600' },
-      };
-      const CHART_DEFAULTS = {
-        responsive: true, maintainAspectRatio: false, animation: false,
-        scales: {
-          x: { display: false },
-          y: { ticks: { color: '#aaa' }, grid: { color: '#2a2a2a' } }
-        },
-        plugins: { legend: { labels: { color: '#ccc' } }, tooltip: TOOLTIP_DEFAULTS }
-      };
+      function buildChartConfig() {
+        const tc = getThemeColors();
+        const tooltip = {
+          backgroundColor: tc.surface, borderColor: tc.border, borderWidth: 1,
+          titleColor: tc.text1, bodyColor: tc.text2, padding: 10, cornerRadius: 8,
+          bodyFont: { family: 'Inter, system-ui, sans-serif', size: 12 },
+          titleFont: { family: 'Inter, system-ui, sans-serif', size: 12, weight: '600' },
+        };
+        return {
+          tooltip,
+          chartDefaults: {
+            responsive: true, maintainAspectRatio: false, animation: false,
+            scales: {
+              x: { display: false },
+              y: { ticks: { color: tc.tick }, grid: { color: tc.border } }
+            },
+            plugins: { legend: { labels: { color: tc.text2 } }, tooltip }
+          }
+        };
+      }
+      const { tooltip: TOOLTIP_DEFAULTS, chartDefaults: CHART_DEFAULTS } = buildChartConfig();
 
       const tempChart = new Chart(tempCanvas.getContext('2d'), {
         type: 'line',
@@ -365,6 +374,18 @@
         },
         options: { ...CHART_DEFAULTS, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, min: 0, max: 1 } } }
       });
+
+      // Re-apply chart colors when theme changes
+      new MutationObserver(() => {
+        const cfg = buildChartConfig();
+        [tempChart, fanChart].forEach(chart => {
+          chart.options.scales.y.ticks.color = cfg.chartDefaults.scales.y.ticks.color;
+          chart.options.scales.y.grid.color  = cfg.chartDefaults.scales.y.grid.color;
+          chart.options.plugins.legend.labels.color = cfg.chartDefaults.plugins.legend.labels.color;
+          chart.options.plugins.tooltip = cfg.tooltip;
+          chart.update('none');
+        });
+      }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
       function roundHalf(v) { return Math.round(v * 2) / 2; }
       function pushSample(time, temp, fan) {
