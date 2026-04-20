@@ -94,6 +94,11 @@
 
     /* ── Header clearance ──────────────────────────────────── */
     .curves-page { padding-top: 5.5rem !important; }
+
+    /* ── Allow scroll — curves page is not a fixed-viewport layout ── */
+    html, body { overflow: auto !important; }
+    .page-wrapper { height: auto !important; }
+    main { overflow: visible !important; }
   </style>
   <script src="customize.js" defer></script>
 </head>
@@ -103,7 +108,7 @@
   <header class="header">
     <div class="header-inner">
       <img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" class="sake-logo-egg">
-      <h1 class="header-title">SmartSake</h1>
+      <h1 class="header-title">Curves</h1>
       <button id="settings-btn" class="settings-btn" type="button" aria-label="Open settings" title="Settings">&#9881;</button>
     </div>
   </header>

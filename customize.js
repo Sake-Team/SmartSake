@@ -1,6 +1,6 @@
 // =============================================
-// SmartSake — Customize System v1
-// Theme presets, custom colors, drag-to-reorder
+// SmartSake — Customize System v2
+// Theme presets + custom colors, modal UI
 // =============================================
 
 (function () {
@@ -8,31 +8,9 @@
 
   // ---- Theme Definitions ----
   const THEMES = {
-    default: {
-      label: 'Default',
-      swatchBg: '#f1f2f5',
-      swatchBorder: '#d40000',
-      vars: {
-        '--color-bg':            '#f1f2f5',
-        '--color-surface':       '#ffffff',
-        '--color-border':        'rgba(0,0,0,0.07)',
-        '--color-border-strong': 'rgba(0,0,0,0.14)',
-        '--color-text-1':        '#111111',
-        '--color-text-2':        '#555555',
-        '--color-text-3':        '#888888',
-        '--color-bg-subtle':     '#f5f5f7',
-        '--color-bg-tinted':     '#eaeaee',
-        '--color-brand':         '#d40000',
-        '--color-brand-hover':   '#b00000',
-        '--color-brand-light':   '#ff6b6b',
-        '--color-run-name':      '#1e3a8a',
-        '--color-accent':        '#157efb',
-        '--color-accent-hover':  '#0f6cd4',
-      }
-    },
     dark: {
       label: 'Dark',
-      swatchBg: '#0f1015',
+      swatchBg: '#111114',
       swatchBorder: '#ff5555',
       vars: {
         '--color-bg':            '#111114',
@@ -50,6 +28,116 @@
         '--color-run-name':      '#93c5fd',
         '--color-accent':        '#5599ff',
         '--color-accent-hover':  '#4488ee',
+      }
+    },
+    galaxy: {
+      label: 'Galaxy',
+      swatchBg: '#0a0a1a',
+      swatchBorder: '#a855f7',
+      vars: {
+        '--color-bg':            '#0a0a1a',
+        '--color-surface':       '#0f0f2a',
+        '--color-border':        'rgba(168,85,247,0.18)',
+        '--color-border-strong': 'rgba(168,85,247,0.35)',
+        '--color-text-1':        '#e0d8ff',
+        '--color-text-2':        '#a090cc',
+        '--color-text-3':        '#6a5a99',
+        '--color-bg-subtle':     '#16143a',
+        '--color-bg-tinted':     '#1e1a48',
+        '--color-brand':         '#a855f7',
+        '--color-brand-hover':   '#8b3de0',
+        '--color-brand-light':   '#c990ff',
+        '--color-run-name':      '#c990ff',
+        '--color-accent':        '#a855f7',
+        '--color-accent-hover':  '#8b3de0',
+      }
+    },
+    ocean: {
+      label: 'Ocean',
+      swatchBg: '#021a2b',
+      swatchBorder: '#00b4d8',
+      vars: {
+        '--color-bg':            '#021a2b',
+        '--color-surface':       '#032538',
+        '--color-border':        'rgba(0,180,216,0.15)',
+        '--color-border-strong': 'rgba(0,180,216,0.30)',
+        '--color-text-1':        '#a8d8f0',
+        '--color-text-2':        '#6aabcc',
+        '--color-text-3':        '#3a7a99',
+        '--color-bg-subtle':     '#063048',
+        '--color-bg-tinted':     '#0a3d5a',
+        '--color-brand':         '#00b4d8',
+        '--color-brand-hover':   '#0090ae',
+        '--color-brand-light':   '#48d8f8',
+        '--color-run-name':      '#48d8f8',
+        '--color-accent':        '#00b4d8',
+        '--color-accent-hover':  '#0090ae',
+      }
+    },
+    forest: {
+      label: 'Forest',
+      swatchBg: '#081a0f',
+      swatchBorder: '#4caf80',
+      vars: {
+        '--color-bg':            '#081a0f',
+        '--color-surface':       '#0f2416',
+        '--color-border':        'rgba(76,175,128,0.15)',
+        '--color-border-strong': 'rgba(76,175,128,0.30)',
+        '--color-text-1':        '#c8e8d0',
+        '--color-text-2':        '#80b890',
+        '--color-text-3':        '#4a7a58',
+        '--color-bg-subtle':     '#142e1c',
+        '--color-bg-tinted':     '#1a3a24',
+        '--color-brand':         '#4caf80',
+        '--color-brand-hover':   '#3a8f66',
+        '--color-brand-light':   '#80d4a8',
+        '--color-run-name':      '#80d4a8',
+        '--color-accent':        '#4caf80',
+        '--color-accent-hover':  '#3a8f66',
+      }
+    },
+    amber: {
+      label: 'Amber',
+      swatchBg: '#1a1000',
+      swatchBorder: '#f0a020',
+      vars: {
+        '--color-bg':            '#1a1000',
+        '--color-surface':       '#241800',
+        '--color-border':        'rgba(240,160,32,0.15)',
+        '--color-border-strong': 'rgba(240,160,32,0.30)',
+        '--color-text-1':        '#f5e0a0',
+        '--color-text-2':        '#c0a860',
+        '--color-text-3':        '#887030',
+        '--color-bg-subtle':     '#302000',
+        '--color-bg-tinted':     '#3c2a00',
+        '--color-brand':         '#f0a020',
+        '--color-brand-hover':   '#c07f10',
+        '--color-brand-light':   '#ffc050',
+        '--color-run-name':      '#ffc050',
+        '--color-accent':        '#f0a020',
+        '--color-accent-hover':  '#c07f10',
+      }
+    },
+    sakura: {
+      label: 'Sakura',
+      swatchBg: '#1a0a10',
+      swatchBorder: '#e05080',
+      vars: {
+        '--color-bg':            '#1a0a10',
+        '--color-surface':       '#260f18',
+        '--color-border':        'rgba(224,80,128,0.15)',
+        '--color-border-strong': 'rgba(224,80,128,0.30)',
+        '--color-text-1':        '#f0d8e0',
+        '--color-text-2':        '#c090a8',
+        '--color-text-3':        '#885070',
+        '--color-bg-subtle':     '#321520',
+        '--color-bg-tinted':     '#3e1c2a',
+        '--color-brand':         '#e05080',
+        '--color-brand-hover':   '#b83060',
+        '--color-brand-light':   '#f088a8',
+        '--color-run-name':      '#f088a8',
+        '--color-accent':        '#e05080',
+        '--color-accent-hover':  '#b83060',
       }
     },
     sake: {
@@ -74,6 +162,28 @@
         '--color-accent-hover':  '#2e6258',
       }
     },
+    light: {
+      label: 'Light',
+      swatchBg: '#f4f4f6',
+      swatchBorder: '#2277cc',
+      vars: {
+        '--color-bg':            '#f4f4f6',
+        '--color-surface':       '#ffffff',
+        '--color-border':        'rgba(0,0,0,0.07)',
+        '--color-border-strong': 'rgba(0,0,0,0.14)',
+        '--color-text-1':        '#1a1a2e',
+        '--color-text-2':        '#555566',
+        '--color-text-3':        '#888899',
+        '--color-bg-subtle':     '#ebebef',
+        '--color-bg-tinted':     '#e0e0e8',
+        '--color-brand':         '#2277cc',
+        '--color-brand-hover':   '#1a5fa8',
+        '--color-brand-light':   '#5599ee',
+        '--color-run-name':      '#1a5fa8',
+        '--color-accent':        '#2277cc',
+        '--color-accent-hover':  '#1a5fa8',
+      }
+    },
     minimal: {
       label: 'Minimal',
       swatchBg: '#f7f7f7',
@@ -95,16 +205,14 @@
         '--color-accent':        '#1a1a1a',
         '--color-accent-hover':  '#000000',
       }
-    }
+    },
   };
 
   // ---- State ----
-  let currentTheme  = localStorage.getItem('ss-theme')  || 'dark';
-  let customBrand   = localStorage.getItem('ss-custom-brand')  || '#d40000';
-  let customAccent  = localStorage.getItem('ss-custom-accent') || '#157efb';
-  let editMode  = false;
-  let panelOpen = false;
-  let dragSrc   = null;
+  const _savedTheme = localStorage.getItem('ss-theme') || 'dark';
+  let currentTheme = (THEMES[_savedTheme] || _savedTheme === 'custom') ? _savedTheme : 'dark';
+  let customBrand  = localStorage.getItem('ss-custom-brand')  || '#d40000';
+  let customAccent = localStorage.getItem('ss-custom-accent') || '#157efb';
 
   // ---- Theme Helpers ----
 
@@ -118,7 +226,7 @@
   }
 
   function buildCustomVars() {
-    return Object.assign({}, THEMES.default.vars, {
+    return Object.assign({}, THEMES.dark.vars, {
       '--color-brand':         customBrand,
       '--color-brand-hover':   shadeColor(customBrand, -20),
       '--color-brand-light':   shadeColor(customBrand, 28),
@@ -130,11 +238,10 @@
   function applyTheme(id) {
     const vars = id === 'custom'
       ? buildCustomVars()
-      : (THEMES[id] ? THEMES[id].vars : THEMES.default.vars);
+      : (THEMES[id] ? THEMES[id].vars : THEMES.dark.vars);
 
     const root = document.documentElement;
     Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v));
-    // Also set attribute so CSS [data-theme] blocks fire (e.g. for Chart.js overrides)
     root.setAttribute('data-theme', id);
 
     document.querySelectorAll('.theme-swatch').forEach(el => {
@@ -142,117 +249,16 @@
     });
   }
 
-  // ---- Drag and Drop ----
+  // ---- Modal ----
 
-  function makeDraggable(container, selector, storageKey) {
-    function getItems() {
-      return Array.from(container.querySelectorAll(selector));
-    }
-
-    function saveOrder() {
-      const ids = getItems().map(el => el.dataset.widgetId).filter(Boolean);
-      if (ids.length) localStorage.setItem(storageKey, JSON.stringify(ids));
-    }
-
-    function restoreOrder() {
-      try {
-        const saved = localStorage.getItem(storageKey);
-        if (!saved) return;
-        const ids = JSON.parse(saved);
-        if (!Array.isArray(ids)) return;
-        ids.forEach(id => {
-          const el = container.querySelector('[data-widget-id="' + id + '"]');
-          if (el) container.appendChild(el);
-        });
-      } catch (e) { /* ignore malformed storage */ }
-    }
-
-    restoreOrder();
-
-    container.addEventListener('dragstart', function (e) {
-      const item = e.target.closest(selector);
-      if (!item) return;
-      dragSrc = item;
-      item.classList.add('widget-dragging');
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', item.dataset.widgetId || '');
-    });
-
-    container.addEventListener('dragend', function (e) {
-      const item = e.target.closest(selector);
-      if (item) item.classList.remove('widget-dragging');
-      container.querySelectorAll('.widget-drag-over').forEach(el => {
-        el.classList.remove('widget-drag-over');
-      });
-      dragSrc = null;
-      saveOrder();
-      // Notify Chart.js to reflow after reorder
-      setTimeout(function () { window.dispatchEvent(new Event('resize')); }, 60);
-    });
-
-    container.addEventListener('dragover', function (e) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      const item = e.target.closest(selector);
-      if (item && item !== dragSrc) {
-        container.querySelectorAll('.widget-drag-over').forEach(el => {
-          el.classList.remove('widget-drag-over');
-        });
-        item.classList.add('widget-drag-over');
-      }
-    });
-
-    container.addEventListener('dragleave', function (e) {
-      const item = e.target.closest(selector);
-      if (item && !item.contains(e.relatedTarget)) {
-        item.classList.remove('widget-drag-over');
-      }
-    });
-
-    container.addEventListener('drop', function (e) {
-      e.preventDefault();
-      const target = e.target.closest(selector);
-      if (!target || !dragSrc || target === dragSrc) return;
-      target.classList.remove('widget-drag-over');
-
-      const items = getItems();
-      const si = items.indexOf(dragSrc);
-      const ti = items.indexOf(target);
-      if (si < ti) {
-        container.insertBefore(dragSrc, target.nextSibling);
-      } else {
-        container.insertBefore(dragSrc, target);
-      }
-    });
+  function openModal() {
+    var modal = document.getElementById('customize-modal');
+    if (modal) modal.classList.add('is-open');
   }
 
-  // ---- Edit Mode ----
-
-  function setEditMode(on) {
-    editMode = on;
-    document.body.classList.toggle('layout-edit-mode', on);
-
-    const btn = document.getElementById('edit-layout-btn');
-    if (btn) {
-      btn.textContent = on ? 'Done Editing' : 'Edit Layout';
-      btn.classList.toggle('active', on);
-    }
-
-    const draggables = [].concat(
-      Array.from(document.querySelectorAll('.left > .long')),
-      Array.from(document.querySelectorAll('.zones-combined > .zone-combined'))
-    );
-    draggables.forEach(function (el) { el.draggable = on; });
-  }
-
-  // ---- Panel ----
-
-  function togglePanel(force) {
-    panelOpen = (force !== undefined) ? force : !panelOpen;
-    const panel  = document.getElementById('settings-panel');
-    const toggle = document.getElementById('settings-toggle') || document.getElementById('settings-btn');
-    if (panel)  panel.classList.toggle('settings-panel--open', panelOpen);
-    if (toggle) toggle.classList.toggle('settings-toggle--active', panelOpen);
+  function closeModal() {
+    var modal = document.getElementById('customize-modal');
+    if (modal) modal.classList.remove('is-open');
   }
 
   function buildSwatchHTML() {
@@ -270,44 +276,60 @@
     '</button>';
   }
 
-  function buildPanel() {
-    var panel = document.createElement('div');
-    panel.id = 'settings-panel';
-    panel.className = 'settings-panel';
+  function buildModal() {
+    var hasDashboardSettings = !!document.getElementById('settings-modal');
 
-    panel.innerHTML =
-      '<div class="settings-panel__header">' +
-        '<span class="settings-panel__title">Customize</span>' +
-        '<button class="settings-panel__close" id="settings-close" aria-label="Close">&times;</button>' +
-      '</div>' +
+    var overlay = document.createElement('div');
+    overlay.id = 'customize-modal';
+    overlay.className = 'modal-overlay';
 
-      '<div class="settings-section">' +
-        '<div class="settings-section__label">Theme</div>' +
-        '<div class="theme-swatches">' + buildSwatchHTML() + '</div>' +
-      '</div>' +
-
-      '<div class="settings-section" id="custom-colors-section" style="' + (currentTheme === 'custom' ? '' : 'display:none') + '">' +
-        '<div class="settings-section__label">Custom Colors</div>' +
-        '<div class="color-picker-row">' +
-          '<label class="color-picker-label">Brand' +
-            '<input type="color" id="custom-brand-picker" value="' + customBrand + '">' +
-          '</label>' +
-          '<label class="color-picker-label">Accent' +
-            '<input type="color" id="custom-accent-picker" value="' + customAccent + '">' +
-          '</label>' +
+    overlay.innerHTML =
+      '<div class="modal-popup customize-modal-popup">' +
+        '<div class="modal-header">' +
+          '<h3 class="modal-title">Settings</h3>' +
+          '<button class="modal-close" id="customize-close" aria-label="Close">&times;</button>' +
         '</div>' +
-      '</div>' +
+        '<div class="modal-content">' +
 
-      '<div class="settings-section">' +
-        '<div class="settings-section__label">Layout</div>' +
-        '<button class="settings-edit-btn" id="edit-layout-btn">Edit Layout</button>' +
-        '<p class="settings-hint">Drag charts and zone cards to reorder. Tap "Done Editing" when finished.</p>' +
+          '<div class="settings-section">' +
+            '<div class="settings-section__label">Theme</div>' +
+            '<div class="theme-swatches">' + buildSwatchHTML() + '</div>' +
+          '</div>' +
+
+          '<div class="settings-section" id="custom-colors-section" style="' + (currentTheme === 'custom' ? '' : 'display:none') + '">' +
+            '<div class="settings-section__label">Custom Colors</div>' +
+            '<div class="color-picker-row">' +
+              '<label class="color-picker-label">Brand' +
+                '<input type="color" id="custom-brand-picker" value="' + customBrand + '">' +
+              '</label>' +
+              '<label class="color-picker-label">Accent' +
+                '<input type="color" id="custom-accent-picker" value="' + customAccent + '">' +
+              '</label>' +
+            '</div>' +
+          '</div>' +
+
+          (hasDashboardSettings
+            ? '<div class="settings-section">' +
+                '<div class="settings-section__label">Run</div>' +
+                '<button class="settings-edit-btn" id="run-settings-btn">Run Settings</button>' +
+              '</div>'
+            : '') +
+
+        '</div>' +
       '</div>';
 
-    document.body.appendChild(panel);
+    document.body.appendChild(overlay);
+
+    // Close on backdrop click
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) closeModal();
+    });
+
+    // Close button
+    overlay.querySelector('#customize-close').addEventListener('click', closeModal);
 
     // Theme swatch clicks
-    panel.querySelectorAll('.theme-swatch').forEach(function (sw) {
+    overlay.querySelectorAll('.theme-swatch').forEach(function (sw) {
       sw.addEventListener('click', function () {
         var id = sw.dataset.theme;
         currentTheme = id;
@@ -319,7 +341,7 @@
     });
 
     // Custom brand picker
-    var brandPicker = panel.querySelector('#custom-brand-picker');
+    var brandPicker = overlay.querySelector('#custom-brand-picker');
     if (brandPicker) {
       brandPicker.addEventListener('input', function (e) {
         customBrand = e.target.value;
@@ -329,7 +351,7 @@
     }
 
     // Custom accent picker
-    var accentPicker = panel.querySelector('#custom-accent-picker');
+    var accentPicker = overlay.querySelector('#custom-accent-picker');
     if (accentPicker) {
       accentPicker.addEventListener('input', function (e) {
         customAccent = e.target.value;
@@ -338,86 +360,40 @@
       });
     }
 
-    // Edit layout button
-    var editBtn = panel.querySelector('#edit-layout-btn');
-    if (editBtn) {
-      editBtn.addEventListener('click', function () { setEditMode(!editMode); });
+    // Run Settings button — delegates to dashboard's openSettings() if available
+    var runSettingsBtn = overlay.querySelector('#run-settings-btn');
+    if (runSettingsBtn) {
+      runSettingsBtn.addEventListener('click', function () {
+        closeModal();
+        if (typeof window.openDashboardSettings === 'function') {
+          window.openDashboardSettings();
+        }
+      });
     }
 
-    // Close button
-    var closeBtn = panel.querySelector('#settings-close');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', function () { togglePanel(false); });
-    }
-
-    return panel;
+    return overlay;
   }
 
-  function buildToggle() {
-    // Prefer the header-embedded #settings-btn if the page has one
-    var existing = document.getElementById('settings-btn');
-    if (existing) {
-      existing.addEventListener('click', function (e) { e.stopPropagation(); togglePanel(); });
-      return existing;
+  function wireSettingsBtn() {
+    var btn = document.getElementById('settings-btn');
+    if (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        openModal();
+      });
     }
-    // Fallback: build a floating toggle for pages without a header button
-    var btn = document.createElement('button');
-    btn.id = 'settings-toggle';
-    btn.className = 'settings-toggle';
-    btn.setAttribute('aria-label', 'Open customize panel');
-    btn.innerHTML =
-      '<svg viewBox="0 0 20 20" fill="none" width="18" height="18" aria-hidden="true">' +
-        '<circle cx="10" cy="10" r="3" stroke="currentColor" stroke-width="1.6"/>' +
-        '<path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.41 1.41M14.36 14.36l1.41 1.41M4.22 15.78l1.41-1.41M14.36 5.64l1.41-1.41"' +
-          ' stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
-      '</svg>';
-    document.body.appendChild(btn);
-    btn.addEventListener('click', function (e) { e.stopPropagation(); togglePanel(); });
-    return btn;
-  }
-
-  function buildEditBanner() {
-    var banner = document.createElement('div');
-    banner.className = 'edit-mode-banner';
-    banner.textContent = 'EDITING LAYOUT — DRAG TO REORDER';
-    document.body.appendChild(banner);
   }
 
   // ---- Init ----
 
   function init() {
-    // Apply saved or default theme
     applyTheme(currentTheme);
+    buildModal();
+    wireSettingsBtn();
 
-    // Build UI chrome
-    buildPanel();
-    buildToggle();
-    buildEditBanner();
-
-    // Wire drag on charts column
-    var leftCol = document.querySelector('.left');
-    if (leftCol) makeDraggable(leftCol, '.long', 'ss-chart-order');
-
-    // Wire drag on zone grid
-    var zonesGrid = document.querySelector('.zones-combined');
-    if (zonesGrid) makeDraggable(zonesGrid, '.zone-combined', 'ss-zone-order');
-
-    // Click outside to close panel
-    document.addEventListener('click', function (e) {
-      if (!panelOpen) return;
-      var panel  = document.getElementById('settings-panel');
-      var toggle = document.getElementById('settings-toggle');
-      if (panel && toggle && !panel.contains(e.target) && !toggle.contains(e.target)) {
-        togglePanel(false);
-      }
-    });
-
-    // ESC to close panel or exit edit mode
+    // ESC to close
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') {
-        if (editMode) { setEditMode(false); return; }
-        if (panelOpen) { togglePanel(false); }
-      }
+      if (e.key === 'Escape') closeModal();
     });
   }
 

@@ -6,6 +6,7 @@
 	<title>Sake Table - Dashboard</title>
 	<meta name="viewport" content="width=device-width,initial-scale=1">
 	<link rel="stylesheet" href="styles.css">
+	<script src="customize.js" defer></script>
 	<style>
 		.replay-banner { background:#1a3a1a; color:#7fff7f; text-align:center; padding:.5rem 1rem; font-size:.85rem; display:flex; align-items:center; justify-content:center; gap:1rem; flex-wrap:wrap; }
 		.replay-banner strong { color:#aaffaa; }
@@ -290,11 +291,6 @@
 								<button type="button" id="settings-apply-curve" class="btn-apply-curve">Apply</button>
 							</div>
 							<p class="settings-curve-hint" id="settings-curve-status"></p>
-						</section>
-
-<section class="settings-section">
-							<h4 class="settings-section__title">Theme</h4>
-							<div class="theme-picker" id="theme-picker"></div>
 						</section>
 
 						<div class="settings-footer">
@@ -2352,6 +2348,8 @@ const tempSeries = {
 							});
 						} else if (type === 'humidity') {
 							vals = humidityData.slice(s, e).filter(v => v != null);
+						} else if (type === 'weight') {
+							vals = weightData.slice(s, e).filter(v => v != null);
 						}
 						if (!vals.length) return { min: 0, max: 1 };
 						const mn = Math.min(...vals), mx = Math.max(...vals);
@@ -2450,6 +2448,17 @@ const tempSeries = {
 								  borderColor: '#7070e0', backgroundColor: 'transparent',
 								  borderWidth: 1, pointRadius: 0, tension: 0.3, borderDash: [4, 3] }
 							];
+						} else if (type === 'weight') {
+							return [{
+								label: 'Weight (lbs)',
+								borderColor: '#52e0a0',
+								backgroundColor: 'rgba(82,224,160,0.1)',
+								borderWidth: 1.5,
+								pointRadius: 0,
+								fill: true,
+								tension: 0.3,
+								data: weightData.slice(s, e)
+							}];
 						}
 						return [];
 					}
@@ -2513,6 +2522,7 @@ const tempSeries = {
 						else if (type === 'humidity') { chartModalTitle.textContent = 'Humidity over time'; yTitle = 'Humidity (%)'; }
 						else if (type === 'fans') { chartModalTitle.textContent = 'Fans on/off over time'; yTitle = 'Fan state'; }
 						else if (type === 'env') { chartModalTitle.textContent = 'Environment (Dry Bulb / Wet Bulb / Humidity)'; yTitle = ''; }
+						else if (type === 'weight') { chartModalTitle.textContent = 'Weight over time'; yTitle = 'Weight (lbs)'; }
 
 						// Reset Y inputs to auto
 						if (yMinInput) yMinInput.value = (type === 'fans' || type === 'env') ? '' : autoMin.toFixed(1);
@@ -2616,6 +2626,7 @@ const tempSeries = {
 					tempCanvas.addEventListener('click', function () { openChartModal('temp'); });
 					humCanvas.addEventListener('click', function () { openChartModal('env'); });
 					fansCanvas.addEventListener('click', function () { openChartModal('fans'); });
+					weightCanvas.addEventListener('click', function () { openChartModal('weight'); });
 
 					if (chartModalClose) chartModalClose.addEventListener('click', closeChartModal);
 					if (chartModal) {
@@ -4038,7 +4049,7 @@ const tempSeries = {
 
 					// ── Input ────────────────────────────────────────────────
 					function onKeyDown(e) {
-						if (modal.style.display !== 'flex') return;
+						if (!modal.classList.contains('is-open')) return;
 						if (e.key === 'Escape') {
 							if (scene === 'hub') closeArcade();
 							else scene = 'hub';
@@ -4087,11 +4098,11 @@ const tempSeries = {
 					// ── Modal wiring ─────────────────────────────────────────
 					function openArcade() {
 						scene = 'hub';
-						modal.style.display = 'flex';
+						modal.classList.add('is-open');
 						if (!animId) loop();
 					}
 					function closeArcade() {
-						modal.style.display = 'none';
+						modal.classList.remove('is-open');
 						if (animId) { cancelAnimationFrame(animId); animId = null; }
 					}
 
@@ -4173,7 +4184,6 @@ const tempSeries = {
 		if (window.updateChartColors) window.updateChartColors();
 
 		const modal     = document.getElementById('settings-modal');
-		const openBtn   = document.getElementById('settings-btn');
 		const closeBtn  = document.getElementById('settings-modal-close');
 		const resetBtn  = document.getElementById('settings-reset-btn');
 
@@ -4224,11 +4234,11 @@ const tempSeries = {
 		function openSettings() {
 			if (!modal) return;
 			populateInputs(loadSettings());
-			modal.style.display = 'flex';
+			modal.classList.add('is-open');
 		}
 
 		function closeSettings() {
-			if (modal) modal.style.display = 'none';
+			if (modal) modal.classList.remove('is-open');
 		}
 
 
@@ -4243,7 +4253,6 @@ const tempSeries = {
 			});
 		}
 
-		if (openBtn)  openBtn.addEventListener('click', function () { openSettings(); });
 		if (closeBtn) closeBtn.addEventListener('click', closeSettings);
 		if (modal) {
 			modal.addEventListener('click', function (e) {
@@ -4251,11 +4260,13 @@ const tempSeries = {
 			});
 		}
 		document.addEventListener('keydown', function (e) {
-			if (e.key === 'Escape' && modal && modal.style.display === 'flex') closeSettings();
+			if (e.key === 'Escape' && modal && modal.classList.contains('is-open')) closeSettings();
 		});
 
 		// Expose so chart code can read current zone colors
 		window.getSakeSettings = loadSettings;
+		// Expose so customize.js Run Settings button can open this modal
+		window.openDashboardSettings = openSettings;
 
 		// ── Reference curve quick-apply ───────────────────────────────────
 		(function () {

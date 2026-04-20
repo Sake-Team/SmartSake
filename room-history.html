@@ -21,32 +21,6 @@
       font-size: 14px;
     }
 
-    /* ── Header — matches dashboard compact bar ──────────────────── */
-    .rh-header {
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      background: var(--color-surface);
-      border-bottom: 1px solid var(--color-border);
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.4rem 1.2rem;
-      flex-wrap: nowrap;
-      min-height: 52px;
-    }
-
-    .rh-brand {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      text-decoration: none;
-      color: var(--color-text-1);
-      flex-shrink: 0;
-    }
-    .rh-brand img { height: 36px; width: auto; }
-    .rh-brand h1 { font-size: 1.3rem; font-weight: 700; white-space: nowrap; margin: 0; }
-
     .rh-range-group { display: flex; gap: 2px; flex-shrink: 0; }
     .rh-range-btn {
       background: transparent;
@@ -62,14 +36,6 @@
     }
     .rh-range-btn:hover { background: var(--color-bg-subtle); color: var(--color-text-1); }
     .rh-range-btn.active { background: rgba(82,160,224,0.22); color: #82c0f0; font-weight: 600; }
-
-    .rh-header-right {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-      margin-left: auto;
-      flex-shrink: 0;
-    }
 
     .rh-clock {
       font-size: 0.78rem;
@@ -296,27 +262,25 @@
 <body>
 
   <!-- ── Header ──────────────────────────────────────────────── -->
-  <header class="rh-header">
-    <a href="/" class="rh-brand">
-      <img src="images/VoidSakeLogo.jpg" alt="SmartSake">
-      <h1>Room History</h1>
-    </a>
-
-    <div class="rh-range-group" id="rh-ranges" role="group" aria-label="View range">
-      <button class="rh-range-btn" data-minutes="30">30m</button>
-      <button class="rh-range-btn" data-minutes="60">1h</button>
-      <button class="rh-range-btn" data-minutes="360">6h</button>
-      <button class="rh-range-btn" data-minutes="720">12h</button>
-      <button class="rh-range-btn active" data-minutes="1440">1d</button>
-      <button class="rh-range-btn" data-minutes="4320">3d</button>
-      <button class="rh-range-btn" data-minutes="10080">7d</button>
+  <header class="header">
+    <div class="header-inner">
+      <img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" class="sake-logo-egg">
+      <h1 class="header-title">Room History</h1>
+      <button id="settings-btn" class="settings-btn" type="button" aria-label="Open settings" title="Settings">&#9881;</button>
     </div>
-
-    <div class="rh-header-right">
+    <div class="header-right">
+      <div class="rh-range-group" id="rh-ranges" role="group" aria-label="View range">
+        <button class="rh-range-btn" data-minutes="30">30m</button>
+        <button class="rh-range-btn" data-minutes="60">1h</button>
+        <button class="rh-range-btn" data-minutes="360">6h</button>
+        <button class="rh-range-btn" data-minutes="720">12h</button>
+        <button class="rh-range-btn active" data-minutes="1440">1d</button>
+        <button class="rh-range-btn" data-minutes="4320">3d</button>
+        <button class="rh-range-btn" data-minutes="10080">7d</button>
+      </div>
       <span class="rh-clock" id="rh-clock"></span>
       <a href="#" class="rh-nav-btn rh-nav-btn--active" id="rh-batch-link" style="display:none">Live Batch &rarr;</a>
       <a href="/" class="rh-nav-btn">Home</a>
-      <button id="settings-btn" class="settings-btn" type="button" aria-label="Open settings" title="Settings">&#9881;</button>
     </div>
   </header>
 

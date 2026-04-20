@@ -8,8 +8,6 @@
 	<style>
 		/* ── Page chrome ────────────────────────────────────────── */
 		body { background: var(--color-bg); color: var(--color-text-1); margin: 0; }
-		.page-header { background: var(--color-surface); border-bottom: 1px solid var(--color-border); padding: 12px 24px; display: flex; align-items: center; gap: 16px; }
-		.page-header h1 { font-size: 1.15rem; font-weight: 700; margin: 0; }
 		.back-link { font-size: .82rem; color: var(--color-text-2); text-decoration: none; }
 		.back-link:hover { color: var(--color-text-1); }
 
@@ -71,10 +69,15 @@
 	<script src="customize.js" defer></script>
 </head>
 <body>
-<header class="page-header">
-	<a href="home.html" class="back-link">&larr; Home</a>
-	<h1>Batch History</h1>
-	<button id="settings-btn" class="settings-btn" type="button" aria-label="Open settings" title="Settings">&#9881;</button>
+<header class="header">
+	<div class="header-inner">
+		<img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" class="sake-logo-egg">
+		<h1 class="header-title">Batch History</h1>
+		<button id="settings-btn" class="settings-btn" type="button" aria-label="Open settings" title="Settings">&#9881;</button>
+	</div>
+	<div class="header-right">
+		<a href="home.html" class="back-link">&larr; Home</a>
+	</div>
 </header>
 
 <main>
