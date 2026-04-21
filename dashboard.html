@@ -483,14 +483,7 @@
 								<button class="chart-range-btn" data-range="60">1 hr</button>
 								<button class="chart-range-btn active" data-range="0">All</button>
 							</div>
-							<div class="chart-y-controls">
-								<label for="chart-y-min">Y min</label>
-								<input type="number" id="chart-y-min" class="chart-y-input" step="0.5" placeholder="auto">
-								<label for="chart-y-max">Y max</label>
-								<input type="number" id="chart-y-max" class="chart-y-input" step="0.5" placeholder="auto">
-								<button id="chart-y-reset" class="chart-y-reset-btn" title="Reset Y axis">&#x21BA;</button>
 							</div>
-						</div>
 						<div class="chart-modal-canvas-wrap">
 							<canvas id="chart-modal-canvas"></canvas>
 						</div>
@@ -2319,10 +2312,6 @@ const tempSeries = {
 					const chartModalTitle = document.getElementById('chart-modal-title');
 					const chartModalCanvas = document.getElementById('chart-modal-canvas');
 					const chartRangeBtns = document.querySelectorAll('.chart-range-btn');
-					const yMinInput = document.getElementById('chart-y-min');
-					const yMaxInput = document.getElementById('chart-y-max');
-					const yResetBtn = document.getElementById('chart-y-reset');
-
 					let modalChart = null;
 					let modalChartType = null; // 'temp' | 'humidity' | 'fans'
 					let activeRangeMinutes = 0; // 0 = All, 15 = 15 min, 60 = 1 hr
@@ -2465,23 +2454,6 @@ const tempSeries = {
 						return [];
 					}
 
-					function applyYInputsToModal() {
-						if (!modalChart || modalChartType === 'fans' || modalChartType === 'env') return;
-						if (!modalChart.options.scales.y) return;
-						const mn = parseFloat(yMinInput ? yMinInput.value : '');
-						const mx = parseFloat(yMaxInput ? yMaxInput.value : '');
-						modalChart.options.scales.y.min = Number.isFinite(mn) ? mn : undefined;
-						modalChart.options.scales.y.max = Number.isFinite(mx) ? mx : undefined;
-						modalChart.update('none');
-					}
-
-					function syncYInputsToChart() {
-						if (!modalChart) return;
-						const sc = modalChart.options.scales.y;
-						if (yMinInput) yMinInput.value = sc.min != null ? sc.min.toFixed(1) : '';
-						if (yMaxInput) yMaxInput.value = sc.max != null ? sc.max.toFixed(1) : '';
-					}
-
 					function refreshModalChart() {
 						if (!modalChart || !modalChartType) return;
 						const [s, e] = getRangeIndices();
@@ -2496,15 +2468,11 @@ const tempSeries = {
 						modalChart.data.datasets = datasets;
 						// Re-apply hidden state after dataset replacement
 						datasets.forEach(function (ds, i) { if (hiddenState[i]) ds.hidden = true; });
-						// Auto-fit Y only if inputs are empty and chart has a single 'y' axis
-						const mnVal = parseFloat(yMinInput ? yMinInput.value : '');
-						const mxVal = parseFloat(yMaxInput ? yMaxInput.value : '');
-						if (modalChartType !== 'env' && !Number.isFinite(mnVal) && !Number.isFinite(mxVal)) {
+						// Always auto-fit Y axis to current data window
+						if (modalChartType !== 'env' && modalChart.options.scales.y) {
 							const { min, max } = computeAutoYRange(modalChartType, s, e);
-							if (modalChart.options.scales.y) {
-								modalChart.options.scales.y.min = modalChartType === 'fans' ? -0.1 : min;
-								modalChart.options.scales.y.max = modalChartType === 'fans' ? 1.1 : max;
-							}
+							modalChart.options.scales.y.min = modalChartType === 'fans' ? -0.1 : min;
+							modalChart.options.scales.y.max = modalChartType === 'fans' ? 1.1 : max;
 						}
 						modalChart.update('none');
 					}
@@ -2525,14 +2493,6 @@ const tempSeries = {
 						else if (type === 'fans') { chartModalTitle.textContent = 'Fans on/off over time'; yTitle = 'Fan state'; }
 						else if (type === 'env') { chartModalTitle.textContent = 'Environment (Dry Bulb / Wet Bulb / Humidity)'; yTitle = ''; }
 						else if (type === 'weight') { chartModalTitle.textContent = 'Weight over time'; yTitle = 'Weight (lbs)'; }
-
-						// Reset Y inputs to auto
-						if (yMinInput) yMinInput.value = (type === 'fans' || type === 'env') ? '' : autoMin.toFixed(1);
-						if (yMaxInput) yMaxInput.value = (type === 'fans' || type === 'env') ? '' : autoMax.toFixed(1);
-						const yFixed = (type === 'fans' || type === 'env');
-						if (yMinInput) yMinInput.disabled = yFixed;
-						if (yMaxInput) yMaxInput.disabled = yFixed;
-						if (yResetBtn) yResetBtn.disabled = yFixed;
 
 						const sliceDisplayLabels = elapsedMode ? elapsedLabels.slice(s, e) : labels.slice(s, e);
 						const envScales = type === 'env' ? {
@@ -2606,23 +2566,6 @@ const tempSeries = {
 							refreshModalChart();
 						});
 					});
-
-					// Y-axis inputs
-					if (yMinInput) yMinInput.addEventListener('change', applyYInputsToModal);
-					if (yMaxInput) yMaxInput.addEventListener('change', applyYInputsToModal);
-					if (yResetBtn) {
-						yResetBtn.addEventListener('click', function () {
-							if (!modalChart || !modalChartType || modalChartType === 'env') return;
-							if (!modalChart.options.scales.y) return;
-							const [s, e] = getRangeIndices();
-							const { min, max } = computeAutoYRange(modalChartType, s, e);
-							modalChart.options.scales.y.min = min;
-							modalChart.options.scales.y.max = max;
-							if (yMinInput) yMinInput.value = min.toFixed(1);
-							if (yMaxInput) yMaxInput.value = max.toFixed(1);
-							modalChart.update('none');
-						});
-					}
 
 					// Click small charts to expand
 					tempCanvas.addEventListener('click', function () { openChartModal('temp'); });
