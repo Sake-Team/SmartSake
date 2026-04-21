@@ -187,7 +187,7 @@
 				</div>
 
 				<!-- Zone detail modal (opens when a zone button is clicked) -->
-					<div id="zone-detail-card" class="modal-overlay zone-modal-overlay" role="dialog" aria-modal="true" aria-label="Zone detail" hidden>
+					<div id="zone-detail-card" class="modal-overlay zone-modal-overlay" role="dialog" aria-modal="true" aria-label="Zone detail">
 					<div class="modal-popup zone-modal-popup">
 						<div class="zone-detail-card__header">
 							<h3 class="zone-detail-card__title" id="zdc-title">Zone</h3>
@@ -274,7 +274,7 @@
 			</main>
 
 			<!-- Settings modal -->
-			<div id="settings-modal" class="modal-overlay">
+			<div id="settings-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Settings">
 				<div class="modal-popup settings-modal-popup">
 					<div class="modal-header">
 						<h3 class="modal-title">Settings</h3>
@@ -301,7 +301,7 @@
 			</div>
 
 			<!-- Modal popup for Start run -->
-			<div id="start-run-modal" class="modal-overlay">
+			<div id="start-run-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Start run">
 				<div class="modal-popup">
 					<div class="modal-header">
 						<h3 class="modal-title">Start New Run</h3>
@@ -339,7 +339,7 @@
 			</div>
 
 			<!-- Modal popup for End run confirmation -->
-			<div id="end-run-modal" class="modal-overlay">
+			<div id="end-run-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="End run">
 				<div class="modal-popup">
 					<div class="modal-header">
 						<h3 class="modal-title">End Current Run</h3>
@@ -360,7 +360,7 @@
 			</div>
 
 			<!-- Modal popup for setting ideal temperature -->
-			<div id="set-temp-modal" class="modal-overlay">
+			<div id="set-temp-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Set temperature">
 				<div class="modal-popup">
 					<div class="modal-header">
 						<h3 class="modal-title">Set Temperature</h3>
@@ -432,7 +432,7 @@
 			</div>
 
 			<!-- Recovery popup for crashed / unfinished runs -->
-			<div id="recovery-modal" class="modal-overlay">
+			<div id="recovery-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Recovery">
 				<div class="modal-popup">
 					<div class="modal-header">
 						<h3 class="modal-title">Recovered Run Detected</h3>
@@ -455,7 +455,7 @@
 			</div>
 
 			<!-- Void Sake Co. Arcade -->
-			<div id="arcade-modal" class="modal-overlay">
+			<div id="arcade-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Arcade">
 				<div class="modal-popup arcade-modal-popup">
 					<div class="modal-header">
 						<h3 class="modal-title arcade-modal-title">☽ VOID SAKE CO. ARCADE ☽</h3>
@@ -469,7 +469,7 @@
 			</div>
 
 			<!-- Full-page Chart Modal -->
-			<div id="chart-modal" class="modal-overlay">
+			<div id="chart-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Chart">
 				<div class="modal-popup chart-modal-popup">
 					<div class="modal-header">
 						<h3 class="modal-title" id="chart-modal-title">Chart</h3>
@@ -1718,6 +1718,7 @@ const tempSeries = {
 							text2:   g('--color-text-2')  || '#a0a0a8',
 							tick:    g('--color-text-3')  || '#666672',
 							grid:    g('--color-border')  || 'rgba(255,255,255,0.08)',
+							brand:   g('--color-brand')   || '#4da6ff',
 						};
 					}
 					// Apply global Chart.js defaults from theme tokens
@@ -1911,13 +1912,14 @@ const tempSeries = {
 						}
 					});
 
+					const _wc = getThemeColors();
 					const weightChart = new Chart(weightCtx, {
 						type: 'line',
 						data: {
 							labels,
 							datasets: [
 								{ label: 'Weight (lbs)', data: weightData, borderWidth: 2.5, pointRadius: 2,
-								  borderColor: 'rgb(75, 192, 192)', backgroundColor: 'rgba(75, 192, 192, 0.15)',
+								  borderColor: _wc.brand, backgroundColor: _wc.brand + '26',
 								  spanGaps: true }
 							]
 						},
@@ -2767,14 +2769,14 @@ const tempSeries = {
 						if (activeLink) activeLink.classList.add('zone-combined--active');
 
 						// Show card
-						card.hidden = false;
+						card.classList.add('is-open');
 
 						// Load fan override state
 						loadFanState(runId, zone);
 					}
 
 					function closeCard() {
-						card.hidden = true;
+						card.classList.remove('is-open');
 						if (zdcTempChart) { zdcTempChart.destroy(); zdcTempChart = null; }
 						if (zdcFanChart)  { zdcFanChart.destroy();  zdcFanChart  = null; }
 						window._zdcCharts = null; // unregister so applyTimeWindow skips them

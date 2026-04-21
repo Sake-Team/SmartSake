@@ -282,6 +282,9 @@
     var overlay = document.createElement('div');
     overlay.id = 'customize-modal';
     overlay.className = 'modal-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Settings');
 
     overlay.innerHTML =
       '<div class="modal-popup customize-modal-popup">' +

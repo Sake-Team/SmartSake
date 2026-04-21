@@ -212,7 +212,7 @@
 		</main>
 
 		<!-- Modal popup for Start run -->
-		<div id="start-run-modal" class="modal-overlay">
+		<div id="start-run-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Start run">
 			<div class="modal-popup">
 				<div class="modal-header">
 					<h3 class="modal-title">Start New Run</h3>
@@ -288,7 +288,7 @@
 		</div>
 
 		<!-- Modal popup for End run confirmation -->
-		<div id="end-run-modal" class="modal-overlay">
+		<div id="end-run-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="End run">
 			<div class="modal-popup">
 				<div class="modal-header">
 					<h3 class="modal-title">End Current Run</h3>
@@ -312,7 +312,7 @@
 		</div>
 
 		<!-- Modal popup for setting ideal temperature -->
-		<div id="set-temp-modal" class="modal-overlay">
+		<div id="set-temp-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Set temperature">
 			<div class="modal-popup">
 				<div class="modal-header">
 					<h3 class="modal-title">Set Temperature</h3>
@@ -350,7 +350,7 @@
 		</div>
 
 		<!-- Recovery popup for crashed / unfinished runs -->
-		<div id="recovery-modal" class="modal-overlay">
+		<div id="recovery-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Recovery">
 			<div class="modal-popup">
 				<div class="modal-header">
 					<h3 class="modal-title">Recovered Run Detected</h3>
@@ -373,7 +373,7 @@
 		</div>
 
 		<!-- Easter egg Pong modal -->
-		<div id="pong-modal" class="modal-overlay">
+		<div id="pong-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Arcade">
 			<div class="modal-popup pong-modal-popup">
 				<div class="modal-header">
 					<h3 class="modal-title">Pong Mode</h3>
@@ -390,7 +390,7 @@
 		</div>
 
 		<!-- Full-page Chart Modal -->
-		<div id="chart-modal" class="modal-overlay">
+		<div id="chart-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Chart">
 			<div class="modal-popup chart-modal-popup">
 				<div class="modal-header">
 					<h3 class="modal-title" id="chart-modal-title">Chart</h3>
@@ -517,13 +517,13 @@
 					idealTempInput.value = current === null ? '' : current.toFixed(1);
 					deviationAllowanceInput.value = deviation.toFixed(1);
 					updateCurrentLabel();
-					setTempModal.style.display = 'flex';
+					setTempModal.classList.add('is-open');
 					idealTempInput.focus();
 					idealTempInput.select();
 				}
 
 				function closeSetTempModal() {
-					setTempModal.style.display = 'none';
+					setTempModal.classList.remove('is-open');
 				}
 
 				function saveIdealTemp() {
@@ -581,7 +581,7 @@
 				});
 
 				document.addEventListener('keydown', function (e) {
-					if (e.key === 'Escape' && setTempModal.style.display === 'flex') {
+					if (e.key === 'Escape' && setTempModal.classList.contains('is-open')) {
 						closeSetTempModal();
 					}
 				});
@@ -790,7 +790,7 @@
 					const currentRunName = localStorage.getItem('currentRunName') || 'RecoveredRun';
 
 					if (recoveryModal) {
-						recoveryModal.style.display = 'none';
+						recoveryModal.classList.remove('is-open');
 					}
 
 					stopDataCollectionAndExport(currentRunName);
@@ -850,7 +850,7 @@
 					}
 
 					if (recoveryModal) {
-						recoveryModal.style.display = 'none';
+						recoveryModal.classList.remove('is-open');
 					}
 
 					if (recoveryExport) {
@@ -859,7 +859,7 @@
 								window.sakeExportRecoveredRun();
 							}
 							localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
-							if (recoveryModal) recoveryModal.style.display = 'none';
+							if (recoveryModal) recoveryModal.classList.remove('is-open');
 						});
 					}
 
@@ -869,7 +869,7 @@
 							localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
 							localStorage.removeItem('currentRunName');
 							if (runNameDisplay) runNameDisplay.textContent = '';
-							if (recoveryModal) recoveryModal.style.display = 'none';
+							if (recoveryModal) recoveryModal.classList.remove('is-open');
 						});
 					}
 
@@ -879,17 +879,17 @@
 							localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
 							localStorage.removeItem('currentRunName');
 							if (runNameDisplay) runNameDisplay.textContent = '';
-							if (recoveryModal) recoveryModal.style.display = 'none';
+							if (recoveryModal) recoveryModal.classList.remove('is-open');
 						});
 					}
 
 					document.addEventListener('keydown', function (e) {
-						if (e.key === 'Escape' && recoveryModal && recoveryModal.style.display === 'flex') {
+						if (e.key === 'Escape' && recoveryModal && recoveryModal.classList.contains('is-open')) {
 							localStorage.removeItem(RUN_STATE_KEY);
 							localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
 							localStorage.removeItem('currentRunName');
 							if (runNameDisplay) runNameDisplay.textContent = '';
-							recoveryModal.style.display = 'none';
+							recoveryModal.classList.remove('is-open');
 						}
 					});
 				}
@@ -903,7 +903,7 @@
 				startBtn.addEventListener('click', function () {
 					if (startBtn.classList.contains('end-run-btn-active')) {
 						if (endModal) {
-							endModal.style.display = 'flex';
+							endModal.classList.add('is-open');
 							// Populate export link with active run_id if available
 							const exportLink = document.getElementById('export-run-link');
 							const exportWrap = document.getElementById('export-run-link-wrap');
@@ -913,25 +913,25 @@
 							}
 						}
 					} else {
-						startModal.style.display = 'flex';
+						startModal.classList.add('is-open');
 						runNameInput.focus();
 					}
 				});
 
 				// ---------- Start modal close ----------
 				closeStartBtn.addEventListener('click', function () {
-					startModal.style.display = 'none';
+					startModal.classList.remove('is-open');
 				});
 
 				startModal.addEventListener('click', function (e) {
 					if (e.target === startModal) {
-						startModal.style.display = 'none';
+						startModal.classList.remove('is-open');
 					}
 				});
 
 				document.addEventListener('keydown', function (e) {
-					if (e.key === 'Escape' && startModal.style.display === 'flex') {
-						startModal.style.display = 'none';
+					if (e.key === 'Escape' && startModal.classList.contains('is-open')) {
+						startModal.classList.remove('is-open');
 					}
 				});
 
@@ -994,7 +994,7 @@
 							window.setRunStartTime();
 						}
 
-						startModal.style.display = 'none';
+						startModal.classList.remove('is-open');
 						runNameInput.value = '';
 						location.href = 'dashboard.html?run=' + run.id + '&mode=live';
 					} catch (err) {
@@ -1012,16 +1012,16 @@
 				// ---------- End Run modal ----------
 				if (endModal && closeEndBtn && cancelEndBtn && confirmEndBtn) {
 					closeEndBtn.addEventListener('click', function () {
-						endModal.style.display = 'none';
+						endModal.classList.remove('is-open');
 					});
 
 					cancelEndBtn.addEventListener('click', function () {
-						endModal.style.display = 'none';
+						endModal.classList.remove('is-open');
 					});
 
 					endModal.addEventListener('click', function (e) {
 						if (e.target === endModal) {
-							endModal.style.display = 'none';
+							endModal.classList.remove('is-open');
 						}
 					});
 
@@ -1053,12 +1053,12 @@
 						localStorage.removeItem('currentRunName');
 						startBtn.textContent = 'Start Run';
 						startBtn.classList.remove('end-run-btn-active');
-						endModal.style.display = 'none';
+						endModal.classList.remove('is-open');
 					});
 
 					document.addEventListener('keydown', function (e) {
-						if (e.key === 'Escape' && endModal.style.display === 'flex') {
-							endModal.style.display = 'none';
+						if (e.key === 'Escape' && endModal.classList.contains('is-open')) {
+							endModal.classList.remove('is-open');
 						}
 					});
 				}
@@ -1410,8 +1410,10 @@
 				const logo = document.getElementById('sake-logo-egg');
 				const pongModal = document.getElementById('pong-modal');
 				if (!logo || !pongModal) return;
-				logo.addEventListener('click', () => { pongModal.style.display = 'flex'; });
-				document.getElementById('pong-close-btn').addEventListener('click', () => { pongModal.style.display = 'none'; });
+				logo.addEventListener('click', () => { pongModal.classList.add('is-open'); });
+				document.getElementById('pong-close-btn').addEventListener('click', () => { pongModal.classList.remove('is-open'); });
+				pongModal.addEventListener('click', (e) => { if (e.target === pongModal) pongModal.classList.remove('is-open'); });
+				document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && pongModal.classList.contains('is-open')) pongModal.classList.remove('is-open'); });
 			})();
 		</script>
 	</div>
