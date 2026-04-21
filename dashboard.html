@@ -2955,7 +2955,15 @@ const tempSeries = {
 								result['temp' + z] = Number.isFinite(val) ? val : null;
 								if (Number.isFinite(val)) anySet = true;
 							}
-							return anySet ? result : null;
+							if (anySet) return result;
+							// Fall back to the single global ideal temp set via set-temp-modal
+							const globalVal = parseFloat(localStorage.getItem('sakeIdealTempC') || '');
+							if (Number.isFinite(globalVal)) {
+								const g = { time: 0 };
+								for (let z = 1; z <= 6; z++) g['temp' + z] = globalVal;
+								return g;
+							}
+							return null;
 						}
 
 						const elapsedMinutes = (Date.now() - runStartTime) / (1000 * 60);
@@ -3206,7 +3214,7 @@ const tempSeries = {
 						ctx.font = '10px monospace';
 						ctx.textAlign = 'center';
 						ctx.fillStyle = '#2a5a2a';
-						ctx.fillText('press key to select game   ESC closes', W / 2, H - 14);
+						ctx.fillText('tap card to select   keys: 1-4   ESC closes', W / 2, H - 14);
 						hubTick++;
 					}
 
@@ -4039,6 +4047,54 @@ const tempSeries = {
 						}
 					}
 
+					// ── Touch hint overlay (drawn last, on top of every scene) ──
+					function drawTouchHints() {
+						ctx.save();
+						// "Back to hub" button — top-right corner, all non-hub scenes
+						if (scene !== 'hub') {
+							ctx.fillStyle = 'rgba(0,20,0,0.70)';
+							ctx.strokeStyle = '#1c3c1c'; ctx.lineWidth = 1;
+							ctx.fillRect(W - 54, 5, 48, 28);
+							ctx.strokeRect(W - 54, 5, 48, 28);
+							ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
+							ctx.fillStyle = '#4a9a4a';
+							ctx.fillText('HUB', W - 30, 24);
+						}
+						// Per-game control hints
+						if (scene === 'pong' && !pong.over) {
+							ctx.font = '9px monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#1a4a1a';
+							ctx.fillText('drag to move paddle', W / 2, H - 4);
+						} else if (scene === 'run' && !run.over) {
+							ctx.font = '9px monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#1a4a1a';
+							ctx.fillText('tap to jump', W / 2, H - 4);
+						} else if (scene === 'inv' && !inv.over && !inv.won) {
+							var th = W / 3;
+							var iLabels = ['\u2190', '\u25CF', '\u2192'];
+							for (var i = 0; i < 3; i++) {
+								ctx.fillStyle = 'rgba(0,20,0,0.65)';
+								ctx.fillRect(i * th, H - 44, th, 44);
+								ctx.strokeStyle = '#1c3c1c'; ctx.lineWidth = 1;
+								ctx.strokeRect(i * th, H - 44, th, 44);
+								ctx.font = 'bold 20px monospace'; ctx.textAlign = 'center';
+								ctx.fillStyle = '#4a9a4a';
+								ctx.fillText(iLabels[i], i * th + th / 2, H - 12);
+							}
+						} else if (scene === 'dig' && !dig.over && !dig.won) {
+							var dw = W / 5;
+							var dLabels = ['\u2190', '\u2193', '\u25CF', '\u2191', '\u2192'];
+							for (var i = 0; i < 5; i++) {
+								ctx.fillStyle = 'rgba(0,20,0,0.65)';
+								ctx.fillRect(i * dw, H - 40, dw, 40);
+								ctx.strokeStyle = '#1c3c1c'; ctx.lineWidth = 1;
+								ctx.strokeRect(i * dw, H - 40, dw, 40);
+								ctx.font = 'bold 16px monospace'; ctx.textAlign = 'center';
+								ctx.fillStyle = '#4a9a4a';
+								ctx.fillText(dLabels[i], i * dw + dw / 2, H - 12);
+							}
+						}
+						ctx.restore();
+					}
+
 					// ── Game loop ────────────────────────────────────────────
 					function loop() {
 						if (scene === 'hub')  drawHub();
@@ -4046,6 +4102,7 @@ const tempSeries = {
 						else if (scene === 'dig')  { digStep();  drawDig();  }
 						else if (scene === 'run')  { runStep();  drawRun();  }
 						else if (scene === 'inv')  { invStep();  drawInv();  }
+						drawTouchHints();
 						animId = requestAnimationFrame(loop);
 					}
 
@@ -4113,6 +4170,114 @@ const tempSeries = {
 					modal.addEventListener('click', function (e) { if (e.target === modal) closeArcade(); });
 					document.addEventListener('keydown', onKeyDown);
 					document.addEventListener('keyup',   onKeyUp);
+
+					// ── Canvas touch / pointer controls ──────────────────────
+					var _touchId = -1;
+
+					function _canvasPos(e) {
+						var rect = canvas.getBoundingClientRect();
+						return {
+							x: (e.clientX - rect.left) * W / rect.width,
+							y: (e.clientY - rect.top)  * H / rect.height
+						};
+					}
+
+					function _applyDigButtons(x, y, isDown) {
+						if (y >= H - 40 && isDown) {
+							var col = Math.floor(x / (W / 5));
+							dig.left    = col === 0;
+							dig.down    = col === 1;
+							dig.pumping = col === 2;
+							dig.up      = col === 3;
+							dig.right   = col === 4;
+						} else {
+							dig.left = dig.down = dig.pumping = dig.up = dig.right = false;
+						}
+					}
+
+					function _applyInvButtons(x, y, isDown) {
+						var th = W / 3;
+						if (y >= H - 44 && isDown) {
+							inv.left  = x < th;
+							inv.right = x >= 2 * th;
+							if (x >= th && x < 2 * th && !inv.pbullet) {
+								inv.pbullet = { x: inv.px, y: inv.py - 22 };
+							}
+						} else {
+							inv.left = inv.right = false;
+						}
+					}
+
+					canvas.addEventListener('pointerdown', function (e) {
+						if (!modal.classList.contains('is-open')) return;
+						e.preventDefault();
+						_touchId = e.pointerId;
+						canvas.setPointerCapture(e.pointerId);
+						var pos = _canvasPos(e);
+
+						// Hub button (top-right, all non-hub scenes)
+						if (scene !== 'hub' && pos.x >= W - 54 && pos.y >= 5 && pos.y <= 33) {
+							scene = 'hub'; return;
+						}
+
+						if (scene === 'hub') {
+							var cw = 118, ch = 72, gap = 12;
+							var totalW = 4 * cw + 3 * gap;
+							var cx0 = (W - totalW) / 2, cy0 = 120;
+							for (var i = 0; i < cards.length; i++) {
+								var cx = cx0 + i * (cw + gap);
+								if (pos.x >= cx && pos.x <= cx + cw && pos.y >= cy0 && pos.y <= cy0 + ch) {
+									if (i === 0) { pongInit(); scene = 'pong'; }
+									else if (i === 1) { runInit();  scene = 'run';  }
+									else if (i === 2) { invInit();  scene = 'inv';  }
+									else if (i === 3) { digInit();  scene = 'dig';  }
+									return;
+								}
+							}
+						} else if (scene === 'pong') {
+							pong.up = false; pong.down = false;
+							pong.py = Math.max(0, Math.min(H - pong.ph, pos.y - pong.ph / 2));
+							if (pong.over) pongInit();
+						} else if (scene === 'run') {
+							if (!run.over && run.jumpsLeft > 0) {
+								run.vy = RUN_JUMP; run.onGround = false; run.jumpsLeft--;
+							} else if (run.over) { runInit(); }
+						} else if (scene === 'inv') {
+							if (inv.over || inv.won) { invInit(); return; }
+							_applyInvButtons(pos.x, pos.y, true);
+						} else if (scene === 'dig') {
+							if (dig.over || dig.won) { digInit(); return; }
+							_applyDigButtons(pos.x, pos.y, true);
+						}
+					});
+
+					canvas.addEventListener('pointermove', function (e) {
+						if (e.pointerId !== _touchId) return;
+						e.preventDefault();
+						var pos = _canvasPos(e);
+						if (scene === 'pong') {
+							pong.py = Math.max(0, Math.min(H - pong.ph, pos.y - pong.ph / 2));
+						} else if (scene === 'dig') {
+							_applyDigButtons(pos.x, pos.y, true);
+						} else if (scene === 'inv') {
+							_applyInvButtons(pos.x, pos.y, true);
+						}
+					});
+
+					canvas.addEventListener('pointerup', function (e) {
+						if (e.pointerId !== _touchId) return;
+						_touchId = -1;
+						if (scene === 'dig') dig.left = dig.down = dig.pumping = dig.up = dig.right = false;
+						if (scene === 'inv') inv.left = inv.right = false;
+					});
+
+					canvas.addEventListener('pointercancel', function (e) {
+						_touchId = -1;
+						if (scene === 'dig') dig.left = dig.down = dig.pumping = dig.up = dig.right = false;
+						if (scene === 'inv') inv.left = inv.right = false;
+					});
+
+					canvas.style.touchAction = 'none'; // prevent scroll interference
 				})();
 			</script>
 

@@ -1162,13 +1162,13 @@ textarea:focus {
 
   /* Status chip dark overrides */
   --color-cold-bg:         #0d2a45;
-  --color-cold-bd:         #1e5a8a;
+  --color-cold-bd:         #1e5a8a;  --color-cold-bg-hover:  #152f4d;
   --color-ok-bg:           #0d2d1a;
-  --color-ok-bd:           #1a6a38;
+  --color-ok-bd:           #1a6a38;  --color-ok-bg-hover:    #153220;
   --color-warm-bg:         #2d1f00;
-  --color-warm-bd:         #7a4a00;
+  --color-warm-bd:         #7a4a00;  --color-warm-bg-hover:  #382600;
   --color-hot-bg:          #2d0d0d;
-  --color-hot-bd:          #7a1a1a;
+  --color-hot-bd:          #7a1a1a;  --color-hot-bg-hover:   #381515;
 
   /* Semantic background dark overrides */
   --color-success-bg:      rgba(34,197,94,0.12);
