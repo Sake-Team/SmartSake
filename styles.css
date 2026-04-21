@@ -261,6 +261,29 @@ header {
 }
 .btn-brand:hover { background: var(--color-brand-hover); border-color: var(--color-brand-hover); }
 
+/* Focus-visible rings — entire interactive family */
+.btn:focus-visible,
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible,
+.btn-ghost:focus-visible,
+.btn-danger:focus-visible,
+.btn-brand:focus-visible,
+.start-run-btn:focus-visible,
+.modal-enter-btn:focus-visible,
+.zone-apply-btn:focus-visible,
+.zone-mode-btn:focus-visible,
+.zone-detail-card__close:focus-visible,
+.curve-toggle-btn:focus-visible,
+.tw-btn:focus-visible,
+.wt-zero-btn:focus-visible,
+.temp-overlay-btn:focus-visible,
+.settings-btn:focus-visible,
+.marker-btn:focus-visible,
+.overlay-select:focus-visible,
+.rh-range-btn:focus-visible,
+.rh-nav-btn:focus-visible,
+.home-link:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
 /* Home link rendered above the notes box */
 .notes > .home-link {
   position: static;
@@ -531,7 +554,7 @@ main { padding: 8px 16px 16px; }
 }
 
 .notes__label {
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -698,7 +721,7 @@ main { padding: 8px 16px 16px; }
 
 /* ----- Zone page components ----- */
 .zone-temp-card    { display: flex; flex-direction: column; gap: 6px; }
-.zone-temp-label   { font-size: 0.7rem; font-weight: 700; color: var(--color-text-2); letter-spacing: 0.06em; text-transform: uppercase; }
+.zone-temp-label   { font-size: 0.75rem; font-weight: 700; color: var(--color-text-2); letter-spacing: 0.06em; text-transform: uppercase; }
 .zone-temp-readout { display: flex; align-items: baseline; gap: 6px; }
 
 .zone-control-card  { display: flex; flex-direction: column; gap: 12px; }
@@ -724,7 +747,7 @@ main { padding: 8px 16px 16px; }
   text-align: center;
   min-height: unset;
 }
-.zone-setpoint-input:focus { border-color: var(--color-accent); }
+.zone-setpoint-input:focus { border-color: var(--color-accent); box-shadow: var(--shadow-focus); }
 .zone-apply-btn {
   padding: 7px 16px;
   min-height: 44px;
@@ -842,7 +865,7 @@ main { padding: 8px 16px 16px; }
   justify-content: center;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 200ms ease;
+  transition: opacity var(--t);
 }
 .modal-overlay.is-open {
   opacity: 1;
@@ -1194,7 +1217,7 @@ textarea:focus {
 	font-size: 1.2rem;
 	font-weight: 600;
 	cursor: pointer;
-	transition: background-color 0.3s ease;
+	transition: background-color var(--t);
 	z-index: 10;
 }
 .temp-overlay-btn:hover { background-color: var(--color-brand-hover); }
@@ -1202,14 +1225,14 @@ textarea:focus {
 /* ── End Run & Set Temp Buttons ────────────── */
 .end-run-btn {
 	background-color: var(--color-brand);
-	color: white;
+	color: var(--color-text-light);
 	border: none;
 	padding: 8px 16px;
 	border-radius: var(--r-sm);
 	font-size: 1rem;
 	font-weight: 600;
 	cursor: pointer;
-	transition: background-color 0.3s ease;
+	transition: background-color var(--t);
 	flex-shrink: 0;
 }
 .set-temp-btn {
@@ -1304,10 +1327,13 @@ body:has(#start-run-btn.end-run-btn-active) .set-temp-btn { display: inline-flex
 .elapsed-toggle-btn--active { background: #3a5a8a; border-color: #52a0e0; color: #fff; }
 
 .stage-marker-toolbar { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 0 4px; }
-.marker-btn { font-size: 0.75rem; padding: 8px 12px; min-height: 44px; border-radius: var(--r-sm); border: 1px solid currentColor; background: var(--color-surface); cursor: pointer; color: var(--color-text-2); }
+.marker-btn { font-size: 0.75rem; padding: 8px 12px; min-height: 44px; border-radius: var(--r-sm); border: 1px solid currentColor; background: var(--color-surface); cursor: pointer; color: var(--color-text-2); transition: background var(--t), color var(--t); }
+.marker-btn:hover { background: var(--color-bg-subtle); color: var(--color-text-1); }
 
 .temp-chart-header-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.overlay-select { font-size: 0.75rem; padding: 10px 12px; min-height: 44px; border-radius: var(--r-sm); border: 1px solid var(--color-border-strong); background: var(--color-surface); color: var(--color-text-2); cursor: pointer; margin-left: auto; }
+.overlay-select { font-size: 0.75rem; padding: 10px 12px; min-height: 44px; border-radius: var(--r-sm); border: 1px solid var(--color-border-strong); background: var(--color-surface); color: var(--color-text-2); cursor: pointer; margin-left: auto; transition: border-color var(--t); }
+.overlay-select:hover { border-color: var(--color-accent); }
+.overlay-select:focus { outline: none; border-color: var(--color-accent); box-shadow: var(--shadow-focus); }
 
 .weight-stats-row { display: flex; flex-wrap: wrap; gap: 12px; padding: 4px 0 2px; }
 .weight-stat { display: flex; flex-direction: column; gap: 1px; }
@@ -1355,7 +1381,7 @@ header.header {
 .layout--home .left > .long { height: auto !important; min-height: 0 !important; display: flex !important; flex-direction: column !important; padding: 0.4rem 0.7rem 0.5rem !important; }
 .layout--home .long .temp-chart-title-left,
 .layout--home .long .home-humidity-title,
-.layout--home .long .chart-title--single-line { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--color-text-2); flex-shrink: 0; }
+.layout--home .long .chart-title--single-line { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--color-text-2); flex-shrink: 0; }
 .layout--home .long .temp-chart-header-row,
 .layout--home .long .env-chart-header,
 .layout--home .long .weight-chart-header-row { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; margin-bottom: 0.2rem; }
@@ -1407,7 +1433,7 @@ main { flex: 1 1 0 !important; overflow: hidden !important; padding: 16px 12px 1
 
 /* ----- Typography hierarchy ----- */
 .section-label {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1476,7 +1502,7 @@ main { flex: 1 1 0 !important; overflow: hidden !important; padding: 16px 12px 1
   border-radius: var(--r-md);
   padding: 0.3rem 0.4rem;
   cursor: pointer;
-  transition: border-color 0.15s;
+  transition: border-color var(--t);
   min-width: 44px;
   min-height: 44px;
 }
@@ -1535,7 +1561,7 @@ main { flex: 1 1 0 !important; overflow: hidden !important; padding: 16px 12px 1
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background var(--t);
   margin-bottom: 0.4rem;
 }
 .settings-edit-btn:hover {
