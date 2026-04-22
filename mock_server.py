@@ -98,32 +98,20 @@ MOCK_RUN = {
 
 MOCK_READINGS = _fake_readings(1, 120)
 
-def _koji_curve(offsets):
-    """Build a 48h ginjo koji profile. offsets: list of 6 per-zone °C deltas."""
-    # Stage checkpoints: (elapsed_min, base_temp)
-    # Inoculation → kiri-kaeshi → naka-shigoto → shimai-shigoto → cool-down
+def _koji_curve():
+    """Build a 48h ginjo koji target profile — one shared target for all zones."""
     base = [
         (0,    28.0),
-        (360,  30.5),   # kiri-kaeshi start
-        (720,  33.5),   # naka-shigoto start
+        (360,  30.5),
+        (720,  33.5),
         (1080, 36.5),
-        (1440, 39.0),   # shimai-shigoto start
-        (1680, 41.0),   # peak
-        (2160, 39.0),   # begin cool-down
+        (1440, 39.0),
+        (1680, 41.0),
+        (2160, 39.0),
         (2520, 36.0),
-        (2880, 34.0),   # finish
+        (2880, 34.0),
     ]
-    rows = []
-    for (t, b) in base:
-        row = {"elapsed_min": t}
-        for z, d in enumerate(offsets, start=1):
-            row[f"temp{z}_target"] = round(b + d, 1)
-        rows.append(row)
-    return rows
-
-# Zone offsets: zones 1&2 (center of tray) run ~0.5°C warmer;
-# zones 5&6 (edge) run ~0.5°C cooler — realistic for a 6-zone koji room.
-_ZONE_OFFSETS = [0.5, 0.5, 0.0, 0.0, -0.5, -0.5]
+    return [{"elapsed_min": t, "temp_target": b} for t, b in base]
 
 MOCK_REFERENCE_CURVES = [
     {
@@ -131,7 +119,7 @@ MOCK_REFERENCE_CURVES = [
         "name": "Ginjo Koji (48h)",
         "description": "Standard 48-hour temperature curve for Yamada Nishiki ginjo-grade koji",
         "source": "Traditional reference — Niida Honke method",
-        "points": _koji_curve(_ZONE_OFFSETS),
+        "points": _koji_curve(),
     },
     {
         "id": 2,
@@ -139,8 +127,7 @@ MOCK_REFERENCE_CURVES = [
         "description": "Barley koji for shochu — faster ramp, sustained high plateau",
         "source": "Kagoshima reference",
         "points": [
-            {"elapsed_min": t, **{f"temp{z}_target": round(b + [0.3,0.3,0.0,0.0,-0.3,-0.3][z-1], 1)
-                                  for z in range(1, 7)}}
+            {"elapsed_min": t, "temp_target": b}
             for t, b in [(0,30),(240,33),(600,36),(960,40),(1440,42),(1920,40),(2640,36)]
         ],
     },
@@ -159,9 +146,8 @@ def static_files(filename):
 
 # ── Shared mock zone state ────────────────────────────────────────────────────
 
-# Setpoints match the curve at ~18h (1080 min) — naka-shigoto stage
-_SP_AT_18H = {z: round(36.5 + _ZONE_OFFSETS[z-1], 1) for z in range(1, 7)}
-MOCK_ZONE_SETPOINTS  = dict(_SP_AT_18H)
+# Setpoint matches the curve at ~18h (1080 min) — naka-shigoto stage
+MOCK_ZONE_SETPOINTS  = {z: 36.5 for z in range(1, 7)}
 MOCK_ZONE_MODES      = {i: "auto" for i in range(1, 7)}
 MOCK_ZONE_TOLERANCES = {i: 1.0   for i in range(1, 7)}
 
@@ -290,7 +276,7 @@ def api_run_latest(run_id):
 
 # ── Target profile ────────────────────────────────────────────────────────────
 
-MOCK_TARGET = _koji_curve(_ZONE_OFFSETS)  # Ginjo 48h curve, all 6 zones
+MOCK_TARGET = _koji_curve()  # Ginjo 48h curve, shared target
 
 @app.route("/api/runs/<int:run_id>/target", methods=["GET"])
 def api_get_target(run_id):
