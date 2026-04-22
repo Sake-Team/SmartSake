@@ -98,21 +98,52 @@ MOCK_RUN = {
 
 MOCK_READINGS = _fake_readings(1, 120)
 
+def _koji_curve(offsets):
+    """Build a 48h ginjo koji profile. offsets: list of 6 per-zone °C deltas."""
+    # Stage checkpoints: (elapsed_min, base_temp)
+    # Inoculation → kiri-kaeshi → naka-shigoto → shimai-shigoto → cool-down
+    base = [
+        (0,    28.0),
+        (360,  30.5),   # kiri-kaeshi start
+        (720,  33.5),   # naka-shigoto start
+        (1080, 36.5),
+        (1440, 39.0),   # shimai-shigoto start
+        (1680, 41.0),   # peak
+        (2160, 39.0),   # begin cool-down
+        (2520, 36.0),
+        (2880, 34.0),   # finish
+    ]
+    rows = []
+    for (t, b) in base:
+        row = {"elapsed_min": t}
+        for z, d in enumerate(offsets, start=1):
+            row[f"temp{z}_target"] = round(b + d, 1)
+        rows.append(row)
+    return rows
+
+# Zone offsets: zones 1&2 (center of tray) run ~0.5°C warmer;
+# zones 5&6 (edge) run ~0.5°C cooler — realistic for a 6-zone koji room.
+_ZONE_OFFSETS = [0.5, 0.5, 0.0, 0.0, -0.5, -0.5]
+
 MOCK_REFERENCE_CURVES = [
     {
         "id": 1,
-        "name": "Standard Koji (48h)",
-        "description": "Typical temperature curve for white rice koji",
-        "source": "Traditional reference",
+        "name": "Ginjo Koji (48h)",
+        "description": "Standard 48-hour temperature curve for Yamada Nishiki ginjo-grade koji",
+        "source": "Traditional reference — Niida Honke method",
+        "points": _koji_curve(_ZONE_OFFSETS),
+    },
+    {
+        "id": 2,
+        "name": "Mugi Koji / Shochu (44h)",
+        "description": "Barley koji for shochu — faster ramp, sustained high plateau",
+        "source": "Kagoshima reference",
         "points": [
-            {"elapsed_min": 0,    "tc1": 28.0, "tc2": 28.0},
-            {"elapsed_min": 360,  "tc1": 30.0, "tc2": 30.5},
-            {"elapsed_min": 720,  "tc1": 33.0, "tc2": 33.5},
-            {"elapsed_min": 1440, "tc1": 36.0, "tc2": 36.5},
-            {"elapsed_min": 2160, "tc1": 34.0, "tc2": 34.5},
-            {"elapsed_min": 2880, "tc1": 32.0, "tc2": 32.0},
+            {"elapsed_min": t, **{f"temp{z}_target": round(b + [0.3,0.3,0.0,0.0,-0.3,-0.3][z-1], 1)
+                                  for z in range(1, 7)}}
+            for t, b in [(0,30),(240,33),(600,36),(960,40),(1440,42),(1920,40),(2640,36)]
         ],
-    }
+    },
 ]
 
 # ── Static pages ──────────────────────────────────────────────────────────────
@@ -128,30 +159,34 @@ def static_files(filename):
 
 # ── Shared mock zone state ────────────────────────────────────────────────────
 
-MOCK_ZONE_SETPOINTS = {i: 33.0 for i in range(1, 7)}
-MOCK_ZONE_MODES     = {i: "auto" for i in range(1, 7)}
+# Setpoints match the curve at ~18h (1080 min) — naka-shigoto stage
+_SP_AT_18H = {z: round(36.5 + _ZONE_OFFSETS[z-1], 1) for z in range(1, 7)}
+MOCK_ZONE_SETPOINTS  = dict(_SP_AT_18H)
+MOCK_ZONE_MODES      = {i: "auto" for i in range(1, 7)}
+MOCK_ZONE_TOLERANCES = {i: 1.0   for i in range(1, 7)}
 
 def _build_sensor_payload():
     """Build the sensor_latest.json shape used by all zone pages and home."""
     # Each zone oscillates through cold/ok/warm/hot on a 60-second cycle,
     # phase-shifted so all four states are visible at once.
-    sp = 33.0
-    thermocouples = {f"TC{i}": _oscillating_temp(i - 1, setpoint=sp) for i in range(1, 7)}
+    # Base setpoint matches zone-specific curve target so colors are meaningful.
+    thermocouples = {f"TC{i}": _oscillating_temp(i - 1, setpoint=MOCK_ZONE_SETPOINTS[i]) for i in range(1, 7)}
     sht_temp = _fake_temp(24.5, 0.2)
     humidity = _fake_temp(87.0, 1.5)
 
     zones = {}
     for i in range(1, 7):
-        sp = MOCK_ZONE_SETPOINTS[i]
-        dry = thermocouples[f"TC{i}"]
-        relay_on = dry > sp
-        pid_out = max(0, min(100, round((dry - sp) * 20)))
+        sp      = MOCK_ZONE_SETPOINTS[i]
+        dry     = thermocouples[f"TC{i}"]
+        trigger = round(sp + MOCK_ZONE_TOLERANCES[i], 2)
+        relay_on = dry > trigger
         zones[i] = {
-            "setpoint_c": sp,
-            "mode": MOCK_ZONE_MODES[i],
-            "relay_state": relay_on,
-            "pid_output": pid_out,
-            "alarm_level": None,
+            "setpoint_c":   sp,
+            "tolerance_c":  MOCK_ZONE_TOLERANCES[i],
+            "mode":         MOCK_ZONE_MODES[i],
+            "relay_state":  relay_on,
+            "trigger_c":    trigger,
+            "alarm_level":  None,
             "alarm_reason": None,
             "alarm_thresholds": {
                 "warn_high_c": sp + 4.0,
@@ -255,12 +290,7 @@ def api_run_latest(run_id):
 
 # ── Target profile ────────────────────────────────────────────────────────────
 
-MOCK_TARGET = [
-    {"elapsed_min": 0,    "tc1": 28.0},
-    {"elapsed_min": 720,  "tc1": 33.0},
-    {"elapsed_min": 1440, "tc1": 36.0},
-    {"elapsed_min": 2880, "tc1": 32.0},
-]
+MOCK_TARGET = _koji_curve(_ZONE_OFFSETS)  # Ginjo 48h curve, all 6 zones
 
 @app.route("/api/runs/<int:run_id>/target", methods=["GET"])
 def api_get_target(run_id):
@@ -298,6 +328,8 @@ def update_zone():
             MOCK_ZONE_SETPOINTS[zone] = float(data["setpoint_c"])
         if "mode" in data:
             MOCK_ZONE_MODES[zone] = data["mode"]
+        if "tolerance_c" in data:
+            MOCK_ZONE_TOLERANCES[zone] = float(data["tolerance_c"])
     return jsonify({"ok": True})
 
 
@@ -336,12 +368,12 @@ def api_fan_state():
     return jsonify({
         "timestamp": _now(),
         "zones": {
-            "1": {"state": "off", "mode": "pid", "setpoint": 33.0, "pid_out": 0.0},
-            "2": {"state": "off", "mode": "pid", "setpoint": 33.0, "pid_out": 0.2},
-            "3": {"state": "off", "mode": "pid", "setpoint": 33.0, "pid_out": 0.3},
-            "4": {"state": "on",  "mode": "pid", "setpoint": 33.0, "pid_out": 0.6},
-            "5": {"state": "on",  "mode": "pid", "setpoint": 33.0, "pid_out": 1.0},
-            "6": {"state": "off", "mode": "pid", "setpoint": 33.0, "pid_out": 0.2},
+            "1": {"state": "off", "mode": "limit", "setpoint": 33.0, "trigger": 34.0},
+            "2": {"state": "off", "mode": "limit", "setpoint": 33.0, "trigger": 34.0},
+            "3": {"state": "off", "mode": "limit", "setpoint": 33.0, "trigger": 34.0},
+            "4": {"state": "on",  "mode": "limit", "setpoint": 33.0, "trigger": 34.0},
+            "5": {"state": "on",  "mode": "limit", "setpoint": 33.0, "trigger": 34.0},
+            "6": {"state": "off", "mode": "limit", "setpoint": 33.0, "trigger": 34.0},
         }
     })
 
@@ -465,20 +497,20 @@ def api_correlation():
     return jsonify({"error": "Need at least 5 scored runs", "count": 1}), 400
 
 
-# ── PID config ────────────────────────────────────────────────────────────────
+# ── Zone config ───────────────────────────────────────────────────────────────
 
-MOCK_PID = {
-    "comment": "Mock PID config",
-    "default": {"Kp": 2.0, "Ki": 0.1, "Kd": 0.5},
+MOCK_ZONE_CFG = {
+    "comment": "Mock zone config",
+    "default": {"tolerance_c": 1.0},
 }
 
-@app.route("/api/pid-config", methods=["GET"])
-def api_get_pid_config():
-    return jsonify(MOCK_PID)
+@app.route("/api/zone-config", methods=["GET"])
+def api_get_zone_config():
+    return jsonify(MOCK_ZONE_CFG)
 
-@app.route("/api/pid-config", methods=["POST"])
-def api_save_pid_config():
-    return jsonify(MOCK_PID)
+@app.route("/api/zone-config", methods=["POST"])
+def api_save_zone_config():
+    return jsonify(MOCK_ZONE_CFG)
 
 
 # ── Export ────────────────────────────────────────────────────────────────────
