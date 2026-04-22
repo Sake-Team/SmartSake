@@ -1530,6 +1530,7 @@
 				'use strict';
 
 				var _fanPollId = null;
+				var _zoneSetpoints = {}; // z → setpoint_c (number) | null
 
 				function _applyFanBadges(data) {
 					var zones = (data && data.zones) ? data.zones : {};
@@ -1538,6 +1539,10 @@
 						var state = zd.state;   // 'on' | 'off' | null
 						var mode  = zd.mode;    // 'pid' | 'manual' | 'rule' | 'none'
 						var sp    = zd.setpoint; // number | null
+
+						// Store setpoint for applyDeviationColors
+						_zoneSetpoints[z] = (sp !== null && sp !== undefined && isFinite(Number(sp)))
+							? Number(sp) : null;
 
 						var fanEl  = document.getElementById('fan-badge-' + z);
 						var modeEl = document.getElementById('mode-badge-' + z);
@@ -1598,8 +1603,9 @@
 					}
 				}
 
-				window.startFanPolling = startFanPolling;
-				window.stopFanPolling  = stopFanPolling;
+				window.startFanPolling  = startFanPolling;
+				window.stopFanPolling   = stopFanPolling;
+				window.getZoneSetpoints = function () { return Object.assign({}, _zoneSetpoints); };
 			})();
 
 				// Live-updating charts for temperature, humidity, and fans + modal with scroll/zoom
@@ -2926,10 +2932,12 @@ const tempSeries = {
 						// Read deviation allowance directly from localStorage so this function
 						// works without depending on the setTempModal IIFE's closure.
 						const dev = parseFloat(localStorage.getItem('sakeDeviationAllowanceC'));
-						const deviationAllowance = Number.isFinite(dev) ? dev : 5.0;
+						const deviationAllowance = Number.isFinite(dev) ? dev : 2.0;
 						const half = deviationAllowance * 0.5;
 
 						const currentTargets = getCurrentTargets();
+						// Per-zone PID setpoints from fan-state poller
+						const zoneSetpoints = window.getZoneSetpoints ? window.getZoneSetpoints() : {};
 						// Use numeric values from poller (not DOM text scraping)
 						const latestTemps = window.getLatestDryBulbNumeric
 							? window.getLatestDryBulbNumeric() : null;
@@ -2940,21 +2948,27 @@ const tempSeries = {
 							const wetEl   = document.getElementById(`temp-${i}-wet`);
 
 							const actualTemp = latestTemps ? latestTemps[`temp${i}`] : null;
-							const targetTemp = currentTargets ? currentTargets[`temp${i}`] : null;
+
+							// Source of truth priority: progression curve target → per-zone PID setpoint
+							const curveTarget = currentTargets ? currentTargets[`temp${i}`] : null;
+							const pidSetpoint = zoneSetpoints[i] != null ? zoneSetpoints[i] : null;
+							const targetTemp  = Number.isFinite(curveTarget) ? curveTarget
+							                  : Number.isFinite(pidSetpoint)  ? pidSetpoint
+							                  : null;
 
 							// ── Zone button color ────────────────────────────────
 							if (zoneBtn) {
 								zoneBtn.classList.remove('zone-temp-cold','zone-temp-ok','zone-temp-warm','zone-temp-hot');
 								if (actualTemp !== null) {
 									if (Number.isFinite(targetTemp)) {
-										// Target set — colour relative to setpoint
+										// Colour relative to setpoint
 										const diff = actualTemp - targetTemp;
 										if      (diff >  deviationAllowance) zoneBtn.classList.add('zone-temp-hot');
 										else if (diff >  half)               zoneBtn.classList.add('zone-temp-warm');
 										else if (diff >= -half)              zoneBtn.classList.add('zone-temp-ok');
 										else                                 zoneBtn.classList.add('zone-temp-cold');
 									} else {
-										// No target — use absolute thresholds as visual fallback
+										// No target anywhere — absolute fallback
 										if      (actualTemp >= 40) zoneBtn.classList.add('zone-temp-hot');
 										else if (actualTemp >= 35) zoneBtn.classList.add('zone-temp-warm');
 										else if (actualTemp >= 25) zoneBtn.classList.add('zone-temp-ok');
@@ -3014,16 +3028,22 @@ const tempSeries = {
 					// Optimised version using cached refs
 					function applyDeviationColorsCached() {
 						const dev = parseFloat(localStorage.getItem('sakeDeviationAllowanceC'));
-						const deviationAllowance = Number.isFinite(dev) ? dev : 5.0;
+						const deviationAllowance = Number.isFinite(dev) ? dev : 2.0;
 						const half = deviationAllowance * 0.5;
 						const currentTargets = getCurrentTargets();
+						const zoneSetpoints = window.getZoneSetpoints ? window.getZoneSetpoints() : {};
 						const latestTemps = window.getLatestDryBulbNumeric
 							? window.getLatestDryBulbNumeric() : null;
 
 						for (let i = 0; i < 6; i++) {
 							const { zoneBtn, wet } = _zoneElCache[i];
 							const actualTemp = latestTemps ? latestTemps['temp' + (i + 1)] : null;
-							const targetTemp = currentTargets ? currentTargets['temp' + (i + 1)] : null;
+							// Priority: progression curve → per-zone PID setpoint → null (absolute fallback)
+							const curveTarget = currentTargets ? currentTargets['temp' + (i + 1)] : null;
+							const pidSetpoint = zoneSetpoints[i + 1] != null ? zoneSetpoints[i + 1] : null;
+							const targetTemp  = Number.isFinite(curveTarget) ? curveTarget
+							                  : Number.isFinite(pidSetpoint)  ? pidSetpoint
+							                  : null;
 
 							if (zoneBtn) {
 								zoneBtn.classList.remove('zone-temp-cold','zone-temp-ok','zone-temp-warm','zone-temp-hot');

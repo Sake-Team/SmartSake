@@ -480,7 +480,7 @@ main { padding: 8px 16px 16px; }
   z-index: 2;
 }
 
-/* Temperature state colours */
+/* Temperature state colours — zone cards */
 .zone-combined.zone-temp-cold  { background: var(--color-cold-bg); border-color: var(--color-cold-bd); }
 .zone-combined.zone-temp-ok    { background: var(--color-ok-bg);   border-color: var(--color-ok-bd); }
 .zone-combined.zone-temp-warm  { background: var(--color-warm-bg); border-color: var(--color-warm-bd); }
@@ -490,6 +490,28 @@ main { padding: 8px 16px 16px; }
 .zone-combined.zone-temp-ok:hover,   .zone-combined.zone-temp-ok:focus   { background: var(--color-ok-bg-hover); }
 .zone-combined.zone-temp-warm:hover, .zone-combined.zone-temp-warm:focus { background: var(--color-warm-bg-hover); }
 .zone-combined.zone-temp-hot:hover,  .zone-combined.zone-temp-hot:focus  { background: var(--color-hot-bg-hover); }
+
+/* Temperature state legend */
+.zone-temp-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 0 10px;
+}
+.zone-temp-legend__item {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  color: var(--color-text-1);
+}
+.zone-temp-legend__item.zone-temp-cold { background: var(--color-cold-bg); border-color: var(--color-cold-bd); }
+.zone-temp-legend__item.zone-temp-ok   { background: var(--color-ok-bg);   border-color: var(--color-ok-bd); }
+.zone-temp-legend__item.zone-temp-warm { background: var(--color-warm-bg); border-color: var(--color-warm-bd); }
+.zone-temp-legend__item.zone-temp-hot  { background: var(--color-hot-bg);  border-color: var(--color-hot-bd); }
 
 /* ----- Zone navigation list (zone pages) ----- */
 .zones {
@@ -1578,3 +1600,15 @@ main { flex: 1 1 0 !important; overflow: hidden !important; padding: 16px 12px 1
   margin: 0;
   line-height: 1.4;
 }
+
+/* Chart legends */
+.temp-chart-legend { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 4px 0 6px; }
+.legend-item {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: none; border: none; cursor: pointer;
+  font-size: 0.75rem; color: var(--color-text-2); padding: 2px 4px;
+  border-radius: 4px; transition: opacity var(--t), background var(--t);
+}
+.legend-item:hover { background: var(--color-bg-tinted); }
+.legend-item--hidden { opacity: 0.35; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }

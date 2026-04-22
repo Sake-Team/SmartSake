@@ -1101,6 +1101,11 @@
 					fan4: 0, fan5: 0, fan6: 0
 				};
 
+				let currentSetpoints = {
+					sp1: null, sp2: null, sp3: null,
+					sp4: null, sp5: null, sp6: null
+				};
+
 				let currentHumidity = null;
 				let temperatureReadingActive = false;
 				let fetchIntervalId = null;
@@ -1144,7 +1149,17 @@
 									'zone-temp-hot'
 								);
 								if (typeof dry === 'number' && !Number.isNaN(dry)) {
-									if (dry >= 40) zoneButton.classList.add('zone-temp-hot');
+									const sp = currentSetpoints[`sp${i}`];
+									if (sp != null && Number.isFinite(sp)) {
+										const delta = dry - sp;
+										if (delta > 3)       zoneButton.classList.add('zone-temp-hot');
+										else if (delta > 1)  zoneButton.classList.add('zone-temp-warm');
+										else if (delta >= -2) zoneButton.classList.add('zone-temp-ok');
+										else                 zoneButton.classList.add('zone-temp-cold');
+									} else {
+										// No setpoint — fall back to absolute hot guard
+										if (dry >= 40) zoneButton.classList.add('zone-temp-hot');
+									}
 								}
 							}
 						}
@@ -1198,6 +1213,10 @@
 							const dryC = (data.thermocouples && data.thermocouples[tcKey] != null)
 								? parseFloat(data.thermocouples[tcKey]) : null;
 							currentDryBulb[`temp${i}`] = dryC;
+
+							const zone = data.zones && data.zones[i];
+							currentSetpoints[`sp${i}`] = (zone && zone.setpoint_c != null)
+								? parseFloat(zone.setpoint_c) : null;
 
 							if (dryC != null && RH != null) {
 								const wetC = computeWetBulbC(dryC, RH);
@@ -1279,6 +1298,8 @@
 
 				if (!tempCanvas || !humCanvas || !fansCanvas || !weightCanvas || !window.Chart) return;
 
+				const ZONE_COLORS = ['#e05252','#52a0e0','#52c08a','#e0a052','#a052e0','#52d8e0'];
+
 				const maxPoints = 60;
 				const labels = [];
 				const humidityData = [];
@@ -1293,14 +1314,17 @@
 					type: 'line',
 					data: {
 						labels,
-						datasets: [1,2,3,4,5,6].map(i => ({ label: `Temp ${i}`, data: tempSeries[`temp${i}`], borderWidth: 1, pointRadius: 0 }))
+						datasets: [1,2,3,4,5,6].map(i => ({
+							label: `Zone ${i}`, data: tempSeries[`temp${i}`], borderWidth: 1.5, pointRadius: 0,
+							borderColor: ZONE_COLORS[i-1], backgroundColor: ZONE_COLORS[i-1].replace(')', ',0.08)').replace('rgb', 'rgba')
+						}))
 					},
 					options: { animation: false, responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: 'Temp (°C)' } } }, plugins: { legend: { display: false } } }
 				});
 
 				const humChart = new Chart(humCanvas.getContext('2d'), {
 					type: 'line',
-					data: { labels, datasets: [{ label: 'Humidity', data: humidityData, borderWidth: 1, pointRadius: 0 }] },
+					data: { labels, datasets: [{ label: 'Humidity', data: humidityData, borderWidth: 1, pointRadius: 0, borderColor: '#52a0e0' }] },
 					options: { animation: false, responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: 'Humidity (%)' } } }, plugins: { legend: { display: false } } }
 				});
 
@@ -1308,16 +1332,45 @@
 					type: 'line',
 					data: {
 						labels,
-						datasets: [1,2,3,4,5,6].map(i => ({ label: `Fan ${i}`, data: fansSeries[`fan${i}`], borderWidth: 1, pointRadius: 0, stepped: true }))
+						datasets: [1,2,3,4,5,6].map(i => ({
+							label: `Zone ${i}`, data: fansSeries[`fan${i}`], borderWidth: 1.5, pointRadius: 0, stepped: true,
+							borderColor: ZONE_COLORS[i-1], backgroundColor: ZONE_COLORS[i-1].replace(')', ',0.08)').replace('rgb', 'rgba')
+						}))
 					},
 					options: { animation: false, responsive: true, maintainAspectRatio: false, scales: { y: { min: -0.1, max: 1.1, ticks: { stepSize: 1, callback: v => (v === 0 ? 'Off' : v === 1 ? 'On' : '') } } }, plugins: { legend: { display: false } } }
 				});
 
 				const weightChart = new Chart(weightCanvas.getContext('2d'), {
 					type: 'line',
-					data: { labels, datasets: [{ label: 'Weight', data: weightData, borderWidth: 2, pointRadius: 3 }] },
+					data: { labels, datasets: [{ label: 'Weight', data: weightData, borderWidth: 2, pointRadius: 3, borderColor: '#52a0e0' }] },
 					options: { animation: false, responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: 'Weight (kg)' } } }, plugins: { legend: { display: false } } }
 				});
+
+				function buildLegend(container, chart) {
+					if (!container) return;
+					container.innerHTML = '';
+					chart.data.datasets.forEach(function (ds, idx) {
+						const item = document.createElement('button');
+						item.type = 'button';
+						item.className = 'legend-item';
+						item.dataset.index = idx;
+						const dot = document.createElement('span');
+						dot.className = 'legend-dot';
+						dot.style.background = ds.borderColor || '#888';
+						item.appendChild(dot);
+						item.appendChild(document.createTextNode(ds.label));
+						item.addEventListener('click', function () {
+							const meta = chart.getDatasetMeta(idx);
+							meta.hidden = !meta.hidden;
+							item.classList.toggle('legend-item--hidden', meta.hidden);
+							chart.update('none');
+						});
+						container.appendChild(item);
+					});
+				}
+
+				buildLegend(tempLegendContainer, tempChart);
+				buildLegend(fansLegendContainer, fansChart);
 
 				window.pushSensorSample = function (sample) {
 					const t = new Date(sample.time);

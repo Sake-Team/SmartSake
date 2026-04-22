@@ -214,6 +214,24 @@
   let customBrand  = localStorage.getItem('ss-custom-brand')  || '#d40000';
   let customAccent = localStorage.getItem('ss-custom-accent') || '#157efb';
 
+  // Temp-state color vars for dark-background themes.
+  // The CSS sheet only overrides these for [data-theme='dark']; all other dark
+  // themes would fall back to the light :root defaults without this.
+  const DARK_TEMP_VARS = {
+    '--color-cold-bg':        '#0d2a45', '--color-cold-bd':        '#1e5a8a', '--color-cold-bg-hover': '#152f4d',
+    '--color-ok-bg':          '#0d2d1a', '--color-ok-bd':          '#1a6a38', '--color-ok-bg-hover':   '#153220',
+    '--color-warm-bg':        '#2d1f00', '--color-warm-bd':        '#7a4a00', '--color-warm-bg-hover': '#382600',
+    '--color-hot-bg':         '#2d0d0d', '--color-hot-bd':         '#7a1a1a', '--color-hot-bg-hover':  '#381515',
+  };
+  const LIGHT_TEMP_VARS = {
+    '--color-cold-bg':        '#cfe8ff', '--color-cold-bd':        '#7fb8ff', '--color-cold-bg-hover': '#bcdcff',
+    '--color-ok-bg':          '#c9f2d8', '--color-ok-bd':          '#7fd1a0', '--color-ok-bg-hover':   '#b7eccc',
+    '--color-warm-bg':        '#ffe0b3', '--color-warm-bd':        '#ffb24d', '--color-warm-bg-hover': '#ffd699',
+    '--color-hot-bg':         '#ffcccc', '--color-hot-bd':         '#ff8080', '--color-hot-bg-hover':  '#ffb3b3',
+  };
+  // Which themes get which set (light-bg themes use LIGHT_TEMP_VARS, rest use DARK)
+  const LIGHT_BG_THEMES = new Set(['sake', 'light', 'minimal']);
+
   // ---- Theme Helpers ----
 
   function shadeColor(hex, pct) {
@@ -236,9 +254,12 @@
   }
 
   function applyTheme(id) {
-    const vars = id === 'custom'
+    const baseVars = id === 'custom'
       ? buildCustomVars()
       : (THEMES[id] ? THEMES[id].vars : THEMES.dark.vars);
+
+    const tempVars = LIGHT_BG_THEMES.has(id) ? LIGHT_TEMP_VARS : DARK_TEMP_VARS;
+    const vars = Object.assign({}, tempVars, baseVars);
 
     const root = document.documentElement;
     Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v));

@@ -25,11 +25,27 @@ app = Flask(__name__, static_folder=BASE_DIR, static_url_path="")
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _now():
-    return datetime.now().isoformat(timespec="seconds")
+    return datetime.now().isoformat(timespec="milliseconds")
 
 def _fake_temp(base=32.0, drift=0.8):
     """Simulate a thermocouple reading with slight drift."""
     return round(base + random.uniform(-drift, drift), 2)
+
+def _oscillating_temp(zone_index, setpoint=33.0, amplitude=6.0, period_s=60.0):
+    """
+    Return a temperature that cycles through cold→ok→warm→hot→warm→ok→cold.
+    Each zone is phase-shifted so all four states are visible simultaneously.
+    amplitude=6 with default allowance=2 means the full range hits all states:
+      hot  : diff > 2  → temp > 35
+      warm : diff > 1  → 34 < temp ≤ 35
+      ok   : diff ≥ -1 → 32 ≤ temp ≤ 34
+      cold : diff < -1 → temp < 32
+    """
+    phase = (zone_index / 6.0) * 2 * math.pi          # 0, 60°, 120°, 180°, 240°, 300°
+    t = time.time()
+    sine = math.sin((2 * math.pi * t / period_s) + phase)
+    base = setpoint + amplitude * sine
+    return round(base + random.uniform(-0.2, 0.2), 2)
 
 def _fake_readings(run_id, n=120):
     """Generate n fake historical readings spread over the last 24 hours."""
@@ -110,30 +126,70 @@ def static_files(filename):
     return send_from_directory(BASE_DIR, filename)
 
 
+# ── Shared mock zone state ────────────────────────────────────────────────────
+
+MOCK_ZONE_SETPOINTS = {i: 33.0 for i in range(1, 7)}
+MOCK_ZONE_MODES     = {i: "auto" for i in range(1, 7)}
+
+def _build_sensor_payload():
+    """Build the sensor_latest.json shape used by all zone pages and home."""
+    # Each zone oscillates through cold/ok/warm/hot on a 60-second cycle,
+    # phase-shifted so all four states are visible at once.
+    sp = 33.0
+    thermocouples = {f"TC{i}": _oscillating_temp(i - 1, setpoint=sp) for i in range(1, 7)}
+    sht_temp = _fake_temp(24.5, 0.2)
+    humidity = _fake_temp(87.0, 1.5)
+
+    zones = {}
+    for i in range(1, 7):
+        sp = MOCK_ZONE_SETPOINTS[i]
+        dry = thermocouples[f"TC{i}"]
+        relay_on = dry > sp
+        pid_out = max(0, min(100, round((dry - sp) * 20)))
+        zones[i] = {
+            "setpoint_c": sp,
+            "mode": MOCK_ZONE_MODES[i],
+            "relay_state": relay_on,
+            "pid_output": pid_out,
+            "alarm_level": None,
+            "alarm_reason": None,
+            "alarm_thresholds": {
+                "warn_high_c": sp + 4.0,
+                "crit_high_c": sp + 7.0,
+                "warn_low_c":  sp - 5.0,
+                "crit_low_c":  sp - 8.0,
+            },
+        }
+
+    return {
+        "timestamp": _now(),
+        "thermocouples": thermocouples,
+        "sht30": {"temp_c": sht_temp, "humidity_rh": humidity},
+        "zones": zones,
+        # Legacy flat keys for /api/latest consumers
+        "tc1": thermocouples["TC1"], "tc2": thermocouples["TC2"],
+        "tc3": thermocouples["TC3"], "tc4": thermocouples["TC4"],
+        "tc5": thermocouples["TC5"], "tc6": thermocouples["TC6"],
+        "sht_temp": sht_temp, "humidity": humidity,
+        "fan1": int(zones[1]["relay_state"]), "fan2": int(zones[2]["relay_state"]),
+        "fan3": int(zones[3]["relay_state"]), "fan4": int(zones[4]["relay_state"]),
+        "fan5": int(zones[5]["relay_state"]), "fan6": int(zones[6]["relay_state"]),
+        "weight_lbs_1": 4.92, "weight_lbs_2": 4.98,
+        "weight_lbs_3": 4.85, "weight_lbs_4": 4.95,
+        "weight_lbs": 4.92, "weight_total_lbs": 19.70,
+    }
+
+
 # ── Live sensor feed ──────────────────────────────────────────────────────────
+
+@app.route("/sensor_latest.json")
+def sensor_latest():
+    """Dynamic mock for the sensor_latest.json static file all zone pages poll."""
+    return jsonify(_build_sensor_payload())
 
 @app.route("/api/latest")
 def api_latest():
-    base = 32.5
-    return jsonify({
-        "timestamp": _now(),
-        "tc1": _fake_temp(base),
-        "tc2": _fake_temp(base + 1.2),
-        "tc3": _fake_temp(base + 0.8),
-        "tc4": _fake_temp(base - 0.3),
-        "tc5": _fake_temp(base + 1.5),
-        "tc6": _fake_temp(base - 0.8),
-        "sht_temp": _fake_temp(24.5, 0.2),
-        "humidity": _fake_temp(87.0, 1.5),
-        "fan1": 1, "fan2": 1, "fan3": 0,
-        "fan4": 0, "fan5": 1, "fan6": 0,
-        "weight_lbs_1": 4.92,
-        "weight_lbs_2": 4.98,
-        "weight_lbs_3": 4.85,
-        "weight_lbs_4": 4.95,
-        "weight_lbs": 4.92,
-        "weight_total_lbs": 19.70,
-    })
+    return jsonify(_build_sensor_payload())
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
@@ -230,6 +286,21 @@ def api_save_zone_note(run_id, zone):
     return jsonify({"ok": True})
 
 
+# ── Zone control ──────────────────────────────────────────────────────────────
+
+@app.route("/update_zone", methods=["POST"])
+def update_zone():
+    from flask import request
+    data = request.get_json(silent=True) or {}
+    zone = int(data.get("zone", 0))
+    if zone in MOCK_ZONE_SETPOINTS:
+        if "setpoint_c" in data:
+            MOCK_ZONE_SETPOINTS[zone] = float(data["setpoint_c"])
+        if "mode" in data:
+            MOCK_ZONE_MODES[zone] = data["mode"]
+    return jsonify({"ok": True})
+
+
 # ── Fan overrides / rules / state ──────────────────────────────────────────────
 
 @app.route("/api/runs/<int:run_id>/fan-overrides", methods=["GET"])
@@ -265,12 +336,12 @@ def api_fan_state():
     return jsonify({
         "timestamp": _now(),
         "zones": {
-            "1": {"state": "on",  "mode": "auto", "setpoint": 33.0, "pid_out": 0.7},
-            "2": {"state": "on",  "mode": "auto", "setpoint": 33.0, "pid_out": 0.5},
-            "3": {"state": "off", "mode": "auto", "setpoint": 33.0, "pid_out": 0.1},
-            "4": {"state": "off", "mode": "auto", "setpoint": 33.0, "pid_out": 0.0},
-            "5": {"state": "on",  "mode": "auto", "setpoint": 33.0, "pid_out": 0.8},
-            "6": {"state": "off", "mode": "auto", "setpoint": 33.0, "pid_out": 0.2},
+            "1": {"state": "off", "mode": "pid", "setpoint": 33.0, "pid_out": 0.0},
+            "2": {"state": "off", "mode": "pid", "setpoint": 33.0, "pid_out": 0.2},
+            "3": {"state": "off", "mode": "pid", "setpoint": 33.0, "pid_out": 0.3},
+            "4": {"state": "on",  "mode": "pid", "setpoint": 33.0, "pid_out": 0.6},
+            "5": {"state": "on",  "mode": "pid", "setpoint": 33.0, "pid_out": 1.0},
+            "6": {"state": "off", "mode": "pid", "setpoint": 33.0, "pid_out": 0.2},
         }
     })
 
