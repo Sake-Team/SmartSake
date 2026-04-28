@@ -72,7 +72,7 @@
 					<section class="layout layout--home">
 
 						<section class="zones-combined">
-							<a class="zone-combined" href="zone1.html" id="zone-link-1" role="button" aria-label="Zone 1">
+							<a class="zone-combined" href="#" id="zone-link-1" role="button" aria-label="Zone 1">
 								<span class="zone-combined__label">Zone 1</span>
 								<div class="temp__value-column">
 									<div class="temp__row">
@@ -85,7 +85,7 @@
 									<span class="mode-badge" id="mode-badge-1"></span>
 								</div>
 							</a>
-							<a class="zone-combined" href="zone2.html" id="zone-link-2" role="button" aria-label="Zone 2">
+							<a class="zone-combined" href="#" id="zone-link-2" role="button" aria-label="Zone 2">
 								<span class="zone-combined__label">Zone 2</span>
 								<div class="temp__value-column">
 									<div class="temp__row">
@@ -98,7 +98,7 @@
 									<span class="mode-badge" id="mode-badge-2"></span>
 								</div>
 							</a>
-							<a class="zone-combined" href="zone3.html" id="zone-link-3" role="button" aria-label="Zone 3">
+							<a class="zone-combined" href="#" id="zone-link-3" role="button" aria-label="Zone 3">
 								<span class="zone-combined__label">Zone 3</span>
 								<div class="temp__value-column">
 									<div class="temp__row">
@@ -111,7 +111,7 @@
 									<span class="mode-badge" id="mode-badge-3"></span>
 								</div>
 							</a>
-							<a class="zone-combined" href="zone4.html" id="zone-link-4" role="button" aria-label="Zone 4">
+							<a class="zone-combined" href="#" id="zone-link-4" role="button" aria-label="Zone 4">
 								<span class="zone-combined__label">Zone 4</span>
 								<div class="temp__value-column">
 									<div class="temp__row">
@@ -124,7 +124,7 @@
 									<span class="mode-badge" id="mode-badge-4"></span>
 								</div>
 							</a>
-							<a class="zone-combined" href="zone5.html" id="zone-link-5" role="button" aria-label="Zone 5">
+							<a class="zone-combined" href="#" id="zone-link-5" role="button" aria-label="Zone 5">
 								<span class="zone-combined__label">Zone 5</span>
 								<div class="temp__value-column">
 									<div class="temp__row">
@@ -137,7 +137,7 @@
 									<span class="mode-badge" id="mode-badge-5"></span>
 								</div>
 							</a>
-							<a class="zone-combined" href="zone6.html" id="zone-link-6" role="button" aria-label="Zone 6">
+							<a class="zone-combined" href="#" id="zone-link-6" role="button" aria-label="Zone 6">
 								<span class="zone-combined__label">Zone 6</span>
 								<div class="temp__value-column">
 									<div class="temp__row">
@@ -279,6 +279,13 @@
 								<button class="zone-detail-card__fan-btn" data-action="on" data-duration="">On until end</button>
 								<button class="zone-detail-card__fan-btn zone-detail-card__fan-btn--auto" id="zdc-fan-auto" style="display:none;">Return to automatic</button>
 							</div>
+						</div>
+
+						<!-- Zone notes -->
+						<div class="zone-detail-card__notes">
+							<label class="zone-detail-card__notes-label" for="zdc-notes">Notes</label>
+							<textarea id="zdc-notes" class="zone-detail-card__notes-input"
+								placeholder="Add notes for this zone..." rows="3"></textarea>
 						</div>
 
 					</div>
@@ -2689,6 +2696,7 @@ const tempSeries = {
 					const thrWarnLow     = document.getElementById('zdc-thr-warn-low');
 					const thrCritLow     = document.getElementById('zdc-thr-crit-low');
 					const thrApply       = document.getElementById('zdc-thresholds-apply');
+					const notesInput     = document.getElementById('zdc-notes');
 
 					if (!card) return; // not on dashboard page
 
@@ -2697,6 +2705,7 @@ const tempSeries = {
 					let activeZone   = null;
 					let fanRequestPending = false;
 					let zdcPollTimer = null;
+					let notesSaveTimer = null;
 
 					// Chart options matching bubbly light style — called fresh each time to pick up current theme
 					function buildChartOpts() {
@@ -2809,6 +2818,15 @@ const tempSeries = {
 						const runId = getRunId();
 						if (runId) loadFanState(runId, zone);
 
+						// Load zone note
+						_getActiveRunId().then(function(rid) {
+							if (!rid || !notesInput) return;
+							fetch('/api/runs/' + rid + '/zones/' + zone)
+								.then(function(r) { return r.ok ? r.json() : {}; })
+								.then(function(d) { notesInput.value = d.note || ''; })
+								.catch(function() {});
+						});
+
 						// Poll zone controls every 5 s while modal is open
 						if (zdcPollTimer) clearInterval(zdcPollTimer);
 						zdcPollTimer = setInterval(function () { loadZoneControls(activeZone); }, 5000);
@@ -2817,6 +2835,8 @@ const tempSeries = {
 					function closeCard() {
 						card.classList.remove('is-open');
 						if (zdcPollTimer) { clearInterval(zdcPollTimer); zdcPollTimer = null; }
+						clearTimeout(notesSaveTimer);
+						if (notesInput) notesInput.value = '';
 						if (zdcTempChart) { zdcTempChart.destroy(); zdcTempChart = null; }
 						if (zdcFanChart)  { zdcFanChart.destroy();  zdcFanChart  = null; }
 						window._zdcCharts = null; // unregister so applyTimeWindow skips them
@@ -2979,6 +2999,21 @@ const tempSeries = {
 
 					// Alarm thresholds — no server endpoint yet; inputs are display-only
 					if (thrApply) thrApply.disabled = true;
+
+					// Notes auto-save (debounced 800 ms)
+					if (notesInput) notesInput.addEventListener('input', function() {
+						clearTimeout(notesSaveTimer);
+						notesSaveTimer = setTimeout(function() {
+							_getActiveRunId().then(function(rid) {
+								if (!rid || !activeZone) return;
+								fetch('/api/runs/' + rid + '/zones/' + activeZone, {
+									method: 'PUT',
+									headers: { 'Content-Type': 'application/json' },
+									body: JSON.stringify({ note: notesInput.value })
+								}).catch(function() {});
+							});
+						}, 800);
+					});
 
 					// Fan override button clicks
 					fanBtns.forEach(function (btn) {

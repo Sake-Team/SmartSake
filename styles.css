@@ -1316,6 +1316,12 @@ body:has(#start-run-btn.end-run-btn-active) .set-temp-btn { display: inline-flex
 }
 .zone-detail-card__fan-btn--active { background: #e8f0fa; border-color: #52a0e0; color: #1a5fa0; font-weight: 600; }
 
+/* ── Zone notes ────────────────────────────────── */
+.zone-detail-card__notes { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.zone-detail-card__notes-label { font-size: 0.75rem; font-weight: 600; color: var(--color-text-2); text-transform: uppercase; letter-spacing: 0.04em; }
+.zone-detail-card__notes-input { width: 100%; box-sizing: border-box; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--r-sm); color: var(--color-text-1); font-size: 0.85rem; padding: 8px 10px; resize: vertical; font-family: inherit; transition: border-color var(--t); }
+.zone-detail-card__notes-input:focus { outline: none; border-color: var(--color-brand); }
+
 /* ── Zone detail modal — sizing ──────────────── */
 .zone-modal-popup {
   max-width: 520px;

@@ -71,7 +71,7 @@
 				<section class="layout layout--home">
 
 					<section class="zones-combined">
-						<a class="zone-combined" href="zone1.html" role="button" aria-label="Zone 1" data-widget-id="zone-1">
+						<a class="zone-combined" href="#" role="button" aria-label="Zone 1" data-widget-id="zone-1">
 							<span class="zone-combined__label">Zone 1</span>
 							<div class="temp__value-column">
 								<div class="temp__row">
@@ -84,7 +84,7 @@
 								</div>
 							</div>
 						</a>
-						<a class="zone-combined" href="zone2.html" role="button" aria-label="Zone 2" data-widget-id="zone-2">
+						<a class="zone-combined" href="#" role="button" aria-label="Zone 2" data-widget-id="zone-2">
 							<span class="zone-combined__label">Zone 2</span>
 							<div class="temp__value-column">
 								<div class="temp__row">
@@ -97,7 +97,7 @@
 								</div>
 							</div>
 						</a>
-						<a class="zone-combined" href="zone3.html" role="button" aria-label="Zone 3" data-widget-id="zone-3">
+						<a class="zone-combined" href="#" role="button" aria-label="Zone 3" data-widget-id="zone-3">
 							<span class="zone-combined__label">Zone 3</span>
 							<div class="temp__value-column">
 								<div class="temp__row">
@@ -110,7 +110,7 @@
 								</div>
 							</div>
 						</a>
-						<a class="zone-combined" href="zone4.html" role="button" aria-label="Zone 4" data-widget-id="zone-4">
+						<a class="zone-combined" href="#" role="button" aria-label="Zone 4" data-widget-id="zone-4">
 							<span class="zone-combined__label">Zone 4</span>
 							<div class="temp__value-column">
 								<div class="temp__row">
@@ -123,7 +123,7 @@
 								</div>
 							</div>
 						</a>
-						<a class="zone-combined" href="zone5.html" role="button" aria-label="Zone 5" data-widget-id="zone-5">
+						<a class="zone-combined" href="#" role="button" aria-label="Zone 5" data-widget-id="zone-5">
 							<span class="zone-combined__label">Zone 5</span>
 							<div class="temp__value-column">
 								<div class="temp__row">
@@ -136,7 +136,7 @@
 								</div>
 							</div>
 						</a>
-						<a class="zone-combined" href="zone6.html" role="button" aria-label="Zone 6" data-widget-id="zone-6">
+						<a class="zone-combined" href="#" role="button" aria-label="Zone 6" data-widget-id="zone-6">
 							<span class="zone-combined__label">Zone 6</span>
 							<div class="temp__value-column">
 								<div class="temp__row">
@@ -491,6 +491,12 @@
 				<div class="zone-detail-card__chart-wrap">
 					<span class="zone-detail-card__chart-label">Fan on/off over time</span>
 					<canvas id="zdc-fan-chart"></canvas>
+				</div>
+				<!-- Zone notes -->
+				<div class="zone-detail-card__notes">
+					<label class="zone-detail-card__notes-label" for="zdc-notes">Notes</label>
+					<textarea id="zdc-notes" class="zone-detail-card__notes-input"
+						placeholder="Add notes for this zone..." rows="3"></textarea>
 				</div>
 			</div>
 		</div>
@@ -1560,11 +1566,13 @@
 				const thrWarnLow     = document.getElementById('zdc-thr-warn-low');
 				const thrCritLow     = document.getElementById('zdc-thr-crit-low');
 				const thrApply       = document.getElementById('zdc-thresholds-apply');
+				const notesInput     = document.getElementById('zdc-notes');
 
 				let zdcTempChart = null;
 				let zdcFanChart  = null;
 				let activeZone   = null;
 				let zdcPollTimer = null;
+				let notesSaveTimer = null;
 				const MAX_PTS    = 120;
 
 				function calcWetBulbLocal(T, RH) {
@@ -1621,6 +1629,15 @@
 
 					card.classList.add('is-open');
 
+					// Load zone note
+					_getActiveRunId().then(function(rid) {
+						if (!rid || !notesInput) return;
+						fetch('/api/runs/' + rid + '/zones/' + zone)
+							.then(function(r) { return r.ok ? r.json() : {}; })
+							.then(function(d) { notesInput.value = d.note || ''; })
+							.catch(function() {});
+					});
+
 					if (zdcPollTimer) clearInterval(zdcPollTimer);
 					zdcPollTimer = setInterval(function () { loadZoneControls(activeZone); }, 5000);
 				}
@@ -1628,6 +1645,8 @@
 				function closeCard() {
 					card.classList.remove('is-open');
 					if (zdcPollTimer) { clearInterval(zdcPollTimer); zdcPollTimer = null; }
+					clearTimeout(notesSaveTimer);
+					if (notesInput) notesInput.value = '';
 					if (zdcTempChart) { zdcTempChart.destroy(); zdcTempChart = null; }
 					if (zdcFanChart)  { zdcFanChart.destroy();  zdcFanChart  = null; }
 					document.querySelectorAll('.zone-combined').forEach(function (el) { el.classList.remove('zone-combined--active'); });
@@ -1745,6 +1764,21 @@
 
 				// Alarm thresholds — no server endpoint yet
 				if (thrApply) thrApply.disabled = true;
+
+				// Notes auto-save (debounced 800 ms)
+				if (notesInput) notesInput.addEventListener('input', function() {
+					clearTimeout(notesSaveTimer);
+					notesSaveTimer = setTimeout(function() {
+						_getActiveRunId().then(function(rid) {
+							if (!rid || !activeZone) return;
+							fetch('/api/runs/' + rid + '/zones/' + activeZone, {
+								method: 'PUT',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ note: notesInput.value })
+							}).catch(function() {});
+						});
+					}, 800);
+				});
 
 				// Patch pushSensorSample to forward live data into the open zone chart
 				var _origPush = window.pushSensorSample;
