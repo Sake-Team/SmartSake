@@ -42,8 +42,7 @@ def init_db():
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
                 run_id      INTEGER NOT NULL REFERENCES runs(id),
                 elapsed_min INTEGER NOT NULL,
-                temp1_target REAL, temp2_target REAL, temp3_target REAL,
-                temp4_target REAL, temp5_target REAL, temp6_target REAL
+                temp_target REAL
             );
 
             CREATE TABLE IF NOT EXISTS zone_notes (
@@ -123,12 +122,7 @@ def init_db():
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
                 curve_id        INTEGER NOT NULL REFERENCES reference_curves(id),
                 elapsed_min     INTEGER NOT NULL,
-                temp1_target    REAL,
-                temp2_target    REAL,
-                temp3_target    REAL,
-                temp4_target    REAL,
-                temp5_target    REAL,
-                temp6_target    REAL
+                temp_target     REAL
             );
 
             CREATE INDEX IF NOT EXISTS idx_readings_run ON sensor_readings(run_id);
@@ -179,14 +173,14 @@ def _seed_reference_curves(conn):
             "description": "48-hour yellow koji profile for ginjo-grade sake rice",
             "source": "Traditional sake brewery guidelines",
             "points": [
-                (0,   30, 30, 30, 30, 30, 30),
-                (360, 31, 31, 31, 31, 31, 31),
-                (720, 33, 33, 33, 33, 33, 33),   # kiri-kaeshi
-                (960, 36, 36, 36, 36, 36, 36),
-                (1200, 38, 38, 38, 38, 38, 38),  # naka-shigoto
-                (1440, 40, 40, 40, 40, 40, 40),
-                (1680, 41, 41, 41, 41, 41, 41),  # shimai-shigoto
-                (2880, 36, 36, 36, 36, 36, 36),  # finish
+                (0,    30),
+                (360,  31),
+                (720,  33),   # kiri-kaeshi
+                (960,  36),
+                (1200, 38),   # naka-shigoto
+                (1440, 40),
+                (1680, 41),   # shimai-shigoto
+                (2880, 36),   # finish
             ],
         },
         {
@@ -194,14 +188,14 @@ def _seed_reference_curves(conn):
             "description": "44-hour barley koji profile for shochu and miso production",
             "source": "Traditional barley koji guidelines",
             "points": [
-                (0,   32, 32, 32, 32, 32, 32),
-                (480, 34, 34, 34, 34, 34, 34),
-                (720, 36, 36, 36, 36, 36, 36),
-                (1080, 40, 40, 40, 40, 40, 40),
-                (1440, 42, 42, 42, 42, 42, 42),
-                (1800, 40, 40, 40, 40, 40, 40),
-                (2280, 35, 35, 35, 35, 35, 35),
-                (2640, 33, 33, 33, 33, 33, 33),
+                (0,    32),
+                (480,  34),
+                (720,  36),
+                (1080, 40),
+                (1440, 42),
+                (1800, 40),
+                (2280, 35),
+                (2640, 33),
             ],
         },
         {
@@ -209,15 +203,15 @@ def _seed_reference_curves(conn):
             "description": "60-hour koji profile for soy sauce and miso",
             "source": "Extended fermentation guidelines",
             "points": [
-                (0,   30, 30, 30, 30, 30, 30),
-                (600, 32, 32, 32, 32, 32, 32),
-                (1200, 36, 36, 36, 36, 36, 36),
-                (1440, 39, 39, 39, 39, 39, 39),
-                (1800, 42, 42, 42, 42, 42, 42),
-                (2400, 42, 42, 42, 42, 42, 42),
-                (2880, 40, 40, 40, 40, 40, 40),
-                (3240, 36, 36, 36, 36, 36, 36),
-                (3600, 33, 33, 33, 33, 33, 33),
+                (0,    30),
+                (600,  32),
+                (1200, 36),
+                (1440, 39),
+                (1800, 42),
+                (2400, 42),
+                (2880, 40),
+                (3240, 36),
+                (3600, 33),
             ],
         },
     ]
@@ -230,10 +224,9 @@ def _seed_reference_curves(conn):
         curve_id = cur.lastrowid
         conn.executemany(
             """INSERT INTO reference_curve_points
-               (curve_id, elapsed_min, temp1_target, temp2_target, temp3_target,
-                temp4_target, temp5_target, temp6_target)
-               VALUES (?,?,?,?,?,?,?,?)""",
-            [(curve_id, p[0], p[1], p[2], p[3], p[4], p[5], p[6]) for p in c["points"]]
+               (curve_id, elapsed_min, temp_target)
+               VALUES (?,?,?)""",
+            [(curve_id, p[0], p[1]) for p in c["points"]]
         )
 
 
@@ -418,19 +411,15 @@ def get_readings_sampled(run_id, n=300):
 # ── Target profiles ───────────────────────────────────────────────────────────
 
 def save_target_profile(run_id, rows):
-    """rows: list of dicts with elapsed_min, temp1_target … temp6_target"""
+    """rows: list of dicts with elapsed_min, temp_target"""
     with get_conn() as conn:
         conn.execute("DELETE FROM target_profiles WHERE run_id=?", (run_id,))
         conn.executemany("""
             INSERT INTO target_profiles
-                (run_id, elapsed_min,
-                 temp1_target, temp2_target, temp3_target,
-                 temp4_target, temp5_target, temp6_target)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (run_id, elapsed_min, temp_target)
+            VALUES (?, ?, ?)
         """, [
-            (run_id, r["elapsed_min"],
-             r.get("temp1_target"), r.get("temp2_target"), r.get("temp3_target"),
-             r.get("temp4_target"), r.get("temp5_target"), r.get("temp6_target"))
+            (run_id, r["elapsed_min"], r.get("temp_target"))
             for r in rows
         ])
 
@@ -694,12 +683,9 @@ def create_reference_curve(name, description, source, points):
         curve_id = cur.lastrowid
         conn.executemany("""
             INSERT INTO reference_curve_points
-                (curve_id, elapsed_min, temp1_target, temp2_target, temp3_target,
-                 temp4_target, temp5_target, temp6_target)
-            VALUES (?,?,?,?,?,?,?,?)
-        """, [(curve_id, p['elapsed_min'],
-               p.get('temp1_target'), p.get('temp2_target'), p.get('temp3_target'),
-               p.get('temp4_target'), p.get('temp5_target'), p.get('temp6_target'))
+                (curve_id, elapsed_min, temp_target)
+            VALUES (?,?,?)
+        """, [(curve_id, p['elapsed_min'], p.get('temp_target'))
               for p in points])
         return curve_id
 
@@ -716,10 +702,8 @@ def load_curve_as_target(run_id, curve_id):
         conn.execute("DELETE FROM target_profiles WHERE run_id=?", (run_id,))
         conn.execute("""
             INSERT INTO target_profiles
-                (run_id, elapsed_min, temp1_target, temp2_target, temp3_target,
-                 temp4_target, temp5_target, temp6_target)
-            SELECT ?, elapsed_min, temp1_target, temp2_target, temp3_target,
-                   temp4_target, temp5_target, temp6_target
+                (run_id, elapsed_min, temp_target)
+            SELECT ?, elapsed_min, temp_target
             FROM reference_curve_points WHERE curve_id=?
         """, (run_id, curve_id))
 
@@ -802,7 +786,7 @@ def get_correlation_data(variable):
             for row in scored:
                 rid = row['id']
                 profile = conn.execute(
-                    "SELECT elapsed_min, temp1_target FROM target_profiles WHERE run_id=? ORDER BY elapsed_min",
+                    "SELECT elapsed_min, temp_target FROM target_profiles WHERE run_id=? ORDER BY elapsed_min",
                     (rid,)
                 ).fetchall()
                 if not profile:
@@ -821,7 +805,7 @@ def get_correlation_data(variable):
                 ).fetchone()['started_at']
                 from datetime import datetime as _dt
                 start_dt = _dt.fromisoformat(run_start)
-                profile_pts = [(r['elapsed_min'], r['temp1_target']) for r in profile]
+                profile_pts = [(r['elapsed_min'], r['temp_target']) for r in profile]
                 max_dev = 0.0
                 for sr in readings:
                     rec_dt = _dt.fromisoformat(sr['recorded_at'])

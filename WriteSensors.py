@@ -45,49 +45,39 @@ _threshold_breach_start = {}
 DEVIATION_THRESHOLD_C = 2.0   # °C above/below target to trigger
 DEVIATION_HOLD_MIN    = 10.0  # minutes a breach must persist before logging
 
-# ── PID fan-control constants ─────────────────────────────────────────────────
-DEADBAND_DEG   = 0.5    # °C — within deadband, fan holds current state
-DEADBAND_HOLD  = 3      # consecutive ticks outside deadband required to switch
-INTEGRAL_CLAMP = 20.0   # anti-windup: max abs value of integral accumulator
-_SENSOR_LOOP_S = 2      # nominal loop interval (seconds), used as fallback dt
+# ── Limit-switch fan-control constants ───────────────────────────────────────
+DEADBAND_HOLD       = 3      # consecutive ticks required to change fan state (anti-chatter)
+DEFAULT_TOLERANCE_C = 1.0    # °C above setpoint at which fan turns on
 
-_BASE_DIR         = os.path.dirname(os.path.abspath(__file__))
-PID_CONFIG_FILE   = os.path.join(_BASE_DIR, "pid_config.json")
-FAN_STATE_JSON    = os.path.join(_BASE_DIR, "fan_state.json")
-TC_ZONE_MAP_FILE  = os.path.join(_BASE_DIR, "tc_zone_map.json")
+_BASE_DIR        = os.path.dirname(os.path.abspath(__file__))
+ZONE_CONFIG_FILE = os.path.join(_BASE_DIR, "zone_config.json")
+FAN_STATE_JSON   = os.path.join(_BASE_DIR, "fan_state.json")
+TC_ZONE_MAP_FILE = os.path.join(_BASE_DIR, "tc_zone_map.json")
 
-# ── PID runtime state (one per zone, reset on import) ────────────────────────
-_pid_integrals   = {z: 0.0   for z in range(1, 7)}
-_pid_prev_errors = {z: 0.0   for z in range(1, 7)}
-_pid_hold_counts = {z: 0     for z in range(1, 7)}
-_pid_fan_on      = {z: False for z in range(1, 7)}
-_pid_last_time   = None     # datetime of last PID tick, for dt calculation
+# ── Zone config cache ─────────────────────────────────────────────────────────
+_zone_cfg       = {}
+_zone_cfg_mtime = 0.0
 
-# PID config cache
-_pid_cfg       = {}
-_pid_cfg_mtime = 0.0
+# ── Limit-switch runtime state (one per zone, reset on import) ────────────────
+_fan_hold_counts = {z: 0     for z in range(1, 7)}
+_fan_on          = {z: False for z in range(1, 7)}
 
 # Mode/setpoint side-channel populated by evaluate_fan_state → _write_fan_state_json
 _last_fan_mode     = {z: "none" for z in range(1, 7)}
 _last_fan_setpoint = {z: None   for z in range(1, 7)}
-_last_fan_pid_out  = {z: None   for z in range(1, 7)}
+_last_fan_trigger  = {z: None   for z in range(1, 7)}  # setpoint + tolerance
 
 
 def _load_target_profile(run_id):
-    """Return {zone: [(elapsed_min, temp_target)]} — cached until run_id changes."""
+    """Return {zone: [(elapsed_min, temp_target)]} — one shared curve for all zones."""
     if _cached_profile["run_id"] == run_id:
         return _cached_profile["points"]
     rows = sakedb.get_target_profile(run_id)
-    points = {}
-    col_map = {1: "temp1_target", 2: "temp2_target", 3: "temp3_target",
-               4: "temp4_target", 5: "temp5_target", 6: "temp6_target"}
-    for zone, col in col_map.items():
-        pts = [(r["elapsed_min"], r[col]) for r in rows if r[col] is not None]
-        if pts:
-            points[zone] = pts
+    pts = [(r["elapsed_min"], r["temp_target"]) for r in rows if r["temp_target"] is not None]
+    shared = {z: pts for z in range(1, 7)} if pts else {}
     _cached_profile["run_id"] = run_id
-    _cached_profile["points"] = points
-    return points
+    _cached_profile["points"] = shared
+    return shared
 
 
 def _interp_target(profile_pts, elapsed_min):
@@ -107,37 +97,36 @@ def _interp_target(profile_pts, elapsed_min):
     return None
 
 
-def _load_pid_config():
-    """Load pid_config.json, reloading automatically when the file changes."""
-    global _pid_cfg, _pid_cfg_mtime
+def _load_zone_config():
+    """Load zone_config.json, reloading automatically when the file changes."""
+    global _zone_cfg, _zone_cfg_mtime
     try:
-        mtime = os.path.getmtime(PID_CONFIG_FILE)
-        if mtime != _pid_cfg_mtime:
-            with open(PID_CONFIG_FILE) as f:
-                _pid_cfg = json.load(f)
-            _pid_cfg_mtime = mtime
+        mtime = os.path.getmtime(ZONE_CONFIG_FILE)
+        if mtime != _zone_cfg_mtime:
+            with open(ZONE_CONFIG_FILE) as f:
+                _zone_cfg = json.load(f)
+            _zone_cfg_mtime = mtime
     except Exception:
-        if not _pid_cfg:
-            _pid_cfg = {"default": {"Kp": 1.0, "Ki": 0.05, "Kd": 0.1}}
-    return _pid_cfg
+        if not _zone_cfg:
+            _zone_cfg = {"default": {"tolerance_c": DEFAULT_TOLERANCE_C}}
+    return _zone_cfg
 
 
-def _pid_gains(zone):
-    cfg = _load_pid_config()
-    default = cfg.get("default", {"Kp": 1.0, "Ki": 0.05, "Kd": 0.1})
-    return cfg.get(f"zone{zone}", default)
+def _zone_tolerance(zone):
+    cfg = _load_zone_config()
+    default = cfg.get("default", {"tolerance_c": DEFAULT_TOLERANCE_C})
+    return cfg.get(f"zone{zone}", default).get("tolerance_c", DEFAULT_TOLERANCE_C)
 
 
 def evaluate_fan_state(run, tc_readings):
-    """Return {zone: 'on'|'off'|None} based on overrides, rules, then PID.
+    """Return {zone: 'on'|'off'|None} based on overrides, rules, then limit-switch.
 
-    Priority: manual override > enabled rules > PID auto-control > None.
+    Priority: manual override > enabled rules > limit-switch auto-control > None.
     For conflicting rules on the same zone, 'on' wins over 'off'.
-    Side-effect: updates _last_fan_mode/_last_fan_setpoint/_last_fan_pid_out.
+    Side-effect: updates _last_fan_mode/_last_fan_setpoint/_last_fan_trigger.
     """
-    global _pid_last_time, _pid_integrals, _pid_prev_errors
-    global _pid_hold_counts, _pid_fan_on
-    global _last_fan_mode, _last_fan_setpoint, _last_fan_pid_out
+    global _fan_hold_counts, _fan_on
+    global _last_fan_mode, _last_fan_setpoint, _last_fan_trigger
 
     run_id = run["id"]
     now = datetime.now()
@@ -188,25 +177,19 @@ def evaluate_fan_state(run, tc_readings):
                 result[zone] = rule["fan_action"]
             rule_zones.add(zone)
 
-    # 3. PID auto-control for zones with no override/rule and a target profile
-    if _pid_last_time is None:
-        dt = float(_SENSOR_LOOP_S)
-    else:
-        dt = max(0.5, (now - _pid_last_time).total_seconds())
-    _pid_last_time = now
-
+    # 3. Limit-switch auto-control for zones with no override/rule and a target profile
     profile = _load_target_profile(run_id)
     for zone in range(1, 7):
         if zone in override_zones:
             _last_fan_mode[zone]     = "manual"
             _last_fan_setpoint[zone] = None
-            _last_fan_pid_out[zone]  = None
+            _last_fan_trigger[zone]  = None
             continue
 
         if zone in rule_zones:
             _last_fan_mode[zone]     = "rule"
             _last_fan_setpoint[zone] = None
-            _last_fan_pid_out[zone]  = None
+            _last_fan_trigger[zone]  = None
             continue
 
         pts    = profile.get(zone)
@@ -214,67 +197,59 @@ def evaluate_fan_state(run, tc_readings):
         if pts is None or actual is None:
             _last_fan_mode[zone]     = "none"
             _last_fan_setpoint[zone] = None
-            _last_fan_pid_out[zone]  = None
+            _last_fan_trigger[zone]  = None
             continue
 
         setpoint = _interp_target(pts, elapsed_min)
         if setpoint is None:
             _last_fan_mode[zone]     = "none"
             _last_fan_setpoint[zone] = None
-            _last_fan_pid_out[zone]  = None
+            _last_fan_trigger[zone]  = None
             continue
 
         _last_fan_setpoint[zone] = round(setpoint, 2)
 
-        # PID compute — error > 0 means actual > setpoint (too hot → fan on)
-        gains = _pid_gains(zone)
-        Kp = gains.get("Kp", 1.0)
-        Ki = gains.get("Ki", 0.05)
-        Kd = gains.get("Kd", 0.1)
+        tolerance = _zone_tolerance(zone)
+        trigger   = setpoint + tolerance
+        _last_fan_trigger[zone] = round(trigger, 2)
 
-        error = actual - setpoint
-        _pid_integrals[zone] = max(-INTEGRAL_CLAMP,
-                               min(INTEGRAL_CLAMP,
-                               _pid_integrals[zone] + error * dt))
-        derivative = (error - _pid_prev_errors[zone]) / dt
-        _pid_prev_errors[zone] = error
-        pid_output = Kp * error + Ki * _pid_integrals[zone] + Kd * derivative
-        _last_fan_pid_out[zone] = round(pid_output, 3)
-
-        # Deadband + hold: prevent chattering around setpoint
-        current_on = _pid_fan_on[zone]
-        desired_on = pid_output > 0  # positive = too hot = cool with fan
-
-        if abs(error) <= DEADBAND_DEG:
-            fan_on = current_on          # within deadband — hold
-            _pid_hold_counts[zone] = 0
-        elif desired_on != current_on:
-            _pid_hold_counts[zone] += 1
-            if _pid_hold_counts[zone] >= DEADBAND_HOLD:
-                fan_on = desired_on
-                _pid_hold_counts[zone] = 0
-            else:
-                fan_on = current_on      # not yet — need more consecutive ticks
+        # Limit switch with hysteresis
+        current_on = _fan_on[zone]
+        if actual > trigger:
+            desired_on = True
+        elif actual <= setpoint:
+            desired_on = False
         else:
-            _pid_hold_counts[zone] = 0
-            fan_on = desired_on
+            desired_on = current_on  # hysteresis band — hold current state
 
-        _pid_fan_on[zone] = fan_on
+        # Anti-chatter: require DEADBAND_HOLD consecutive ticks to change
+        if desired_on == current_on:
+            _fan_hold_counts[zone] = 0
+            fan_on = desired_on
+        else:
+            _fan_hold_counts[zone] += 1
+            if _fan_hold_counts[zone] >= DEADBAND_HOLD:
+                fan_on = desired_on
+                _fan_hold_counts[zone] = 0
+            else:
+                fan_on = current_on
+
+        _fan_on[zone] = fan_on
         result[zone] = "on" if fan_on else "off"
-        _last_fan_mode[zone] = "pid"
+        _last_fan_mode[zone] = "limit"
 
     return result
 
 
 def _write_fan_state_json(fan_states):
-    """Write fan_state.json with current states, modes, setpoints, and PID output."""
+    """Write fan_state.json with current states, modes, setpoints, and trigger temp."""
     zones = {}
     for z in range(1, 7):
         zones[str(z)] = {
             "state":    fan_states.get(z),
             "mode":     _last_fan_mode.get(z, "none"),
             "setpoint": _last_fan_setpoint.get(z),
-            "pid_out":  _last_fan_pid_out.get(z),
+            "trigger":  _last_fan_trigger.get(z),
         }
     data = {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),

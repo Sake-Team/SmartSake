@@ -14,10 +14,10 @@ from flask import Flask, jsonify, request, send_from_directory, abort
 import db
 import fan_gpio
 
-BASE_DIR         = os.path.dirname(__file__)
-SENSOR_JSON      = os.path.join(BASE_DIR, "sensor_latest.json")
-FAN_STATE_JSON   = os.path.join(BASE_DIR, "fan_state.json")
-PID_CONFIG_FILE  = os.path.join(BASE_DIR, "pid_config.json")
+BASE_DIR          = os.path.dirname(__file__)
+SENSOR_JSON       = os.path.join(BASE_DIR, "sensor_latest.json")
+FAN_STATE_JSON    = os.path.join(BASE_DIR, "fan_state.json")
+ZONE_CONFIG_FILE  = os.path.join(BASE_DIR, "zone_config.json")
 SCALE_CONFIG_FILE = os.path.join(BASE_DIR, "scale_config.json")
 
 app = Flask(__name__, static_folder=BASE_DIR, static_url_path="")
@@ -725,14 +725,14 @@ def api_export_csv(run_id):
     )
 
 
-# ── Fan state (PID output) ────────────────────────────────────────────────────
+# ── Fan state ─────────────────────────────────────────────────────────────────
 
 @app.route("/api/fan-state", methods=["GET"])
 def api_fan_state():
-    """Return the latest fan_state.json written by the PID/fan-control loop."""
+    """Return the latest fan_state.json written by the limit-switch fan-control loop."""
     if not os.path.exists(FAN_STATE_JSON):
         return jsonify({"timestamp": None, "zones": {str(z): {"state": None, "mode": "none",
-                        "setpoint": None, "pid_out": None} for z in range(1, 7)}})
+                        "setpoint": None, "trigger": None} for z in range(1, 7)}})
     try:
         with open(FAN_STATE_JSON) as f:
             return jsonify(json.load(f))
@@ -740,23 +740,23 @@ def api_fan_state():
         return jsonify({"error": "could not read fan_state.json"}), 500
 
 
-# ── PID configuration ──────────────────────────────────────────────────────────
+# ── Zone configuration ─────────────────────────────────────────────────────────
 
-@app.route("/api/pid-config", methods=["GET"])
-def api_get_pid_config():
-    """Return current PID gains from pid_config.json."""
-    if not os.path.exists(PID_CONFIG_FILE):
-        return jsonify({"error": "pid_config.json not found"}), 404
+@app.route("/api/zone-config", methods=["GET"])
+def api_get_zone_config():
+    """Return current zone tolerances from zone_config.json."""
+    if not os.path.exists(ZONE_CONFIG_FILE):
+        return jsonify({"error": "zone_config.json not found"}), 404
     try:
-        with open(PID_CONFIG_FILE) as f:
+        with open(ZONE_CONFIG_FILE) as f:
             return jsonify(json.load(f))
     except Exception:
-        return jsonify({"error": "could not read pid_config.json"}), 500
+        return jsonify({"error": "could not read zone_config.json"}), 500
 
 
-@app.route("/api/pid-config", methods=["POST"])
-def api_save_pid_config():
-    """Save PID gains to pid_config.json. Body: JSON object with zone keys."""
+@app.route("/api/zone-config", methods=["POST"])
+def api_save_zone_config():
+    """Save zone tolerances to zone_config.json. Body: JSON object with zone keys."""
     body = request.get_json(force=True, silent=True)
     if not isinstance(body, dict):
         return jsonify({"error": "expected JSON object"}), 400
@@ -765,12 +765,14 @@ def api_save_pid_config():
         if key == "comment":
             continue
         if not isinstance(val, dict):
-            return jsonify({"error": f"gains for '{key}' must be an object"}), 400
-        for gain in ("Kp", "Ki", "Kd"):
-            if gain in val and not isinstance(val[gain], (int, float)):
-                return jsonify({"error": f"{gain} for '{key}' must be a number"}), 400
+            return jsonify({"error": f"config for '{key}' must be an object"}), 400
+        if "tolerance_c" in val:
+            if not isinstance(val["tolerance_c"], (int, float)):
+                return jsonify({"error": f"tolerance_c for '{key}' must be a number"}), 400
+            if not (0 <= val["tolerance_c"] <= 10):
+                return jsonify({"error": f"tolerance_c for '{key}' must be between 0 and 10"}), 400
     try:
-        with open(PID_CONFIG_FILE, "w") as f:
+        with open(ZONE_CONFIG_FILE, "w") as f:
             json.dump(body, f, indent=2)
         return jsonify(body), 200
     except Exception as e:
