@@ -197,7 +197,11 @@
 						<div class="zone-detail-card__temp-row">
 							<span class="zone-detail-card__temp-val" id="zdc-temp">--</span>
 							<span class="zone-detail-card__temp-unit">&deg;C</span>
-							<span class="zone-detail-card__temp-label">(current)</span>
+							<span class="zone-detail-card__temp-label">wet-bulb: <span id="zdc-wet-temp">--</span> &deg;C</span>
+						</div>
+						<div class="zone-alarm-banner" id="zdc-alarm-banner" style="display:none">
+							<span class="zone-alarm-icon">&#9888;</span>
+							<span id="zdc-alarm-reason">--</span>
 						</div>
 
 						<!-- Setpoint + Tolerance controls -->
@@ -2647,6 +2651,7 @@ const tempSeries = {
 					document.addEventListener('keydown', function (e) {
 						if (e.key === 'Escape' && chartModal && chartModal.classList.contains('is-open')) closeChartModal();
 					});
+					window._calcWetBulb = calcWetBulb;
 				})();
 
 
@@ -2691,6 +2696,7 @@ const tempSeries = {
 					let zdcFanChart  = null;
 					let activeZone   = null;
 					let fanRequestPending = false;
+					let zdcPollTimer = null;
 
 					// Chart options matching bubbly light style — called fresh each time to pick up current theme
 					function buildChartOpts() {
@@ -2802,10 +2808,15 @@ const tempSeries = {
 						// Load fan override state (only when a run is active)
 						const runId = getRunId();
 						if (runId) loadFanState(runId, zone);
+
+						// Poll zone controls every 5 s while modal is open
+						if (zdcPollTimer) clearInterval(zdcPollTimer);
+						zdcPollTimer = setInterval(function () { loadZoneControls(activeZone); }, 5000);
 					}
 
 					function closeCard() {
 						card.classList.remove('is-open');
+						if (zdcPollTimer) { clearInterval(zdcPollTimer); zdcPollTimer = null; }
 						if (zdcTempChart) { zdcTempChart.destroy(); zdcTempChart = null; }
 						if (zdcFanChart)  { zdcFanChart.destroy();  zdcFanChart  = null; }
 						window._zdcCharts = null; // unregister so applyTimeWindow skips them
@@ -2852,6 +2863,32 @@ const tempSeries = {
 								if (setpointInput  && zd.setpoint_c  != null) setpointInput.value  = zd.setpoint_c;
 								if (toleranceInput && zd.tolerance_c != null) toleranceInput.value = zd.tolerance_c;
 								if (triggerVal     && zd.trigger_c   != null) triggerVal.textContent = Number(zd.trigger_c).toFixed(1);
+
+								// Wet-bulb
+								var wetEl = document.getElementById('zdc-wet-temp');
+								if (wetEl) {
+									var tcVal = data.thermocouples && data.thermocouples['TC' + zone] != null
+										? parseFloat(data.thermocouples['TC' + zone]) : null;
+									var rhVal = data.sht30 && data.sht30.humidity_rh != null
+										? parseFloat(data.sht30.humidity_rh) : null;
+									var wb = (window._calcWetBulb && tcVal != null && rhVal != null)
+										? window._calcWetBulb(tcVal, rhVal) : null;
+									wetEl.textContent = wb != null ? wb.toFixed(1) : '--';
+								}
+
+								// Alarm banner
+								var alarmBanner = document.getElementById('zdc-alarm-banner');
+								var alarmReason = document.getElementById('zdc-alarm-reason');
+								if (alarmBanner) {
+									var level = zd.alarm_level;
+									if (level) {
+										alarmBanner.style.display = '';
+										alarmBanner.className = 'zone-alarm-banner zone-alarm-banner--' + level;
+										if (alarmReason) alarmReason.textContent = zd.alarm_reason || '';
+									} else {
+										alarmBanner.style.display = 'none';
+									}
+								}
 
 								// Mode
 								var isManual = zd.mode === 'manual';

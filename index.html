@@ -417,6 +417,84 @@
 		</div>
 
 
+		<!-- Zone detail modal — opens when a zone card is clicked -->
+		<div id="zone-detail-card" class="modal-overlay zone-modal-overlay" role="dialog" aria-modal="true" aria-label="Zone detail">
+			<div class="modal-popup zone-modal-popup">
+				<div class="zone-detail-card__header">
+					<h3 class="zone-detail-card__title" id="zdc-title">Zone</h3>
+					<div class="zone-detail-card__header-actions">
+						<button type="button" class="zone-detail-card__close" id="zdc-close" aria-label="Close zone detail">&times;</button>
+					</div>
+				</div>
+				<div class="zone-detail-card__temp-row">
+					<span class="zone-detail-card__temp-val" id="zdc-temp">--</span>
+					<span class="zone-detail-card__temp-unit">&deg;C</span>
+					<span class="zone-detail-card__temp-label">wet-bulb: <span id="zdc-wet-temp">--</span> &deg;C</span>
+				</div>
+				<div class="zone-alarm-banner" id="zdc-alarm-banner" style="display:none">
+					<span class="zone-alarm-icon">&#9888;</span>
+					<span id="zdc-alarm-reason">--</span>
+				</div>
+				<div class="zone-detail-card__controls">
+					<div class="zone-detail-card__control-row">
+						<label class="zone-detail-card__ctrl-label" for="zdc-setpoint">Setpoint (&deg;C)</label>
+						<div class="zone-detail-card__ctrl-input-row">
+							<input type="number" id="zdc-setpoint" class="zone-detail-card__ctrl-input" min="0" max="60" step="0.5" placeholder="--" aria-label="Zone setpoint">
+							<button type="button" id="zdc-setpoint-apply" class="zone-detail-card__ctrl-btn">Apply</button>
+						</div>
+					</div>
+					<div class="zone-detail-card__control-row">
+						<label class="zone-detail-card__ctrl-label" for="zdc-tolerance">Tolerance (&deg;C)</label>
+						<div class="zone-detail-card__ctrl-input-row">
+							<input type="number" id="zdc-tolerance" class="zone-detail-card__ctrl-input" min="0" max="10" step="0.1" placeholder="--" aria-label="Fan trigger tolerance">
+							<button type="button" id="zdc-tolerance-apply" class="zone-detail-card__ctrl-btn">Apply</button>
+						</div>
+					</div>
+					<div class="zone-detail-card__control-row">
+						<span class="zone-detail-card__ctrl-label">Mode</span>
+						<div class="zone-detail-card__mode-btns">
+							<button type="button" id="zdc-mode-auto" class="zone-detail-card__mode-btn zone-detail-card__mode-btn--active" data-mode="auto">Auto</button>
+							<button type="button" id="zdc-mode-manual" class="zone-detail-card__mode-btn" data-mode="manual">Manual</button>
+						</div>
+					</div>
+					<div class="zone-detail-card__control-row" id="zdc-manual-controls" style="display:none;">
+						<span class="zone-detail-card__ctrl-label">Fan</span>
+						<div class="zone-detail-card__mode-btns">
+							<button type="button" id="zdc-fan-on-btn" class="zone-detail-card__mode-btn">Fan ON</button>
+							<button type="button" id="zdc-fan-off-btn" class="zone-detail-card__mode-btn">Fan OFF</button>
+						</div>
+					</div>
+				</div>
+				<details class="zone-detail-card__alarms">
+					<summary class="zone-detail-card__alarms-toggle">Alarm Thresholds</summary>
+					<div class="zone-detail-card__alarms-grid">
+						<label class="zone-detail-card__alarm-label">Warn High<input type="number" id="zdc-thr-warn-high" class="zone-detail-card__ctrl-input" step="0.5" min="0" max="60"></label>
+						<label class="zone-detail-card__alarm-label">Crit High<input type="number" id="zdc-thr-crit-high" class="zone-detail-card__ctrl-input" step="0.5" min="0" max="60"></label>
+						<label class="zone-detail-card__alarm-label">Warn Low<input type="number" id="zdc-thr-warn-low" class="zone-detail-card__ctrl-input" step="0.5" min="0" max="60"></label>
+						<label class="zone-detail-card__alarm-label">Crit Low<input type="number" id="zdc-thr-crit-low" class="zone-detail-card__ctrl-input" step="0.5" min="0" max="60"></label>
+						<button type="button" id="zdc-thresholds-apply" class="zone-detail-card__ctrl-btn zone-detail-card__ctrl-btn--full">Apply</button>
+					</div>
+				</details>
+				<div class="zone-detail-card__status-row">
+					<span class="zone-detail-card__status-chip" id="zdc-relay-chip">
+						<span class="zone-status-dot zone-status-dot--off" id="zdc-relay-dot"></span>
+						<span id="zdc-relay-label">Fan --</span>
+					</span>
+					<span class="zone-detail-card__status-chip">
+						Trigger: <span id="zdc-trigger-val">--</span>&deg;C
+					</span>
+				</div>
+				<div class="zone-detail-card__chart-wrap">
+					<span class="zone-detail-card__chart-label">Temperature over time</span>
+					<canvas id="zdc-temp-chart"></canvas>
+				</div>
+				<div class="zone-detail-card__chart-wrap">
+					<span class="zone-detail-card__chart-label">Fan on/off over time</span>
+					<canvas id="zdc-fan-chart"></canvas>
+				</div>
+			</div>
+		</div>
+
 		<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 		<script>
@@ -1452,6 +1530,222 @@
 					});
 					return result.sort((a,b) => a.time_minutes - b.time_minutes);
 				};
+			})();
+
+			// ── Zone detail modal ───────────────────────────────────────────────
+			(function () {
+				'use strict';
+				const card = document.getElementById('zone-detail-card');
+				if (!card) return;
+
+				const titleEl        = document.getElementById('zdc-title');
+				const tempEl         = document.getElementById('zdc-temp');
+				const closeBtn       = document.getElementById('zdc-close');
+				const tempCanvas     = document.getElementById('zdc-temp-chart');
+				const fanCanvas      = document.getElementById('zdc-fan-chart');
+				const setpointInput  = document.getElementById('zdc-setpoint');
+				const toleranceInput = document.getElementById('zdc-tolerance');
+				const setpointApply  = document.getElementById('zdc-setpoint-apply');
+				const toleranceApply = document.getElementById('zdc-tolerance-apply');
+				const modeAutoBtn    = document.getElementById('zdc-mode-auto');
+				const modeManualBtn  = document.getElementById('zdc-mode-manual');
+				const manualControls = document.getElementById('zdc-manual-controls');
+				const fanOnBtn       = document.getElementById('zdc-fan-on-btn');
+				const fanOffBtn      = document.getElementById('zdc-fan-off-btn');
+				const relayDot       = document.getElementById('zdc-relay-dot');
+				const relayLabel     = document.getElementById('zdc-relay-label');
+				const triggerVal     = document.getElementById('zdc-trigger-val');
+				const thrWarnHigh    = document.getElementById('zdc-thr-warn-high');
+				const thrCritHigh    = document.getElementById('zdc-thr-crit-high');
+				const thrWarnLow     = document.getElementById('zdc-thr-warn-low');
+				const thrCritLow     = document.getElementById('zdc-thr-crit-low');
+				const thrApply       = document.getElementById('zdc-thresholds-apply');
+
+				let zdcTempChart = null;
+				let zdcFanChart  = null;
+				let activeZone   = null;
+				let zdcPollTimer = null;
+				const MAX_PTS    = 120;
+
+				function calcWetBulbLocal(T, RH) {
+					if (T == null || RH == null || isNaN(T) || isNaN(RH) || RH <= 0 || RH > 100) return null;
+					function es(t) { return 6.1078 * Math.exp(17.27 * t / (t + 237.3)); }
+					var ea = es(T) * RH / 100, P = 1013.25, A = 6.6e-4;
+					var lnr = Math.log(ea / 6.1078);
+					var Td = 237.3 * lnr / (17.27 - lnr), wb = (T + Td) / 2;
+					for (var i = 0; i < 12; i++) {
+						var esw = es(wb), f = esw - A * P * (T - wb) - ea;
+						var df = 17.27 * 237.3 / Math.pow(wb + 237.3, 2) * esw + A * P;
+						wb -= f / df;
+						if (Math.abs(f / df) < 1e-6) break;
+					}
+					return Math.round(wb * 2) / 2;
+				}
+
+				function buildChartOpts(extraY) {
+					var yOpts = Object.assign({ ticks: { color: '#888', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.07)' } }, extraY || {});
+					return { animation: false, responsive: true, maintainAspectRatio: false,
+						scales: { x: { display: false }, y: yOpts },
+						plugins: { legend: { display: false }, tooltip: { enabled: false } } };
+				}
+
+				function openCard(zone) {
+					if (activeZone === zone) { closeCard(); return; }
+					activeZone = zone;
+					titleEl.textContent = 'Zone ' + zone;
+					var dryEl = document.getElementById('temp-' + zone + '-dry');
+					if (tempEl) tempEl.textContent = dryEl ? dryEl.textContent : '--';
+
+					loadZoneControls(zone);
+
+					if (zdcTempChart) { zdcTempChart.destroy(); zdcTempChart = null; }
+					if (zdcFanChart)  { zdcFanChart.destroy();  zdcFanChart  = null; }
+
+					var colors = ['#e05252','#52a0e0','#52e07c','#e0c952','#c052e0','#e09052'];
+					var color = colors[zone - 1];
+
+					zdcTempChart = new Chart(tempCanvas.getContext('2d'), {
+						type: 'line',
+						data: { labels: [], datasets: [{ data: [], borderColor: color, backgroundColor: color + '22', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: true }] },
+						options: buildChartOpts()
+					});
+					zdcFanChart = new Chart(fanCanvas.getContext('2d'), {
+						type: 'line',
+						data: { labels: [], datasets: [{ data: [], borderColor: '#52a0e0', backgroundColor: 'rgba(82,160,224,0.10)', borderWidth: 1.5, pointRadius: 0, stepped: true, fill: true }] },
+						options: buildChartOpts({ min: 0, max: 1 })
+					});
+
+					document.querySelectorAll('.zone-combined').forEach(function (el) { el.classList.remove('zone-combined--active'); });
+					var activeLink = document.querySelector('.zone-combined[href="zone' + zone + '.html"]');
+					if (activeLink) activeLink.classList.add('zone-combined--active');
+
+					card.classList.add('is-open');
+
+					if (zdcPollTimer) clearInterval(zdcPollTimer);
+					zdcPollTimer = setInterval(function () { loadZoneControls(activeZone); }, 5000);
+				}
+
+				function closeCard() {
+					card.classList.remove('is-open');
+					if (zdcPollTimer) { clearInterval(zdcPollTimer); zdcPollTimer = null; }
+					if (zdcTempChart) { zdcTempChart.destroy(); zdcTempChart = null; }
+					if (zdcFanChart)  { zdcFanChart.destroy();  zdcFanChart  = null; }
+					document.querySelectorAll('.zone-combined').forEach(function (el) { el.classList.remove('zone-combined--active'); });
+					activeZone = null;
+				}
+
+				function loadZoneControls(zone) {
+					fetch('/sensor_latest.json')
+						.then(function (r) { return r.json(); })
+						.then(function (data) {
+							var zd = data.zones && data.zones[zone] ? data.zones[zone] : {};
+							if (setpointInput  && zd.setpoint_c  != null) setpointInput.value  = zd.setpoint_c;
+							if (toleranceInput && zd.tolerance_c != null) toleranceInput.value = zd.tolerance_c;
+							if (triggerVal     && zd.trigger_c   != null) triggerVal.textContent = Number(zd.trigger_c).toFixed(1);
+
+							var tcVal = data.thermocouples && data.thermocouples['TC' + zone] != null
+								? parseFloat(data.thermocouples['TC' + zone]) : null;
+							var rhVal = data.sht30 && data.sht30.humidity_rh != null
+								? parseFloat(data.sht30.humidity_rh) : null;
+							if (tempEl && tcVal != null) tempEl.textContent = (Math.round(tcVal / 0.2) * 0.2).toFixed(1);
+							var wetEl = document.getElementById('zdc-wet-temp');
+							if (wetEl) {
+								var wb = calcWetBulbLocal(tcVal, rhVal);
+								wetEl.textContent = wb != null ? wb.toFixed(1) : '--';
+							}
+
+							var alarmBanner = document.getElementById('zdc-alarm-banner');
+							var alarmReason = document.getElementById('zdc-alarm-reason');
+							if (alarmBanner) {
+								var level = zd.alarm_level;
+								if (level) {
+									alarmBanner.style.display = '';
+									alarmBanner.className = 'zone-alarm-banner zone-alarm-banner--' + level;
+									if (alarmReason) alarmReason.textContent = zd.alarm_reason || '';
+								} else {
+									alarmBanner.style.display = 'none';
+								}
+							}
+
+							var isManual = zd.mode === 'manual';
+							if (modeAutoBtn)    modeAutoBtn.classList.toggle('zone-detail-card__mode-btn--active', !isManual);
+							if (modeManualBtn)  modeManualBtn.classList.toggle('zone-detail-card__mode-btn--active', isManual);
+							if (manualControls) manualControls.style.display = isManual ? '' : 'none';
+
+							if (relayDot && relayLabel) {
+								var on = zd.relay_state;
+								relayDot.className = 'zone-status-dot ' + (on ? 'zone-status-dot--on' : 'zone-status-dot--off');
+								relayLabel.textContent = on ? 'Fan ON' : 'Fan OFF';
+							}
+
+							var thr = zd.alarm_thresholds || {};
+							if (thrWarnHigh && thr.warn_high_c != null) thrWarnHigh.value = thr.warn_high_c;
+							if (thrCritHigh && thr.crit_high_c != null) thrCritHigh.value = thr.crit_high_c;
+							if (thrWarnLow  && thr.warn_low_c  != null) thrWarnLow.value  = thr.warn_low_c;
+							if (thrCritLow  && thr.crit_low_c  != null) thrCritLow.value  = thr.crit_low_c;
+						})
+						.catch(function () {});
+				}
+
+				function postZoneUpdate(payload) {
+					fetch('/update_zone', {
+						method: 'POST', headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify(Object.assign({ zone: activeZone }, payload))
+					}).then(function () { loadZoneControls(activeZone); }).catch(function () {});
+				}
+
+				if (setpointApply)  setpointApply.addEventListener('click',  function () { var sp  = parseFloat(setpointInput.value);  if (!isNaN(sp)  && sp  >= 0 && sp  <= 60) postZoneUpdate({ setpoint_c:  sp  }); });
+				if (toleranceApply) toleranceApply.addEventListener('click', function () { var tol = parseFloat(toleranceInput.value); if (!isNaN(tol) && tol >= 0 && tol <= 10) postZoneUpdate({ tolerance_c: tol }); });
+				if (modeAutoBtn)    modeAutoBtn.addEventListener('click',    function () { postZoneUpdate({ mode: 'auto' }); });
+				if (modeManualBtn)  modeManualBtn.addEventListener('click',  function () { postZoneUpdate({ mode: 'manual' }); });
+				if (fanOnBtn)       fanOnBtn.addEventListener('click',       function () { postZoneUpdate({ mode: 'manual', manual_state: true  }); });
+				if (fanOffBtn)      fanOffBtn.addEventListener('click',      function () { postZoneUpdate({ mode: 'manual', manual_state: false }); });
+				if (thrApply) thrApply.addEventListener('click', function () {
+					var thr = { warn_high_c: parseFloat(thrWarnHigh.value), crit_high_c: parseFloat(thrCritHigh.value),
+					            warn_low_c:  parseFloat(thrWarnLow.value),  crit_low_c:  parseFloat(thrCritLow.value) };
+					Object.keys(thr).forEach(function (k) { if (isNaN(thr[k])) delete thr[k]; });
+					postZoneUpdate({ alarm_thresholds: thr });
+				});
+
+				// Patch pushSensorSample to forward live data into the open zone chart
+				var _origPush = window.pushSensorSample;
+				window.pushSensorSample = function (sample) {
+					if (_origPush) _origPush(sample);
+					if (activeZone == null || !zdcTempChart || !zdcFanChart) return;
+					var t = new Date(sample.time);
+					var label = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+					var temp = sample.dryBulb && sample.dryBulb['temp' + activeZone] != null
+						? parseFloat(sample.dryBulb['temp' + activeZone]) : null;
+					var fan = sample.fans && sample.fans['fan' + activeZone] != null
+						? parseFloat(sample.fans['fan' + activeZone]) : null;
+					zdcTempChart.data.labels.push(label);
+					zdcTempChart.data.datasets[0].data.push(!isNaN(temp) ? temp : null);
+					zdcFanChart.data.labels.push(label);
+					zdcFanChart.data.datasets[0].data.push(!isNaN(fan) ? fan : null);
+					if (zdcTempChart.data.labels.length > MAX_PTS) {
+						zdcTempChart.data.labels.shift(); zdcTempChart.data.datasets[0].data.shift();
+						zdcFanChart.data.labels.shift();  zdcFanChart.data.datasets[0].data.shift();
+					}
+					zdcTempChart.update('none');
+					zdcFanChart.update('none');
+					var dryEl = document.getElementById('temp-' + activeZone + '-dry');
+					if (dryEl && tempEl) tempEl.textContent = dryEl.textContent;
+				};
+
+				// Intercept zone card clicks — open modal instead of navigating
+				document.querySelectorAll('.zone-combined').forEach(function (link) {
+					link.addEventListener('click', function (e) {
+						e.preventDefault();
+						var href = link.getAttribute('href') || '';
+						var m = href.match(/zone(\d)\.html/);
+						var zoneNum = m ? parseInt(m[1], 10) : null;
+						if (zoneNum) openCard(zoneNum);
+					});
+				});
+
+				if (closeBtn) closeBtn.addEventListener('click', closeCard);
+				card.addEventListener('click', function (e) { if (e.target === card) closeCard(); });
+				document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && activeZone) closeCard(); });
 			})();
 
 			// Pong Easter Egg
