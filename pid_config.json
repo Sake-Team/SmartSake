@@ -1,0 +1,10 @@
+{
+  "comment": "PID gains per zone. Kp=proportional, Ki=integral, Kd=derivative.",
+  "default": { "Kp": 1.0, "Ki": 0.05, "Kd": 0.1 },
+  "zone1":   { "Kp": 1.0, "Ki": 0.05, "Kd": 0.1 },
+  "zone2":   { "Kp": 1.0, "Ki": 0.05, "Kd": 0.1 },
+  "zone3":   { "Kp": 1.0, "Ki": 0.05, "Kd": 0.1 },
+  "zone4":   { "Kp": 1.0, "Ki": 0.05, "Kd": 0.1 },
+  "zone5":   { "Kp": 1.0, "Ki": 0.05, "Kd": 0.1 },
+  "zone6":   { "Kp": 1.0, "Ki": 0.05, "Kd": 0.1 }
+}

@@ -1,0 +1,17 @@
+[Unit]
+Description=SmartSake Sensor Collector
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/MainCode
+ExecStart=/home/pi/MainCode/.venv/bin/python WriteSensors.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

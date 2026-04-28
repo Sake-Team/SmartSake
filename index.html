@@ -3,798 +3,1062 @@
 
 <head>
 	<meta charset="utf-8">
-	<title>Sake Table - Dashboard</title>
+	<title>SmartSake</title>
 	<meta name="viewport" content="width=device-width,initial-scale=1">
 	<link rel="stylesheet" href="styles.css">
+	<link rel="stylesheet" href="customize.css">
+	<style>
+		/* ── idle page tweaks (index.html) ───────────────────────────────── */
+
+		/* Header right section — matches dashboard layout */
+		.idx-header-right {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			flex-shrink: 0;
+		}
+
+		/* Date/time in header — matches dashboard */
+		.idx-header-right .notes__meta {
+			font-size: 0.78rem;
+			color: var(--color-text-3);
+			white-space: pre;
+			text-align: right;
+			position: static !important;
+		}
+
+		/* Start Run button positioned in header (compact) */
+		.idx-header-right .start-run-btn {
+			position: static !important;
+			top: auto !important; right: auto !important;
+			min-height: unset !important;
+			height: 32px !important;
+			width: auto !important;
+			padding: 0 0.85rem !important;
+			font-size: 0.8rem !important;
+			font-weight: 700;
+			border-radius: var(--r-sm) !important;
+			margin-top: 0 !important;
+		}
+
+		/* Hide the old run-box (button is now in header) */
+		.run-box { display: contents !important; }
+
+		/* Ensure main/stage fills properly */
+		main { display: block; }
+	</style>
 </head>
 
 <body>
 	<div class="page-wrapper">
-		   <header class="header">
-			   <div class="header-inner">
-				   <img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" id="sake-logo-egg" class="sake-logo-egg" />
-				   <h1 class="header-title">Home <span id="run-name-display" class="run-name-header"></span></h1>
-			   </div>
-		   </header>
-
-		   <div class="run-box">
-			   <button id="start-run-btn" class="start-run-btn">Start Run</button>
-		   </div>
+		<header class="header">
+			<div class="header-inner">
+				<img src="images/VoidSakeLogo.jpg" alt="SmartSake logo" id="sake-logo-egg" class="sake-logo-egg" />
+				<h1 class="header-title">SmartSake <span id="run-name-display" class="run-name-header"></span></h1>
+				<button id="settings-btn" class="settings-btn" type="button" aria-label="Open settings" title="Settings">&#9881;</button>
+			</div>
+			<div class="header-actions">
+				<div class="header-datetime" id="header-datetime"></div>
+				<div class="notes__meta" id="notes-meta-header" aria-live="polite"></div>
+				<div class="run-box">
+					<button id="start-run-btn" class="start-run-btn">Start Run</button>
+				</div>
+			</div>
+		</header>
 
 		<main>
-			<main>
-				<div class="stage">
-					<section class="layout layout--home">
+			<div class="stage">
+				<section class="layout layout--home">
 
-						<section class="zones-combined">
-							<a class="zone-combined" href="zone1.html" role="button" aria-label="Zone 1">
-								<span class="zone-combined__label">Zone 1</span>
-								<div class="temp__value-column">
-									<div class="temp__row">
-										<span class="temp__num" id="temp-1-dry">--</span>
-										<span class="temp__unit">°C</span>
-									</div>
+					<section class="zones-combined">
+						<a class="zone-combined" href="zone1.html" role="button" aria-label="Zone 1" data-widget-id="zone-1">
+							<span class="zone-combined__label">Zone 1</span>
+							<div class="temp__value-column">
+								<div class="temp__row">
+									<span class="temp__num" id="temp-1-dry">--</span>
+									<span class="temp__unit">°C</span>
 								</div>
-							</a>
-							<a class="zone-combined" href="zone2.html" role="button" aria-label="Zone 2">
-								<span class="zone-combined__label">Zone 2</span>
-								<div class="temp__value-column">
-									<div class="temp__row">
-										<span class="temp__num" id="temp-2-dry">--</span>
-										<span class="temp__unit">°C</span>
-									</div>
+								<div class="temp__row temp__row--wet">
+									<span class="temp__num" id="temp-1-wet">--</span>
+									<span class="temp__unit">°C (w)</span>
 								</div>
-							</a>
-							<a class="zone-combined" href="zone3.html" role="button" aria-label="Zone 3">
-								<span class="zone-combined__label">Zone 3</span>
-								<div class="temp__value-column">
-									<div class="temp__row">
-										<span class="temp__num" id="temp-3-dry">--</span>
-										<span class="temp__unit">°C</span>
-									</div>
+							</div>
+						</a>
+						<a class="zone-combined" href="zone2.html" role="button" aria-label="Zone 2" data-widget-id="zone-2">
+							<span class="zone-combined__label">Zone 2</span>
+							<div class="temp__value-column">
+								<div class="temp__row">
+									<span class="temp__num" id="temp-2-dry">--</span>
+									<span class="temp__unit">°C</span>
 								</div>
-							</a>
-							<a class="zone-combined" href="zone4.html" role="button" aria-label="Zone 4">
-								<span class="zone-combined__label">Zone 4</span>
-								<div class="temp__value-column">
-									<div class="temp__row">
-										<span class="temp__num" id="temp-4-dry">--</span>
-										<span class="temp__unit">°C</span>
-									</div>
+								<div class="temp__row temp__row--wet">
+									<span class="temp__num" id="temp-2-wet">--</span>
+									<span class="temp__unit">°C (w)</span>
 								</div>
-							</a>
-							<a class="zone-combined" href="zone5.html" role="button" aria-label="Zone 5">
-								<span class="zone-combined__label">Zone 5</span>
-								<div class="temp__value-column">
-									<div class="temp__row">
-										<span class="temp__num" id="temp-5-dry">--</span>
-										<span class="temp__unit">°C</span>
-									</div>
+							</div>
+						</a>
+						<a class="zone-combined" href="zone3.html" role="button" aria-label="Zone 3" data-widget-id="zone-3">
+							<span class="zone-combined__label">Zone 3</span>
+							<div class="temp__value-column">
+								<div class="temp__row">
+									<span class="temp__num" id="temp-3-dry">--</span>
+									<span class="temp__unit">°C</span>
 								</div>
-							</a>
-							<a class="zone-combined" href="zone6.html" role="button" aria-label="Zone 6">
-								<span class="zone-combined__label">Zone 6</span>
-								<div class="temp__value-column">
-									<div class="temp__row">
-										<span class="temp__num" id="temp-6-dry">--</span>
-										<span class="temp__unit">°C</span>
-									</div>
+								<div class="temp__row temp__row--wet">
+									<span class="temp__num" id="temp-3-wet">--</span>
+									<span class="temp__unit">°C (w)</span>
 								</div>
-							</a>
-						</section>
+							</div>
+						</a>
+						<a class="zone-combined" href="zone4.html" role="button" aria-label="Zone 4" data-widget-id="zone-4">
+							<span class="zone-combined__label">Zone 4</span>
+							<div class="temp__value-column">
+								<div class="temp__row">
+									<span class="temp__num" id="temp-4-dry">--</span>
+									<span class="temp__unit">°C</span>
+								</div>
+								<div class="temp__row temp__row--wet">
+									<span class="temp__num" id="temp-4-wet">--</span>
+									<span class="temp__unit">°C (w)</span>
+								</div>
+							</div>
+						</a>
+						<a class="zone-combined" href="zone5.html" role="button" aria-label="Zone 5" data-widget-id="zone-5">
+							<span class="zone-combined__label">Zone 5</span>
+							<div class="temp__value-column">
+								<div class="temp__row">
+									<span class="temp__num" id="temp-5-dry">--</span>
+									<span class="temp__unit">°C</span>
+								</div>
+								<div class="temp__row temp__row--wet">
+									<span class="temp__num" id="temp-5-wet">--</span>
+									<span class="temp__unit">°C (w)</span>
+								</div>
+							</div>
+						</a>
+						<a class="zone-combined" href="zone6.html" role="button" aria-label="Zone 6" data-widget-id="zone-6">
+							<span class="zone-combined__label">Zone 6</span>
+							<div class="temp__value-column">
+								<div class="temp__row">
+									<span class="temp__num" id="temp-6-dry">--</span>
+									<span class="temp__unit">°C</span>
+								</div>
+								<div class="temp__row temp__row--wet">
+									<span class="temp__num" id="temp-6-wet">--</span>
+									<span class="temp__unit">°C (w)</span>
+								</div>
+							</div>
+						</a>
+					</section>
 
-						<div class="notes-wrap">
-							<div class="notes" aria-label="Notes">
-								<label class="sr-only" for="notes-input">Notes</label>
-								<textarea id="notes-input" class="notes__input" placeholder="Enter notes..."
-									aria-label="Notes input"></textarea>
+					<div class="notes-wrap">
+						<div class="notes" aria-label="Notes">
+							<div class="notes__label">Notes</div>
+							<label class="sr-only" for="notes-input">Notes</label>
+							<textarea id="notes-input" class="notes__input" placeholder="Enter notes..."
+								aria-label="Notes input"></textarea>
+						</div>
+					</div>
+
+					<div class="left">
+						<button id="set-temp-btn" class="set-temp-btn" type="button">Set temp</button>
+						<div class="notes__meta" id="notes-meta" aria-live="polite"></div>
+						
+						<div class="long long--top-left" data-widget-id="chart-temp">
+							<div class="chart-header">
+								<span>Temperature over time</span>
+								<span class="chart-header__expand" aria-hidden="true">&#x2197;</span>
+							</div>
+							<div id="temp-chart-legend" class="temp-chart-legend" aria-label="Temperature legend"></div>
+							<div class="temp-chart-live-wrap">
+								<canvas id="temp-chart" class="metric-chart"></canvas>
 							</div>
 						</div>
 
-						<div class="left">
-							<button id="set-temp-btn" class="set-temp-btn" type="button">Set temp</button>
-							<div class="notes__meta" id="notes-meta" aria-live="polite">Date,
-								Time</div>
-							<div class="long long--top-left home-temp-chart-card">
-								<span class="temp-chart-title-left chart-title--single-line">Temperature over time</span>
-								<div id="temp-chart-legend" class="temp-chart-legend" aria-label="Temperature legend"></div>
-								<div class="temp-chart-live-wrap">
-									<canvas id="temp-chart" class="metric-chart"></canvas>
-								</div>
+						<div class="long long--top-left" data-widget-id="chart-humidity">
+							<div class="chart-header">
+								<span>Humidity over time</span>
+								<span class="chart-header__expand" aria-hidden="true">&#x2197;</span>
 							</div>
-
-							<div class="long long--top-left home-side-title-chart-card home-humidity-chart-card">
-								<div class="home-chart-live-wrap">
-									<span class="home-humidity-title chart-title--single-line">Humidity over time</span>
-									<canvas id="humidity-chart" class="metric-chart"></canvas>
-								</div>
-							</div>
-
-							<div class="long long--top-left home-temp-chart-card home-fans-chart-card">
-								<span class="temp-chart-title-left chart-title--single-line">Fans on/off over time</span>
-								<div id="fans-chart-legend" class="temp-chart-legend" aria-label="Fans legend"></div>
-								<div class="temp-chart-live-wrap">
-									<canvas id="fans-chart" class="metric-chart"></canvas>
-								</div>
-							</div>
-
-						<div class="long long--top-left home-side-title-chart-card home-humidity-chart-card">
 							<div class="home-chart-live-wrap">
-								<span class="home-humidity-title chart-title--single-line">Weight over time</span>
+								<canvas id="humidity-chart" class="metric-chart"></canvas>
+							</div>
+						</div>
+
+						<div class="long long--top-left" data-widget-id="chart-fans">
+							<div class="chart-header">
+								<span>Fans on/off over time</span>
+								<span class="chart-header__expand" aria-hidden="true">&#x2197;</span>
+							</div>
+							<div id="fans-chart-legend" class="temp-chart-legend" aria-label="Fans legend"></div>
+							<div class="temp-chart-live-wrap">
+								<canvas id="fans-chart" class="metric-chart"></canvas>
+							</div>
+						</div>
+
+						<div class="long long--top-left" data-widget-id="chart-weight">
+							<div class="chart-header">
+								<span>Weight over time</span>
+								<span class="chart-header__expand" aria-hidden="true">&#x2197;</span>
+							</div>
+							<div class="home-chart-live-wrap">
 								<canvas id="weight-chart" class="metric-chart"></canvas>
 							</div>
 						</div>
-
-
-				</div>
-			</main>
-
-			<!-- Modal popup for Start run -->
-			<div id="start-run-modal" class="modal-overlay">
-				<div class="modal-popup">
-					<div class="modal-header">
-						<h3 class="modal-title">Start New Run</h3>
-						<button type="button" class="modal-close" id="close-modal"
-							aria-label="Close modal">&times;</button>
 					</div>
-					<div class="modal-content">
-						<p>This will begin collecting data from all temperature sensors and
-							start the monitoring process.</p>
 
-						<div class="modal-input-section">
-							<label for="run-name">Run Name:</label>
-							<input type="text" id="run-name" name="run-name" placeholder="Enter run name..." />
-						</div>
-
-						<div class="modal-input-section">
-							<button type="button" class="modal-enter-btn" id="enter-run-btn">Start</button>
-						</div>
-					</div>
-				</div>
+				</section>
 			</div>
+		</main>
 
-			<!-- Modal popup for End run confirmation -->
-			<div id="end-run-modal" class="modal-overlay">
-				<div class="modal-popup">
-					<div class="modal-header">
-						<h3 class="modal-title">End Current Run</h3>
-						<button type="button" class="modal-close" id="close-end-modal"
-							aria-label="Close modal">&times;</button>
-					</div>
-					<div class="modal-content">
-						<p>Are you sure you would like to end the run?</p>
-						<p>This will stop data collection and finalize the current monitoring
-							session.</p>
-
-						<div class="modal-button-section">
-							<button type="button" class="modal-cancel-btn" id="cancel-end-btn">Cancel</button>
-							<button type="button" class="modal-confirm-btn" id="confirm-end-btn">End Run</button>
-						</div>
-					</div>
+		<!-- Modal popup for Start run -->
+		<div id="start-run-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Start run">
+			<div class="modal-popup">
+				<div class="modal-header">
+					<h3 class="modal-title">Start New Run</h3>
+					<button type="button" class="modal-close" id="close-modal"
+						aria-label="Close modal">&times;</button>
 				</div>
-			</div>
+				<div class="modal-content">
+					<p>This will begin collecting data from all temperature sensors and
+						start the monitoring process.</p>
 
-			<!-- Modal popup for setting ideal temperature -->
-			<div id="set-temp-modal" class="modal-overlay">
-				<div class="modal-popup">
-					<div class="modal-header">
-						<h3 class="modal-title">Set Temperature</h3>
-						<button type="button" class="modal-close" id="close-set-temp-modal"
-							aria-label="Close set temperature modal">&times;</button>
+					<div class="modal-input-section">
+						<label for="run-name">Run Name:</label>
+						<input type="text" id="run-name" name="run-name" placeholder="Enter run name..." />
 					</div>
-					<div class="modal-content">
-						<p id="ideal-temp-current" class="ideal-temp-current">
-							<span class="ideal-temp-current__label">Current set point</span>
-							<span id="ideal-temp-current-value" class="ideal-temp-current__value">-- °C</span>
-						</p>
-						<p id="deviation-current" class="deviation-current">
-							<span class="deviation-current__label">The current deviation allowance is</span>
-							<span id="deviation-current-value" class="deviation-current__value">5.0 °C</span>
-						</p>
 
-						<div class="modal-input-section">
-							<label for="ideal-temp-input">Ideal Temperature (°C):</label>
-							<input type="number" id="ideal-temp-input" name="ideal-temp-input" step="0.1" min="0"
-								max="100" placeholder="e.g. 32.0" />
+					<div class="modal-input-section">
+						<label for="start-curve-select">Reference Curve:</label>
+						<select id="start-curve-select">
+							<option value="0">None (Manual)</option>
+						</select>
+					</div>
+
+					<div class="modal-input-section">
+						<div class="curve-toggle">
+							<button type="button" id="btn-show-builder" class="curve-toggle-btn curve-toggle-btn--active">Build Curve</button>
+							<button type="button" id="btn-show-upload" class="curve-toggle-btn">Upload CSV</button>
 						</div>
 
-						<div class="modal-input-section">
-							<label for="deviation-allowance-input">Deviation Allowance (°C):</label>
-							<input type="number" id="deviation-allowance-input" name="deviation-allowance-input" step="0.1"
-								min="0" max="30" placeholder="e.g. 5.0" />
-						</div>
-
-						<div class="modal-button-section">
-							<button type="button" class="modal-cancel-btn" id="cancel-set-temp-btn">Cancel</button>
-							<button type="button" class="modal-confirm-btn" id="save-set-temp-btn">Save</button>
-						</div>
-					</div>
-				</div>
-			</div>
-
-			<!-- Recovery popup for crashed / unfinished runs -->
-			<div id="recovery-modal" class="modal-overlay">
-				<div class="modal-popup">
-					<div class="modal-header">
-						<h3 class="modal-title">Recovered Run Detected</h3>
-						<button type="button" class="modal-close" id="recovery-close-btn"
-							aria-label="Close recovery popup">&times;</button>
-					</div>
-					<div class="modal-content">
-						<p>We detected autosaved data from a previous session that didn't end
-							cleanly.</p>
-						<p>You can export the recovered run as a CSV or discard it and start
-							fresh.</p>
-
-						<div class="modal-button-section">
-							<button type="button" class="modal-cancel-btn" id="recovery-discard-btn">Discard</button>
-							<button type="button" class="modal-confirm-btn" id="recovery-export-btn">Export recovered
-								CSV</button>
-						</div>
-					</div>
-				</div>
-			</div>
-
-			<!-- Easter egg Pong modal -->
-			<div id="pong-modal" class="modal-overlay">
-				<div class="modal-popup pong-modal-popup">
-					<div class="modal-header">
-						<h3 class="modal-title">Pong Mode</h3>
-						<button type="button" class="modal-close" id="pong-close-btn"
-							aria-label="Close Pong">&times;</button>
-					</div>
-					<div class="modal-content">
-						<canvas id="pong-canvas" width="500" height="300" aria-label="Pong game"></canvas>
-						<p class="pong-help-text">
-							Use ↑ and ↓ arrows to move your paddle. Press ESC to exit.
-						</p>
-					</div>
-				</div>
-			</div>
-
-			<!-- Full-page Chart Modal -->
-			<div id="chart-modal" class="modal-overlay">
-				<div class="modal-popup chart-modal-popup">
-					<div class="modal-header">
-						<h3 class="modal-title" id="chart-modal-title">Chart</h3>
-						<button type="button" class="modal-close" id="chart-modal-close"
-							aria-label="Close chart">&times;</button>
-					</div>
-					<div class="modal-content chart-modal-content">
-						<canvas id="chart-modal-canvas"></canvas>
-
-						<div class="chart-modal-controls">
-							<div class="chart-modal-control">
-								<label for="chart-window-range">Time window</label>
-								<input type="range" id="chart-window-range" min="0" max="0" value="0">
+						<!-- Curve builder panel -->
+						<div id="panel-builder" class="curve-panel">
+							<div class="curve-table-wrap">
+								<table class="curve-table">
+									<thead>
+										<tr>
+											<th>Min</th>
+											<th>Z1 °C</th><th>Z2 °C</th><th>Z3 °C</th>
+											<th>Z4 °C</th><th>Z5 °C</th><th>Z6 °C</th>
+										</tr>
+									</thead>
+									<tbody id="curve-tbody">
+										<tr>
+											<td><input type="number" step="1" min="0" class="curve-cell row-time" placeholder="0"></td>
+											<td><input type="number" step="0.2" min="0" max="60" class="curve-cell row-z1" placeholder="38.0"></td>
+											<td><input type="number" step="0.2" min="0" max="60" class="curve-cell row-z2" placeholder="38.0"></td>
+											<td><input type="number" step="0.2" min="0" max="60" class="curve-cell row-z3" placeholder="38.0"></td>
+											<td><input type="number" step="0.2" min="0" max="60" class="curve-cell row-z4" placeholder="38.0"></td>
+											<td><input type="number" step="0.2" min="0" max="60" class="curve-cell row-z5" placeholder="38.0"></td>
+											<td><input type="number" step="0.2" min="0" max="60" class="curve-cell row-z6" placeholder="38.0"></td>
+										</tr>
+									</tbody>
+								</table>
 							</div>
-							<div class="chart-modal-control">
-								<label for="chart-y-range">Y zoom</label>
-								<input type="range" id="chart-y-range" min="0" max="100" value="0">
+							<div class="curve-actions">
+								<button type="button" id="add-row-btn" class="curve-add-btn">+ Add Row</button>
+								<button type="button" id="clear-table-btn" class="curve-clear-btn">Clear</button>
 							</div>
 						</div>
 
-						<p class="chart-modal-help">
-							Drag the sliders to scroll/zoom. Click legend items to toggle series. Press ESC or click
-							outside
-							to close.
-						</p>
+						<!-- CSV upload panel -->
+						<div id="panel-upload" class="curve-panel" style="display:none;">
+							<label for="target-csv-upload">Select Koji Strain CSV:</label>
+							<input type="file" id="target-csv-upload" accept=".csv" class="upload-input">
+							<div id="upload-status" class="upload-status"></div>
+							<small class="help-text">CSV columns: time_minutes, temp1..temp6</small>
+						</div>
+					</div>
+
+					<div class="modal-input-section">
+						<button type="button" class="modal-enter-btn" id="enter-run-btn">Start</button>
 					</div>
 				</div>
 			</div>
+		</div>
+
+		<!-- Modal popup for End run confirmation -->
+		<div id="end-run-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="End run">
+			<div class="modal-popup">
+				<div class="modal-header">
+					<h3 class="modal-title">End Current Run</h3>
+					<button type="button" class="modal-close" id="close-end-modal"
+						aria-label="Close modal">&times;</button>
+				</div>
+				<div class="modal-content">
+					<p>Are you sure you would like to end the run?</p>
+					<p>This will stop data collection and finalize the current monitoring
+						session. A CSV report will be saved on the Pi.</p>
+					<p id="export-run-link-wrap" style="display:none">
+						<a id="export-run-link" href="#" class="export-run-link" target="_blank">&#8593; Download run CSV</a>
+					</p>
+
+					<div class="modal-button-section">
+						<button type="button" class="modal-cancel-btn" id="cancel-end-btn">Cancel</button>
+						<button type="button" class="modal-confirm-btn" id="confirm-end-btn">End Run</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Modal popup for setting ideal temperature -->
+		<div id="set-temp-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Set temperature">
+			<div class="modal-popup">
+				<div class="modal-header">
+					<h3 class="modal-title">Set Temperature</h3>
+					<button type="button" class="modal-close" id="close-set-temp-modal"
+						aria-label="Close set temperature modal">&times;</button>
+				</div>
+				<div class="modal-content">
+					<p id="ideal-temp-current" class="ideal-temp-current">
+						<span class="ideal-temp-current__label">Current set point</span>
+						<span id="ideal-temp-current-value" class="ideal-temp-current__value">-- °C</span>
+					</p>
+					<p id="deviation-current" class="deviation-current">
+						<span class="deviation-current__label">The current deviation allowance is</span>
+						<span id="deviation-current-value" class="deviation-current__value">5.0 °C</span>
+					</p>
+
+					<div class="modal-input-section">
+						<label for="ideal-temp-input">Ideal Temperature (°C):</label>
+						<input type="number" id="ideal-temp-input" name="ideal-temp-input" step="0.1" min="0"
+							max="100" placeholder="e.g. 32.0" />
+					</div>
+
+					<div class="modal-input-section">
+						<label for="deviation-allowance-input">Deviation Allowance (°C):</label>
+						<input type="number" id="deviation-allowance-input" name="deviation-allowance-input" step="0.1"
+							min="0" max="30" placeholder="e.g. 5.0" />
+					</div>
+
+					<div class="modal-button-section">
+						<button type="button" class="modal-cancel-btn" id="cancel-set-temp-btn">Cancel</button>
+						<button type="button" class="modal-confirm-btn" id="save-set-temp-btn">Save</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Recovery popup for crashed / unfinished runs -->
+		<div id="recovery-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Recovery">
+			<div class="modal-popup">
+				<div class="modal-header">
+					<h3 class="modal-title">Recovered Run Detected</h3>
+					<button type="button" class="modal-close" id="recovery-close-btn"
+						aria-label="Close recovery popup">&times;</button>
+				</div>
+				<div class="modal-content">
+					<p>We detected autosaved data from a previous session that didn't end
+						cleanly.</p>
+					<p>You can export the recovered run as a CSV or discard it and start
+						fresh.</p>
+
+					<div class="modal-button-section">
+						<button type="button" class="modal-cancel-btn" id="recovery-discard-btn">Discard</button>
+						<button type="button" class="modal-confirm-btn" id="recovery-export-btn">Export recovered
+							CSV</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Easter egg Pong modal -->
+		<div id="pong-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Arcade">
+			<div class="modal-popup pong-modal-popup">
+				<div class="modal-header">
+					<h3 class="modal-title">Pong Mode</h3>
+					<button type="button" class="modal-close" id="pong-close-btn"
+						aria-label="Close Pong">&times;</button>
+				</div>
+				<div class="modal-content">
+					<canvas id="pong-canvas" width="500" height="300" aria-label="Pong game"></canvas>
+					<p class="pong-help-text">
+						Use ↑ and ↓ arrows to move your paddle. Press ESC to exit.
+					</p>
+				</div>
+			</div>
+		</div>
+
+		<!-- Full-page Chart Modal -->
+		<div id="chart-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Chart">
+			<div class="modal-popup chart-modal-popup">
+				<div class="modal-header">
+					<h3 class="modal-title" id="chart-modal-title">Chart</h3>
+					<button type="button" class="modal-close" id="chart-modal-close"
+						aria-label="Close chart">&times;</button>
+				</div>
+				<div class="modal-content chart-modal-content">
+					<canvas id="chart-modal-canvas"></canvas>
+
+					<div class="chart-modal-controls">
+						<div class="chart-modal-control">
+							<label for="chart-window-range">Time window</label>
+							<input type="range" id="chart-window-range" min="0" max="0" value="0">
+						</div>
+					</div>
+
+					<p class="chart-modal-help">
+						Drag the sliders to scroll/zoom. Click legend items to toggle series. Press ESC or click
+						outside
+						to close.
+					</p>
+				</div>
+			</div>
+		</div>
 
 
+		<!-- Zone detail modal — opens when a zone card is clicked -->
+		<div id="zone-detail-card" class="modal-overlay zone-modal-overlay" role="dialog" aria-modal="true" aria-label="Zone detail">
+			<div class="modal-popup zone-modal-popup">
+				<div class="zone-detail-card__header">
+					<h3 class="zone-detail-card__title" id="zdc-title">Zone</h3>
+					<div class="zone-detail-card__header-actions">
+						<button type="button" class="zone-detail-card__close" id="zdc-close" aria-label="Close zone detail">&times;</button>
+					</div>
+				</div>
+				<div class="zone-detail-card__temp-row">
+					<span class="zone-detail-card__temp-val" id="zdc-temp">--</span>
+					<span class="zone-detail-card__temp-unit">&deg;C</span>
+					<span class="zone-detail-card__temp-label">wet-bulb: <span id="zdc-wet-temp">--</span> &deg;C</span>
+				</div>
+				<div class="zone-alarm-banner" id="zdc-alarm-banner" style="display:none">
+					<span class="zone-alarm-icon">&#9888;</span>
+					<span id="zdc-alarm-reason">--</span>
+				</div>
+				<div class="zone-detail-card__controls">
+					<div class="zone-detail-card__control-row">
+						<label class="zone-detail-card__ctrl-label" for="zdc-setpoint">Setpoint (&deg;C)</label>
+						<div class="zone-detail-card__ctrl-input-row">
+							<input type="number" id="zdc-setpoint" class="zone-detail-card__ctrl-input" min="0" max="60" step="0.5" placeholder="--" aria-label="Zone setpoint">
+							<button type="button" id="zdc-setpoint-apply" class="zone-detail-card__ctrl-btn">Apply</button>
+						</div>
+					</div>
+					<div class="zone-detail-card__control-row">
+						<label class="zone-detail-card__ctrl-label" for="zdc-tolerance">Tolerance (&deg;C)</label>
+						<div class="zone-detail-card__ctrl-input-row">
+							<input type="number" id="zdc-tolerance" class="zone-detail-card__ctrl-input" min="0" max="10" step="0.1" placeholder="--" aria-label="Fan trigger tolerance">
+							<button type="button" id="zdc-tolerance-apply" class="zone-detail-card__ctrl-btn">Apply</button>
+						</div>
+					</div>
+					<div class="zone-detail-card__control-row">
+						<span class="zone-detail-card__ctrl-label">Mode</span>
+						<div class="zone-detail-card__mode-btns">
+							<button type="button" id="zdc-mode-auto" class="zone-detail-card__mode-btn zone-detail-card__mode-btn--active" data-mode="auto">Auto</button>
+							<button type="button" id="zdc-mode-manual" class="zone-detail-card__mode-btn" data-mode="manual">Manual</button>
+						</div>
+					</div>
+					<div class="zone-detail-card__control-row" id="zdc-manual-controls" style="display:none;">
+						<span class="zone-detail-card__ctrl-label">Fan</span>
+						<div class="zone-detail-card__mode-btns">
+							<button type="button" id="zdc-fan-on-btn" class="zone-detail-card__mode-btn">Fan ON</button>
+							<button type="button" id="zdc-fan-off-btn" class="zone-detail-card__mode-btn">Fan OFF</button>
+						</div>
+					</div>
+				</div>
+				<details class="zone-detail-card__alarms">
+					<summary class="zone-detail-card__alarms-toggle">Alarm Thresholds</summary>
+					<div class="zone-detail-card__alarms-grid">
+						<label class="zone-detail-card__alarm-label">Warn High<input type="number" id="zdc-thr-warn-high" class="zone-detail-card__ctrl-input" step="0.5" min="0" max="60"></label>
+						<label class="zone-detail-card__alarm-label">Crit High<input type="number" id="zdc-thr-crit-high" class="zone-detail-card__ctrl-input" step="0.5" min="0" max="60"></label>
+						<label class="zone-detail-card__alarm-label">Warn Low<input type="number" id="zdc-thr-warn-low" class="zone-detail-card__ctrl-input" step="0.5" min="0" max="60"></label>
+						<label class="zone-detail-card__alarm-label">Crit Low<input type="number" id="zdc-thr-crit-low" class="zone-detail-card__ctrl-input" step="0.5" min="0" max="60"></label>
+						<button type="button" id="zdc-thresholds-apply" class="zone-detail-card__ctrl-btn zone-detail-card__ctrl-btn--full">Apply</button>
+					</div>
+				</details>
+				<div class="zone-detail-card__status-row">
+					<span class="zone-detail-card__status-chip" id="zdc-relay-chip">
+						<span class="zone-status-dot zone-status-dot--off" id="zdc-relay-dot"></span>
+						<span id="zdc-relay-label">Fan --</span>
+					</span>
+					<span class="zone-detail-card__status-chip">
+						Trigger: <span id="zdc-trigger-val">--</span>&deg;C
+					</span>
+				</div>
+				<div class="zone-detail-card__chart-wrap">
+					<span class="zone-detail-card__chart-label">Temperature over time</span>
+					<canvas id="zdc-temp-chart"></canvas>
+				</div>
+				<div class="zone-detail-card__chart-wrap">
+					<span class="zone-detail-card__chart-label">Fan on/off over time</span>
+					<canvas id="zdc-fan-chart"></canvas>
+				</div>
+			</div>
+		</div>
 
-			<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-			<script>
-				// Live Date/Time script: updates notes meta and header datetime each minute
+		<script>
+			// Live Date/Time — updates notes-meta, header-datetime and the header date/time pill
+			(function () {
+				const notesMeta = document.getElementById('notes-meta');
+				const headerDateTime = document.getElementById('header-datetime');
+				const headerMeta = document.getElementById('notes-meta-header');
 
-				// Live Date/Time script: updates ONLY the notes-meta field
-				(function () {
-					const notesMeta = document.getElementById('notes-meta');
-					if (!notesMeta) return;
-
-					function formatNow(d) {
-						const date = d.toLocaleDateString(undefined, {
-							month: 'short',
-							day: 'numeric',
-							year: 'numeric'
-						});
-						const time = d.toLocaleTimeString(undefined, {
-							hour: '2-digit',
-							minute: '2-digit'
-						});
-						return `${date}\n${time}`;
-					}
-
-					function update() {
-						notesMeta.textContent = formatNow(new Date());
-					}
-
-					// initial update
-					update();
-
-					// align with next minute
-					const msToNext = 60000 - (Date.now() % 60000);
-					let timer = setTimeout(function () {
-						update();
-						timer = setInterval(update, 60000);
-					}, msToNext);
-
-					document.addEventListener('visibilitychange', function () {
-						if (document.visibilityState === 'visible') update();
+				function formatNow(d) {
+					const date = d.toLocaleDateString(undefined, {
+						month: 'short',
+						day: 'numeric',
+						year: 'numeric'
 					});
-				})();
+					const time = d.toLocaleTimeString(undefined, {
+						hour: '2-digit',
+						minute: '2-digit'
+					});
+					return `${date}\n${time}`;
+				}
 
-				// Set temperature modal + ideal temperature storage
-				(function () {
-					const IDEAL_TEMP_KEY = 'sakeIdealTempC';
-					const DEVIATION_ALLOWANCE_KEY = 'sakeDeviationAllowanceC';
+				function update() {
+					const now = new Date();
+					const str = formatNow(now);
+					if (notesMeta) notesMeta.textContent = str;
+					if (headerMeta) headerMeta.textContent = str;
+					if (headerDateTime) {
+						const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+						const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+						headerDateTime.innerHTML = dateStr + '<br>' + timeStr;
+					}
+				}
 
-					const setTempBtn = document.getElementById('set-temp-btn');
-					const setTempModal = document.getElementById('set-temp-modal');
-					const closeSetTempModalBtn = document.getElementById('close-set-temp-modal');
-					const cancelSetTempBtn = document.getElementById('cancel-set-temp-btn');
-					const saveSetTempBtn = document.getElementById('save-set-temp-btn');
-					const idealTempInput = document.getElementById('ideal-temp-input');
-					const deviationAllowanceInput = document.getElementById('deviation-allowance-input');
-					const idealTempCurrent = document.getElementById('ideal-temp-current');
-					const idealTempCurrentValue = document.getElementById('ideal-temp-current-value');
-					const deviationCurrent = document.getElementById('deviation-current');
-					const deviationCurrentValue = document.getElementById('deviation-current-value');
+				// initial update
+				update();
 
-					if (!setTempBtn || !setTempModal || !closeSetTempModalBtn || !cancelSetTempBtn || !saveSetTempBtn ||
-						!idealTempInput || !deviationAllowanceInput || !idealTempCurrent || !idealTempCurrentValue ||
-						!deviationCurrent || !deviationCurrentValue) {
+				// Update every second to keep header-datetime fresh
+				setInterval(update, 1000);
+
+				document.addEventListener('visibilitychange', function () {
+					if (document.visibilityState === 'visible') update();
+				});
+			})();
+
+			// Set temperature modal + ideal temperature storage
+			(function () {
+				const IDEAL_TEMP_KEY = 'sakeIdealTempC';
+				const DEVIATION_ALLOWANCE_KEY = 'sakeDeviationAllowanceC';
+
+				const setTempBtn = document.getElementById('set-temp-btn');
+				const setTempModal = document.getElementById('set-temp-modal');
+				const closeSetTempModalBtn = document.getElementById('close-set-temp-modal');
+				const cancelSetTempBtn = document.getElementById('cancel-set-temp-btn');
+				const saveSetTempBtn = document.getElementById('save-set-temp-btn');
+				const idealTempInput = document.getElementById('ideal-temp-input');
+				const deviationAllowanceInput = document.getElementById('deviation-allowance-input');
+				const idealTempCurrent = document.getElementById('ideal-temp-current');
+				const idealTempCurrentValue = document.getElementById('ideal-temp-current-value');
+				const deviationCurrent = document.getElementById('deviation-current');
+				const deviationCurrentValue = document.getElementById('deviation-current-value');
+
+				if (!setTempBtn || !setTempModal || !closeSetTempModalBtn || !cancelSetTempBtn || !saveSetTempBtn ||
+					!idealTempInput || !deviationAllowanceInput || !idealTempCurrent || !idealTempCurrentValue ||
+					!deviationCurrent || !deviationCurrentValue) {
+					return;
+				}
+
+				function getIdealTemp() {
+					const raw = localStorage.getItem(IDEAL_TEMP_KEY);
+					const parsed = raw === null ? NaN : parseFloat(raw);
+					return Number.isFinite(parsed) ? parsed : null;
+				}
+
+				function getDeviationAllowance() {
+					const raw = localStorage.getItem(DEVIATION_ALLOWANCE_KEY);
+					const parsed = raw === null ? NaN : parseFloat(raw);
+					return Number.isFinite(parsed) ? parsed : 5.0;
+				}
+
+				function updateCurrentLabel() {
+					const current = getIdealTemp();
+					idealTempCurrentValue.textContent = current === null
+						? '-- °C'
+						: `${current.toFixed(1)} °C`;
+
+					const deviation = getDeviationAllowance();
+					deviationCurrentValue.textContent = `${deviation.toFixed(1)} °C`;
+				}
+
+				function openSetTempModal() {
+					const current = getIdealTemp();
+					const deviation = getDeviationAllowance();
+					idealTempInput.value = current === null ? '' : current.toFixed(1);
+					deviationAllowanceInput.value = deviation.toFixed(1);
+					updateCurrentLabel();
+					setTempModal.classList.add('is-open');
+					idealTempInput.focus();
+					idealTempInput.select();
+				}
+
+				function closeSetTempModal() {
+					setTempModal.classList.remove('is-open');
+				}
+
+				function saveIdealTemp() {
+					const value = parseFloat(idealTempInput.value);
+					const deviationValue = parseFloat(deviationAllowanceInput.value);
+					if (!Number.isFinite(value) || value < 0 || value > 100) {
+						idealTempInput.setCustomValidity('Please enter a value between 0 and 100 °C.');
+						idealTempInput.reportValidity();
 						return;
 					}
-
-					function getIdealTemp() {
-						const raw = localStorage.getItem(IDEAL_TEMP_KEY);
-						const parsed = raw === null ? NaN : parseFloat(raw);
-						return Number.isFinite(parsed) ? parsed : null;
+					if (!Number.isFinite(deviationValue) || deviationValue < 0 || deviationValue > 30) {
+						deviationAllowanceInput.setCustomValidity('Please enter a value between 0 and 30 °C.');
+						deviationAllowanceInput.reportValidity();
+						return;
 					}
+					idealTempInput.setCustomValidity('');
+					deviationAllowanceInput.setCustomValidity('');
 
-					function getDeviationAllowance() {
-						const raw = localStorage.getItem(DEVIATION_ALLOWANCE_KEY);
-						const parsed = raw === null ? NaN : parseFloat(raw);
-						return Number.isFinite(parsed) ? parsed : 5.0;
-					}
-
-					function updateCurrentLabel() {
-						const current = getIdealTemp();
-						idealTempCurrentValue.textContent = current === null
-							? '-- °C'
-							: `${current.toFixed(1)} °C`;
-
-						const deviation = getDeviationAllowance();
-						deviationCurrentValue.textContent = `${deviation.toFixed(1)} °C`;
-					}
-
-					function openSetTempModal() {
-						const current = getIdealTemp();
-						const deviation = getDeviationAllowance();
-						idealTempInput.value = current === null ? '' : current.toFixed(1);
-						deviationAllowanceInput.value = deviation.toFixed(1);
-						updateCurrentLabel();
-						setTempModal.style.display = 'flex';
-						idealTempInput.focus();
-						idealTempInput.select();
-					}
-
-					function closeSetTempModal() {
-						setTempModal.style.display = 'none';
-					}
-
-					function saveIdealTemp() {
-						const value = parseFloat(idealTempInput.value);
-						const deviationValue = parseFloat(deviationAllowanceInput.value);
-						if (!Number.isFinite(value) || value < 0 || value > 100) {
-							idealTempInput.setCustomValidity('Please enter a value between 0 and 100 °C.');
-							idealTempInput.reportValidity();
-							return;
+					localStorage.setItem(IDEAL_TEMP_KEY, value.toFixed(1));
+					localStorage.setItem(DEVIATION_ALLOWANCE_KEY, deviationValue.toFixed(1));
+					updateCurrentLabel();
+					window.dispatchEvent(new CustomEvent('sake-ideal-temp-updated', {
+						detail: {
+							value: value.toFixed(1),
+							deviationAllowance: deviationValue.toFixed(1)
 						}
-						if (!Number.isFinite(deviationValue) || deviationValue < 0 || deviationValue > 30) {
-							deviationAllowanceInput.setCustomValidity('Please enter a value between 0 and 30 °C.');
-							deviationAllowanceInput.reportValidity();
-							return;
-						}
-						idealTempInput.setCustomValidity('');
-						deviationAllowanceInput.setCustomValidity('');
+					}));
+					closeSetTempModal();
+				}
 
-						localStorage.setItem(IDEAL_TEMP_KEY, value.toFixed(1));
-						localStorage.setItem(DEVIATION_ALLOWANCE_KEY, deviationValue.toFixed(1));
-						updateCurrentLabel();
-						window.dispatchEvent(new CustomEvent('sake-ideal-temp-updated', {
-							detail: {
-								value: value.toFixed(1),
-								deviationAllowance: deviationValue.toFixed(1)
-							}
-						}));
+				setTempBtn.addEventListener('click', openSetTempModal);
+				closeSetTempModalBtn.addEventListener('click', closeSetTempModal);
+				cancelSetTempBtn.addEventListener('click', closeSetTempModal);
+				saveSetTempBtn.addEventListener('click', saveIdealTemp);
+
+				idealTempInput.addEventListener('input', function () {
+					idealTempInput.setCustomValidity('');
+				});
+
+				deviationAllowanceInput.addEventListener('input', function () {
+					deviationAllowanceInput.setCustomValidity('');
+				});
+
+				idealTempInput.addEventListener('keydown', function (e) {
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						saveIdealTemp();
+					}
+				});
+
+				setTempModal.addEventListener('click', function (e) {
+					if (e.target === setTempModal) {
 						closeSetTempModal();
 					}
+				});
 
-					setTempBtn.addEventListener('click', openSetTempModal);
-					closeSetTempModalBtn.addEventListener('click', closeSetTempModal);
-					cancelSetTempBtn.addEventListener('click', closeSetTempModal);
-					saveSetTempBtn.addEventListener('click', saveIdealTemp);
-
-					idealTempInput.addEventListener('input', function () {
-						idealTempInput.setCustomValidity('');
-					});
-
-					deviationAllowanceInput.addEventListener('input', function () {
-						deviationAllowanceInput.setCustomValidity('');
-					});
-
-					idealTempInput.addEventListener('keydown', function (e) {
-						if (e.key === 'Enter') {
-							e.preventDefault();
-							saveIdealTemp();
-						}
-					});
-
-					setTempModal.addEventListener('click', function (e) {
-						if (e.target === setTempModal) {
-							closeSetTempModal();
-						}
-					});
-
-					document.addEventListener('keydown', function (e) {
-						if (e.key === 'Escape' && setTempModal.style.display === 'flex') {
-							closeSetTempModal();
-						}
-					});
-
-					window.getIdealTemperature = function () {
-						return getIdealTemp();
-					};
-
-					window.getDeviationAllowance = function () {
-						return getDeviationAllowance();
-					};
-
-					updateCurrentLabel();
-				})();
-
-				// Modal + run state + autosave + recovery
-				(function () {
-					const RUN_STATE_KEY = 'sakeRunState';
-					const RUN_IN_PROGRESS_KEY = 'sakeRunInProgress';
-
-					// DOM elements
-					const startBtn = document.getElementById('start-run-btn');
-					const startModal = document.getElementById('start-run-modal');
-					const closeStartBtn = document.getElementById('close-modal');
-					const enterBtn = document.getElementById('enter-run-btn');
-					const runNameInput = document.getElementById('run-name');
-					const runNameDisplay = document.getElementById('run-name-display');
-
-					const endModal = document.getElementById('end-run-modal');
-					const closeEndBtn = document.getElementById('close-end-modal');
-					const cancelEndBtn = document.getElementById('cancel-end-btn');
-					const confirmEndBtn = document.getElementById('confirm-end-btn');
-
-					const recoveryModal = document.getElementById('recovery-modal');
-					const recoveryExport = document.getElementById('recovery-export-btn');
-					const recoveryDiscard = document.getElementById('recovery-discard-btn');
-					const recoveryClose = document.getElementById('recovery-close-btn');
-
-					let collectedData = [];
-					let dataCollectionInterval = null;
-					let runStartTime = null;
-
-					// ---------- Autosave helpers ----------
-					function saveRunState() {
-						try {
-							const state = {
-								collectedData,
-								runStartTime: runStartTime ? runStartTime.toISOString() : null,
-								runName: localStorage.getItem('currentRunName') || null
-							};
-							localStorage.setItem(RUN_STATE_KEY, JSON.stringify(state));
-						} catch (e) {
-							console.warn('Autosave failed:', e);
-						}
+				document.addEventListener('keydown', function (e) {
+					if (e.key === 'Escape' && setTempModal.classList.contains('is-open')) {
+						closeSetTempModal();
 					}
+				});
 
-					function loadRunState() {
-						try {
-							const raw = localStorage.getItem(RUN_STATE_KEY);
-							if (!raw) return;
+				window.getIdealTemperature = function () {
+					return getIdealTemp();
+				};
 
-							const state = JSON.parse(raw);
-							if (Array.isArray(state.collectedData)) {
-								collectedData = state.collectedData;
-							}
-							if (state.runStartTime) {
-								runStartTime = new Date(state.runStartTime);
-							}
-							console.log('Recovered autosaved run:', collectedData.length, 'rows restored');
-						} catch (e) {
-							console.warn('Failed to load autosaved run:', e);
-							localStorage.removeItem(RUN_STATE_KEY);
-						}
-					}
+				window.getDeviationAllowance = function () {
+					return getDeviationAllowance();
+				};
 
-					// ---------- Data generation ----------
-					function generateSensorData() {
-						const timestamp = new Date().toISOString();
-						const temps = [];
+				updateCurrentLabel();
+			})();
 
-						const csvTemps = window.getCurrentTemperatures ? window.getCurrentTemperatures() : null;
+			// Modal + run state + autosave + recovery
+			(function () {
+				const RUN_STATE_KEY = 'sakeRunState';
+				const RUN_IN_PROGRESS_KEY = 'sakeRunInProgress';
 
-						for (let i = 1; i <= 6; i++) {
-							if (csvTemps && csvTemps[`temp${i}`] && csvTemps[`temp${i}`] !== '--') {
-								temps.push(csvTemps[`temp${i}`]);
-							} else {
-								const wetEl = document.getElementById(`temp-${i}-wet`);
-								if (wetEl && wetEl.textContent !== '--') {
-									temps.push(wetEl.textContent);
-								} else {
-									temps.push((70 + Math.random() * 10).toFixed(1));
-								}
-							}
-						}
+				// DOM elements
+				const startBtn = document.getElementById('start-run-btn');
+				const startModal = document.getElementById('start-run-modal');
+				const closeStartBtn = document.getElementById('close-modal');
+				const enterBtn = document.getElementById('enter-run-btn');
+				const runNameInput = document.getElementById('run-name');
+				const runNameDisplay = document.getElementById('run-name-display');
 
-						const humidity = (60 + Math.random() * 20).toFixed(1);
+				const endModal = document.getElementById('end-run-modal');
+				const closeEndBtn = document.getElementById('close-end-modal');
+				const cancelEndBtn = document.getElementById('cancel-end-btn');
+				const confirmEndBtn = document.getElementById('confirm-end-btn');
 
-						const liveFans = window.getCurrentFans ? window.getCurrentFans() : null;
-						const fans = [];
-						for (let i = 1; i <= 6; i++) {
-							if (liveFans && (liveFans[`fan${i}`] === 1 || liveFans[`fan${i}`] === 0)) {
-								fans.push(liveFans[`fan${i}`] === 1 ? 'On' : 'Off');
-							} else {
-								fans.push('Off');
-							}
-						}
+				const recoveryModal = document.getElementById('recovery-modal');
+				const recoveryExport = document.getElementById('recovery-export-btn');
+				const recoveryDiscard = document.getElementById('recovery-discard-btn');
+				const recoveryClose = document.getElementById('recovery-close-btn');
 
-						const notes = localStorage.getItem('currentNotes') || '';
+				let collectedData = [];
+				let dataCollectionInterval = null;
+				let runStartTime = null;
 
-						return {
-							timestamp,
-							temp1: temps[0],
-							temp2: temps[1],
-							temp3: temps[2],
-							temp4: temps[3],
-							temp5: temps[4],
-							temp6: temps[5],
-							humidity,
-							fan1: fans[0],
-							fan2: fans[1],
-							fan3: fans[2],
-							fan4: fans[3],
-							fan5: fans[4],
-							fan6: fans[5],
-							notes: notes.replace(/[\r\n]/g, ' ')
+				// ---------- Autosave helpers ----------
+				function saveRunState() {
+					try {
+						const state = {
+							collectedData,
+							runStartTime: runStartTime ? runStartTime.toISOString() : null,
+							runName: localStorage.getItem('currentRunName') || null
 						};
+						localStorage.setItem(RUN_STATE_KEY, JSON.stringify(state));
+					} catch (e) {
+						console.warn('Autosave failed:', e);
+					}
+				}
+
+				function loadRunState() {
+					try {
+						const raw = localStorage.getItem(RUN_STATE_KEY);
+						if (!raw) return;
+
+						const state = JSON.parse(raw);
+						if (Array.isArray(state.collectedData)) {
+							collectedData = state.collectedData;
+						}
+						if (state.runStartTime) {
+							runStartTime = new Date(state.runStartTime);
+						}
+						console.log('Recovered autosaved run:', collectedData.length, 'rows restored');
+					} catch (e) {
+						console.warn('Failed to load autosaved run:', e);
+						localStorage.removeItem(RUN_STATE_KEY);
+					}
+				}
+
+				// ---------- Data generation ----------
+				function generateSensorData() {
+					const timestamp = new Date().toISOString();
+					const temps = [];
+
+					const csvTemps = window.getCurrentTemperatures ? window.getCurrentTemperatures() : null;
+
+					for (let i = 1; i <= 6; i++) {
+						if (csvTemps && csvTemps[`temp${i}`] && csvTemps[`temp${i}`] !== '--') {
+							temps.push(csvTemps[`temp${i}`]);
+						} else {
+							const wetEl = document.getElementById(`temp-${i}-wet`);
+							if (wetEl && wetEl.textContent !== '--') {
+								temps.push(wetEl.textContent);
+							} else {
+								temps.push(null); // no live reading available
+							}
+						}
 					}
 
-					// ---------- Start / stop collection ----------
-					function startDataCollection() {
-						collectedData = [];
-						runStartTime = new Date();
+					const liveHumidity = window.getCurrentHumidity ? window.getCurrentHumidity() : null;
+					const humidity = (liveHumidity != null) ? parseFloat(liveHumidity).toFixed(1) : null;
 
-						localStorage.setItem(RUN_IN_PROGRESS_KEY, 'true');
+					const liveFans = window.getCurrentFans ? window.getCurrentFans() : null;
+					const fans = [];
+					for (let i = 1; i <= 6; i++) {
+						if (liveFans && (liveFans[`fan${i}`] === 1 || liveFans[`fan${i}`] === 0)) {
+							fans.push(liveFans[`fan${i}`] === 1 ? 'On' : 'Off');
+						} else {
+							fans.push('Off');
+						}
+					}
 
+					const notes = localStorage.getItem('currentNotes') || '';
+
+					return {
+						timestamp,
+						temp1: temps[0],
+						temp2: temps[1],
+						temp3: temps[2],
+						temp4: temps[3],
+						temp5: temps[4],
+						temp6: temps[5],
+						humidity,
+						fan1: fans[0],
+						fan2: fans[1],
+						fan3: fans[2],
+						fan4: fans[3],
+						fan5: fans[4],
+						fan6: fans[5],
+						notes: notes.replace(/[\r\n]/g, ' ')
+					};
+				}
+
+				// ---------- Start / stop collection ----------
+				function startDataCollection() {
+					collectedData = [];
+					runStartTime = new Date();
+
+					localStorage.setItem(RUN_IN_PROGRESS_KEY, 'true');
+
+					collectedData.push(generateSensorData());
+					saveRunState();
+
+					dataCollectionInterval = setInterval(function () {
 						collectedData.push(generateSensorData());
 						saveRunState();
+					}, 30000);
+				}
 
-						dataCollectionInterval = setInterval(function () {
-							collectedData.push(generateSensorData());
-							saveRunState();
-						}, 30000);
+				function resumeDataCollection() {
+					if (dataCollectionInterval) return;
+
+					if (!runStartTime) {
+						runStartTime = new Date();
 					}
 
-					function resumeDataCollection() {
-						if (dataCollectionInterval) return;
+					localStorage.setItem(RUN_IN_PROGRESS_KEY, 'true');
+					saveRunState();
 
-						if (!runStartTime) {
-							runStartTime = new Date();
-						}
-
-						localStorage.setItem(RUN_IN_PROGRESS_KEY, 'true');
+					dataCollectionInterval = setInterval(function () {
+						collectedData.push(generateSensorData());
 						saveRunState();
+					}, 30000);
+				}
 
-						dataCollectionInterval = setInterval(function () {
-							collectedData.push(generateSensorData());
-							saveRunState();
-						}, 30000);
+				function stopDataCollectionAndExport(runName) {
+					if (dataCollectionInterval) {
+						clearInterval(dataCollectionInterval);
+						dataCollectionInterval = null;
 					}
 
-					function stopDataCollectionAndExport(runName) {
-						if (dataCollectionInterval) {
-							clearInterval(dataCollectionInterval);
-							dataCollectionInterval = null;
-						}
-
-						if (collectedData.length > 0) {
-							collectedData.push(generateSensorData());
-						}
-
-						let csvContent = 'Timestamp,Temp1,Temp2,Temp3,Temp4,Temp5,Temp6,Humidity,' +
-							'Fan1,Fan2,Fan3,Fan4,Fan5,Fan6,Notes\n';
-
-						collectedData.forEach(function (data) {
-							csvContent += `${data.timestamp},${data.temp1},${data.temp2},${data.temp3},${data.temp4},` +
-								`${data.temp5},${data.temp6},${data.humidity},${data.fan1},${data.fan2},` +
-								`${data.fan3},${data.fan4},${data.fan5},${data.fan6},"${data.notes}"\n`;
-						});
-
-						const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-						const link = document.createElement('a');
-						if (link.download !== undefined) {
-							const url = URL.createObjectURL(blob);
-							link.setAttribute('href', url);
-							link.setAttribute('download', `${runName}.csv`);
-							link.style.visibility = 'hidden';
-							document.body.appendChild(link);
-							link.click();
-							document.body.removeChild(link);
-						}
-
-						collectedData = [];
-						localStorage.removeItem(RUN_STATE_KEY);
-						localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
-
-						const notesInput = document.getElementById('notes-input');
-						if (notesInput) {
-							notesInput.value = '';
-							localStorage.removeItem('currentNotes');
-						}
+					if (collectedData.length > 0) {
+						collectedData.push(generateSensorData());
 					}
 
-					// Expose for recovery export
-					window.sakeExportRecoveredRun = function () {
-						const currentRunName = localStorage.getItem('currentRunName') || 'RecoveredRun';
+					let csvContent = 'Timestamp,Temp1,Temp2,Temp3,Temp4,Temp5,Temp6,Humidity,' +
+						'Fan1,Fan2,Fan3,Fan4,Fan5,Fan6,Notes\n';
 
-						if (recoveryModal) {
-							recoveryModal.style.display = 'none';
-						}
+					collectedData.forEach(function (data) {
+						csvContent += `${data.timestamp},${data.temp1},${data.temp2},${data.temp3},${data.temp4},` +
+							`${data.temp5},${data.temp6},${data.humidity},${data.fan1},${data.fan2},` +
+							`${data.fan3},${data.fan4},${data.fan5},${data.fan6},"${data.notes}"\n`;
+					});
 
-						stopDataCollectionAndExport(currentRunName);
+					const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+					const link = document.createElement('a');
+					if (link.download !== undefined) {
+						const url = URL.createObjectURL(blob);
+						link.setAttribute('href', url);
+						link.setAttribute('download', `${runName}.csv`);
+						link.style.visibility = 'hidden';
+						document.body.appendChild(link);
+						link.click();
+						document.body.removeChild(link);
+					}
 
-						if (window.stopTemperatureReading) {
-							window.stopTemperatureReading();
-						}
-						if (window.clearRunData) {
-							window.clearRunData();
-						}
+					collectedData = [];
+					localStorage.removeItem(RUN_STATE_KEY);
+					localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+
+					const notesInput = document.getElementById('notes-input');
+					if (notesInput) {
+						notesInput.value = '';
 						localStorage.removeItem('currentNotes');
-
-						if (runNameDisplay) {
-							runNameDisplay.textContent = '';
-						}
-						localStorage.removeItem('currentRunName');
-
-						if (startBtn) {
-							startBtn.textContent = 'Start Run';
-							startBtn.classList.remove('end-run-btn-active');
-							startBtn.style.pointerEvents = 'auto';
-							startBtn.style.cursor = 'pointer';
-						}
-					};
-
-					// ---------- Load autosave and restore active run ----------
-					loadRunState();
-					const savedRunName = localStorage.getItem('currentRunName');
-					const inProgress = localStorage.getItem(RUN_IN_PROGRESS_KEY) === 'true';
-					const activeRunDetected = inProgress && !!savedRunName;
-
-					// Initialize UI state
-					if (runNameDisplay) {
-						runNameDisplay.textContent = activeRunDetected && savedRunName ? ('- ' + savedRunName) : '';
 					}
+				}
+
+				// Expose for recovery export
+				window.sakeExportRecoveredRun = function () {
+					const currentRunName = localStorage.getItem('currentRunName') || 'RecoveredRun';
+
+					if (recoveryModal) {
+						recoveryModal.classList.remove('is-open');
+					}
+
+					stopDataCollectionAndExport(currentRunName);
+
+					if (window.stopTemperatureReading) {
+						window.stopTemperatureReading();
+					}
+					if (window.clearRunData) {
+						window.clearRunData();
+					}
+					localStorage.removeItem('currentNotes');
+
+					if (runNameDisplay) {
+						runNameDisplay.textContent = '';
+					}
+					localStorage.removeItem('currentRunName');
+
 					if (startBtn) {
-						startBtn.textContent = activeRunDetected ? 'End Run' : 'Start Run';
-						startBtn.classList.toggle('end-run-btn-active', activeRunDetected);
+						startBtn.textContent = 'Start Run';
+						startBtn.classList.remove('end-run-btn-active');
 						startBtn.style.pointerEvents = 'auto';
 						startBtn.style.cursor = 'pointer';
 					}
+				};
 
-					if (activeRunDetected) {
-						resumeDataCollection();
+				// ---------- Load autosave and restore active run ----------
+				loadRunState();
+				const savedRunName = localStorage.getItem('currentRunName');
+				const inProgress = localStorage.getItem(RUN_IN_PROGRESS_KEY) === 'true';
+				const activeRunDetected = inProgress && !!savedRunName;
 
-						if (window.startTemperatureReading) {
-							window.startTemperatureReading();
-						}
-						if (window.setRunStartTime) {
-							const resumeFrom = runStartTime ? runStartTime.getTime() : Date.now();
-							window.setRunStartTime(resumeFrom);
-						}
-					} else {
-						if (!savedRunName) {
-							localStorage.removeItem(RUN_STATE_KEY);
-							localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
-						}
+				// Initialize UI state
+				if (runNameDisplay) {
+					runNameDisplay.textContent = activeRunDetected && savedRunName ? ('- ' + savedRunName) : '';
+				}
+				if (startBtn) {
+					startBtn.textContent = activeRunDetected ? 'End Run' : 'Start Run';
+					startBtn.classList.toggle('end-run-btn-active', activeRunDetected);
+					startBtn.style.pointerEvents = 'auto';
+					startBtn.style.cursor = 'pointer';
+				}
 
-						if (recoveryModal) {
-							recoveryModal.style.display = 'none';
-						}
+				if (activeRunDetected) {
+					resumeDataCollection();
 
-						if (recoveryExport) {
-							recoveryExport.addEventListener('click', function () {
-								if (window.sakeExportRecoveredRun) {
-									window.sakeExportRecoveredRun();
-								}
-								localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
-								if (recoveryModal) recoveryModal.style.display = 'none';
-							});
-						}
+					if (window.startTemperatureReading) {
+						window.startTemperatureReading();
+					}
+					if (window.setRunStartTime) {
+						const resumeFrom = runStartTime ? runStartTime.getTime() : Date.now();
+						window.setRunStartTime(resumeFrom);
+					}
+				} else {
+					if (!savedRunName) {
+						localStorage.removeItem(RUN_STATE_KEY);
+						localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+					}
 
-						if (recoveryDiscard) {
-							recoveryDiscard.addEventListener('click', function () {
-								localStorage.removeItem(RUN_STATE_KEY);
-								localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
-								localStorage.removeItem('currentRunName');
-								if (runNameDisplay) runNameDisplay.textContent = '';
-								if (recoveryModal) recoveryModal.style.display = 'none';
-							});
-						}
+					if (recoveryModal) {
+						recoveryModal.classList.remove('is-open');
+					}
 
-						if (recoveryClose) {
-							recoveryClose.addEventListener('click', function () {
-								localStorage.removeItem(RUN_STATE_KEY);
-								localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
-								localStorage.removeItem('currentRunName');
-								if (runNameDisplay) runNameDisplay.textContent = '';
-								if (recoveryModal) recoveryModal.style.display = 'none';
-							});
-						}
-
-						document.addEventListener('keydown', function (e) {
-							if (e.key === 'Escape' && recoveryModal && recoveryModal.style.display === 'flex') {
-								localStorage.removeItem(RUN_STATE_KEY);
-								localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
-								localStorage.removeItem('currentRunName');
-								if (runNameDisplay) runNameDisplay.textContent = '';
-								recoveryModal.style.display = 'none';
+					if (recoveryExport) {
+						recoveryExport.addEventListener('click', function () {
+							if (window.sakeExportRecoveredRun) {
+								window.sakeExportRecoveredRun();
 							}
+							localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+							if (recoveryModal) recoveryModal.classList.remove('is-open');
 						});
 					}
 
-					// ---------- Guard: if core elements are missing, stop here ----------
-					if (!startBtn || !startModal || !closeStartBtn || !enterBtn || !runNameInput) {
-						return;
+					if (recoveryDiscard) {
+						recoveryDiscard.addEventListener('click', function () {
+							localStorage.removeItem(RUN_STATE_KEY);
+							localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+							localStorage.removeItem('currentRunName');
+							if (runNameDisplay) runNameDisplay.textContent = '';
+							if (recoveryModal) recoveryModal.classList.remove('is-open');
+						});
 					}
 
-					// ---------- Start button (open start modal or end modal) ----------
-					startBtn.addEventListener('click', function () {
-						if (startBtn.classList.contains('end-run-btn-active')) {
-							if (endModal) endModal.style.display = 'flex';
-						} else {
-							startModal.style.display = 'flex';
-							runNameInput.focus();
-						}
-					});
-
-					// ---------- Start modal close ----------
-					closeStartBtn.addEventListener('click', function () {
-						startModal.style.display = 'none';
-					});
-
-					startModal.addEventListener('click', function (e) {
-						if (e.target === startModal) {
-							startModal.style.display = 'none';
-						}
-					});
+					if (recoveryClose) {
+						recoveryClose.addEventListener('click', function () {
+							localStorage.removeItem(RUN_STATE_KEY);
+							localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+							localStorage.removeItem('currentRunName');
+							if (runNameDisplay) runNameDisplay.textContent = '';
+							if (recoveryModal) recoveryModal.classList.remove('is-open');
+						});
+					}
 
 					document.addEventListener('keydown', function (e) {
-						if (e.key === 'Escape' && startModal.style.display === 'flex') {
-							startModal.style.display = 'none';
+						if (e.key === 'Escape' && recoveryModal && recoveryModal.classList.contains('is-open')) {
+							localStorage.removeItem(RUN_STATE_KEY);
+							localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+							localStorage.removeItem('currentRunName');
+							if (runNameDisplay) runNameDisplay.textContent = '';
+							recoveryModal.classList.remove('is-open');
 						}
 					});
+				}
 
-					// ---------- Confirm Start Run ----------
-					enterBtn.addEventListener('click', function () {
-						const runName = runNameInput.value.trim();
-						if (!runName) return;
+				// ---------- Guard: if core elements are missing, stop here ----------
+				if (!startBtn || !startModal || !closeStartBtn || !enterBtn || !runNameInput) {
+					return;
+				}
 
-						if (runNameDisplay) {
-							runNameDisplay.textContent = '- ' + runName;
+				// ---------- Start button (open start modal or end modal) ----------
+				startBtn.addEventListener('click', function () {
+					if (startBtn.classList.contains('end-run-btn-active')) {
+						if (endModal) {
+							endModal.classList.add('is-open');
+							// Populate export link with active run_id if available
+							const exportLink = document.getElementById('export-run-link');
+							const exportWrap = document.getElementById('export-run-link-wrap');
+							if (exportLink && exportWrap && startBtn.classList.contains('end-run-btn-active')) {
+								exportLink.href = '/export_run?run_id=active';
+								exportWrap.style.display = '';
+							}
 						}
-						localStorage.setItem('currentRunName', runName);
+					} else {
+						startModal.classList.add('is-open');
+						runNameInput.focus();
+					}
+				});
+
+				// ---------- Start modal close ----------
+				closeStartBtn.addEventListener('click', function () {
+					startModal.classList.remove('is-open');
+				});
+
+				startModal.addEventListener('click', function (e) {
+					if (e.target === startModal) {
+						startModal.classList.remove('is-open');
+					}
+				});
+
+				document.addEventListener('keydown', function (e) {
+					if (e.key === 'Escape' && startModal.classList.contains('is-open')) {
+						startModal.classList.remove('is-open');
+					}
+				});
+
+				// Populate reference curve dropdown
+				(function () {
+					var sel = document.getElementById('start-curve-select');
+					if (!sel) return;
+					fetch('/api/reference-curves')
+						.then(function (r) { return r.json(); })
+						.then(function (curves) {
+							curves.forEach(function (c) {
+								var opt = document.createElement('option');
+								opt.value = c.id;
+								opt.textContent = c.name;
+								sel.appendChild(opt);
+							});
+						})
+						.catch(function () {});
+				})();
+
+				// ---------- Confirm Start Run ----------
+				enterBtn.addEventListener('click', async function () {
+					const runName = runNameInput.value.trim();
+					if (!runName) return;
+
+					enterBtn.disabled = true;
+					try {
+						const res = await fetch('/api/runs', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ name: runName })
+						});
+						const run = await res.json();
+
+						// Notify historian backend of new run
+						fetch('/start_run', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ name: runName })
+						}).catch(function (e) { console.warn('start_run POST failed:', e); });
+
+						const startCurveId = Number(document.getElementById('start-curve-select')?.value);
+						if (startCurveId) {
+							await fetch('/api/runs/' + run.id + '/target/from-curve/' + startCurveId, { method: 'POST' });
+						}
+
+						// Load curve from builder or CSV upload into targetTemperatures
+						if (window.readCurveBuilder && window.setTargetTemperatures) {
+							const built = window.readCurveBuilder();
+							if (built.length > 0) {
+								window.setTargetTemperatures(built);
+							}
+						}
 
 						startDataCollection();
 						if (window.startTemperatureReading) {
@@ -804,1389 +1068,700 @@
 							window.setRunStartTime();
 						}
 
-						startBtn.textContent = 'End Run';
-						startBtn.classList.add('end-run-btn-active');
-						startBtn.style.pointerEvents = 'auto';
-						startBtn.style.cursor = 'pointer';
-
-						startModal.style.display = 'none';
+						startModal.classList.remove('is-open');
 						runNameInput.value = '';
+						location.href = 'dashboard.html?run=' + run.id + '&mode=live';
+					} catch (err) {
+						alert('Failed to start run: ' + err.message);
+						enterBtn.disabled = false;
+					}
+				});
+
+				runNameInput.addEventListener('keydown', function (e) {
+					if (e.key === 'Enter') {
+						enterBtn.click();
+					}
+				});
+
+				// ---------- End Run modal ----------
+				if (endModal && closeEndBtn && cancelEndBtn && confirmEndBtn) {
+					closeEndBtn.addEventListener('click', function () {
+						endModal.classList.remove('is-open');
 					});
 
-					runNameInput.addEventListener('keydown', function (e) {
-						if (e.key === 'Enter') {
-							enterBtn.click();
+					cancelEndBtn.addEventListener('click', function () {
+						endModal.classList.remove('is-open');
+					});
+
+					endModal.addEventListener('click', function (e) {
+						if (e.target === endModal) {
+							endModal.classList.remove('is-open');
 						}
 					});
 
-					// ---------- End Run modal ----------
-					if (endModal && closeEndBtn && cancelEndBtn && confirmEndBtn) {
-						closeEndBtn.addEventListener('click', function () {
-							endModal.style.display = 'none';
-						});
+					confirmEndBtn.addEventListener('click', function () {
+						const currentRunName = localStorage.getItem('currentRunName') || 'UnknownRun';
 
-						cancelEndBtn.addEventListener('click', function () {
-							endModal.style.display = 'none';
-						});
+						// Notify historian backend to close run and write report
+						fetch('/end_run', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ notes: '' })
+						}).catch(function (e) { console.warn('end_run POST failed:', e); });
 
-						endModal.addEventListener('click', function (e) {
-							if (e.target === endModal) {
-								endModal.style.display = 'none';
-							}
-						});
+						stopDataCollectionAndExport(currentRunName);
 
-						confirmEndBtn.addEventListener('click', function () {
-							const currentRunName = localStorage.getItem('currentRunName') || 'UnknownRun';
+						if (window.stopTemperatureReading) {
+							window.stopTemperatureReading();
+						}
+						if (window.clearRunData) {
+							window.clearRunData();
+						}
 
-							stopDataCollectionAndExport(currentRunName);
+						localStorage.removeItem('currentNotes');
 
-							if (window.stopTemperatureReading) {
-								window.stopTemperatureReading();
-							}
-							if (window.clearRunData) {
-								window.clearRunData();
-							}
+						if (runNameDisplay) {
+							runNameDisplay.textContent = '';
+						}
 
-							localStorage.removeItem('currentNotes');
-
-							if (runNameDisplay) {
-								runNameDisplay.textContent = '';
-							}
-
-							localStorage.removeItem('currentRunName');
-							startBtn.textContent = 'Start Run';
-							startBtn.classList.remove('end-run-btn-active');
-							endModal.style.display = 'none';
-						});
-
-						document.addEventListener('keydown', function (e) {
-							if (e.key === 'Escape' && endModal.style.display === 'flex') {
-								endModal.style.display = 'none';
-							}
-						});
-					}
-				})();
-
-
-				// Notes localStorage functionality
-				(function () {
-					const notesInput = document.getElementById('notes-input');
-					if (!notesInput) return;
-
-					const savedNotes = localStorage.getItem('currentNotes');
-					if (savedNotes) {
-						notesInput.value = savedNotes;
-					}
-
-					let saveTimeout;
-					notesInput.addEventListener('input', function () {
-						clearTimeout(saveTimeout);
-						saveTimeout = setTimeout(function () {
-							localStorage.setItem('currentNotes', notesInput.value);
-						}, 500);
+						localStorage.removeItem('currentRunName');
+						startBtn.textContent = 'Start Run';
+						startBtn.classList.remove('end-run-btn-active');
+						endModal.classList.remove('is-open');
 					});
 
-					notesInput.addEventListener('blur', function () {
-						clearTimeout(saveTimeout);
+					document.addEventListener('keydown', function (e) {
+						if (e.key === 'Escape' && endModal.classList.contains('is-open')) {
+							endModal.classList.remove('is-open');
+						}
+					});
+				}
+			})();
+
+			// Notes localStorage functionality
+			(function () {
+				const notesInput = document.getElementById('notes-input');
+				if (!notesInput) return;
+
+				const savedNotes = localStorage.getItem('currentNotes');
+				if (savedNotes) {
+					notesInput.value = savedNotes;
+				}
+
+				let saveTimeout;
+				notesInput.addEventListener('input', function () {
+					clearTimeout(saveTimeout);
+					saveTimeout = setTimeout(function () {
 						localStorage.setItem('currentNotes', notesInput.value);
-					});
-				})();
+					}, 500);
+				});
 
-				/* FOR LATER Live temperature readings from CSV file
-				(function () {
-					const CSV_FILE_PATH = 'data/temperature_readings.csv';
-	
-					let currentTemperatures = {
-						temp1: '--', temp2: '--', temp3: '--',
-						temp4: '--', temp5: '--', temp6: '--'
-					};
-					let currentHumidity = null;
-					let temperatureReadingActive = false;
-	
-					function parseCSVData(csvText) {
-						const lines = csvText.trim().split('\n');
-						if (lines.length < 2) return null;
-	
-						const lastLine = lines[lines.length - 1];
-						const values = lastLine.split(',');
-	
-						// Expected: timestamp,temp1,...,temp6,humidity,...
-						if (values.length >= 8) {
-							const sample = {
-								timestamp: values[0],
-								temp1: parseFloat(values[1]),
-								temp2: parseFloat(values[2]),
-								temp3: parseFloat(values[3]),
-								temp4: parseFloat(values[4]),
-								temp5: parseFloat(values[5]),
-								temp6: parseFloat(values[6]),
-								humidity: parseFloat(values[7])
-							};
-							return sample;
+				notesInput.addEventListener('blur', function () {
+					clearTimeout(saveTimeout);
+					localStorage.setItem('currentNotes', notesInput.value);
+				});
+			})();
+
+			// Live temperature readings from sensor_latest.json
+			(function () {
+				let currentTemperatures = {
+					temp1: '--', temp2: '--', temp3: '--',
+					temp4: '--', temp5: '--', temp6: '--'
+				};
+
+				let currentDryBulb = {
+					temp1: null, temp2: null, temp3: null,
+					temp4: null, temp5: null, temp6: null
+				};
+
+				let currentFans = {
+					fan1: 0, fan2: 0, fan3: 0,
+					fan4: 0, fan5: 0, fan6: 0
+				};
+
+				let currentSetpoints = {
+					sp1: null, sp2: null, sp3: null,
+					sp4: null, sp5: null, sp6: null
+				};
+
+				let currentHumidity = null;
+				let temperatureReadingActive = false;
+				let fetchIntervalId = null;
+
+				function updateFanStatesFromDryBulb() {
+					const ideal = window.getIdealTemperature ? window.getIdealTemperature() : null;
+					const allowance = window.getDeviationAllowance ? window.getDeviationAllowance() : 5.0;
+					const hasThreshold = Number.isFinite(ideal) && Number.isFinite(allowance);
+
+					for (let i = 1; i <= 6; i++) {
+						const dryC = currentDryBulb[`temp${i}`];
+						if (typeof dryC !== 'number' || Number.isNaN(dryC)) {
+							currentFans[`fan${i}`] = 0;
+							continue;
 						}
-						return null;
-					}
-	
-					async function readCSVFile() {
-						if (!temperatureReadingActive) return;
-	
-						try {
-							const response = await fetch(CSV_FILE_PATH);
-							if (!response.ok) {
-								console.warn('Could not read CSV file:', response.statusText);
-								return;
-							}
-	
-							const csvText = await response.text();
-							const sample = parseCSVData(csvText);
-	
-							if (sample) {
-								currentTemperatures = {
-									temp1: sample.temp1.toFixed(1),
-									temp2: sample.temp2.toFixed(1),
-									temp3: sample.temp3.toFixed(1),
-									temp4: sample.temp4.toFixed(1),
-									temp5: sample.temp5.toFixed(1),
-									temp6: sample.temp6.toFixed(1)
-								};
-								currentHumidity = isNaN(sample.humidity) ? null : sample.humidity;
-	
-								updateTemperatureDisplay();
-	
-								// 🔴 NEW: push data point to charts, if chart code is loaded
-								if (window.pushSensorSample) {
-									window.pushSensorSample({
-										time: sample.timestamp ? new Date(sample.timestamp) : new Date(),
-										temps: { ...currentTemperatures },
-										humidity: currentHumidity
-									});
-								}
-							}
-						} catch (error) {
-							console.warn('Error reading CSV file:', error);
-							generateFallbackTemperatures();
+
+						if (hasThreshold) {
+							currentFans[`fan${i}`] = dryC > (ideal + allowance) ? 1 : 0;
+						} else {
+							currentFans[`fan${i}`] = 0;
 						}
 					}
-	
-					function generateFallbackTemperatures() {
-						if (!temperatureReadingActive) return;
-	
-						for (let i = 1; i <= 6; i++) {
-							const temp = (70 + Math.random() * 10).toFixed(1);
-							currentTemperatures[`temp${i}`] = temp;
-						}
-						currentHumidity = 60 + Math.random() * 20;
-	
-						updateTemperatureDisplay();
-	
-						if (window.pushSensorSample) {
-							window.pushSensorSample({
-								time: new Date(),
-								temps: { ...currentTemperatures },
-								humidity: currentHumidity
-							});
-						}
-					}
-	
-					function updateTemperatureDisplay() {
-						for (let i = 1; i <= 6; i++) {
-							const tempElement = document.getElementById(`temp-${i}`);
-							if (tempElement) {
-								tempElement.textContent = currentTemperatures[`temp${i}`] || '--';
-							}
-						}
-					}
-	
-					function startTemperatureReading() {
-						temperatureReadingActive = true;
-						readCSVFile();
-					}
-	
-					function stopTemperatureReading() {
-						temperatureReadingActive = false;
-						currentTemperatures = {
-							temp1: '--', temp2: '--', temp3: '--',
-							temp4: '--', temp5: '--', temp6: '--'
-						};
-						currentHumidity = null;
-						updateTemperatureDisplay();
-					}
-	
-					function getCurrentTemperatures() {
-						return currentTemperatures;
-					}
-	
-					window.getCurrentTemperatures = getCurrentTemperatures;
-					window.startTemperatureReading = startTemperatureReading;
-					window.stopTemperatureReading = stopTemperatureReading;
-	
-					const savedRunName = localStorage.getItem('currentRunName');
-					if (savedRunName) {
-						temperatureReadingActive = true;
-					}
-	
-					setInterval(readCSVFile, 5000);
-				})();
-				*/
+				}
 
-				// Simulated live temperature readings (dry-bulb 20–50 °C) + humidity + fans,
-				// but DISPLAY wet-bulb temperature based on humidity.
-				(function () {
-					// Latest displayed temperatures (wet-bulb °C)
-					let currentTemperatures = {
-						temp1: '--', temp2: '--', temp3: '--',
-						temp4: '--', temp5: '--', temp6: '--'
-					};
+				function updateTemperatureDisplay() {
+					for (let i = 1; i <= 6; i++) {
+						const dryEl = document.getElementById(`temp-${i}-dry`);
+						const wetEl = document.getElementById(`temp-${i}-wet`);
 
-					// Internal dry-bulb temps (°C)
-					let currentDryBulb = {
-						temp1: null, temp2: null, temp3: null,
-						temp4: null, temp5: null, temp6: null
-					};
+						if (dryEl) {
+							const dry = currentDryBulb[`temp${i}`];
+							dryEl.textContent =
+								(typeof dry === 'number' && !Number.isNaN(dry)) ? fmtTemp(dry) : '--';
 
-					// Latest fan states (1 = on, 0 = off)
-					let currentFans = {
-						fan1: 0, fan2: 0, fan3: 0,
-						fan4: 0, fan5: 0, fan6: 0
-					};
-
-					let currentHumidity = null;
-					let temperatureReadingActive = false;
-					let simIntervalId = null;
-
-					function updateFanStatesFromDryBulb() {
-						const ideal = window.getIdealTemperature ? window.getIdealTemperature() : null;
-						const allowance = window.getDeviationAllowance ? window.getDeviationAllowance() : 5.0;
-						const hasThreshold = Number.isFinite(ideal) && Number.isFinite(allowance);
-
-						for (let i = 1; i <= 6; i++) {
-							const dryC = currentDryBulb[`temp${i}`];
-							if (typeof dryC !== 'number' || Number.isNaN(dryC)) {
-								currentFans[`fan${i}`] = 0;
-								continue;
-							}
-
-							if (hasThreshold) {
-								currentFans[`fan${i}`] = dryC > (ideal + allowance) ? 1 : 0;
-							} else {
-								// Fallback behavior if no setpoint is configured yet.
-								currentFans[`fan${i}`] = 0;
-							}
-						}
-					}
-
-					function updateTemperatureDisplay() {
-						for (let i = 1; i <= 6; i++) {
-							const dryEl = document.getElementById(`temp-${i}-dry`);
-							const wetEl = document.getElementById(`temp-${i}-wet`);
-
-							if (dryEl) {
-								const dry = currentDryBulb[`temp${i}`];
-								dryEl.textContent =
-									(typeof dry === 'number' && !Number.isNaN(dry)) ? dry.toFixed(1) : '--';
-
-								const zoneButton = dryEl.closest('.zone-combined');
-								if (zoneButton) {
-									zoneButton.classList.remove(
-										'zone-temp-cold',
-										'zone-temp-ok',
-										'zone-temp-warm',
-										'zone-temp-hot'
-									);
-
-									if (typeof dry === 'number' && !Number.isNaN(dry)) {
-										if (dry >= 40) {
-											zoneButton.classList.add('zone-temp-hot');
-										}
+							const zoneButton = dryEl.closest('.zone-combined');
+							if (zoneButton) {
+								zoneButton.classList.remove(
+									'zone-temp-cold',
+									'zone-temp-ok',
+									'zone-temp-warm',
+									'zone-temp-hot'
+								);
+								if (typeof dry === 'number' && !Number.isNaN(dry)) {
+									const sp = currentSetpoints[`sp${i}`];
+									if (sp != null && Number.isFinite(sp)) {
+										const delta = dry - sp;
+										if (delta > 3)       zoneButton.classList.add('zone-temp-hot');
+										else if (delta > 1)  zoneButton.classList.add('zone-temp-warm');
+										else if (delta >= -2) zoneButton.classList.add('zone-temp-ok');
+										else                 zoneButton.classList.add('zone-temp-cold');
+									} else {
+										// No setpoint — fall back to absolute hot guard
+										if (dry >= 40) zoneButton.classList.add('zone-temp-hot');
 									}
 								}
 							}
+						}
 
-							if (wetEl) {
-								const wet = currentTemperatures[`temp${i}`];
-								wetEl.textContent = wet || '--';
-							}
+						if (wetEl) {
+							const wet = currentTemperatures[`temp${i}`];
+							wetEl.textContent = wet || '--';
 						}
 					}
+				}
 
-					// Approximate wet-bulb temperature (°C) from dry-bulb (°C) and RH (%)
-					// Using Stull (2011) empirical formula – good for 0–50 °C and 5–99% RH.
-					function computeWetBulbC(TdbC, RH) {
-						const R = Math.min(100, Math.max(1, RH)); // clamp 1–100
-						const T = TdbC;
+				function fmtTemp(v) {
+					return (Math.round(v / 0.2) * 0.2).toFixed(1);
+				}
 
-						const Tw =
-							T * Math.atan(0.151977 * Math.sqrt(R + 8.313659)) +
-							Math.atan(T + R) -
-							Math.atan(R - 1.676331) +
-							0.00391838 * Math.pow(R, 1.5) * Math.atan(0.023101 * R) -
-							4.686035;
-
-						return Tw;
+				// Newton-Raphson wet-bulb iteration
+				function computeWetBulbC(TdbC, RH) {
+					const T = TdbC;
+					const R = Math.min(100, Math.max(0.1, RH));
+					function es(t) { return 6.1078 * Math.exp(17.27 * t / (t + 237.3)); }
+					const ea  = es(T) * R / 100;
+					const P   = 1013.25;
+					const A   = 6.6e-4;
+					const lnr = Math.log(ea / 6.1078);
+					const Td  = 237.3 * lnr / (17.27 - lnr);
+					let wb    = (T + Td) / 2;
+					for (let i = 0; i < 12; i++) {
+						const esw = es(wb);
+						const f   = esw - A * P * (T - wb) - ea;
+						const df  = 17.27 * 237.3 / Math.pow(wb + 237.3, 2) * esw + A * P;
+						wb -= f / df;
+						if (Math.abs(f / df) < 1e-6) break;
 					}
+					return wb;
+				}
 
-					// Generate random sample:
-					//   dry-bulb: 20–50 °C
-					//   RH: 40–80 %
-					//   wet-bulb: computed from Tdb & RH
-					//   fans ON when dry-bulb > ideal + deviation allowance
-					function generateRandomSample() {
-						if (!temperatureReadingActive) return;
+				async function fetchSensorData() {
+					if (!temperatureReadingActive) return;
 
-						// One humidity value for this sample
-						currentHumidity = (40 + Math.random() * 40).toFixed(1); // 40–80 % RH
-						const RH = parseFloat(currentHumidity);
+					try {
+						const response = await fetch('sensor_latest.json?_=' + Date.now());
+						if (!response.ok) return;
+						const data = await response.json();
+
+						const RH = (data.sht30 && data.sht30.humidity_rh != null)
+							? parseFloat(data.sht30.humidity_rh) : null;
+						currentHumidity = (RH != null) ? RH.toFixed(1) : null;
 
 						for (let i = 1; i <= 6; i++) {
-							// Dry-bulb temperature for this zone
-							const dryC = 20 + Math.random() * 30; // 20–50 °C
+							const tcKey = `TC${i}`;
+							const dryC = (data.thermocouples && data.thermocouples[tcKey] != null)
+								? parseFloat(data.thermocouples[tcKey]) : null;
 							currentDryBulb[`temp${i}`] = dryC;
 
-							// Compute wet-bulb from dry-bulb + RH
-							const wetC = computeWetBulbC(dryC, RH);
-							currentTemperatures[`temp${i}`] = wetC.toFixed(1);
+							const zone = data.zones && data.zones[i];
+							currentSetpoints[`sp${i}`] = (zone && zone.setpoint_c != null)
+								? parseFloat(zone.setpoint_c) : null;
+
+							if (dryC != null && RH != null) {
+								const wetC = computeWetBulbC(dryC, RH);
+								currentTemperatures[`temp${i}`] = fmtTemp(wetC);
+							} else {
+								currentTemperatures[`temp${i}`] = '--';
+							}
+						}
+
+						// Alarm state handling
+						for (let i = 1; i <= 6; i++) {
+							const zone = data.zones && data.zones[i];
+							const card = document.querySelector(`.zone-combined[href="zone${i}.html"]`);
+							if (card) {
+								card.classList.remove('zone-combined--warn', 'zone-combined--crit');
+								if (zone && zone.alarm_level === 'critical') card.classList.add('zone-combined--crit');
+								else if (zone && zone.alarm_level === 'warning') card.classList.add('zone-combined--warn');
+							}
 						}
 
 						updateFanStatesFromDryBulb();
-
 						updateTemperatureDisplay();
-						if (window.applyDeviationColors) {
-							window.applyDeviationColors();
-						}
 
-						// Always publish latest sample for zone pages
-						try {
-							const latest = { timestamp: new Date().toISOString() };
-							for (let i = 1; i <= 6; i++) {
-								latest[`temp${i}`] = currentTemperatures[`temp${i}`];
-								latest[`fan${i}`] = currentFans[`fan${i}`];
-							}
-							latest.humidity = currentHumidity;
-							localStorage.setItem('sakeLatestSample', JSON.stringify(latest));
-							if (typeof BroadcastChannel !== 'undefined') {
-								const channel = window.__sakeBroadcast || (window.__sakeBroadcast = new BroadcastChannel('sake-sensor'));
-								channel.postMessage(latest);
-							}
-						} catch (e) {
-							// ignore storage errors
-						}
-
-						// Push to charts if chart logic is present
 						if (window.pushSensorSample) {
 							window.pushSensorSample({
-								time: new Date(),
-								// charts see wet-bulb temps
+								time: data.timestamp ? new Date(data.timestamp) : new Date(),
 								temps: { ...currentTemperatures },
 								humidity: currentHumidity,
 								fans: { ...currentFans },
-								// dry-bulb available if you ever want it
-								dryBulb: { ...currentDryBulb }
+								dryBulb: { ...currentDryBulb },
+								weight: data.weight_kg != null ? data.weight_kg : null
 							});
 						}
+					} catch (err) {
+						console.warn('Error fetching sensor_latest.json:', err);
 					}
+				}
 
-					function startTemperatureReading() {
-						if (temperatureReadingActive) return;
-						temperatureReadingActive = true;
+				function startTemperatureReading() {
+					if (temperatureReadingActive) return;
+					temperatureReadingActive = true;
+					fetchSensorData();
+					fetchIntervalId = setInterval(fetchSensorData, 5000);
+				}
 
-						// Immediate first sample
-						generateRandomSample();
-
-						// Then update every 5 seconds
-						simIntervalId = setInterval(generateRandomSample, 5000);
+				function stopTemperatureReading() {
+					temperatureReadingActive = false;
+					if (fetchIntervalId) {
+						clearInterval(fetchIntervalId);
+						fetchIntervalId = null;
 					}
+					currentTemperatures = { temp1: '--', temp2: '--', temp3: '--', temp4: '--', temp5: '--', temp6: '--' };
+					currentDryBulb = { temp1: null, temp2: null, temp3: null, temp4: null, temp5: null, temp6: null };
+					currentHumidity = null;
+					currentFans = { fan1: 0, fan2: 0, fan3: 0, fan4: 0, fan5: 0, fan6: 0 };
+					updateTemperatureDisplay();
+				}
 
-					function stopTemperatureReading() {
-						temperatureReadingActive = false;
-						if (simIntervalId) {
-							clearInterval(simIntervalId);
-							simIntervalId = null;
-						}
+				window.getCurrentTemperatures = function () { return currentTemperatures; };
+				window.getCurrentHumidity = function () { return currentHumidity; };
+				window.getCurrentFans = function () { return currentFans; };
+				window.startTemperatureReading = startTemperatureReading;
+				window.stopTemperatureReading = stopTemperatureReading;
 
-						currentTemperatures = {
-							temp1: '--', temp2: '--', temp3: '--',
-							temp4: '--', temp5: '--', temp6: '--'
-						};
-						currentDryBulb = {
-							temp1: null, temp2: null, temp3: null,
-							temp4: null, temp5: null, temp6: null
-						};
-						currentHumidity = null;
+				window.addEventListener('sake-ideal-temp-updated', function () {
+					if (!temperatureReadingActive) return;
+					updateFanStatesFromDryBulb();
+				});
 
-						currentFans = {
-							fan1: 0, fan2: 0, fan3: 0,
-							fan4: 0, fan5: 0, fan6: 0
-						};
+				window.addEventListener("load", startTemperatureReading);
+			})();
 
-						updateTemperatureDisplay();
-					}
+			// Charts implementation
+			(function () {
+				const tempCanvas = document.getElementById('temp-chart');
+				const humCanvas = document.getElementById('humidity-chart');
+				const fansCanvas = document.getElementById('fans-chart');
+				const weightCanvas = document.getElementById('weight-chart');
 
-					function getCurrentTemperatures() {
-						return currentTemperatures; // wet-bulb
-					}
+				if (!tempCanvas || !humCanvas || !fansCanvas || !weightCanvas || !window.Chart) return;
 
-					function getCurrentFans() {
-						return currentFans;
-					}
+				const ZONE_COLORS = ['#e05252','#52a0e0','#52c08a','#e0a052','#a052e0','#52d8e0'];
 
-					// Expose globally for other code
-					window.getCurrentTemperatures = getCurrentTemperatures;
-					window.getCurrentFans = getCurrentFans;
-					window.startTemperatureReading = startTemperatureReading;
-					window.stopTemperatureReading = stopTemperatureReading;
+				const maxPoints = 60;
+				const labels = [];
+				const humidityData = [];
+				const tempLegendContainer = document.getElementById('temp-chart-legend');
+				const fansLegendContainer = document.getElementById('fans-chart-legend');
 
-					window.addEventListener('sake-ideal-temp-updated', function () {
-						if (!temperatureReadingActive) return;
-						updateFanStatesFromDryBulb();
-					});
+				const tempSeries = { temp1: [], temp2: [], temp3: [], temp4: [], temp5: [], temp6: [] };
+				const fansSeries = { fan1: [], fan2: [], fan3: [], fan4: [], fan5: [], fan6: [] };
+				const weightData = [];
 
-					// Auto-start simulator on page load
-					window.addEventListener("load", startTemperatureReading);
+				const tempChart = new Chart(tempCanvas.getContext('2d'), {
+					type: 'line',
+					data: {
+						labels,
+						datasets: [1,2,3,4,5,6].map(i => ({
+							label: `Zone ${i}`, data: tempSeries[`temp${i}`], borderWidth: 1.5, pointRadius: 0,
+							borderColor: ZONE_COLORS[i-1], backgroundColor: ZONE_COLORS[i-1].replace(')', ',0.08)').replace('rgb', 'rgba')
+						}))
+					},
+					options: { animation: false, responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: 'Temp (°C)' } } }, plugins: { legend: { display: false } } }
+				});
 
+				const humChart = new Chart(humCanvas.getContext('2d'), {
+					type: 'line',
+					data: { labels, datasets: [{ label: 'Humidity', data: humidityData, borderWidth: 1, pointRadius: 0, borderColor: '#52a0e0' }] },
+					options: { animation: false, responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: 'Humidity (%)' } } }, plugins: { legend: { display: false } } }
+				});
 
-					// If you ever want it to auto-start on page load, you can call:
-					// startTemperatureReading();
-				})();
+				const fansChart = new Chart(fansCanvas.getContext('2d'), {
+					type: 'line',
+					data: {
+						labels,
+						datasets: [1,2,3,4,5,6].map(i => ({
+							label: `Zone ${i}`, data: fansSeries[`fan${i}`], borderWidth: 1.5, pointRadius: 0, stepped: true,
+							borderColor: ZONE_COLORS[i-1], backgroundColor: ZONE_COLORS[i-1].replace(')', ',0.08)').replace('rgb', 'rgba')
+						}))
+					},
+					options: { animation: false, responsive: true, maintainAspectRatio: false, scales: { y: { min: -0.1, max: 1.1, ticks: { stepSize: 1, callback: v => (v === 0 ? 'Off' : v === 1 ? 'On' : '') } } }, plugins: { legend: { display: false } } }
+				});
 
-				// Duplicate legacy simulator removed — using the wet-bulb simulator defined earlier.
-				// The active simulator above exposes startTemperatureReading/stopTemperatureReading/getCurrentTemperatures
-				// and will call startTemperatureReading() if you want readings to begin automatically.
+				const weightChart = new Chart(weightCanvas.getContext('2d'), {
+					type: 'line',
+					data: { labels, datasets: [{ label: 'Weight', data: weightData, borderWidth: 2, pointRadius: 3, borderColor: '#52a0e0' }] },
+					options: { animation: false, responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: 'Weight (kg)' } } }, plugins: { legend: { display: false } } }
+				});
 
-				// Live-updating charts for temperature, humidity, and fans + modal with scroll/zoom
-				(function () {
-					const tempCanvas = document.getElementById('temp-chart');
-					const humCanvas = document.getElementById('humidity-chart');
-					const fansCanvas = document.getElementById('fans-chart');
-					const weightCanvas = document.getElementById('weight-chart');
-
-					if (!tempCanvas || !humCanvas || !fansCanvas || !weightCanvas || !window.Chart) return;
-
-					const tempCtx = tempCanvas.getContext('2d');
-					const humCtx = humCanvas.getContext('2d');
-					const fansCtx = fansCanvas.getContext('2d');
-					const weightCtx = weightCanvas.getContext('2d');
-
-					const maxPoints = 60; // keep last 60 samples (~5 min if 5s interval)
-					const labels = [];
-					const humidityData = [];
-					const tempLegendContainer = document.getElementById('temp-chart-legend');
-					const fansLegendContainer = document.getElementById('fans-chart-legend');
-
-					const tempSeries = {
-						temp1: [],
-						temp2: [],
-						temp3: [],
-						temp4: [],
-						temp5: [],
-						temp6: []
-					};
-
-					const fansSeries = {
-						fan1: [],
-						fan2: [],
-						fan3: [],
-						fan4: [],
-						fan5: [],
-						fan6: []
-					};
-
-					const weightData = [];
-
-					// Small dashboard charts
-					const tempChart = new Chart(tempCtx, {
-						type: 'line',
-						data: {
-							labels,
-							datasets: [
-								{ label: 'Temp 1', data: tempSeries.temp1, borderWidth: 1, pointRadius: 0 },
-								{ label: 'Temp 2', data: tempSeries.temp2, borderWidth: 1, pointRadius: 0 },
-								{ label: 'Temp 3', data: tempSeries.temp3, borderWidth: 1, pointRadius: 0 },
-								{ label: 'Temp 4', data: tempSeries.temp4, borderWidth: 1, pointRadius: 0 },
-								{ label: 'Temp 5', data: tempSeries.temp5, borderWidth: 1, pointRadius: 0 },
-								{ label: 'Temp 6', data: tempSeries.temp6, borderWidth: 1, pointRadius: 0 }
-							]
-						},
-						options: {
-							animation: false,
-							responsive: true,
-							maintainAspectRatio: false,
-							scales: {
-								x: {
-									ticks: { autoSkip: true, maxTicksLimit: 6 }
-								},
-								y: {
-									title: { display: true, text: 'Temperature (°C)' }
-								}
-							},
-							plugins: {
-								legend: { display: false }
-							}
-						}
-					});
-
-					function renderTempLegend() {
-						if (!tempLegendContainer) return;
-						tempLegendContainer.innerHTML = '';
-
-						tempChart.data.datasets.forEach((_, index) => {
-							tempChart.setDatasetVisibility(index, true);
+				function buildLegend(container, chart) {
+					if (!container) return;
+					container.innerHTML = '';
+					chart.data.datasets.forEach(function (ds, idx) {
+						const item = document.createElement('button');
+						item.type = 'button';
+						item.className = 'legend-item';
+						item.dataset.index = idx;
+						const dot = document.createElement('span');
+						dot.className = 'legend-dot';
+						dot.style.background = ds.borderColor || '#888';
+						item.appendChild(dot);
+						item.appendChild(document.createTextNode(ds.label));
+						item.addEventListener('click', function () {
+							const meta = chart.getDatasetMeta(idx);
+							meta.hidden = !meta.hidden;
+							item.classList.toggle('legend-item--hidden', meta.hidden);
+							chart.update('none');
 						});
-
-						tempChart.data.datasets.forEach((dataset, index) => {
-							const item = document.createElement('button');
-							item.type = 'button';
-							item.className = 'temp-chart-legend__item';
-
-							const swatch = document.createElement('span');
-							swatch.className = 'temp-chart-legend__swatch';
-							swatch.style.backgroundColor = dataset.borderColor || '#555';
-
-							const label = document.createElement('span');
-							label.textContent = dataset.label;
-
-							item.appendChild(swatch);
-							item.appendChild(label);
-
-							item.addEventListener('click', function () {
-								const currentlyVisible = tempChart.isDatasetVisible(index);
-								tempChart.setDatasetVisibility(index, !currentlyVisible);
-								item.classList.toggle('is-hidden', currentlyVisible);
-								tempChart.update('none');
-							});
-
-							tempLegendContainer.appendChild(item);
-						});
-					}
-
-					renderTempLegend();
-
-					const humChart = new Chart(humCtx, {
-						type: 'line',
-						data: {
-							labels,
-							datasets: [
-								{ label: 'Humidity', data: humidityData, borderWidth: 1, pointRadius: 0 }
-							]
-						},
-						options: {
-							animation: false,
-							responsive: true,
-							maintainAspectRatio: false,
-							scales: {
-								x: {
-									ticks: { autoSkip: true, maxTicksLimit: 6 }
-								},
-								y: {
-									title: { display: true, text: 'Humidity (%)' }
-								}
-							},
-							plugins: {
-								legend: { display: false }
-							}
-						}
+						container.appendChild(item);
 					});
+				}
 
-					const fansChart = new Chart(fansCtx, {
-						type: 'line',
-						data: {
-							labels,
-							datasets: [
-								{ label: 'Fan 1', data: fansSeries.fan1, borderWidth: 1, pointRadius: 0, stepped: true },
-								{ label: 'Fan 2', data: fansSeries.fan2, borderWidth: 1, pointRadius: 0, stepped: true },
-								{ label: 'Fan 3', data: fansSeries.fan3, borderWidth: 1, pointRadius: 0, stepped: true },
-								{ label: 'Fan 4', data: fansSeries.fan4, borderWidth: 1, pointRadius: 0, stepped: true },
-								{ label: 'Fan 5', data: fansSeries.fan5, borderWidth: 1, pointRadius: 0, stepped: true },
-								{ label: 'Fan 6', data: fansSeries.fan6, borderWidth: 1, pointRadius: 0, stepped: true }
-							]
-						},
-						options: {
-							animation: false,
-							responsive: true,
-							maintainAspectRatio: false,
-							scales: {
-								x: {
-									ticks: { autoSkip: true, maxTicksLimit: 6 }
-								},
-								y: {
-									min: -0.1,
-									max: 1.1,
-									ticks: {
-										stepSize: 1,
-										callback: v => (v === 0 ? 'Off' : v === 1 ? 'On' : '')
-									},
-									title: { display: true, text: 'Fan state' }
-								}
-							},
-							plugins: {
-								legend: { display: false }
-							}
-						}
-					});
+				buildLegend(tempLegendContainer, tempChart);
+				buildLegend(fansLegendContainer, fansChart);
 
-					function renderFansLegend() {
-						if (!fansLegendContainer) return;
-						fansLegendContainer.innerHTML = '';
+				window.pushSensorSample = function (sample) {
+					const t = new Date(sample.time);
+					const label = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+					labels.push(label);
 
-						fansChart.data.datasets.forEach((_, index) => {
-							fansChart.setDatasetVisibility(index, true);
-						});
-
-						fansChart.data.datasets.forEach((dataset, index) => {
-							const item = document.createElement('button');
-							item.type = 'button';
-							item.className = 'temp-chart-legend__item';
-
-							const swatch = document.createElement('span');
-							swatch.className = 'temp-chart-legend__swatch';
-							swatch.style.backgroundColor = dataset.borderColor || '#555';
-
-							const label = document.createElement('span');
-							label.textContent = dataset.label;
-
-							item.appendChild(swatch);
-							item.appendChild(label);
-
-							item.addEventListener('click', function () {
-								const currentlyVisible = fansChart.isDatasetVisible(index);
-								fansChart.setDatasetVisibility(index, !currentlyVisible);
-								item.classList.toggle('is-hidden', currentlyVisible);
-								fansChart.update('none');
-							});
-
-							fansLegendContainer.appendChild(item);
-						});
-					}
-
-					renderFansLegend();
-
-					const weightChart = new Chart(weightCtx, {
-						type: 'line',
-						data: {
-							labels,
-							datasets: [
-								{ label: 'Weight', data: weightData, borderWidth: 2, pointRadius: 3, borderColor: 'rgb(75, 192, 192)', backgroundColor: 'rgba(75, 192, 192, 0.2)' }
-							]
-						},
-						options: {
-							animation: false,
-							responsive: true,
-							maintainAspectRatio: false,
-							scales: {
-								x: {
-									ticks: { autoSkip: true, maxTicksLimit: 6 }
-								},
-								y: {
-									title: { display: true, text: 'Weight (kg)' }
-								}
-							},
-							plugins: {
-								legend: { display: false }
-							}
-						}
-					});
-
-					// This gets called from the simulator
-					window.pushSensorSample = function (sample) {
-						const t = sample.time instanceof Date ? sample.time : new Date(sample.time);
-						const label = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-						labels.push(label);
-
-						// temps
-						for (let i = 1; i <= 6; i++) {
-							const key = `temp${i}`;
-							const val = parseFloat(sample.temps[key]);
-							tempSeries[key].push(isNaN(val) ? null : val);
-						}
-
-						// humidity
-						const humVal = parseFloat(sample.humidity);
-						humidityData.push(isNaN(humVal) ? null : humVal);
-
-						// fans (optional)
+					for (let i = 1; i <= 6; i++) {
+						const val = parseFloat(sample.temps[`temp${i}`]);
+						tempSeries[`temp${i}`].push(isNaN(val) ? null : val);
 						if (sample.fans) {
-							for (let i = 1; i <= 6; i++) {
-								const key = `fan${i}`;
-								const v = parseFloat(sample.fans[key]);
-								fansSeries[key].push(isNaN(v) ? null : v);
-							}
-						} else {
-							Object.values(fansSeries).forEach(arr => arr.push(null));
-						}
+							const f = parseFloat(sample.fans[`fan${i}`]);
+							fansSeries[`fan${i}`].push(isNaN(f) ? null : f);
+						} else fansSeries[`fan${i}`].push(null);
+					}
 
-						// weight (generate sample data point)
-						const weightVal = 10 + Math.random() * 5; // Sample weight between 10-15 kg
-						weightData.push(weightVal);
+					const hv = parseFloat(sample.humidity);
+					humidityData.push(isNaN(hv) ? null : hv);
+					const wv = (sample.weight != null) ? parseFloat(sample.weight) : null;
+					weightData.push((wv != null && !isNaN(wv)) ? wv : null);
 
-						// keep arrays bounded
-						if (labels.length > maxPoints) {
-							labels.shift();
-							Object.values(tempSeries).forEach(arr => arr.shift());
-							humidityData.shift();
-							Object.values(fansSeries).forEach(arr => arr.shift());
-							weightData.shift();
-						}
+					if (labels.length > maxPoints) {
+						labels.shift(); humidityData.shift(); weightData.shift();
+						for (let i = 1; i <= 6; i++) { tempSeries[`temp${i}`].shift(); fansSeries[`fan${i}`].shift(); }
+					}
 
-						tempChart.update('none');
-						humChart.update('none');
-						fansChart.update('none');
-						weightChart.update('none');
+					tempChart.update('none'); humChart.update('none'); fansChart.update('none'); weightChart.update('none');
+				};
+			})();
 
-						// Share latest sample for zone pages (live updates)
-						try {
-							const latest = {
-								timestamp: t.toISOString()
-							};
-							for (let i = 1; i <= 6; i++) {
-								const tempKey = `temp${i}`;
-								latest[tempKey] = sample.temps ? sample.temps[tempKey] : null;
-								const fanKey = `fan${i}`;
-								latest[fanKey] = sample.fans ? sample.fans[fanKey] : null;
-							}
-							latest.humidity = sample.humidity ?? null;
-							localStorage.setItem('sakeLatestSample', JSON.stringify(latest));
-						} catch (e) {
-							// ignore storage errors
-						}
+			// Curve builder logic
+			(function () {
+				const btnBuilder = document.getElementById('btn-show-builder');
+				const btnUpload  = document.getElementById('btn-show-upload');
+				const panelBuilder = document.getElementById('panel-builder');
+				const panelUpload  = document.getElementById('panel-upload');
+				const tbody = document.getElementById('curve-tbody');
+				const addRowBtn   = document.getElementById('add-row-btn');
+				const clearBtn    = document.getElementById('clear-table-btn');
 
-						// If modal is open, update its data window too
-						if (chartModal && chartModal.style.display === 'flex') {
-							updateModalWindowFromSlider(); // keeps it in sync with new data
-						}
-					};
+				if (!btnBuilder || !tbody) return;
 
-					// ---------- Full-page chart modal + controls ----------
-					const chartModal = document.getElementById('chart-modal');
-					const chartModalClose = document.getElementById('chart-modal-close');
-					const chartModalTitle = document.getElementById('chart-modal-title');
-					const chartModalCanvas = document.getElementById('chart-modal-canvas');
+				function showPanel(which) {
+					panelBuilder.style.display = which === 'builder' ? '' : 'none';
+					panelUpload.style.display  = which === 'upload'  ? '' : 'none';
+					btnBuilder.classList.toggle('curve-toggle-btn--active', which === 'builder');
+					btnUpload.classList.toggle('curve-toggle-btn--active',  which === 'upload');
+				}
+				btnBuilder.addEventListener('click', () => showPanel('builder'));
+				btnUpload.addEventListener('click',  () => showPanel('upload'));
 
-					const windowSlider = document.getElementById('chart-window-range');
-					const ySlider = document.getElementById('chart-y-range');
+				function makeRow() {
+					const tr = document.createElement('tr');
+					const cols = ['row-time','row-z1','row-z2','row-z3','row-z4','row-z5','row-z6'];
+					cols.forEach((cls, i) => {
+						const td = document.createElement('td');
+						const inp = document.createElement('input');
+						inp.type = 'number'; inp.step = i === 0 ? '1' : '0.2'; inp.min = '0';
+						if (i > 0) inp.max = '60'; inp.className = 'curve-cell ' + cls;
+						inp.placeholder = i === 0 ? '0' : '38.0'; td.appendChild(inp); tr.appendChild(td);
+					});
+					return tr;
+				}
 
-					let modalChart = null;
-					let modalChartType = null;   // 'temp' | 'humidity' | 'fans'
-					let windowSize = 20;         // number of points visible in the modal
+				addRowBtn.addEventListener('click', () => { tbody.appendChild(makeRow()); });
+				clearBtn.addEventListener('click', () => { tbody.innerHTML = ''; tbody.appendChild(makeRow()); });
 
-					let yBaseMin = null;
-					let yBaseMax = null;
-
-					function computeYRange(type) {
-						let vals = [];
-						if (type === 'temp') {
-							Object.values(tempSeries).forEach(arr => {
-								vals = vals.concat(arr.filter(v => v != null));
+				window.readCurveBuilder = function () {
+					const result = [];
+					tbody.querySelectorAll('tr').forEach(tr => {
+						const time = parseFloat(tr.querySelector('.row-time').value);
+						if (!isNaN(time)) {
+							const row = { time_minutes: time };
+							[1,2,3,4,5,6].forEach(i => {
+								const v = parseFloat(tr.querySelector(`.row-z${i}`).value);
+								row[`temp${i}`] = isNaN(v) ? null : v;
 							});
-						} else if (type === 'humidity') {
-							vals = humidityData.filter(v => v != null);
-						} else if (type === 'fans') {
-							// fans are 0–1
-							return { min: -0.1, max: 1.1 };
-						}
-
-						if (!vals.length) {
-							return { min: 0, max: 1 };
-						}
-						const min = Math.min(...vals);
-						const max = Math.max(...vals);
-						const pad = (max - min) * 0.1 || 1;
-						return { min: min - pad, max: max + pad };
-					}
-
-					function getSlicedData(type, start) {
-						const total = labels.length;
-						const s = Math.max(0, Math.min(start, Math.max(0, total - 1)));
-						const e = Math.min(s + windowSize, total);
-
-						const labelSlice = labels.slice(s, e);
-						let datasets;
-
-						if (type === 'temp') {
-							datasets = Object.keys(tempSeries).map((key, idx) => ({
-								label: tempChart.data.datasets[idx].label,
-								borderWidth: 1,
-								pointRadius: 0,
-								data: tempSeries[key].slice(s, e)
-							}));
-						} else if (type === 'humidity') {
-							datasets = [{
-								label: 'Humidity',
-								borderWidth: 1,
-								pointRadius: 0,
-								data: humidityData.slice(s, e)
-							}];
-						} else if (type === 'fans') {
-							datasets = Object.keys(fansSeries).map((key, idx) => ({
-								label: fansChart.data.datasets[idx].label,
-								borderWidth: 1,
-								pointRadius: 0,
-								stepped: true,
-								data: fansSeries[key].slice(s, e)
-							}));
-						} else {
-							datasets = [];
-						}
-
-						return { labels: labelSlice, datasets };
-					}
-
-					function openChartModal(type) {
-						if (!chartModal || !chartModalCanvas) return;
-
-						modalChartType = type;
-
-						// Destroy any previous modal chart
-						if (modalChart) {
-							modalChart.destroy();
-							modalChart = null;
-						}
-
-						const ctx = chartModalCanvas.getContext('2d');
-
-						// Initial window: last windowSize points (or all if fewer)
-						const total = labels.length;
-						const maxStart = Math.max(0, total - windowSize);
-						const startIndex = Math.max(0, maxStart);
-
-						// Setup X slider
-						if (windowSlider) {
-							if (total <= windowSize) {
-								windowSlider.disabled = true;
-								windowSlider.min = '0';
-								windowSlider.max = '0';
-								windowSlider.value = '0';
-							} else {
-								windowSlider.disabled = false;
-								windowSlider.min = '0';
-								windowSlider.max = String(maxStart);
-								windowSlider.value = String(startIndex); // start pinned to the tail
-							}
-						}
-
-						// Setup Y range & slider
-						const { min, max } = computeYRange(type);
-						yBaseMin = min;
-						yBaseMax = max;
-						if (ySlider) {
-							ySlider.disabled = (type === 'fans'); // fans are fixed 0–1
-							ySlider.value = '0'; // no zoom initially
-						}
-
-						const sliced = getSlicedData(type, startIndex);
-
-						let yTitle = '';
-						if (type === 'temp') {
-							chartModalTitle.textContent = 'Temperature over time';
-							yTitle = 'Temperature (°C)';
-						} else if (type === 'humidity') {
-							chartModalTitle.textContent = 'Humidity over time';
-							yTitle = 'Humidity (%)';
-						} else if (type === 'fans') {
-							chartModalTitle.textContent = 'Fans on/off over time';
-							yTitle = 'Fan state';
-						}
-
-						modalChart = new Chart(ctx, {
-							type: 'line',
-							data: {
-								labels: sliced.labels,
-								datasets: sliced.datasets
-							},
-							options: {
-								animation: false,
-								responsive: true,
-								maintainAspectRatio: false,
-								scales: {
-									x: {
-										ticks: { autoSkip: true, maxTicksLimit: 10 }
-									},
-									y: {
-										min: (type === 'fans') ? -0.1 : yBaseMin,
-										max: (type === 'fans') ? 1.1 : yBaseMax,
-										ticks: type === 'fans'
-											? {
-												stepSize: 1,
-												callback: v => (v === 0 ? 'Off' : v === 1 ? 'On' : '')
-											}
-											: {},
-										title: { display: true, text: yTitle }
-									}
-								},
-								plugins: {
-									legend: { position: 'bottom' }
-								}
-							}
-						});
-
-						chartModal.style.display = 'flex';
-					}
-
-					function closeChartModal() {
-						if (modalChart) {
-							modalChart.destroy();
-							modalChart = null;
-						}
-						if (chartModal) {
-							chartModal.style.display = 'none';
-						}
-					}
-
-					function updateModalWindowFromSlider() {
-						if (!modalChart || !modalChartType || !windowSlider) return;
-
-						const start = parseInt(windowSlider.value || '0', 10) || 0;
-						const sliced = getSlicedData(modalChartType, start);
-						modalChart.data.labels = sliced.labels;
-						modalChart.data.datasets.forEach((ds, i) => {
-							ds.data = sliced.datasets[i].data;
-						});
-						modalChart.update('none');
-					}
-
-					function updateModalYZoomFromSlider() {
-						if (!modalChart || !modalChartType || !ySlider) return;
-						if (modalChartType === 'fans') {
-							// fans have fixed 0–1 range
-							return;
-						}
-
-						const v = parseInt(ySlider.value || '0', 10) || 0; // 0–100
-						const span = yBaseMax - yBaseMin;
-						if (!span || span <= 0) return;
-
-						// zoomFactor: 1x to 4x
-						const zoomFactor = 1 + (v / 100) * 3;
-						const mid = (yBaseMax + yBaseMin) / 2;
-						const halfSpan = span / (2 * zoomFactor);
-
-						modalChart.options.scales.y.min = mid - halfSpan;
-						modalChart.options.scales.y.max = mid + halfSpan;
-						modalChart.update('none');
-					}
-
-					// Slider event hooks
-					if (windowSlider) {
-						windowSlider.addEventListener('input', updateModalWindowFromSlider);
-					}
-					if (ySlider) {
-						ySlider.addEventListener('input', updateModalYZoomFromSlider);
-					}
-
-					// Click small charts to expand
-					tempCanvas.addEventListener('click', function () {
-						openChartModal('temp');
-					});
-
-					humCanvas.addEventListener('click', function () {
-						openChartModal('humidity');
-					});
-
-					fansCanvas.addEventListener('click', function () {
-						openChartModal('fans');
-					});
-
-					if (chartModalClose) {
-						chartModalClose.addEventListener('click', closeChartModal);
-					}
-
-					if (chartModal) {
-						chartModal.addEventListener('click', function (e) {
-							if (e.target === chartModal) {
-								closeChartModal();
-							}
-						});
-					}
-
-					document.addEventListener('keydown', function (e) {
-						if (e.key === 'Escape' && chartModal && chartModal.style.display === 'flex') {
-							closeChartModal();
+							result.push(row);
 						}
 					});
-				})();
+					return result.sort((a,b) => a.time_minutes - b.time_minutes);
+				};
+			})();
 
+			// ── Zone detail modal ───────────────────────────────────────────────
+			(function () {
+				'use strict';
+				const card = document.getElementById('zone-detail-card');
+				if (!card) return;
 
-				// Target temperature CSV upload and deviation detection
-				(function () {
-					const IDEAL_TEMP_KEY = 'sakeIdealTempC';
-					const DEVIATION_ALLOWANCE_KEY = 'sakeDeviationAllowanceC';
-					let targetTemperatures = [];
-					let runStartTime = null;
+				const titleEl        = document.getElementById('zdc-title');
+				const tempEl         = document.getElementById('zdc-temp');
+				const closeBtn       = document.getElementById('zdc-close');
+				const tempCanvas     = document.getElementById('zdc-temp-chart');
+				const fanCanvas      = document.getElementById('zdc-fan-chart');
+				const setpointInput  = document.getElementById('zdc-setpoint');
+				const toleranceInput = document.getElementById('zdc-tolerance');
+				const setpointApply  = document.getElementById('zdc-setpoint-apply');
+				const toleranceApply = document.getElementById('zdc-tolerance-apply');
+				const modeAutoBtn    = document.getElementById('zdc-mode-auto');
+				const modeManualBtn  = document.getElementById('zdc-mode-manual');
+				const manualControls = document.getElementById('zdc-manual-controls');
+				const fanOnBtn       = document.getElementById('zdc-fan-on-btn');
+				const fanOffBtn      = document.getElementById('zdc-fan-off-btn');
+				const relayDot       = document.getElementById('zdc-relay-dot');
+				const relayLabel     = document.getElementById('zdc-relay-label');
+				const triggerVal     = document.getElementById('zdc-trigger-val');
+				const thrWarnHigh    = document.getElementById('zdc-thr-warn-high');
+				const thrCritHigh    = document.getElementById('zdc-thr-crit-high');
+				const thrWarnLow     = document.getElementById('zdc-thr-warn-low');
+				const thrCritLow     = document.getElementById('zdc-thr-crit-low');
+				const thrApply       = document.getElementById('zdc-thresholds-apply');
 
-					function getDeviationAllowance() {
-						const stored = parseFloat(localStorage.getItem(DEVIATION_ALLOWANCE_KEY) || '');
-						return Number.isFinite(stored) ? stored : 5.0;
+				let zdcTempChart = null;
+				let zdcFanChart  = null;
+				let activeZone   = null;
+				let zdcPollTimer = null;
+				const MAX_PTS    = 120;
+
+				function calcWetBulbLocal(T, RH) {
+					if (T == null || RH == null || isNaN(T) || isNaN(RH) || RH <= 0 || RH > 100) return null;
+					function es(t) { return 6.1078 * Math.exp(17.27 * t / (t + 237.3)); }
+					var ea = es(T) * RH / 100, P = 1013.25, A = 6.6e-4;
+					var lnr = Math.log(ea / 6.1078);
+					var Td = 237.3 * lnr / (17.27 - lnr), wb = (T + Td) / 2;
+					for (var i = 0; i < 12; i++) {
+						var esw = es(wb), f = esw - A * P * (T - wb) - ea;
+						var df = 17.27 * 237.3 / Math.pow(wb + 237.3, 2) * esw + A * P;
+						wb -= f / df;
+						if (Math.abs(f / df) < 1e-6) break;
 					}
+					return Math.round(wb * 2) / 2;
+				}
 
-					function parseTargetCSV(csvText) {
-						const lines = csvText.trim().split('\n');
-						if (lines.length < 2) return [];
+				function buildChartOpts(extraY) {
+					var yOpts = Object.assign({ ticks: { color: '#888', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.07)' } }, extraY || {});
+					return { animation: false, responsive: true, maintainAspectRatio: false,
+						scales: { x: { display: false }, y: yOpts },
+						plugins: { legend: { display: false }, tooltip: { enabled: false } } };
+				}
 
-						const targets = [];
-						for (let i = 1; i < lines.length; i++) {
-							const values = lines[i].split(',');
-							if (values.length >= 7) {
-								targets.push({
-									time: parseFloat(values[0]),
-									temp1: parseFloat(values[1]),
-									temp2: parseFloat(values[2]),
-									temp3: parseFloat(values[3]),
-									temp4: parseFloat(values[4]),
-									temp5: parseFloat(values[5]),
-									temp6: parseFloat(values[6])
-								});
+				function openCard(zone) {
+					if (activeZone === zone) { closeCard(); return; }
+					activeZone = zone;
+					titleEl.textContent = 'Zone ' + zone;
+					var dryEl = document.getElementById('temp-' + zone + '-dry');
+					if (tempEl) tempEl.textContent = dryEl ? dryEl.textContent : '--';
+
+					loadZoneControls(zone);
+
+					if (zdcTempChart) { zdcTempChart.destroy(); zdcTempChart = null; }
+					if (zdcFanChart)  { zdcFanChart.destroy();  zdcFanChart  = null; }
+
+					var colors = ['#e05252','#52a0e0','#52e07c','#e0c952','#c052e0','#e09052'];
+					var color = colors[zone - 1];
+
+					zdcTempChart = new Chart(tempCanvas.getContext('2d'), {
+						type: 'line',
+						data: { labels: [], datasets: [{ data: [], borderColor: color, backgroundColor: color + '22', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: true }] },
+						options: buildChartOpts()
+					});
+					zdcFanChart = new Chart(fanCanvas.getContext('2d'), {
+						type: 'line',
+						data: { labels: [], datasets: [{ data: [], borderColor: '#52a0e0', backgroundColor: 'rgba(82,160,224,0.10)', borderWidth: 1.5, pointRadius: 0, stepped: true, fill: true }] },
+						options: buildChartOpts({ min: 0, max: 1 })
+					});
+
+					document.querySelectorAll('.zone-combined').forEach(function (el) { el.classList.remove('zone-combined--active'); });
+					var activeLink = document.querySelector('.zone-combined[href="zone' + zone + '.html"]');
+					if (activeLink) activeLink.classList.add('zone-combined--active');
+
+					card.classList.add('is-open');
+
+					if (zdcPollTimer) clearInterval(zdcPollTimer);
+					zdcPollTimer = setInterval(function () { loadZoneControls(activeZone); }, 5000);
+				}
+
+				function closeCard() {
+					card.classList.remove('is-open');
+					if (zdcPollTimer) { clearInterval(zdcPollTimer); zdcPollTimer = null; }
+					if (zdcTempChart) { zdcTempChart.destroy(); zdcTempChart = null; }
+					if (zdcFanChart)  { zdcFanChart.destroy();  zdcFanChart  = null; }
+					document.querySelectorAll('.zone-combined').forEach(function (el) { el.classList.remove('zone-combined--active'); });
+					activeZone = null;
+				}
+
+				function loadZoneControls(zone) {
+					fetch('/sensor_latest.json')
+						.then(function (r) { return r.json(); })
+						.then(function (data) {
+							var zd = data.zones && data.zones[zone] ? data.zones[zone] : {};
+							if (setpointInput  && zd.setpoint_c  != null) setpointInput.value  = zd.setpoint_c;
+							if (toleranceInput && zd.tolerance_c != null) toleranceInput.value = zd.tolerance_c;
+							if (triggerVal     && zd.trigger_c   != null) triggerVal.textContent = Number(zd.trigger_c).toFixed(1);
+
+							var tcVal = data.thermocouples && data.thermocouples['TC' + zone] != null
+								? parseFloat(data.thermocouples['TC' + zone]) : null;
+							var rhVal = data.sht30 && data.sht30.humidity_rh != null
+								? parseFloat(data.sht30.humidity_rh) : null;
+							if (tempEl && tcVal != null) tempEl.textContent = (Math.round(tcVal / 0.2) * 0.2).toFixed(1);
+							var wetEl = document.getElementById('zdc-wet-temp');
+							if (wetEl) {
+								var wb = calcWetBulbLocal(tcVal, rhVal);
+								wetEl.textContent = wb != null ? wb.toFixed(1) : '--';
 							}
-						}
-						return targets.sort((a, b) => a.time - b.time);
-					}
 
-					function getCurrentTargets() {
-						if (!runStartTime) return null;
-
-						if (targetTemperatures.length === 0) {
-							const storedIdeal = parseFloat(localStorage.getItem(IDEAL_TEMP_KEY) || '');
-							if (Number.isFinite(storedIdeal)) {
-								return {
-									time: 0,
-									temp1: storedIdeal,
-									temp2: storedIdeal,
-									temp3: storedIdeal,
-									temp4: storedIdeal,
-									temp5: storedIdeal,
-									temp6: storedIdeal
-								};
-							}
-							return null;
-						}
-
-						const elapsedMinutes = (Date.now() - runStartTime) / (1000 * 60);
-						let currentTarget = null;
-
-						for (let i = 0; i < targetTemperatures.length; i++) {
-							if (targetTemperatures[i].time <= elapsedMinutes) {
-								currentTarget = targetTemperatures[i];
-							} else {
-								break;
-							}
-						}
-						return currentTarget;
-					}
-
-					function applyDeviationColors() {
-						if (!runStartTime) {
-							for (let i = 1; i <= 6; i++) {
-								const dryElement = document.getElementById(`temp-${i}-dry`);
-								const zoneButton = dryElement ? dryElement.closest('.zone-combined') : null;
-								if (zoneButton) {
-									zoneButton.classList.remove(
-										'zone-temp-cold',
-										'zone-temp-ok',
-										'zone-temp-warm',
-										'zone-temp-hot'
-									);
-								}
-
-								const tempElement = document.getElementById(`temp-${i}-wet`);
-								if (tempElement) {
-									tempElement.classList.remove(
-										'temp-good',
-										'temp-warning',
-										'temp-danger',
-										'temp-too-hot',
-										'temp-too-cold'
-									);
-								}
-							}
-							return;
-						}
-
-						const currentTargets = getCurrentTargets();
-						const currentTemps = window.getCurrentTemperatures ? window.getCurrentTemperatures() : null;
-						const deviationAllowance = getDeviationAllowance();
-
-						for (let i = 1; i <= 6; i++) {
-							const dryElement = document.getElementById(`temp-${i}-dry`);
-							const zoneButton = dryElement ? dryElement.closest('.zone-combined') : null;
-							const tempElement = document.getElementById(`temp-${i}-wet`);
-							const targetTemp = currentTargets ? currentTargets[`temp${i}`] : NaN;
-							const displayTemp = dryElement ? parseFloat(dryElement.textContent) : NaN;
-
-							if (zoneButton) {
-								zoneButton.classList.remove(
-									'zone-temp-cold',
-									'zone-temp-ok',
-									'zone-temp-warm',
-									'zone-temp-hot'
-								);
-
-								if (!Number.isNaN(displayTemp) && !Number.isNaN(targetTemp)) {
-									const thresholdTemp = targetTemp + deviationAllowance;
-									if (displayTemp > thresholdTemp) {
-										zoneButton.classList.add('zone-temp-hot');
-									}
+							var alarmBanner = document.getElementById('zdc-alarm-banner');
+							var alarmReason = document.getElementById('zdc-alarm-reason');
+							if (alarmBanner) {
+								var level = zd.alarm_level;
+								if (level) {
+									alarmBanner.style.display = '';
+									alarmBanner.className = 'zone-alarm-banner zone-alarm-banner--' + level;
+									if (alarmReason) alarmReason.textContent = zd.alarm_reason || '';
+								} else {
+									alarmBanner.style.display = 'none';
 								}
 							}
 
-							if (!tempElement) continue;
+							var isManual = zd.mode === 'manual';
+							if (modeAutoBtn)    modeAutoBtn.classList.toggle('zone-detail-card__mode-btn--active', !isManual);
+							if (modeManualBtn)  modeManualBtn.classList.toggle('zone-detail-card__mode-btn--active', isManual);
+							if (manualControls) manualControls.style.display = isManual ? '' : 'none';
 
-							tempElement.classList.remove(
-								'temp-good',
-								'temp-warning',
-								'temp-danger',
-								'temp-too-hot',
-								'temp-too-cold'
-							);
-
-							if (currentTargets && currentTemps && currentTemps[`temp${i}`] !== '--') {
-								const actualTemp = parseFloat(currentTemps[`temp${i}`]);
-								if (!isNaN(actualTemp) && !isNaN(targetTemp)) {
-									const deviation = actualTemp - targetTemp;
-
-									if (deviation >= deviationAllowance) {
-										tempElement.classList.add('temp-too-hot');
-									} else if (deviation <= -deviationAllowance) {
-										tempElement.classList.add('temp-too-cold');
-									} else {
-										tempElement.classList.add('temp-good');
-									}
-								}
-							}
-						}
-					}
-
-					function setRunStartTime(startTimeMs) {
-						if (typeof startTimeMs === 'number' && Number.isFinite(startTimeMs)) {
-							runStartTime = startTimeMs;
-						} else {
-							runStartTime = Date.now();
-						}
-						applyDeviationColors();
-					}
-
-					function clearRunData() {
-						runStartTime = null;
-						for (let i = 1; i <= 6; i++) {
-							const dryElement = document.getElementById(`temp-${i}-dry`);
-							const zoneButton = dryElement ? dryElement.closest('.zone-combined') : null;
-							if (zoneButton) {
-								zoneButton.classList.remove(
-									'zone-temp-cold',
-									'zone-temp-ok',
-									'zone-temp-warm',
-									'zone-temp-hot'
-								);
+							if (relayDot && relayLabel) {
+								var on = zd.relay_state;
+								relayDot.className = 'zone-status-dot ' + (on ? 'zone-status-dot--on' : 'zone-status-dot--off');
+								relayLabel.textContent = on ? 'Fan ON' : 'Fan OFF';
 							}
 
-							const tempElement = document.getElementById(`temp-${i}-wet`);
-							if (tempElement) {
-								tempElement.classList.remove(
-									'temp-good',
-									'temp-warning',
-									'temp-danger',
-									'temp-too-hot',
-									'temp-too-cold'
-								);
-							}
-						}
+							var thr = zd.alarm_thresholds || {};
+							if (thrWarnHigh && thr.warn_high_c != null) thrWarnHigh.value = thr.warn_high_c;
+							if (thrCritHigh && thr.crit_high_c != null) thrCritHigh.value = thr.crit_high_c;
+							if (thrWarnLow  && thr.warn_low_c  != null) thrWarnLow.value  = thr.warn_low_c;
+							if (thrCritLow  && thr.crit_low_c  != null) thrCritLow.value  = thr.crit_low_c;
+						})
+						.catch(function () {});
+				}
 
+				function postZoneUpdate(payload) {
+					fetch('/update_zone', {
+						method: 'POST', headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify(Object.assign({ zone: activeZone }, payload))
+					}).then(function () { loadZoneControls(activeZone); }).catch(function () {});
+				}
+
+				if (setpointApply)  setpointApply.addEventListener('click',  function () { var sp  = parseFloat(setpointInput.value);  if (!isNaN(sp)  && sp  >= 0 && sp  <= 60) postZoneUpdate({ setpoint_c:  sp  }); });
+				if (toleranceApply) toleranceApply.addEventListener('click', function () { var tol = parseFloat(toleranceInput.value); if (!isNaN(tol) && tol >= 0 && tol <= 10) postZoneUpdate({ tolerance_c: tol }); });
+				if (modeAutoBtn)    modeAutoBtn.addEventListener('click',    function () { postZoneUpdate({ mode: 'auto' }); });
+				if (modeManualBtn)  modeManualBtn.addEventListener('click',  function () { postZoneUpdate({ mode: 'manual' }); });
+				if (fanOnBtn)       fanOnBtn.addEventListener('click',       function () { postZoneUpdate({ mode: 'manual', manual_state: true  }); });
+				if (fanOffBtn)      fanOffBtn.addEventListener('click',      function () { postZoneUpdate({ mode: 'manual', manual_state: false }); });
+				if (thrApply) thrApply.addEventListener('click', function () {
+					var thr = { warn_high_c: parseFloat(thrWarnHigh.value), crit_high_c: parseFloat(thrCritHigh.value),
+					            warn_low_c:  parseFloat(thrWarnLow.value),  crit_low_c:  parseFloat(thrCritLow.value) };
+					Object.keys(thr).forEach(function (k) { if (isNaN(thr[k])) delete thr[k]; });
+					postZoneUpdate({ alarm_thresholds: thr });
+				});
+
+				// Patch pushSensorSample to forward live data into the open zone chart
+				var _origPush = window.pushSensorSample;
+				window.pushSensorSample = function (sample) {
+					if (_origPush) _origPush(sample);
+					if (activeZone == null || !zdcTempChart || !zdcFanChart) return;
+					var t = new Date(sample.time);
+					var label = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+					var temp = sample.dryBulb && sample.dryBulb['temp' + activeZone] != null
+						? parseFloat(sample.dryBulb['temp' + activeZone]) : null;
+					var fan = sample.fans && sample.fans['fan' + activeZone] != null
+						? parseFloat(sample.fans['fan' + activeZone]) : null;
+					zdcTempChart.data.labels.push(label);
+					zdcTempChart.data.datasets[0].data.push(!isNaN(temp) ? temp : null);
+					zdcFanChart.data.labels.push(label);
+					zdcFanChart.data.datasets[0].data.push(!isNaN(fan) ? fan : null);
+					if (zdcTempChart.data.labels.length > MAX_PTS) {
+						zdcTempChart.data.labels.shift(); zdcTempChart.data.datasets[0].data.shift();
+						zdcFanChart.data.labels.shift();  zdcFanChart.data.datasets[0].data.shift();
 					}
+					zdcTempChart.update('none');
+					zdcFanChart.update('none');
+					var dryEl = document.getElementById('temp-' + activeZone + '-dry');
+					if (dryEl && tempEl) tempEl.textContent = dryEl.textContent;
+				};
 
-					window.setRunStartTime = setRunStartTime;
-					window.clearRunData = clearRunData;
-					window.applyDeviationColors = applyDeviationColors;
-					window.addEventListener('sake-ideal-temp-updated', applyDeviationColors);
-
-					setInterval(applyDeviationColors, 5000);
-				})();
-
-
-				// Easter egg: Pong game when clicking the logo (with more random CPU + forgiving collisions)
-				(function () {
-					const logo = document.getElementById('sake-logo-egg');
-					const pongModal = document.getElementById('pong-modal');
-					const pongClose = document.getElementById('pong-close-btn');
-					const canvas = document.getElementById('pong-canvas');
-
-					if (!logo || !pongModal || !canvas) return;
-
-					const ctx = canvas.getContext('2d');
-
-					let animationId = null;
-					let ball, paddleLeft, paddleRight;
-					let upPressed = false;
-					let downPressed = false;
-
-					const HITBOX_PADDING = 3;
-					const PLAYER_SPEED = 4;
-					const AI_MAX_SPEED = 3;
-					const AI_NOISE_RANGE = 25;
-
-					function resetGame() {
-						ball = {
-							x: canvas.width / 2,
-							y: canvas.height / 2,
-							vx: 3 * (Math.random() > 0.5 ? 1 : -1),
-							vy: (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1),
-							r: 6
-						};
-						paddleLeft = {
-							x: 10,
-							y: canvas.height / 2 - 25,
-							w: 8,
-							h: 50
-						};
-						paddleRight = {
-							x: canvas.width - 18,
-							y: canvas.height / 2 - 25,
-							w: 8,
-							h: 50
-						};
-					}
-
-					function draw() {
-						ctx.fillStyle = '#000';
-						ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-						ctx.strokeStyle = '#444';
-						ctx.setLineDash([5, 5]);
-						ctx.beginPath();
-						ctx.moveTo(canvas.width / 2, 0);
-						ctx.lineTo(canvas.width / 2, canvas.height);
-						ctx.stroke();
-						ctx.setLineDash([]);
-
-						ctx.fillStyle = '#fff';
-						ctx.fillRect(paddleLeft.x, paddleLeft.y, paddleLeft.w, paddleLeft.h);
-						ctx.fillRect(paddleRight.x, paddleRight.y, paddleRight.w, paddleRight.h);
-
-						ctx.beginPath();
-						ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-						ctx.fill();
-					}
-
-					function update() {
-						// player paddle
-						if (upPressed) paddleLeft.y -= PLAYER_SPEED;
-						if (downPressed) paddleLeft.y += PLAYER_SPEED;
-						paddleLeft.y = Math.max(0, Math.min(canvas.height - paddleLeft.h, paddleLeft.y));
-
-						// CPU paddle
-						let aiTargetY;
-						if (ball.x > canvas.width * 0.4) {
-							const noise = (Math.random() - 0.5) * AI_NOISE_RANGE;
-							aiTargetY = ball.y + noise - paddleRight.h / 2;
-						} else {
-							aiTargetY = canvas.height / 2 - paddleRight.h / 2;
-						}
-
-						if (aiTargetY > paddleRight.y) {
-							paddleRight.y = Math.min(paddleRight.y + AI_MAX_SPEED, aiTargetY);
-						} else {
-							paddleRight.y = Math.max(paddleRight.y - AI_MAX_SPEED, aiTargetY);
-						}
-						paddleRight.y = Math.max(0, Math.min(canvas.height - paddleRight.h, paddleRight.y));
-
-						// ball motion
-						ball.x += ball.vx;
-						ball.y += ball.vy;
-
-						// top/bottom bounce
-						if (ball.y - ball.r < 0) {
-							ball.y = ball.r;
-							ball.vy *= -1;
-						} else if (ball.y + ball.r > canvas.height) {
-							ball.y = canvas.height - ball.r;
-							ball.vy *= -1;
-						}
-
-						// left paddle collision (forgiving hitbox)
-						if (
-							ball.x - ball.r <= paddleLeft.x + paddleLeft.w + HITBOX_PADDING &&
-							ball.x - ball.r >= paddleLeft.x - HITBOX_PADDING &&
-							ball.y >= paddleLeft.y - HITBOX_PADDING &&
-							ball.y <= paddleLeft.y + paddleLeft.h + HITBOX_PADDING
-						) {
-							ball.x = paddleLeft.x + paddleLeft.w + ball.r + HITBOX_PADDING;
-							ball.vx = Math.abs(ball.vx);
-
-							const offset = (ball.y - (paddleLeft.y + paddleLeft.h / 2)) / (paddleLeft.h / 2);
-							ball.vy += offset * 1.5;
-						}
-
-						// right paddle collision (CPU)
-						if (
-							ball.x + ball.r >= paddleRight.x - HITBOX_PADDING &&
-							ball.x + ball.r <= paddleRight.x + paddleRight.w + HITBOX_PADDING &&
-							ball.y >= paddleRight.y - HITBOX_PADDING &&
-							ball.y <= paddleRight.y + paddleRight.h + HITBOX_PADDING
-						) {
-							ball.x = paddleRight.x - ball.r - HITBOX_PADDING;
-							ball.vx = -Math.abs(ball.vx);
-
-							const offset = (ball.y - (paddleRight.y + paddleRight.h / 2)) / (paddleRight.h / 2);
-							ball.vy += offset * 1.5;
-						}
-
-						// reset if out of bounds
-						if (ball.x < -30 || ball.x > canvas.width + 30) {
-							resetGame();
-						}
-					}
-
-					function loop() {
-						update();
-						draw();
-						animationId = requestAnimationFrame(loop);
-					}
-
-					function keyDownHandler(e) {
-						if (e.key === 'ArrowUp') {
-							upPressed = true;
-						} else if (e.key === 'ArrowDown') {
-							downPressed = true;
-						} else if (e.key === 'Escape') {
-							closePong();
-						}
-					}
-
-					function keyUpHandler(e) {
-						if (e.key === 'ArrowUp') {
-							upPressed = false;
-						} else if (e.key === 'ArrowDown') {
-							downPressed = false;
-						}
-					}
-
-					function openPong() {
-						resetGame();
-						pongModal.style.display = 'flex';
-						loop();
-						document.addEventListener('keydown', keyDownHandler);
-						document.addEventListener('keyup', keyUpHandler);
-					}
-
-					function closePong() {
-						pongModal.style.display = 'none';
-						if (animationId) cancelAnimationFrame(animationId);
-						animationId = null;
-						document.removeEventListener('keydown', keyDownHandler);
-						document.removeEventListener('keyup', keyUpHandler);
-					}
-
-					logo.addEventListener('click', openPong);
-
-					if (pongClose) {
-						pongClose.addEventListener('click', closePong);
-					}
-					pongModal.addEventListener('click', function (e) {
-						if (e.target === pongModal) {
-							closePong();
-						}
+				// Intercept zone card clicks — open modal instead of navigating
+				document.querySelectorAll('.zone-combined').forEach(function (link) {
+					link.addEventListener('click', function (e) {
+						e.preventDefault();
+						var href = link.getAttribute('href') || '';
+						var m = href.match(/zone(\d)\.html/);
+						var zoneNum = m ? parseInt(m[1], 10) : null;
+						if (zoneNum) openCard(zoneNum);
 					});
-				})();
-			</script>
+				});
 
+				if (closeBtn) closeBtn.addEventListener('click', closeCard);
+				card.addEventListener('click', function (e) { if (e.target === card) closeCard(); });
+				document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && activeZone) closeCard(); });
+			})();
 
-	</div> <!-- end page-wrapper -->
+			// Pong Easter Egg
+			(function () {
+				const logo = document.getElementById('sake-logo-egg');
+				const pongModal = document.getElementById('pong-modal');
+				if (!logo || !pongModal) return;
+				logo.addEventListener('click', () => { pongModal.classList.add('is-open'); });
+				document.getElementById('pong-close-btn').addEventListener('click', () => { pongModal.classList.remove('is-open'); });
+				pongModal.addEventListener('click', (e) => { if (e.target === pongModal) pongModal.classList.remove('is-open'); });
+				document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && pongModal.classList.contains('is-open')) pongModal.classList.remove('is-open'); });
+			})();
+		</script>
+	</div>
+	<script src="customize.js"></script>
+	<script src="dashboard-phase2.js"></script>
 </body>
 
 </html>

@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SmartSake</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* ── page ── */
+    html, body { height: 100%; }
+
+    /* ── content wrap ── */
+    .home-wrap {
+      max-width: 660px;
+      margin: 0 auto;
+      padding: 5rem 1.1rem 2.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    /* ── card ── */
+    .hcard {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--r-lg);
+      padding: 1.1rem 1.35rem 1.25rem;
+    }
+
+    /* ── section label (like "PREVIOUS RUNS") ── */
+    .hcard-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--color-text-3);
+      margin: 0 0 0.9rem;
+    }
+
+    /* ── active run meta line ── */
+    .run-meta {
+      font-size: 0.82rem;
+      color: var(--color-text-2);
+      margin: 0 0 1rem;
+      line-height: 1.6;
+    }
+
+    /* ── status badge (dot + label) ── */
+    .hbadge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 9px 2px 6px;
+      border-radius: var(--r-pill);
+      font-size: 0.7rem;
+      font-weight: 700;
+      vertical-align: middle;
+      margin-left: 0.45rem;
+    }
+    .hbadge::before {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      flex-shrink: 0;
+    }
+    .hbadge-active  { background: rgba(74,222,74,0.1);  color: #4aee4a; }
+    .hbadge-crashed { background: rgba(255,90,90,0.12); color: #ff7070; }
+
+    /* ── input row ── */
+    .h-input-row {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .h-input-row input[type=text] {
+      flex: 1;
+      background: var(--color-bg-subtle);
+      border: 1px solid var(--color-border);
+      border-radius: var(--r-sm);
+      color: var(--color-text-1);
+      font-size: 0.9rem;
+      padding: 0.48rem 0.8rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .h-input-row input[type=text]:focus {
+      border-color: var(--color-accent);
+    }
+    .h-input-row input[type=text]::placeholder { color: var(--color-text-3); }
+
+    /* ── field row (label + control) ── */
+    .h-field {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      margin-top: 0.7rem;
+    }
+    .h-field-label {
+      font-size: 0.78rem;
+      color: var(--color-text-2);
+      white-space: nowrap;
+    }
+    .h-field select {
+      background: var(--color-bg-subtle);
+      border: 1px solid var(--color-border);
+      border-radius: var(--r-sm);
+      color: var(--color-text-1);
+      font-size: 0.8rem;
+      padding: 3px 8px;
+      outline: none;
+    }
+    .h-field input[type=file] {
+      font-size: 0.78rem;
+      color: var(--color-text-2);
+    }
+    .upload-status { font-size: 0.77rem; }
+
+    /* ── button row layout ── */
+    .hbtn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+    /* ── divider between list rows ── */
+    .h-divider { border: none; border-top: 1px solid var(--color-border); margin: 0; }
+
+    /* ── run list row ── */
+    .run-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.65rem 0.4rem;
+      cursor: pointer;
+      border-radius: var(--r-sm);
+      transition: background 0.12s;
+      gap: 0.5rem;
+    }
+    .run-row:hover { background: var(--color-bg-subtle); }
+    .run-row-info { flex: 1; min-width: 0; }
+    .run-row-name {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--color-text-1);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .run-row-meta {
+      font-size: 0.75rem;
+      color: var(--color-text-2);
+      margin-top: 2px;
+    }
+    .run-row-actions { display: flex; gap: 0.35rem; flex-shrink: 0; }
+
+    /* ── empty state ── */
+    .empty-msg {
+      font-size: 0.85rem;
+      color: var(--color-text-2);
+      font-style: italic;
+      margin: 0;
+      padding: 0.25rem 0.4rem;
+    }
+  </style>
+  <script src="customize.js" defer></script>
+</head>
+<body>
+  <div class="page-wrapper">
+    <header class="header">
+      <div class="header-inner">
+        <img src="images/VoidSakeLogo.jpg" alt="SmartSake logo" class="sake-logo-egg">
+        <h1 class="header-title">SmartSake</h1>
+        <button id="settings-btn" class="settings-btn" type="button" aria-label="Open settings" title="Settings">&#9881;</button>
+      </div>
+    </header>
+
+    <div class="home-wrap">
+
+      <!-- Active / crashed run — hidden until API confirms one exists -->
+      <div class="hcard" id="active-panel" style="display:none">
+        <p class="hcard-label">
+          Current Run
+          <span class="hbadge" id="active-badge"></span>
+        </p>
+        <div class="run-meta" id="active-detail"></div>
+        <div class="hbtn-row">
+          <button class="btn btn-brand" id="resume-btn">Resume Run</button>
+          <button class="btn btn-ghost" id="mark-ended-btn">Mark as Ended</button>
+        </div>
+      </div>
+
+      <!-- Start a new run -->
+      <div class="hcard">
+        <p class="hcard-label">New Run</p>
+        <div class="h-input-row">
+          <input type="text" id="new-run-name" placeholder="Run name…" maxlength="80">
+          <button class="btn btn-brand" id="start-btn">Start</button>
+        </div>
+        <div class="h-field">
+          <span class="h-field-label">Reference curve (optional):</span>
+          <select id="curve-select">
+            <option value="">— None —</option>
+          </select>
+        </div>
+        <div class="h-field">
+          <span class="h-field-label">Or upload CSV target:</span>
+          <input type="file" id="target-csv" accept=".csv">
+          <span class="upload-status" id="csv-status"></span>
+        </div>
+      </div>
+
+      <!-- Tools -->
+      <div class="hcard">
+        <p class="hcard-label">Tools</p>
+        <div class="hbtn-row">
+          <a href="curves.html" class="btn btn-secondary">Curve Builder</a>
+          <a href="room-history.html" class="btn btn-secondary">Room History</a>
+        </div>
+      </div>
+
+      <!-- Previous runs -->
+      <div class="hcard">
+        <p class="hcard-label">Previous Runs</p>
+        <div id="runs-list"><p class="empty-msg">Loading…</p></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+    function fmtDate(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) +
+             ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function duration(startIso, endIso) {
+      const s = new Date(startIso);
+      const e = endIso ? new Date(endIso) : new Date();
+      const mins = Math.round((e - s) / 60000);
+      if (mins < 60) return mins + ' min';
+      return Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm';
+    }
+
+    function secondsAgo(iso) {
+      if (!iso) return null;
+      return Math.round((Date.now() - new Date(iso)) / 1000);
+    }
+
+    // ── parsed target CSV (held until after run is created) ──────────────────
+    let parsedTargetRows = null;
+
+    document.getElementById('target-csv').addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      const statusEl = document.getElementById('csv-status');
+      if (!file) { parsedTargetRows = null; statusEl.textContent = ''; return; }
+
+      const reader = new FileReader();
+      reader.onload = function (ev) {
+        try {
+          const lines = ev.target.result.trim().split('\n');
+          if (lines.length < 2) throw new Error('empty');
+          const rows = [];
+          for (let i = 1; i < lines.length; i++) {
+            const v = lines[i].split(',');
+            if (v.length >= 7) {
+              rows.push({
+                elapsed_min: parseFloat(v[0]),
+                temp1_target: parseFloat(v[1]), temp2_target: parseFloat(v[2]),
+                temp3_target: parseFloat(v[3]), temp4_target: parseFloat(v[4]),
+                temp5_target: parseFloat(v[5]), temp6_target: parseFloat(v[6])
+              });
+            }
+          }
+          parsedTargetRows = rows;
+          statusEl.textContent = '✓ ' + rows.length + ' points';
+          statusEl.style.color = '#7fff7f';
+        } catch {
+          parsedTargetRows = null;
+          statusEl.textContent = '✗ invalid CSV';
+          statusEl.style.color = '#ff9f9f';
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // ── start new run ────────────────────────────────────────────────────────
+    document.getElementById('start-btn').addEventListener('click', async function () {
+      const name = document.getElementById('new-run-name').value.trim();
+      if (!name) { document.getElementById('new-run-name').focus(); return; }
+
+      this.disabled = true;
+      try {
+        const res = await fetch('/api/runs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name })
+        });
+        const run = await res.json();
+
+        // Apply reference curve if selected (CSV takes priority)
+        const curveId = Number(document.getElementById('curve-select').value);
+        if (parsedTargetRows && parsedTargetRows.length > 0) {
+          await fetch('/api/runs/' + run.id + '/target', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(parsedTargetRows)
+          });
+        } else if (curveId) {
+          await fetch('/api/runs/' + run.id + '/target/from-curve/' + curveId, { method: 'POST' });
+        }
+
+        location.href = 'dashboard.html?run=' + run.id + '&mode=live';
+      } catch (err) {
+        alert('Failed to start run: ' + err.message);
+        this.disabled = false;
+      }
+    });
+
+    document.getElementById('new-run-name').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') document.getElementById('start-btn').click();
+    });
+
+    // ── active run panel ─────────────────────────────────────────────────────
+    async function loadActiveRun() {
+      try {
+        const res = await fetch('/api/runs/active');
+        if (!res.ok) return;
+        const run = await res.json();
+
+        const panel = document.getElementById('active-panel');
+        const badge = document.getElementById('active-badge');
+        const detail = document.getElementById('active-detail');
+
+        const age = secondsAgo(run.last_reading_at);
+        const isCrashed = run.status === 'crashed' || (age !== null && age > 120);
+
+        badge.textContent = isCrashed ? 'Crashed' : 'Active';
+        badge.className = 'hbadge ' + (isCrashed ? 'hbadge-crashed' : 'hbadge-active');
+
+        const lastStr = run.last_reading_at
+          ? (isCrashed ? 'Last reading ' + Math.round(age / 60) + ' min ago' : 'Last reading ' + age + 's ago')
+          : 'No readings yet';
+        detail.textContent = run.name + ' — started ' + fmtDate(run.started_at) + ' — ' + lastStr;
+
+        document.getElementById('resume-btn').onclick = function () {
+          location.href = 'dashboard.html?run=' + run.id + '&mode=live';
+        };
+
+        document.getElementById('mark-ended-btn').onclick = async function () {
+          if (!confirm('Mark "' + run.name + '" as ended?')) return;
+          await fetch('/api/runs/' + run.id + '/end', { method: 'POST' });
+          panel.style.display = 'none';
+          loadRunsList();
+        };
+
+        panel.style.display = '';
+      } catch { /* no active run — panel stays hidden */ }
+    }
+
+    // ── previous runs list ───────────────────────────────────────────────────
+    async function loadRunsList() {
+      const container = document.getElementById('runs-list');
+      try {
+        const res = await fetch('/api/runs');
+        const runs = await res.json();
+        const finished = runs.filter(r => r.ended_at !== null || r.status === 'crashed');
+
+        if (finished.length === 0) {
+          container.innerHTML = '<p class="empty-msg">No completed runs yet.</p>';
+          return;
+        }
+
+        container.innerHTML = '';
+        finished.forEach(function (run, idx) {
+          if (idx > 0) {
+            const hr = document.createElement('hr');
+            hr.className = 'h-divider';
+            container.appendChild(hr);
+          }
+
+          const row = document.createElement('div');
+          row.className = 'run-row';
+
+          const crashedTag = run.status === 'crashed'
+            ? ' <span style="color:#ff7070;font-size:.72rem;font-weight:600">[crashed]</span>' : '';
+          const starsHtml = run.quality_score
+            ? '<span style="color:#c8960a">' + '★'.repeat(run.quality_score) + '</span>'
+              + '<span style="color:#333">' + '★'.repeat(5 - run.quality_score) + '</span>'
+            : '';
+
+          row.innerHTML =
+            '<div class="run-row-info">' +
+              '<div class="run-row-name">' + escHtml(run.name) + crashedTag +
+                (starsHtml ? ' ' + starsHtml : '') +
+              '</div>' +
+              '<div class="run-row-meta">' + fmtDate(run.started_at) + ' &mdash; ' + duration(run.started_at, run.ended_at) + '</div>' +
+            '</div>' +
+            '<div class="run-row-actions">' +
+              '<button class="btn btn-secondary btn-sm view-btn">View</button>' +
+              '<button class="btn btn-secondary btn-sm details-btn">Details</button>' +
+              '<button class="btn btn-danger btn-sm delete-btn">Delete</button>' +
+            '</div>';
+
+          row.querySelector('.view-btn').onclick = function (e) {
+            e.stopPropagation();
+            location.href = 'dashboard.html?run=' + run.id + '&mode=replay';
+          };
+
+          row.querySelector('.details-btn').onclick = function (e) {
+            e.stopPropagation();
+            location.href = 'history.html?run=' + run.id;
+          };
+
+          row.querySelector('.delete-btn').onclick = async function (e) {
+            e.stopPropagation();
+            if (!confirm('Delete run "' + run.name + '" and all its data?')) return;
+            await fetch('/api/runs/' + run.id, { method: 'DELETE' });
+            loadRunsList();
+          };
+
+          row.addEventListener('click', function () {
+            location.href = 'dashboard.html?run=' + run.id + '&mode=replay';
+          });
+
+          container.appendChild(row);
+        });
+      } catch (err) {
+        container.innerHTML = '<p class="empty-msg">Could not load runs.</p>';
+      }
+    }
+
+    function escHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ── reference curves ─────────────────────────────────────────────────────
+    async function loadReferenceCurves() {
+      try {
+        const res = await fetch('/api/reference-curves');
+        const curves = await res.json();
+        const sel = document.getElementById('curve-select');
+        curves.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = c.name;
+          sel.appendChild(opt);
+        });
+      } catch { /* non-fatal */ }
+    }
+
+    loadActiveRun();
+    loadRunsList();
+    loadReferenceCurves();
+  })();
+  </script>
+</body>
+</html>

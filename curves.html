@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SmartSake — Curve Builder</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Layout ─────────────────────────────────────────────── */
+    .curves-page { padding: 1.25rem; max-width: 1200px; margin: 0 auto; }
+    .curves-page h2 { margin: 0 0 .6rem; font-size: 1rem; text-transform: uppercase;
+                      letter-spacing: .05em; color: var(--color-text-3); }
+    .curves-grid { display: grid; grid-template-columns: 280px 1fr; gap: 1rem; align-items: start; }
+    @media (max-width: 720px) { .curves-grid { grid-template-columns: 1fr; } }
+
+    /* ── Panels ─────────────────────────────────────────────── */
+    .panel { background: var(--color-surface); border: 1px solid var(--color-border);
+             border-radius: var(--r-lg); padding: 1rem 1.1rem; }
+
+    /* ── Curve list ─────────────────────────────────────────── */
+    .curve-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; }
+    .curve-item { display: flex; align-items: center; gap: .4rem;
+                  padding: .45rem .55rem; border-radius: var(--r-sm); cursor: pointer;
+                  border: 1px solid transparent; transition: background .15s; }
+    .curve-item:hover { background: var(--color-bg-subtle); }
+    .curve-item.active { background: var(--color-bg-tinted); border-color: var(--color-brand); }
+    .curve-item-name { flex: 1; font-size: .9rem; font-weight: 600; overflow: hidden;
+                       text-overflow: ellipsis; white-space: nowrap; }
+    .curve-item-src  { font-size: .75rem; color: var(--color-text-3); }
+    .curve-item-actions { display: flex; gap: .3rem; flex-shrink: 0; }
+
+    /* ── Buttons ─────────────────────────────────────────────── */
+    .btn { padding: .4rem .8rem; border: none; border-radius: var(--r-sm); cursor: pointer;
+           font-size: .82rem; font-weight: 600; }
+    .btn-primary   { background: var(--color-brand); color: #fff; }
+    .btn-primary:hover { background: var(--color-brand-hover); }
+    .btn-secondary { background: var(--color-bg-tinted); color: var(--color-text-1); }
+    .btn-secondary:hover { background: var(--color-bg-subtle); }
+    .btn-danger    { background: var(--color-critical-bg); color: var(--color-critical); }
+    .btn-danger:hover { background: var(--color-critical-bg); filter: brightness(1.2); }
+    .btn-success   { background: var(--color-success-bg); color: var(--color-success); }
+    .btn-success:hover { background: var(--color-success-bg); filter: brightness(1.2); }
+    .btn-sm { padding: .25rem .5rem; font-size: .75rem; }
+
+    /* ── Editor header ──────────────────────────────────────── */
+    .editor-top { display: flex; flex-wrap: wrap; gap: .6rem; align-items: flex-end; margin-bottom: .75rem; }
+    .editor-top label { display: flex; flex-direction: column; gap: .2rem; font-size: .8rem; color: var(--color-text-2); }
+    .editor-top input[type=text] {
+      padding: .4rem .6rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--r-sm);
+      color: var(--color-text-1); font-size: .9rem; min-width: 0; }
+    .editor-top input[type=text]:focus { outline: none; border-color: var(--color-brand); }
+    #inp-name { width: 180px; }
+    #inp-desc { width: 220px; }
+    #inp-src  { width: 130px; }
+    .editor-actions { display: flex; gap: .5rem; align-items: center; margin-left: auto; flex-shrink: 0; }
+    .status-msg { font-size: .8rem; min-width: 80px; text-align: right; }
+    .status-ok  { color: var(--color-success); }
+    .status-err { color: var(--color-critical); }
+
+    /* ── Chart ───────────────────────────────────────────────── */
+    .curve-chart-wrap { position: relative; height: 320px; margin-bottom: .75rem; }
+    .curve-chart-wrap canvas { position: absolute; inset: 0; width: 100% !important; height: 100% !important; }
+
+    /* ── Points table ────────────────────────────────────────── */
+    .points-table-wrap { overflow-x: auto; }
+    table.points-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    table.points-table th, table.points-table td {
+      padding: .3rem .45rem; border: 1px solid var(--color-border); text-align: center; }
+    table.points-table th { background: var(--color-bg-subtle); color: var(--color-text-2); text-transform: uppercase;
+                            font-size: .72rem; letter-spacing: .04em; white-space: nowrap; }
+    table.points-table td input { width: 52px; padding: .2rem .3rem; background: var(--color-bg);
+                                  border: 1px solid var(--color-border); border-radius: var(--r-sm); color: var(--color-text-1);
+                                  text-align: center; font-size: .82rem; }
+    table.points-table td input:focus { outline: none; border-color: var(--color-brand); }
+    table.points-table .col-del { width: 28px; }
+    table.points-table .del-row-btn { background: none; border: none; color: var(--color-text-3); cursor: pointer;
+                                       font-size: 1rem; line-height: 1; padding: 0 4px;
+                                       min-width: 44px; min-height: 44px;
+                                       display: inline-flex; align-items: center; justify-content: center; }
+    table.points-table .del-row-btn:hover { color: var(--color-critical); }
+    .table-footer { display: flex; gap: .5rem; align-items: center; margin-top: .5rem; }
+    .apply-row { display: flex; gap: .6rem; align-items: center; margin-top: .75rem;
+                 padding-top: .65rem; border-top: 1px solid var(--color-border); }
+    .apply-run-label { font-size: .85rem; color: var(--color-text-2); }
+
+    /* ── Zone colour dots ────────────────────────────────────── */
+    .zone-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 3px; }
+
+    /* ── Back link ───────────────────────────────────────────── */
+    .back-link { display: inline-flex; align-items: center; gap: .4rem; font-size: .85rem;
+                 color: var(--color-text-3); text-decoration: none; margin-bottom: .9rem; }
+    .back-link:hover { color: var(--color-text-1); }
+
+    /* ── Header clearance ──────────────────────────────────── */
+    .curves-page { padding-top: 5.5rem !important; }
+
+    /* ── Allow scroll — curves page is not a fixed-viewport layout ── */
+    html, body { overflow: auto !important; }
+    .page-wrapper { height: auto !important; }
+    main { overflow: visible !important; }
+  </style>
+  <script src="customize.js" defer></script>
+</head>
+<body>
+<div class="page-wrapper">
+
+  <header class="header">
+    <div class="header-inner">
+      <img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" class="sake-logo-egg">
+      <h1 class="header-title">Curves</h1>
+      <button id="settings-btn" class="settings-btn" type="button" aria-label="Open settings" title="Settings">&#9881;</button>
+    </div>
+  </header>
+
+  <div class="curves-page">
+    <a class="back-link" href="home.html">&#8592; Home</a>
+
+    <div class="curves-grid">
+
+      <!-- ── Left: Curve library ─────────────────────────────── -->
+      <div class="panel" id="library-panel">
+        <h2>Saved Curves</h2>
+        <ul class="curve-list" id="curve-list">
+          <li style="color:#555;font-size:.85rem;font-style:italic">Loading…</li>
+        </ul>
+        <div style="margin-top:.75rem">
+          <button class="btn btn-secondary" id="new-curve-btn">+ New Curve</button>
+        </div>
+      </div>
+
+      <!-- ── Right: Editor ───────────────────────────────────── -->
+      <div class="panel" id="editor-panel">
+        <h2 id="editor-heading">New Curve</h2>
+
+        <!-- Metadata row -->
+        <div class="editor-top">
+          <label>
+            Name
+            <input type="text" id="inp-name" placeholder="e.g. Junmai Standard" maxlength="80">
+          </label>
+          <label>
+            Description
+            <input type="text" id="inp-desc" placeholder="Optional notes" maxlength="200">
+          </label>
+          <label>
+            Source
+            <input type="text" id="inp-src" placeholder="e.g. NRIB 2023" maxlength="80">
+          </label>
+          <div class="editor-actions">
+            <span class="status-msg" id="save-status"></span>
+            <button class="btn btn-primary" id="save-btn">Save Curve</button>
+          </div>
+        </div>
+
+        <!-- Chart preview -->
+        <div class="curve-chart-wrap">
+          <canvas id="curve-chart"></canvas>
+        </div>
+
+        <!-- Points table -->
+        <div class="points-table-wrap">
+          <table class="points-table" id="points-table">
+            <thead>
+              <tr>
+                <th class="col-del"></th>
+                <th>Min</th>
+                <th>Target °C</th>
+              </tr>
+            </thead>
+            <tbody id="points-tbody"></tbody>
+          </table>
+        </div>
+
+        <div class="table-footer">
+          <button class="btn btn-secondary btn-sm" id="add-row-btn">+ Add Row</button>
+          <button class="btn btn-secondary btn-sm" id="add-bulk-btn">Add 10 rows (15-min steps)</button>
+        </div>
+
+        <!-- Apply to run -->
+        <div class="apply-row" id="apply-row" style="display:none">
+          <span class="apply-run-label">Apply to current run:</span>
+          <button class="btn btn-success btn-sm" id="apply-btn">Apply</button>
+          <span class="status-msg" id="apply-status"></span>
+        </div>
+      </div>
+
+    </div><!-- .curves-grid -->
+  </div><!-- .curves-page -->
+
+</div><!-- .page-wrapper -->
+
+<script>
+(function () {
+  'use strict';
+
+  // ── State ───────────────────────────────────────────────────────────────────
+  var _curves       = [];    // list from GET /api/reference-curves
+  var _editingId    = null;  // null = new curve
+  var _activeRunId  = null;  // filled from GET /api/runs?active=1
+  var _chart        = null;
+
+  var CURVE_COLOR = '#c00';
+  var _themeObserver = null;
+
+  function getThemeColors() {
+    var s = getComputedStyle(document.documentElement);
+    var g = function (v) { return s.getPropertyValue(v).trim(); };
+    return {
+      tick:    g('--color-text-3'),
+      grid:    g('--color-border'),
+      surface: g('--color-surface'),
+      border:  g('--color-border-strong'),
+      text1:   g('--color-text-1'),
+      text2:   g('--color-text-2'),
+    };
+  }
+
+  // ── Boot ────────────────────────────────────────────────────────────────────
+  initChart();
+  loadCurveList();
+  loadActiveRun();
+  addEmptyRow(true);   // start with one empty row
+
+  // Wire buttons
+  document.getElementById('new-curve-btn').addEventListener('click', newCurve);
+  document.getElementById('save-btn').addEventListener('click', saveCurve);
+  document.getElementById('add-row-btn').addEventListener('click', function () { addEmptyRow(false); });
+  document.getElementById('add-bulk-btn').addEventListener('click', addBulkRows);
+  document.getElementById('apply-btn').addEventListener('click', applyToRun);
+
+  // ── Chart ────────────────────────────────────────────────────────────────────
+  function initChart() {
+    if (_chart) { _chart.destroy(); _chart = null; }
+    var c = getThemeColors();
+    var ctx = document.getElementById('curve-chart').getContext('2d');
+    _chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Temperature Target',
+          data: [],
+          borderColor: CURVE_COLOR,
+          backgroundColor: CURVE_COLOR + '22',
+          borderWidth: 2,
+          pointRadius: 3,
+          spanGaps: true,
+          tension: 0.3
+        }]
+      },
+      options: {
+        animation: false,
+        responsive: false,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, position: 'top',
+                    labels: { color: c.text2, boxWidth: 10, font: { size: 11 } } },
+          tooltip: {
+            backgroundColor: c.surface,
+            borderColor: c.border,
+            borderWidth: 1,
+            titleColor: c.text2,
+            bodyColor: c.text1,
+            mode: 'index',
+            intersect: false
+          }
+        },
+        scales: {
+          x: { title: { display: true, text: 'Elapsed (min)', color: c.text2 },
+               ticks: { color: c.tick }, grid: { color: c.grid } },
+          y: { title: { display: true, text: '°C', color: c.text2 },
+               ticks: { color: c.tick }, grid: { color: c.grid } }
+        }
+      }
+    });
+    // Register theme observer once
+    if (!_themeObserver) {
+      _themeObserver = new MutationObserver(function () {
+        var rows = collectTableRows ? collectTableRows() : null;
+        initChart();
+        if (rows) {
+          _chart.data.labels = rows.map(function (r) { return r.elapsed_min; });
+          _chart.data.datasets[0].data = rows.map(function (r) {
+            var v = r.temp_target;
+            return (v === '' || v === null || isNaN(v)) ? null : v;
+          });
+          _chart.update('none');
+        }
+      });
+      _themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    }
+  }
+
+  function refreshChart() {
+    var rows  = collectTableRows();
+    var labels = rows.map(function (r) { return r.elapsed_min; });
+    _chart.data.labels = labels;
+    _chart.data.datasets[0].data = rows.map(function (r) {
+      var v = r.temp_target;
+      return (v === '' || v === null || isNaN(v)) ? null : v;
+    });
+    _chart.update('none');
+  }
+
+  // ── Table helpers ────────────────────────────────────────────────────────────
+  function addEmptyRow(skipRefresh) {
+    var tbody = document.getElementById('points-tbody');
+    var lastRow = tbody.lastElementChild;
+    var lastMin = 0;
+    if (lastRow) {
+      var minInput = lastRow.querySelector('input[data-col="elapsed_min"]');
+      if (minInput) lastMin = (parseInt(minInput.value, 10) || 0) + 15;
+    }
+    insertRow({ elapsed_min: lastMin, temp_target: '' });
+    if (!skipRefresh) refreshChart();
+  }
+
+  function addBulkRows() {
+    var tbody = document.getElementById('points-tbody');
+    var lastRow = tbody.lastElementChild;
+    var startMin = 0;
+    if (lastRow) {
+      var minInput = lastRow.querySelector('input[data-col="elapsed_min"]');
+      if (minInput) startMin = (parseInt(minInput.value, 10) || 0) + 15;
+    }
+    for (var i = 0; i < 10; i++) {
+      insertRow({ elapsed_min: startMin + i * 15, temp_target: '' });
+    }
+    refreshChart();
+  }
+
+  function insertRow(point) {
+    var tbody = document.getElementById('points-tbody');
+    var tr = document.createElement('tr');
+
+    // Delete button
+    var delTd = document.createElement('td');
+    delTd.className = 'col-del';
+    var delBtn = document.createElement('button');
+    delBtn.className = 'del-row-btn';
+    delBtn.textContent = '×';
+    delBtn.type = 'button';
+    delBtn.addEventListener('click', function () { tr.remove(); refreshChart(); });
+    delTd.appendChild(delBtn);
+    tr.appendChild(delTd);
+
+    // elapsed_min
+    tr.appendChild(makeCell('elapsed_min', point.elapsed_min, 'number', true));
+
+    // single temp target
+    tr.appendChild(makeCell('temp_target', point.temp_target, 'number', false));
+
+    tbody.appendChild(tr);
+  }
+
+  function makeCell(col, val, type, required) {
+    var td = document.createElement('td');
+    var inp = document.createElement('input');
+    inp.type = type;
+    inp.setAttribute('data-col', col);
+    inp.value = (val !== null && val !== undefined && val !== '') ? val : '';
+    if (required) inp.required = true;
+    inp.addEventListener('input', refreshChart);
+    td.appendChild(inp);
+    return td;
+  }
+
+  function collectTableRows() {
+    var rows = [];
+    document.querySelectorAll('#points-tbody tr').forEach(function (tr) {
+      var cells = tr.querySelectorAll('input[data-col]');
+      var obj = {};
+      cells.forEach(function (inp) {
+        var v = inp.value.trim();
+        obj[inp.dataset.col] = (v === '') ? null : parseFloat(v);
+      });
+      if (obj.elapsed_min !== null) rows.push(obj);
+    });
+    rows.sort(function (a, b) { return a.elapsed_min - b.elapsed_min; });
+    return rows;
+  }
+
+  // Convert from the single temp_target UI to the 6-zone API format
+  function rowsToApiPoints(rows) {
+    return rows.map(function (r) {
+      var t = (r.temp_target !== null && !isNaN(r.temp_target)) ? r.temp_target : null;
+      return {
+        elapsed_min:  r.elapsed_min,
+        temp1_target: t, temp2_target: t, temp3_target: t,
+        temp4_target: t, temp5_target: t, temp6_target: t
+      };
+    });
+  }
+
+  function loadPointsIntoTable(points) {
+    var tbody = document.getElementById('points-tbody');
+    tbody.innerHTML = '';
+    // Convert from 6-zone API format to single temp_target
+    points.forEach(function (p) {
+      insertRow({ elapsed_min: p.elapsed_min, temp_target: p.temp1_target });
+    });
+    if (!points.length) addEmptyRow(true);
+    refreshChart();
+  }
+
+  // ── Library list ─────────────────────────────────────────────────────────────
+  function loadCurveList() {
+    fetch('/api/reference-curves').then(function (r) { return r.json(); }).then(function (data) {
+      _curves = Array.isArray(data) ? data : (data.curves || []);
+      renderCurveList();
+    }).catch(function () {
+      document.getElementById('curve-list').innerHTML =
+        '<li style="color:#f66;font-size:.85rem">Failed to load curves</li>';
+    });
+  }
+
+  function renderCurveList() {
+    var ul = document.getElementById('curve-list');
+    ul.innerHTML = '';
+    if (!_curves.length) {
+      ul.innerHTML = '<li style="color:#555;font-size:.85rem;font-style:italic">No curves saved yet</li>';
+      return;
+    }
+    _curves.forEach(function (c) {
+      var li = document.createElement('li');
+      li.className = 'curve-item' + (_editingId === c.id ? ' active' : '');
+      li.dataset.id = c.id;
+
+      var nameSpan = document.createElement('span');
+      nameSpan.className = 'curve-item-name';
+      nameSpan.textContent = c.name;
+      nameSpan.title = c.description || '';
+
+      var srcSpan = document.createElement('span');
+      srcSpan.className = 'curve-item-src';
+      srcSpan.textContent = c.source || '';
+
+      var actions = document.createElement('div');
+      actions.className = 'curve-item-actions';
+
+      var editBtn = document.createElement('button');
+      editBtn.className = 'btn btn-secondary btn-sm';
+      editBtn.textContent = 'Edit';
+      editBtn.addEventListener('click', function (e) { e.stopPropagation(); loadCurveIntoEditor(c.id); });
+
+      var delBtn = document.createElement('button');
+      delBtn.className = 'btn btn-danger btn-sm';
+      delBtn.textContent = 'Del';
+      delBtn.addEventListener('click', function (e) { e.stopPropagation(); deleteCurve(c.id, c.name); });
+
+      actions.appendChild(editBtn);
+      actions.appendChild(delBtn);
+
+      li.appendChild(nameSpan);
+      li.appendChild(srcSpan);
+      li.appendChild(actions);
+      li.addEventListener('click', function () { loadCurveIntoEditor(c.id); });
+      ul.appendChild(li);
+    });
+  }
+
+  // ── Editor actions ───────────────────────────────────────────────────────────
+  function newCurve() {
+    _editingId = null;
+    document.getElementById('editor-heading').textContent = 'New Curve';
+    document.getElementById('inp-name').value = '';
+    document.getElementById('inp-desc').value = '';
+    document.getElementById('inp-src').value = '';
+    document.getElementById('save-status').textContent = '';
+    document.getElementById('apply-row').style.display = 'none';
+    document.getElementById('points-tbody').innerHTML = '';
+    addEmptyRow(false);
+    renderCurveList();
+  }
+
+  function loadCurveIntoEditor(id) {
+    fetch('/api/reference-curves/' + id).then(function (r) { return r.json(); }).then(function (curve) {
+      _editingId = id;
+      document.getElementById('editor-heading').textContent = 'Edit Curve';
+      document.getElementById('inp-name').value  = curve.name || '';
+      document.getElementById('inp-desc').value  = curve.description || '';
+      document.getElementById('inp-src').value   = curve.source || '';
+      document.getElementById('save-status').textContent = '';
+      loadPointsIntoTable(curve.points || []);
+      document.getElementById('apply-row').style.display = _activeRunId ? 'flex' : 'none';
+      renderCurveList();
+    }).catch(function () {
+      showStatus('save-status', 'Load failed', false);
+    });
+  }
+
+  function saveCurve() {
+    var name = document.getElementById('inp-name').value.trim();
+    if (!name) { showStatus('save-status', 'Name required', false); return; }
+    var points = collectTableRows();
+    if (!points.length) { showStatus('save-status', 'Add at least one point', false); return; }
+
+    var body = {
+      name:        name,
+      description: document.getElementById('inp-desc').value.trim(),
+      source:      document.getElementById('inp-src').value.trim(),
+      points:      rowsToApiPoints(points)
+    };
+
+    var method, url;
+    if (_editingId) {
+      // Update via delete + recreate (no PATCH endpoint)
+      deleteThenCreate(body);
+    } else {
+      fetch('/api/reference-curves', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+      }).then(function (r) {
+        if (!r.ok) return r.json().then(function (d) { throw new Error(d.error || r.status); });
+        return r.json();
+      }).then(function (curve) {
+        _editingId = curve.id;
+        document.getElementById('editor-heading').textContent = 'Edit Curve';
+        document.getElementById('apply-row').style.display = _activeRunId ? 'flex' : 'none';
+        showStatus('save-status', 'Saved!', true);
+        loadCurveList();
+      }).catch(function (err) {
+        showStatus('save-status', err.message || 'Error', false);
+      });
+    }
+  }
+
+  function deleteThenCreate(body) {
+    var oldId = _editingId;
+    fetch('/api/reference-curves/' + oldId, { method: 'DELETE' }).then(function () {
+      return fetch('/api/reference-curves', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+      });
+    }).then(function (r) {
+      if (!r.ok) return r.json().then(function (d) { throw new Error(d.error || r.status); });
+      return r.json();
+    }).then(function (curve) {
+      _editingId = curve.id;
+      showStatus('save-status', 'Updated!', true);
+      loadCurveList();
+    }).catch(function (err) {
+      showStatus('save-status', err.message || 'Error', false);
+    });
+  }
+
+  function deleteCurve(id, name) {
+    if (!confirm('Delete curve "' + name + '"?')) return;
+    fetch('/api/reference-curves/' + id, { method: 'DELETE' }).then(function (r) {
+      if (r.ok || r.status === 204) {
+        if (_editingId === id) newCurve();
+        loadCurveList();
+      }
+    });
+  }
+
+  function applyToRun() {
+    if (!_activeRunId || !_editingId) return;
+    fetch('/api/runs/' + _activeRunId + '/target/from-curve/' + _editingId, { method: 'POST' })
+      .then(function (r) {
+        if (!r.ok) throw new Error(r.status);
+        showStatus('apply-status', 'Applied!', true);
+      }).catch(function () {
+        showStatus('apply-status', 'Error', false);
+      });
+  }
+
+  // ── Active run ───────────────────────────────────────────────────────────────
+  function loadActiveRun() {
+    fetch('/api/runs/active').then(function (r) {
+      if (!r.ok) return null;
+      return r.json();
+    }).then(function (run) {
+      if (run && run.id) {
+        _activeRunId = run.id;
+        if (_editingId) document.getElementById('apply-row').style.display = 'flex';
+      }
+    }).catch(function () {});
+  }
+
+  // ── Util ─────────────────────────────────────────────────────────────────────
+  function showStatus(elId, msg, ok) {
+    var el = document.getElementById(elId);
+    if (!el) return;
+    el.textContent = msg;
+    el.className = 'status-msg ' + (ok ? 'status-ok' : 'status-err');
+    setTimeout(function () { el.textContent = ''; el.className = 'status-msg'; }, 3000);
+  }
+
+})();
+</script>
+</body>
+</html>

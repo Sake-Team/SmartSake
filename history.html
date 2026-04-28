@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>SmartSake — Batch History</title>
+	<link rel="stylesheet" href="styles.css">
+	<style>
+		/* ── Page chrome ────────────────────────────────────────── */
+		body { background: var(--color-bg); color: var(--color-text-1); margin: 0; }
+		.back-link { font-size: .82rem; color: var(--color-text-2); text-decoration: none; }
+		.back-link:hover { color: var(--color-text-1); }
+
+		main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+
+		/* ── Tab bar ─────────────────────────────────────────────── */
+		.tabs { display: flex; gap: 0; border-bottom: 2px solid var(--color-border); margin-bottom: 20px; }
+		.tab-btn { padding: 8px 20px; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; font-size: .9rem; color: var(--color-text-2); }
+		.tab-btn.is-active { color: var(--color-accent); border-bottom-color: var(--color-accent); font-weight: 600; }
+
+		/* ── Cards / sections ────────────────────────────────────── */
+		.card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--r-md); box-shadow: var(--shadow-card); padding: 20px; margin-bottom: 18px; }
+		.card h2 { font-size: 1rem; font-weight: 700; margin: 0 0 14px; }
+
+		/* ── Run list ────────────────────────────────────────────── */
+		.run-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+		.run-table th { text-align: left; padding: 6px 10px; border-bottom: 2px solid var(--color-border); color: var(--color-text-3); font-weight: 600; font-size: .78rem; text-transform: uppercase; }
+		.run-table td { padding: 8px 10px; border-bottom: 1px solid var(--color-border); vertical-align: middle; }
+		.run-table tr:hover td { background: var(--color-bg-subtle); }
+		.run-table tr.is-selected td { background: var(--color-bg-tinted); }
+		.stars { color: #d79b00; letter-spacing: -1px; }
+		.badge { display: inline-block; font-size: .72rem; padding: 1px 7px; border-radius: var(--r-pill); }
+		.badge--completed { background: var(--color-success-bg); color: var(--color-success); }
+		.badge--crashed { background: var(--color-critical-bg); color: var(--color-critical); }
+		.badge--active { background: rgba(21,126,251,0.1); color: var(--color-accent); }
+
+		/* ── Metadata editor ─────────────────────────────────────── */
+		.meta-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px; }
+		.meta-form label { display: flex; flex-direction: column; gap: 4px; font-size: .82rem; color: var(--color-text-2); }
+		.meta-form input, .meta-form select, .meta-form textarea {
+			border: 1px solid var(--color-border); border-radius: var(--r-sm); padding: 5px 8px;
+			font-size: .85rem; font-family: inherit; background: var(--color-bg-subtle); color: var(--color-text-1);
+		}
+		.meta-form textarea { resize: vertical; min-height: 60px; grid-column: 1 / -1; }
+		.star-input { display: flex; gap: 4px; font-size: 1.4rem; }
+		.star-input span { cursor: pointer; color: var(--color-border-strong); transition: color .1s; }
+		.star-input span.is-on { color: #d79b00; }
+		.meta-save-row { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+		.save-status { font-size: .8rem; color: var(--color-success); }
+
+		/* ── Correlation charts ──────────────────────────────────── */
+		.corr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+		.corr-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--r-md); padding: 14px; }
+		.corr-card h3 { font-size: .85rem; color: var(--color-text-2); margin: 0 0 4px; }
+		.corr-r { font-size: .8rem; color: var(--color-text-3); margin: 0 0 8px; }
+		.corr-canvas-wrap { position: relative; height: 200px; }
+		.corr-need-more { font-size: .82rem; color: var(--color-text-3); padding: 20px 0; text-align: center; }
+
+		/* ── Buttons — rely on styles.css canonical .btn system ── */
+
+		/* ── No-select panel ─────────────────────────────────────── */
+		.no-select-hint { color: var(--color-text-3); font-size: .85rem; text-align: center; padding: 30px 0; }
+
+		@media (max-width: 680px) {
+			.corr-grid { grid-template-columns: 1fr; }
+			.meta-form { grid-template-columns: 1fr; }
+		}
+	</style>
+	<script src="customize.js" defer></script>
+</head>
+<body>
+<header class="header">
+	<div class="header-inner">
+		<img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" class="sake-logo-egg">
+		<h1 class="header-title">Batch History</h1>
+		<button id="settings-btn" class="settings-btn" type="button" aria-label="Open settings" title="Settings">&#9881;</button>
+	</div>
+	<div class="header-right">
+		<a href="home.html" class="back-link">&larr; Home</a>
+	</div>
+</header>
+
+<main>
+	<!-- Tab bar -->
+	<div class="tabs">
+		<button class="tab-btn is-active" data-tab="runs">Runs</button>
+		<button class="tab-btn" data-tab="correlation">Correlation</button>
+	</div>
+
+	<!-- ── Tab: Runs ──────────────────────────────────────────────── -->
+	<div id="tab-runs">
+		<div class="card">
+			<h2>All Batches</h2>
+			<div id="run-list-wrap">
+				<p style="color:#aaa;font-size:.85rem;">Loading…</p>
+			</div>
+		</div>
+
+		<div class="card" id="meta-card" style="display:none;">
+			<h2 id="meta-card-title">Batch Metadata</h2>
+			<form id="meta-form" class="meta-form">
+				<label>
+					Koji variety
+					<select name="koji_variety">
+						<option value="">— select —</option>
+						<option value="yellow">Yellow</option>
+						<option value="white">White</option>
+						<option value="black">Black</option>
+						<option value="other">Other</option>
+					</select>
+				</label>
+				<label>
+					Inoculation rate (%)
+					<input type="number" name="inoculation_rate" step="0.01" min="0" max="100" placeholder="e.g. 0.1">
+				</label>
+				<label>
+					Source rice
+					<input type="text" name="source_rice" placeholder="e.g. Yamadanishiki">
+				</label>
+				<label>
+					Polish ratio (%)
+					<input type="number" name="polish_ratio" min="0" max="100" placeholder="e.g. 70">
+				</label>
+				<label>
+					Quality score
+					<div class="star-input" id="star-input" role="group" aria-label="Quality score">
+						<span data-v="1" title="1 star">&#9733;</span>
+						<span data-v="2" title="2 stars">&#9733;</span>
+						<span data-v="3" title="3 stars">&#9733;</span>
+						<span data-v="4" title="4 stars">&#9733;</span>
+						<span data-v="5" title="5 stars">&#9733;</span>
+					</div>
+					<input type="hidden" name="quality_score" id="quality-score-input">
+				</label>
+				<label style="grid-column:1/-1;">
+					Tasting notes
+					<textarea name="tasting_notes" placeholder="Aroma, sweetness, umami notes…"></textarea>
+				</label>
+			</form>
+			<div class="meta-save-row">
+				<button type="button" class="btn btn-primary" id="meta-save-btn">Save</button>
+				<span class="save-status" id="save-status" aria-live="polite"></span>
+			</div>
+		</div>
+	</div>
+
+	<!-- ── Tab: Correlation ───────────────────────────────────────── -->
+	<div id="tab-correlation" style="display:none;">
+		<div class="card">
+			<h2>Batch Quality Correlation</h2>
+			<p style="font-size:.82rem;color:var(--color-text-3);margin:0 0 14px;">
+				Requires at least 5 scored batches. Shows how process variables correlate with your quality ratings.
+			</p>
+			<div id="corr-content">
+				<p class="corr-need-more" id="corr-need-more">Checking scored runs…</p>
+				<div class="corr-grid" id="corr-grid" style="display:none;"></div>
+			</div>
+		</div>
+	</div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+	"use strict";
+
+	/* ── Tab switching ──────────────────────────────────────────── */
+	const tabBtns = document.querySelectorAll('.tab-btn');
+	const tabs = { runs: document.getElementById('tab-runs'), correlation: document.getElementById('tab-correlation') };
+	tabBtns.forEach(btn => {
+		btn.addEventListener('click', () => {
+			tabBtns.forEach(b => b.classList.remove('is-active'));
+			btn.classList.add('is-active');
+			Object.values(tabs).forEach(t => { t.style.display = 'none'; });
+			const target = tabs[btn.dataset.tab];
+			if (target) target.style.display = '';
+			if (btn.dataset.tab === 'correlation') loadCorrelation();
+		});
+	});
+
+	/* ── Utility ───────────────────────────────────────────────── */
+	function fmtDate(iso) {
+		if (!iso) return '—';
+		const d = new Date(iso);
+		return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+	}
+
+	function starsHtml(score) {
+		if (!score) return '<span style="color:#ddd">★★★★★</span>';
+		return '<span class="stars">' + '★'.repeat(score) + '</span>' +
+		       '<span style="color:#ddd">' + '★'.repeat(5 - score) + '</span>';
+	}
+
+	/* ── Run list ───────────────────────────────────────────────── */
+	let _runs = [];
+	let _selectedRunId = null;
+
+	function loadRuns() {
+		fetch('/api/runs')
+			.then(r => r.json())
+			.then(runs => {
+				_runs = runs;
+				renderRunList(runs);
+				// If ?run= param, pre-select
+				const urlRun = Number(new URLSearchParams(location.search).get('run'));
+				if (urlRun) selectRun(urlRun);
+			})
+			.catch(() => {
+				document.getElementById('run-list-wrap').innerHTML =
+					'<p style="color:#c00;font-size:.85rem;">Failed to load runs.</p>';
+			});
+	}
+
+	function renderRunList(runs) {
+		const wrap = document.getElementById('run-list-wrap');
+		if (!runs.length) {
+			wrap.innerHTML = '<p style="color:#aaa;font-size:.85rem;">No runs yet.</p>';
+			return;
+		}
+		const rows = runs.map(r => {
+			const statusCls = r.status === 'completed' ? 'badge--completed' :
+			                  r.status === 'crashed'   ? 'badge--crashed' : 'badge--active';
+			return `<tr data-id="${r.id}" class="${_selectedRunId === r.id ? 'is-selected' : ''}">
+				<td>${r.name}</td>
+				<td>${fmtDate(r.started_at)}</td>
+				<td>${r.ended_at ? fmtDate(r.ended_at) : '—'}</td>
+				<td><span class="badge ${statusCls}">${r.status}</span></td>
+				<td>${starsHtml(r.quality_score)}</td>
+				<td>${r.koji_variety || '—'}</td>
+				<td><button class="btn btn-secondary btn-sm" data-select="${r.id}">Edit</button></td>
+			</tr>`;
+		}).join('');
+		wrap.innerHTML = `<table class="run-table">
+			<thead><tr>
+				<th>Name</th><th>Started</th><th>Ended</th><th>Status</th><th>Quality</th><th>Koji variety</th><th></th>
+			</tr></thead>
+			<tbody>${rows}</tbody>
+		</table>`;
+		wrap.querySelectorAll('[data-select]').forEach(btn => {
+			btn.addEventListener('click', () => selectRun(Number(btn.dataset.select)));
+		});
+	}
+
+	function selectRun(runId) {
+		_selectedRunId = runId;
+		const run = _runs.find(r => r.id === runId);
+		if (!run) return;
+		// Update table highlight
+		document.querySelectorAll('.run-table tr[data-id]').forEach(tr => {
+			tr.classList.toggle('is-selected', Number(tr.dataset.id) === runId);
+		});
+		// Show metadata card
+		const card = document.getElementById('meta-card');
+		card.style.display = '';
+		document.getElementById('meta-card-title').textContent = 'Metadata — ' + run.name;
+		// Populate form from metadata
+		fetch(`/api/runs/${runId}/metadata`)
+			.then(r => r.json())
+			.then(meta => populateMetaForm(meta))
+			.catch(() => {});
+	}
+
+	function populateMetaForm(meta) {
+		const form = document.getElementById('meta-form');
+		const fields = ['koji_variety', 'inoculation_rate', 'source_rice', 'polish_ratio', 'tasting_notes'];
+		fields.forEach(f => {
+			const el = form.elements[f];
+			if (el) el.value = meta[f] != null ? meta[f] : '';
+		});
+		setStarScore(meta.quality_score || 0);
+		document.getElementById('save-status').textContent = '';
+	}
+
+	/* ── Star rating ─────────────────────────────────────────────── */
+	let _starScore = 0;
+
+	function setStarScore(score) {
+		_starScore = score;
+		document.getElementById('quality-score-input').value = score || '';
+		document.querySelectorAll('#star-input span').forEach(s => {
+			s.classList.toggle('is-on', Number(s.dataset.v) <= score);
+		});
+	}
+
+	document.querySelectorAll('#star-input span').forEach(s => {
+		s.addEventListener('click', () => setStarScore(Number(s.dataset.v)));
+		s.addEventListener('mouseenter', () => {
+			document.querySelectorAll('#star-input span').forEach(x => {
+				x.classList.toggle('is-on', Number(x.dataset.v) <= Number(s.dataset.v));
+			});
+		});
+		s.addEventListener('mouseleave', () => setStarScore(_starScore));
+	});
+
+	/* ── Save metadata ───────────────────────────────────────────── */
+	document.getElementById('meta-save-btn').addEventListener('click', () => {
+		if (!_selectedRunId) return;
+		const form = document.getElementById('meta-form');
+		const data = {
+			koji_variety:      form.elements['koji_variety'].value || null,
+			inoculation_rate:  form.elements['inoculation_rate'].value !== '' ? Number(form.elements['inoculation_rate'].value) : null,
+			source_rice:       form.elements['source_rice'].value || null,
+			polish_ratio:      form.elements['polish_ratio'].value !== '' ? Number(form.elements['polish_ratio'].value) : null,
+			quality_score:     _starScore || null,
+			tasting_notes:     form.elements['tasting_notes'].value || null,
+		};
+		const statusEl = document.getElementById('save-status');
+		statusEl.textContent = 'Saving…';
+		fetch(`/api/runs/${_selectedRunId}/metadata`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(data),
+		})
+			.then(r => r.json())
+			.then(() => {
+				statusEl.textContent = 'Saved ✓';
+				loadRuns(); // refresh quality stars in table
+				setTimeout(() => { statusEl.textContent = ''; }, 2500);
+			})
+			.catch(() => { statusEl.textContent = 'Error saving'; });
+	});
+
+	/* ── Correlation charts ──────────────────────────────────────── */
+	const CORR_VARS = [
+		{ key: 'avg_humidity_stage2',    label: 'Avg Humidity hr 12-24 (%RH)', xLabel: 'Humidity (%RH)' },
+		{ key: 'total_weight_loss_pct',  label: 'Total Weight Loss (%)',         xLabel: 'Weight loss (%)' },
+		{ key: 'avg_temp_all_zones',     label: 'Avg Temperature All Zones (°C)', xLabel: 'Avg Temp (°C)' },
+		{ key: 'peak_deviation',         label: 'Peak Temp Deviation (°C)',       xLabel: 'Peak deviation (°C)' },
+	];
+
+	let _corrLoaded = false;
+	const _corrCharts = {};
+
+	function getThemeColors() {
+		const s = getComputedStyle(document.documentElement);
+		const g = v => s.getPropertyValue(v).trim();
+		return {
+			tick:    g('--color-text-3'),
+			grid:    g('--color-border'),
+			surface: g('--color-surface'),
+			border:  g('--color-border-strong'),
+			text1:   g('--color-text-1'),
+			text2:   g('--color-text-2'),
+		};
+	}
+
+	function applyChartDefaults() {
+		const c = getThemeColors();
+		Chart.defaults.color = c.tick;
+		Chart.defaults.borderColor = c.grid;
+	}
+
+	applyChartDefaults();
+
+	// Re-render correlation charts when theme changes
+	new MutationObserver(() => {
+		applyChartDefaults();
+		// Destroy existing charts so they re-render with new colors on next load
+		Object.keys(_corrCharts).forEach(k => {
+			if (_corrCharts[k]) { _corrCharts[k].destroy(); delete _corrCharts[k]; }
+		});
+		_corrLoaded = false;
+		loadCorrelation();
+	}).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+	function loadCorrelation() {
+		if (_corrLoaded) return;
+		_corrLoaded = true;
+		const grid = document.getElementById('corr-grid');
+		const needMore = document.getElementById('corr-need-more');
+
+		// Fetch first variable to check count
+		fetch('/api/correlation?variable=' + CORR_VARS[0].key)
+			.then(r => r.json())
+			.then(res => {
+				if (res.error) {
+					needMore.textContent = res.error + (res.count != null ? ` (${res.count} scored so far)` : '');
+					return;
+				}
+				// Enough data — render all 4 charts
+				needMore.style.display = 'none';
+				grid.style.display = '';
+
+				CORR_VARS.forEach(v => {
+					const div = document.createElement('div');
+					div.className = 'corr-card';
+					div.innerHTML = `<h3>${v.label}</h3><p class="corr-r" id="r-${v.key}">r = …</p>
+						<div class="corr-canvas-wrap"><canvas id="c-${v.key}"></canvas></div>`;
+					grid.appendChild(div);
+					fetchAndRenderCorr(v);
+				});
+			})
+			.catch(() => { needMore.textContent = 'Error loading correlation data.'; });
+	}
+
+	function fetchAndRenderCorr(varDef) {
+		fetch('/api/correlation?variable=' + varDef.key)
+			.then(r => r.json())
+			.then(res => {
+				const rEl = document.getElementById('r-' + varDef.key);
+				if (res.error) { if (rEl) rEl.textContent = res.error; return; }
+				if (rEl) rEl.textContent = 'Pearson r = ' + (res.pearson_r != null ? res.pearson_r : '—') +
+				                           ' (n=' + res.n + ')';
+				const canvas = document.getElementById('c-' + varDef.key);
+				if (!canvas) return;
+				const ctx = canvas.getContext('2d');
+				const points = res.points || [];
+				if (_corrCharts[varDef.key]) { _corrCharts[varDef.key].destroy(); }
+				_corrCharts[varDef.key] = new Chart(ctx, {
+					type: 'scatter',
+					data: {
+						datasets: [{
+							label: varDef.label,
+							data: points.map(p => ({ x: p.x, y: p.y, runName: p.run_name })),
+							borderColor: '#3a5a8a',
+							backgroundColor: 'rgba(58,90,138,0.55)',
+							pointRadius: 5,
+							pointHoverRadius: 7,
+						}]
+					},
+					options: {
+						animation: false,
+						responsive: true,
+						maintainAspectRatio: false,
+						scales: {
+							x: { title: { display: true, text: varDef.xLabel, color: getThemeColors().text2 },
+							     ticks: { color: getThemeColors().tick }, grid: { color: getThemeColors().grid } },
+							y: { min: 1, max: 5, ticks: { stepSize: 1, color: getThemeColors().tick },
+							     grid: { color: getThemeColors().grid },
+							     title: { display: true, text: 'Quality ★', color: getThemeColors().text2 } },
+						},
+						plugins: {
+							legend: { display: false },
+							tooltip: {
+								backgroundColor: getThemeColors().surface,
+								borderColor: getThemeColors().border,
+								borderWidth: 1,
+								titleColor: getThemeColors().text2,
+								bodyColor: getThemeColors().text1,
+								callbacks: {
+									label(ctx) {
+										const d = ctx.raw;
+										return `${d.runName}: x=${d.x}, ★${d.y}`;
+									}
+								}
+							}
+						}
+					}
+				});
+			})
+			.catch(() => {});
+	}
+
+	/* ── Init ─────────────────────────────────────────────────────── */
+	loadRuns();
+})();
+</script>
+</body>
+</html>

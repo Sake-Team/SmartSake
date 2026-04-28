@@ -1,0 +1,142 @@
+/* =============================================
+   SmartSake — Customize System
+   Theme swatches, color pickers, modal
+   ============================================= */
+
+/* ----- Settings Sections ----- */
+.settings-section {
+  padding: 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+.settings-section:last-child { border-bottom: none; }
+
+.settings-section__label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-3);
+  margin-bottom: 14px;
+}
+
+/* ----- Theme Swatches ----- */
+.theme-swatches {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.theme-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 8px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--r-md);
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color var(--t), box-shadow var(--t), transform var(--t);
+}
+.theme-swatch:hover {
+  border-color: var(--color-border-strong);
+  transform: translateY(-1px);
+}
+.theme-swatch--active {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-focus);
+}
+
+.theme-swatch__preview {
+  width: 38px;
+  height: 28px;
+  border-radius: 5px;
+  border: 2.5px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.theme-swatch__preview--custom {
+  background: conic-gradient(
+    #ff6b6b 0deg 72deg,
+    #157efb 72deg 144deg,
+    #22c55e 144deg 216deg,
+    #e6a817 216deg 288deg,
+    #a855f7 288deg 360deg
+  );
+  border-color: transparent;
+}
+
+.theme-swatch__label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--color-text-2);
+}
+
+/* ----- Custom Color Pickers ----- */
+.color-picker-row {
+  display: flex;
+  gap: 10px;
+}
+
+.color-picker-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-2);
+  flex: 1;
+  font-family: inherit;
+}
+
+.color-picker-label input[type="color"] {
+  width: 100%;
+  height: 36px;
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: var(--r-sm);
+  padding: 3px;
+  cursor: pointer;
+  background: var(--color-surface);
+  transition: border-color var(--t);
+}
+.color-picker-label input[type="color"]:hover { border-color: var(--color-accent); }
+
+/* ----- Edit Layout Button ----- */
+.settings-edit-btn {
+  width: 100%;
+  padding: 9px 16px;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: var(--r-sm);
+  font-size: 0.875rem;
+  font-weight: 700;
+  font-family: inherit;
+  color: var(--color-text-1);
+  cursor: pointer;
+  transition: background var(--t), border-color var(--t), color var(--t), box-shadow var(--t);
+  margin-bottom: 10px;
+  letter-spacing: -0.01em;
+}
+.settings-edit-btn:hover {
+  background: var(--color-bg-subtle);
+  border-color: var(--color-accent);
+}
+.settings-edit-btn.active {
+  background: var(--color-accent);
+  color: var(--color-text-light);
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-accent);
+}
+
+.settings-hint {
+  font-size: 0.77rem;
+  color: var(--color-text-3);
+  margin: 0;
+  line-height: 1.6;
+}
+

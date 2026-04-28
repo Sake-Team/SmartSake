@@ -1,0 +1,137 @@
+============================================================
+  SMARTSAKE — RASPBERRY PI CONTROLS REFERENCE
+============================================================
+
+------------------------------------------------------------
+  INITIAL SETUP (run once)
+------------------------------------------------------------
+
+Clone the repo:
+  cd ~
+  git clone https://github.com/Sake-Team/SmartSake.git MainCode
+  cd MainCode
+  git checkout ClaudeAgents
+
+Create virtual environment and install dependencies:
+  python3 -m venv .venv
+  source .venv/bin/activate
+  pip install -r requirements.txt
+
+Install and enable systemd services (auto-start on boot):
+  sudo bash systemd/install.sh
+
+
+------------------------------------------------------------
+  SERVICES — START / STOP / STATUS
+------------------------------------------------------------
+
+Start all:
+  sudo systemctl start smartsake-sensors
+  sudo systemctl start smartsake-server
+
+Stop all:
+  sudo systemctl stop smartsake-sensors
+  sudo systemctl stop smartsake-server
+
+Restart after a code update:
+  sudo systemctl restart smartsake-sensors
+  sudo systemctl restart smartsake-server
+
+Check status:
+  sudo systemctl status smartsake-sensors
+  sudo systemctl status smartsake-server
+
+View live logs:
+  journalctl -fu smartsake-sensors
+  journalctl -fu smartsake-server
+
+
+------------------------------------------------------------
+  UPDATING CODE FROM GITHUB
+------------------------------------------------------------
+
+  cd ~/MainCode
+  git pull origin ClaudeAgents
+  sudo systemctl restart smartsake-sensors
+  sudo systemctl restart smartsake-server
+
+Fresh clone (if pull fails):
+  rm -rf ~/MainCode
+  cd ~
+  git clone https://github.com/Sake-Team/SmartSake.git MainCode
+  cd MainCode
+  git checkout ClaudeAgents
+  python3 -m venv .venv
+  source .venv/bin/activate
+  pip install -r requirements.txt
+  sudo bash systemd/install.sh
+
+
+------------------------------------------------------------
+  CALIBRATION
+------------------------------------------------------------
+
+List all scales (shows wired/calibrated status):
+  source .venv/bin/activate
+  python load_cell_hx711.py --list
+
+Calibrate a load cell (replace N with 1, 2, 3, or 4):
+  python load_cell_hx711.py --calibrate --scale N
+
+Re-tare a load cell (zero it without full calibration):
+  python load_cell_hx711.py --tare --scale N
+
+Calibrate SHT30 ambient sensor (replace XX.X with reference thermometer reading):
+  python calibrate_sht30.py XX.X
+
+
+------------------------------------------------------------
+  HARDWARE SMOKE TEST
+------------------------------------------------------------
+
+Test everything:
+  source .venv/bin/activate
+  python test_hardware.py --all
+
+Test a specific scale:
+  python test_hardware.py --scale N
+
+Test a specific fan relay zone:
+  python test_hardware.py --zone N
+
+
+------------------------------------------------------------
+  DATABASE BACKUP
+------------------------------------------------------------
+
+Run a manual backup now:
+  source .venv/bin/activate
+  python backup_db.py
+
+Backups are stored in: ~/MainCode/backups/
+Automatic daily backup runs at 2:00 AM via systemd timer.
+
+Check timer status:
+  sudo systemctl status smartsake-backup.timer
+
+
+------------------------------------------------------------
+  DIAGNOSTICS
+------------------------------------------------------------
+
+Check what is running on port 8080:
+  sudo ss -tlnp | grep 8080
+
+Check for rogue sensor/server processes:
+  ps aux | grep -E "server|gunicorn|WriteSensors" | grep -v grep
+
+Check scale pin assignments and calibration:
+  cat ~/MainCode/scale_config.json
+
+Check thermocouple zone map:
+  cat ~/MainCode/tc_zone_map.json
+
+Check sensor health (requires server running):
+  curl http://localhost:8080/api/health
+
+============================================================

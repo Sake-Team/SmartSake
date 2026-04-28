@@ -1,327 +1,411 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>Zone 2</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body class="zone-page">
-  <header>
-    <div class="header-inner">
-      <img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" class="sake-logo-egg">
-      <h1 class="header-title">Zone 2 <span id="run-name-display" class="run-name-header"></span></h1>
-    </div>
-  </header>  <main>
-    <div class="stage">
-      <section class="layout">
-        <section class="zones">
-          <a class="zone" href="zone1.html" role="button" aria-label="Zone 1">Zone 1</a>
-          <a class="zone" href="zone2.html" role="button" aria-label="Zone 2">Zone 2</a>
-          <a class="zone" href="zone3.html" role="button" aria-label="Zone 3">Zone 3</a>
-          <a class="zone" href="zone4.html" role="button" aria-label="Zone 4">Zone 4</a>
-          <a class="zone" href="zone5.html" role="button" aria-label="Zone 5">Zone 5</a>
-          <a class="zone" href="zone6.html" role="button" aria-label="Zone 6">Zone 6</a>
+  <head>
+    <meta charset="utf-8">
+    <title>Zone 2</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="customize.js" defer></script>
+  </head>
+  <body class="zone-page">
+    <header class="header">
+      <div class="header-inner">
+        <img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" class="sake-logo-egg">
+        <h1 class="header-title">Zone 2 <span id="run-name-display" class="run-name-header"></span></h1>
+        <button id="settings-btn" class="settings-btn" type="button" aria-label="Open settings" title="Settings">&#9881;</button>
+      </div>
+      <div class="header-actions">
+        <div class="header-datetime" id="header-datetime"></div>
+      </div>
+    </header>
+    <main>
+      <div class="stage">
+        <section class="layout">
+          <section class="zones">
+            <a class="zone" href="zone1.html" role="button" aria-label="Zone 1">Zone 1</a>
+            <a class="zone zone--active" href="zone2.html" role="button" aria-label="Zone 2">Zone 2</a>
+            <a class="zone" href="zone3.html" role="button" aria-label="Zone 3">Zone 3</a>
+            <a class="zone" href="zone4.html" role="button" aria-label="Zone 4">Zone 4</a>
+            <a class="zone" href="zone5.html" role="button" aria-label="Zone 5">Zone 5</a>
+            <a class="zone" href="zone6.html" role="button" aria-label="Zone 6">Zone 6</a>
+          </section>
+
+          <div class="left">
+            <!-- Temperature display -->
+            <div class="long long--top-left zone-temp-card">
+              <span class="zone-temp-label section-title">Zone 2 Temperature</span>
+              <div class="zone-temp-readout">
+                <span id="zone-dry-temp" class="zone-big-temp">--</span>
+                <span class="zone-big-unit">°C</span>
+                <span class="zone-wet-label">wet-bulb: <span id="zone-wet-temp">--</span> °C</span>
+              </div>
+            </div>
+
+            <!-- Setpoint + mode controls -->
+            <div class="long long--top-left zone-control-card">
+              <div class="zone-control-row">
+                <label class="zone-control-label" for="setpoint-input">Setpoint (°C)</label>
+                <div class="zone-setpoint-row">
+                  <input type="number" id="setpoint-input" class="zone-setpoint-input"
+                    min="0" max="60" step="0.5" value="38.0" aria-label="Setpoint temperature">
+                  <button id="setpoint-apply" class="zone-apply-btn">Apply</button>
+                </div>
+              </div>
+              <div class="zone-control-row zone-mode-row">
+                <span class="zone-control-label">Mode</span>
+                <div class="zone-mode-btns">
+                  <button id="mode-auto" class="zone-mode-btn zone-mode-btn--active" data-mode="auto">Auto (PID)</button>
+                  <button id="mode-manual" class="zone-mode-btn" data-mode="manual">Manual</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Fan manual controls -->
+            <div class="mid-row" id="manual-controls">
+              <button class="mid" id="fan-on-btn" disabled>Fan ON</button>
+              <button class="mid" id="fan-off-btn" disabled>Fan OFF</button>
+            </div>
+
+            <!-- Alarm threshold settings -->
+            <details class="zone-alarm-settings">
+              <summary class="zone-alarm-settings-toggle">Alarm Thresholds</summary>
+              <div class="zone-alarm-settings-grid">
+                <label class="zone-thr-label">Warn High<input type="number" id="thr-warn-high" class="zone-setpoint-input" step="0.5" min="0" max="60" placeholder="42.0"></label>
+                <label class="zone-thr-label">Crit High<input type="number" id="thr-crit-high" class="zone-setpoint-input" step="0.5" min="0" max="60" placeholder="45.0"></label>
+                <label class="zone-thr-label">Warn Low<input type="number" id="thr-warn-low" class="zone-setpoint-input" step="0.5" min="0" max="60" placeholder="30.0"></label>
+                <label class="zone-thr-label">Crit Low<input type="number" id="thr-crit-low" class="zone-setpoint-input" step="0.5" min="0" max="60" placeholder="25.0"></label>
+                <button id="thresholds-apply" class="zone-apply-btn zone-thr-apply">Apply</button>
+              </div>
+            </details>
+
+            <!-- Alarm banner -->
+            <div class="zone-alarm-banner" id="alarm-banner" style="display:none">
+              <span class="zone-alarm-icon" id="alarm-icon">&#9888;</span>
+              <span id="alarm-reason">--</span>
+            </div>
+
+            <!-- Status row -->
+            <div class="zone-status-row">
+              <div class="zone-status-chip" id="relay-indicator">
+                <span class="zone-status-dot zone-status-dot--off" id="relay-dot"></span>
+                <span id="relay-label">Fan OFF</span>
+              </div>
+              <div class="zone-status-chip">
+                PID output: <span id="pid-output">--</span>%
+              </div>
+            </div>
+
+            <!-- Historical charts -->
+            <div class="long long--top-left">
+              <div class="chart-header"><span>Zone 2 temperature over time</span></div>
+              <canvas id="zone-temp-chart" class="metric-chart"></canvas>
+            </div>
+            <div class="long long--top-left">
+              <div class="chart-header"><span>Zone 2 fan on/off over time</span></div>
+              <canvas id="zone-fan-chart" class="metric-chart"></canvas>
+            </div>
+          </div>
+
+          <div class="notes" aria-label="Notes">
+            <a class="home-link" href="index.html">&#8592; Home</a>
+            <div class="notes__label">Notes</div>
+            <label class="sr-only" for="notes-input">Notes</label>
+            <textarea id="notes-input" class="notes__input"
+              placeholder="Enter notes..." aria-label="Notes input"></textarea>
+          </div>
         </section>
+      </div>
+    </main>
 
-        <div class="left">
-          <div class="long long--top-left">
-            <div class="chart-header">
-              <span>Zone 2 temperature over time</span>
-            </div>
-            <canvas id="zone-temp-chart" class="metric-chart"></canvas>
-          </div>
-          <div class="long long--top-left">
-            <div class="chart-header">
-              <span>Zone 2 fan on/off over time</span>
-            </div>
-            <canvas id="zone-fan-chart" class="metric-chart"></canvas>
-          </div>
-          <div class="mid-row">
-            <div class="mid" tabindex="0">Manual off for X hours</div>
-            <div class="mid" tabindex="0">Manual on for X hours</div>
-            <div class="mid" tabindex="0">Manual off until end of run</div>
-            <div class="mid" tabindex="0">Manual on until end of run</div>
-          </div>
-        </div>
+    <script>
+    (function () {
+      'use strict';
+      const ZONE = 2;
+      const params = new URLSearchParams(location.search);
+      const runId  = parseInt(params.get('run'), 10) || null;
+      const mode   = params.get('mode') || 'live';
 
-        <div class="notes" aria-label="Notes">
-          <a class="home-link" href="index.html">Home</a>
-          <label class="sr-only" for="notes-input">Notes</label>
-          <textarea id="notes-input" class="notes__input" placeholder="Enter notes..." aria-label="Notes input"></textarea>
-        </div>
-      </section>
-    </div>
-  </main>
+      // ---- Nav ----
+      document.querySelectorAll('.zones a').forEach(function (a) {
+        if (runId) a.href = a.getAttribute('href').split('?')[0] + '?run=' + runId + '&mode=' + mode;
+      });
+      const homeLink = document.querySelector('.home-link');
+      if (homeLink && runId) {
+        homeLink.href = 'dashboard.html?run=' + runId + '&mode=' + mode;
+        homeLink.textContent = '\u2190 Dashboard';
+      }
 
-  <!-- placeholder card removed -->
-  
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script>
-  // Initialize run name display from localStorage
-  (function(){
-    const savedRunName = localStorage.getItem('currentRunName');
-    if(savedRunName){
+      // ---- Run name ----
       const runNameDisplay = document.getElementById('run-name-display');
-      if(runNameDisplay){
-        runNameDisplay.textContent = '- ' + savedRunName;
+      if (runId) {
+        fetch('/api/runs/' + runId)
+          .then(r => r.json())
+          .then(function (run) { if (runNameDisplay) runNameDisplay.textContent = '- ' + run.name; })
+          .catch(function () {
+            const s = localStorage.getItem('currentRunName');
+            if (s && runNameDisplay) runNameDisplay.textContent = '- ' + s;
+          });
+      } else {
+        const s = localStorage.getItem('currentRunName');
+        if (s && runNameDisplay) runNameDisplay.textContent = '- ' + s;
       }
-    }
-  })();
 
-  // Notes localStorage functionality
-  (function(){
-    const notesInput = document.getElementById('notes-input');
-    if(!notesInput) return;
-
-    // Load saved notes on page load
-    const savedNotes = localStorage.getItem('currentNotes');
-    if(savedNotes){
-      notesInput.value = savedNotes;
-    }
-
-    // Save notes whenever user types (with debounce to avoid excessive saves)
-    let saveTimeout;
-    notesInput.addEventListener('input', function(){
-      clearTimeout(saveTimeout);
-      saveTimeout = setTimeout(function(){
-        localStorage.setItem('currentNotes', notesInput.value);
-      }, 500); // Save 500ms after user stops typing
-    });
-
-    // Save notes immediately when user leaves the input field
-    notesInput.addEventListener('blur', function(){
-      clearTimeout(saveTimeout);
-      localStorage.setItem('currentNotes', notesInput.value);
-    });
-  })();
-
-  // Zone temperature + fan charts (Zone 2)
-  (function(){
-    const zoneNumber = 2;
-    const tempCanvas = document.getElementById('zone-temp-chart');
-    const fanCanvas = document.getElementById('zone-fan-chart');
-    if((!tempCanvas && !fanCanvas) || !window.Chart) return;
-
-    const labels = [];
-    const temps = [];
-    const fans = [];
-    const maxPoints = 60;
-
-    const tempChart = tempCanvas ? new Chart(tempCanvas.getContext('2d'), {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [
-          { label: `Temp ${zoneNumber}`, data: temps, borderWidth: 1, pointRadius: 0 }
-        ]
-      },
-      options: {
-        animation: false,
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          x: { ticks: { autoSkip: true, maxTicksLimit: 6 } },
-          y: { title: { display: true, text: 'Temperature (°C)' } }
-        },
-        plugins: { legend: { display: false } }
-      }
-    }) : null;
-
-    const fanChart = fanCanvas ? new Chart(fanCanvas.getContext('2d'), {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [
-          { label: `Fan ${zoneNumber}`, data: fans, borderWidth: 1, pointRadius: 0, stepped: true }
-        ]
-      },
-      options: {
-        animation: false,
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          x: { ticks: { autoSkip: true, maxTicksLimit: 6 } },
-          y: {
-            min: -0.1,
-            max: 1.1,
-            ticks: {
-              stepSize: 1,
-              callback: v => (v === 0 ? 'Off' : v === 1 ? 'On' : '')
-            },
-            title: { display: true, text: 'Fan state' }
-          }
-        },
-        plugins: { legend: { display: false } }
-      }
-    }) : null;
-
-    let lastCount = 0;
-    let lastLiveTimestamp = null;
-    let lastExternalUpdate = 0;
-    let localSimId = null;
-
-    function loadSamples() {
-      const raw = localStorage.getItem('sakeRunState');
-      if(!raw) return [];
-      try {
-        const state = JSON.parse(raw);
-        return Array.isArray(state.collectedData) ? state.collectedData : [];
-      } catch (e) {
-        return [];
-      }
-    }
-
-    function loadLatestSample() {
-      const raw = localStorage.getItem('sakeLatestSample');
-      if (!raw) return null;
-      try {
-        return JSON.parse(raw);
-      } catch (e) {
-        return null;
-      }
-    }
-
-    function toFanValue(raw) {
-      if (raw === null || raw === undefined) return null;
-      if (typeof raw === 'number') return raw;
-      const str = String(raw).toLowerCase();
-      if (str === 'on' || str === '1' || str === 'true') return 1;
-      if (str === 'off' || str === '0' || str === 'false') return 0;
-      const num = parseFloat(str);
-      return isNaN(num) ? null : num;
-    }
-
-    function markExternalUpdate() {
-      lastExternalUpdate = Date.now();
-      stopLocalSimulator();
-    }
-
-    function rebuildFromSamples(samples) {
-      labels.length = 0;
-      temps.length = 0;
-      fans.length = 0;
-      lastLiveTimestamp = null;
-
-      const slice = samples.slice(-maxPoints);
-      slice.forEach(sample => {
-        const t = new Date(sample.timestamp);
-        if (isNaN(t.getTime())) return;
-        labels.push(t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-        const tempVal = parseFloat(sample[`temp${zoneNumber}`]);
-        temps.push(isNaN(tempVal) ? null : tempVal);
-        fans.push(toFanValue(sample[`fan${zoneNumber}`]));
-        lastLiveTimestamp = t.toISOString();
-      });
-    }
-
-    function appendLatest(sample) {
-      const t = new Date(sample.timestamp);
-      if (isNaN(t.getTime())) return false;
-      const iso = t.toISOString();
-      if (iso === lastLiveTimestamp) return false;
-
-      labels.push(t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-      const tempVal = parseFloat(sample[`temp${zoneNumber}`]);
-      temps.push(isNaN(tempVal) ? null : tempVal);
-      fans.push(toFanValue(sample[`fan${zoneNumber}`]));
-      lastLiveTimestamp = iso;
-
-      if (labels.length > maxPoints) {
-        labels.shift();
-        temps.shift();
-        fans.shift();
-      }
-      markExternalUpdate();
-      return true;
-    }
-
-    function computeWetBulbC(TdbC, RH) {
-      const R = Math.min(100, Math.max(1, RH));
-      const T = TdbC;
-      return (
-        T * Math.atan(0.151977 * Math.sqrt(R + 8.313659)) +
-        Math.atan(T + R) -
-        Math.atan(R - 1.676331) +
-        0.00391838 * Math.pow(R, 1.5) * Math.atan(0.023101 * R) -
-        4.686035
-      );
-    }
-
-    function generateLocalSample() {
-      const humidity = 40 + Math.random() * 40;
-      const dryC = 20 + Math.random() * 30;
-      const wetC = computeWetBulbC(dryC, humidity);
-      return {
-        timestamp: new Date().toISOString(),
-        [`temp${zoneNumber}`]: wetC.toFixed(1),
-        [`fan${zoneNumber}`]: wetC > 40 ? 1 : 0
-      };
-    }
-
-    function startLocalSimulator() {
-      if (localSimId) return;
-      localSimId = setInterval(() => {
-        const sample = generateLocalSample();
-        if (appendLatest(sample)) {
-          if (tempChart) tempChart.update('none');
-          if (fanChart) fanChart.update('none');
+      // ---- Notes ----
+      const notesInput = document.getElementById('notes-input');
+      if (notesInput) {
+        if (mode === 'replay') {
+          notesInput.disabled = true;
+          notesInput.placeholder = 'Notes (read only)';
+        } else {
+          let saveTimer;
+          notesInput.addEventListener('input', function () {
+            clearTimeout(saveTimer);
+            saveTimer = setTimeout(function () {
+              if (runId) fetch('/api/runs/' + runId + '/zones/' + ZONE, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ note: notesInput.value })
+              }).catch(function () {});
+              localStorage.setItem('currentNotes', notesInput.value);
+            }, 800);
+          });
         }
-      }, 5000);
-    }
-
-    function stopLocalSimulator() {
-      if (!localSimId) return;
-      clearInterval(localSimId);
-      localSimId = null;
-    }
-
-    function syncCharts(force) {
-      const samples = loadSamples();
-      let updated = false;
-
-      if (force || samples.length !== lastCount) {
-        rebuildFromSamples(samples);
-        lastCount = samples.length;
-        updated = true;
-      }
-
-      const latest = loadLatestSample();
-      if (latest) {
-        updated = appendLatest(latest) || updated;
-      }
-
-      if (!lastExternalUpdate || Date.now() - lastExternalUpdate > 8000) {
-        startLocalSimulator();
-      }
-
-      if (updated) {
-        if (tempChart) tempChart.update('none');
-        if (fanChart) fanChart.update('none');
-      }
-    }
-
-    syncCharts(true);
-    setInterval(syncCharts, 2000);
-    window.addEventListener('storage', function (event) {
-      if (event.key === 'sakeLatestSample') {
-        syncCharts(true);
-      }
-    });
-
-    if (typeof BroadcastChannel !== 'undefined') {
-      const channel = new BroadcastChannel('sake-sensor');
-      channel.addEventListener('message', function (event) {
-        if (event && event.data) {
-          const appended = appendLatest(event.data);
-          if (appended) {
-            if (tempChart) tempChart.update('none');
-            if (fanChart) fanChart.update('none');
-          }
+        if (runId) {
+          fetch('/api/runs/' + runId + '/zones/' + ZONE)
+            .then(r => r.json())
+            .then(function (d) { if (d.note) notesInput.value = d.note; })
+            .catch(function () {
+              const s = localStorage.getItem('currentNotes');
+              if (s) notesInput.value = s;
+            });
+        } else {
+          const s = localStorage.getItem('currentNotes');
+          if (s) notesInput.value = s;
         }
+      }
+
+      // ---- Zone state polling ----
+      const dryEl      = document.getElementById('zone-dry-temp');
+      const wetEl      = document.getElementById('zone-wet-temp');
+      const relayDot   = document.getElementById('relay-dot');
+      const relayLabel = document.getElementById('relay-label');
+      const pidOut     = document.getElementById('pid-output');
+      const setpointIn = document.getElementById('setpoint-input');
+      const modeAuto   = document.getElementById('mode-auto');
+      const modeManual = document.getElementById('mode-manual');
+      const fanOn      = document.getElementById('fan-on-btn');
+      const fanOff     = document.getElementById('fan-off-btn');
+      const alarmBanner  = document.getElementById('alarm-banner');
+      const alarmReason  = document.getElementById('alarm-reason');
+      const thrWarnHigh  = document.getElementById('thr-warn-high');
+      const thrCritHigh  = document.getElementById('thr-crit-high');
+      const thrWarnLow   = document.getElementById('thr-warn-low');
+      const thrCritLow   = document.getElementById('thr-crit-low');
+
+      let currentMode = 'auto';
+
+      function fmtTemp(v) { return (Math.round(v / 0.2) * 0.2).toFixed(1); }
+      function computeWetBulbC(TdbC, RH) {
+        const R = Math.min(100, Math.max(1, RH));
+        return TdbC * Math.atan(0.151977 * Math.sqrt(R + 8.313659)) +
+               Math.atan(TdbC + R) - Math.atan(R - 1.676331) +
+               0.00391838 * Math.pow(R, 1.5) * Math.atan(0.023101 * R) - 4.686035;
+      }
+
+      async function pollSensorData() {
+        if (mode === 'replay') return;
+        try {
+          const res = await fetch('sensor_latest.json?_=' + Date.now());
+          if (!res.ok) return;
+          const data = await res.json();
+
+          const tcKey = 'TC' + ZONE;
+          const dryC = data.thermocouples && data.thermocouples[tcKey] != null
+            ? parseFloat(data.thermocouples[tcKey]) : null;
+          const RH = data.sht30 && data.sht30.humidity_rh != null
+            ? parseFloat(data.sht30.humidity_rh) : null;
+
+          if (dryEl) dryEl.textContent = dryC != null ? fmtTemp(dryC) : '--';
+          if (wetEl && dryC != null && RH != null)
+            wetEl.textContent = fmtTemp(computeWetBulbC(dryC, RH));
+
+          const zone = data.zones && data.zones[ZONE];
+          if (zone) {
+            if (!document.activeElement || document.activeElement !== setpointIn)
+              setpointIn.value = fmtTemp(parseFloat(zone.setpoint_c));
+
+            currentMode = zone.mode;
+            modeAuto.classList.toggle('zone-mode-btn--active', zone.mode === 'auto');
+            modeManual.classList.toggle('zone-mode-btn--active', zone.mode === 'manual');
+            fanOn.disabled  = (zone.mode !== 'manual');
+            fanOff.disabled = (zone.mode !== 'manual');
+
+            const on = zone.relay_state;
+            relayDot.className = 'zone-status-dot ' + (on ? 'zone-status-dot--on' : 'zone-status-dot--off');
+            fanOn.classList.toggle('mid--fan-active',  on === true);
+            fanOff.classList.toggle('mid--fan-active', on === false && currentMode === 'manual');
+            relayLabel.textContent = on ? 'Fan ON' : 'Fan OFF';
+            if (pidOut) pidOut.textContent = zone.pid_output != null ? zone.pid_output : '--';
+
+            if (alarmBanner) {
+              const level = zone.alarm_level;
+              if (level) {
+                alarmBanner.style.display = '';
+                alarmBanner.className = 'zone-alarm-banner zone-alarm-banner--' + level;
+                if (alarmReason) alarmReason.textContent = zone.alarm_reason || '';
+              } else {
+                alarmBanner.style.display = 'none';
+              }
+            }
+
+            if (zone.alarm_thresholds) {
+              const t = zone.alarm_thresholds;
+              if (thrWarnHigh && document.activeElement !== thrWarnHigh) thrWarnHigh.value = t.warn_high_c ?? '';
+              if (thrCritHigh && document.activeElement !== thrCritHigh) thrCritHigh.value = t.crit_high_c ?? '';
+              if (thrWarnLow  && document.activeElement !== thrWarnLow)  thrWarnLow.value  = t.warn_low_c  ?? '';
+              if (thrCritLow  && document.activeElement !== thrCritLow)  thrCritLow.value  = t.crit_low_c  ?? '';
+            }
+          }
+        } catch (e) {
+          console.warn('Zone poll error:', e);
+        }
+      }
+
+      pollSensorData();
+      setInterval(pollSensorData, 5000);
+
+      // ---- POST helper ----
+      async function postZoneUpdate(payload) {
+        if (mode === 'replay') return;
+        try {
+          const res = await fetch('/update_zone', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ zone: ZONE, ...payload })
+          });
+          if (!res.ok) console.warn('Zone update failed:', await res.text());
+          else pollSensorData();
+        } catch (e) {
+          console.warn('Zone POST error:', e);
+        }
+      }
+
+      document.getElementById('setpoint-apply').addEventListener('click', function () {
+        const sp = parseFloat(setpointIn.value);
+        if (!isNaN(sp) && sp >= 0 && sp <= 60) postZoneUpdate({ setpoint_c: sp });
       });
-    }
-  })();
-  </script>
-</body>
+      modeAuto.addEventListener('click', function () { postZoneUpdate({ mode: 'auto' }); });
+      modeManual.addEventListener('click', function () { postZoneUpdate({ mode: 'manual' }); });
+      fanOn.addEventListener('click',  function () { postZoneUpdate({ mode: 'manual', manual_state: true  }); });
+      fanOff.addEventListener('click', function () { postZoneUpdate({ mode: 'manual', manual_state: false }); });
+      document.getElementById('thresholds-apply').addEventListener('click', function () {
+        const wh = parseFloat(thrWarnHigh.value);
+        const ch = parseFloat(thrCritHigh.value);
+        const wl = parseFloat(thrWarnLow.value);
+        const cl = parseFloat(thrCritLow.value);
+        if ([wh, ch, wl, cl].some(isNaN)) return;
+        postZoneUpdate({ alarm_thresholds: { warn_high_c: wh, crit_high_c: ch, warn_low_c: wl, crit_low_c: cl } });
+      });
+
+      if (typeof BroadcastChannel !== 'undefined') {
+        var bc = new BroadcastChannel('sake-sensor');
+        bc.onmessage = function () { pollSensorData(); };
+      }
+
+      // ---- Charts ----
+      const tempCanvas = document.getElementById('zone-temp-chart');
+      const fanCanvas  = document.getElementById('zone-fan-chart');
+      if (tempCanvas && fanCanvas && window.Chart) {
+        function getThemeColors() {
+          const s = getComputedStyle(document.documentElement);
+          const g = v => s.getPropertyValue(v).trim();
+          return { surface: g('--color-surface')||'#fff', border: g('--color-border')||'rgba(0,0,0,0.07)', text1: g('--color-text-1')||'#111', text2: g('--color-text-2')||'#555', tick: g('--color-text-3')||'#888' };
+        }
+        function buildChartConfig() {
+          const tc = getThemeColors();
+          const tooltip = { backgroundColor: tc.surface, borderColor: tc.border, borderWidth: 1, titleColor: tc.text1, bodyColor: tc.text2, padding: 10, cornerRadius: 8, bodyFont: { family: 'Inter, system-ui, sans-serif', size: 12 }, titleFont: { family: 'Inter, system-ui, sans-serif', size: 12, weight: '600' } };
+          return { tooltip, chartDefaults: { responsive: true, maintainAspectRatio: false, animation: false, scales: { x: { display: false }, y: { ticks: { color: tc.tick }, grid: { color: tc.border } } }, plugins: { legend: { labels: { color: tc.text2 } }, tooltip } } };
+        }
+        const { tooltip: TOOLTIP_DEFAULTS, chartDefaults: CHART_DEFAULTS } = buildChartConfig();
+        const MAX_PTS = 120, labels = [], tempData = [], fanData = [];
+
+        const tempChart = new Chart(tempCanvas.getContext('2d'), {
+          type: 'line',
+          data: { labels, datasets: [{ label: 'Zone ' + ZONE + ' Temp (\u00b0C)', data: tempData, borderColor: '#e05252', backgroundColor: 'rgba(224,82,82,0.1)', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: true }] },
+          options: CHART_DEFAULTS
+        });
+        const fanChart = new Chart(fanCanvas.getContext('2d'), {
+          type: 'line',
+          data: { labels, datasets: [{ label: 'Zone ' + ZONE + ' Fan', data: fanData, borderColor: '#52a0e0', backgroundColor: 'rgba(82,160,224,0.1)', borderWidth: 1.5, pointRadius: 0, stepped: true, fill: true }] },
+          options: { ...CHART_DEFAULTS, scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, min: 0, max: 1 } } }
+        });
+
+        new MutationObserver(() => {
+          const cfg = buildChartConfig();
+          [tempChart, fanChart].forEach(chart => {
+            chart.options.scales.y.ticks.color = cfg.chartDefaults.scales.y.ticks.color;
+            chart.options.scales.y.grid.color  = cfg.chartDefaults.scales.y.grid.color;
+            chart.options.plugins.legend.labels.color = cfg.chartDefaults.plugins.legend.labels.color;
+            chart.options.plugins.tooltip = cfg.tooltip;
+            chart.update('none');
+          });
+        }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+        function roundHalf(v) { return Math.round(v * 2) / 2; }
+        function pushSample(time, temp, fan) {
+          const t = (temp !== null && temp !== undefined) ? roundHalf(parseFloat(temp)) : null;
+          labels.push(new Date(time).toLocaleTimeString());
+          tempData.push(t !== null && !isNaN(t) ? t : null);
+          fanData.push(fan !== null && fan !== undefined ? Number(fan) : null);
+          if (labels.length > MAX_PTS) { labels.shift(); tempData.shift(); fanData.shift(); }
+          tempChart.update('none');
+          fanChart.update('none');
+        }
+
+        function loadHistory(cb) {
+          if (!runId) { cb(); return; }
+          fetch('/api/runs/' + runId + '/readings?n=300')
+            .then(r => r.json())
+            .then(function (rows) {
+              if (rows && rows.length) rows.forEach(function (row) { pushSample(row.recorded_at, row['tc' + ZONE], row['fan' + ZONE]); });
+              cb();
+            }).catch(cb);
+        }
+
+        if (mode === 'replay') {
+          loadHistory(function () {});
+        } else {
+          var lastTs = null;
+          function applyLiveSample(d) {
+            if (!d || d.timestamp === lastTs) return;
+            lastTs = d.timestamp;
+            pushSample(d.timestamp, d['tc' + ZONE], d['fan' + ZONE]);
+          }
+          function startLive() {
+            if (typeof BroadcastChannel !== 'undefined') {
+              var bc2 = new BroadcastChannel('sake-sensor');
+              bc2.onmessage = function (e) { applyLiveSample(e.data); };
+            }
+            setInterval(function () { fetch('/api/latest').then(r => r.json()).then(applyLiveSample).catch(function () {}); }, 3000);
+            fetch('/api/latest').then(r => r.json()).then(applyLiveSample).catch(function () {});
+          }
+          loadHistory(startLive);
+        }
+      }
+    })();
+    </script>
+    <script>
+    (function() {
+      function updateHeaderTime() {
+        var el = document.getElementById('header-datetime');
+        if (!el) return;
+        var now = new Date();
+        el.innerHTML = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + '<br>' +
+                       now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      }
+      updateHeaderTime();
+      setInterval(updateHeaderTime, 1000);
+    })();
+    </script>
+  </body>
 </html>
