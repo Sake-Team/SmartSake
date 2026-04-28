@@ -1,20 +1,24 @@
 """
-SmartSake Flask server.
-Replaces the SimpleHTTPServer thread in WriteSensors.py.
+SmartSake Flask server + sensor collector.
 
 Start with:  python server.py
 Default port: 8080
+
+Sensor collection (thermocouples, SHT30, load cells) runs in a background
+daemon thread started at import time.  No separate WriteSensors.py process
+is required — one command runs everything.
 """
 
 import json
 import os
+import threading
 import time
 from flask import Flask, jsonify, request, send_from_directory, abort
 
 import db
 import fan_gpio
 
-BASE_DIR          = os.path.dirname(__file__)
+BASE_DIR          = os.path.dirname(os.path.abspath(__file__))
 SENSOR_JSON       = os.path.join(BASE_DIR, "sensor_latest.json")
 FAN_STATE_JSON    = os.path.join(BASE_DIR, "fan_state.json")
 ZONE_CONFIG_FILE  = os.path.join(BASE_DIR, "zone_config.json")
@@ -22,7 +26,22 @@ SCALE_CONFIG_FILE = os.path.join(BASE_DIR, "scale_config.json")
 
 app = Flask(__name__, static_folder=BASE_DIR, static_url_path="")
 
+# ── Database init + crash recovery ───────────────────────────────────────────
 db.init_db()
+_stale = db.get_active_run()
+if _stale:
+    db.mark_crashed(_stale["id"])
+    print(f"[startup] Previous run '{_stale['name']}' (id={_stale['id']}) marked as crashed.")
+
+# ── Start sensor loop in background thread ────────────────────────────────────
+def _start_sensor_thread():
+    try:
+        import WriteSensors
+        WriteSensors.start_sensor_loop()
+    except Exception as e:
+        print(f"[startup] Sensor loop failed to start: {e}")
+
+threading.Thread(target=_start_sensor_thread, daemon=True, name="sensor-loop").start()
 
 
 # ── Static pages ──────────────────────────────────────────────────────────────
@@ -108,6 +127,47 @@ def api_latest():
     result["weight_total_lbs"] = round(total, 3) if total else None
 
     return jsonify(result)
+
+
+# ── Sensor loop status (debug) ────────────────────────────────────────────────
+
+@app.route("/api/sensor-status")
+def api_sensor_status():
+    """Returns sensor loop health: library availability, last write age, active run."""
+    try:
+        import WriteSensors as ws
+        tc_available  = ws._TC_AVAILABLE
+        hx_available  = ws._HX_AVAILABLE
+        sht_available = ws._SHT_AVAILABLE
+        last_write_age = round(time.time() - ws._last_db_write_time, 1) if ws._last_db_write_time > 0 else None
+        active_run_id  = ws._active_run_id
+    except Exception as e:
+        return jsonify({"error": f"Could not read sensor module state: {e}"}), 500
+
+    sensor_age_s = None
+    sensor_ts    = None
+    if os.path.exists(SENSOR_JSON):
+        try:
+            sensor_age_s = round(time.time() - os.path.getmtime(SENSOR_JSON), 1)
+            with open(SENSOR_JSON) as f:
+                sensor_ts = json.load(f).get("timestamp")
+        except Exception:
+            pass
+
+    active_run = db.get_active_run()
+
+    return jsonify({
+        "sensor_file_age_s":  sensor_age_s,
+        "sensor_file_ts":     sensor_ts,
+        "last_db_write_age_s": last_write_age,
+        "active_run_id":      active_run_id,
+        "active_run":         active_run["name"] if active_run else None,
+        "libs": {
+            "thermocouples": tc_available,
+            "hx711_scales":  hx_available,
+            "sht30":         sht_available,
+        },
+    })
 
 
 # ── Health gate ───────────────────────────────────────────────────────────────
@@ -780,5 +840,6 @@ def api_save_zone_config():
 
 
 if __name__ == "__main__":
-    # Dev only — use gunicorn in production (see systemd/smartsake-server.service)
+    # Dev: python server.py  (sensor loop already running in background thread)
+    # Production: use gunicorn via systemd/smartsake.service
     app.run(host="0.0.0.0", port=8080, debug=False)

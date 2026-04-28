@@ -1,0 +1,19 @@
+[Unit]
+Description=SmartSake — web server + sensor collector
+# No network dependency: everything is local (SQLite, GPIO, 1-Wire, I2C)
+After=local-fs.target
+
+[Service]
+Type=simple
+User=kojitable
+WorkingDirectory=/home/kojitable/ClaudeAgents
+ExecStart=/usr/bin/python3 /home/kojitable/ClaudeAgents/server.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+# Give hardware time to be ready before first run
+ExecStartPre=/bin/sleep 3
+
+[Install]
+WantedBy=multi-user.target
