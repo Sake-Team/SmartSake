@@ -381,14 +381,12 @@
     return rows;
   }
 
-  // Convert from the single temp_target UI to the 6-zone API format
+  // Pass rows directly — API now uses single temp_target field
   function rowsToApiPoints(rows) {
     return rows.map(function (r) {
-      var t = (r.temp_target !== null && !isNaN(r.temp_target)) ? r.temp_target : null;
       return {
-        elapsed_min:  r.elapsed_min,
-        temp1_target: t, temp2_target: t, temp3_target: t,
-        temp4_target: t, temp5_target: t, temp6_target: t
+        elapsed_min: r.elapsed_min,
+        temp_target: (r.temp_target !== null && !isNaN(r.temp_target)) ? r.temp_target : null
       };
     });
   }
@@ -396,9 +394,8 @@
   function loadPointsIntoTable(points) {
     var tbody = document.getElementById('points-tbody');
     tbody.innerHTML = '';
-    // Convert from 6-zone API format to single temp_target
     points.forEach(function (p) {
-      insertRow({ elapsed_min: p.elapsed_min, temp_target: p.temp1_target });
+      insertRow({ elapsed_min: p.elapsed_min, temp_target: p.temp_target });
     });
     if (!points.length) addEmptyRow(true);
     refreshChart();

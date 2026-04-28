@@ -265,12 +265,10 @@
           const rows = [];
           for (let i = 1; i < lines.length; i++) {
             const v = lines[i].split(',');
-            if (v.length >= 7) {
+            if (v.length >= 2) {
               rows.push({
                 elapsed_min: parseFloat(v[0]),
-                temp1_target: parseFloat(v[1]), temp2_target: parseFloat(v[2]),
-                temp3_target: parseFloat(v[3]), temp4_target: parseFloat(v[4]),
-                temp5_target: parseFloat(v[5]), temp6_target: parseFloat(v[6])
+                temp_target: parseFloat(v[1])
               });
             }
           }

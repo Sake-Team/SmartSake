@@ -1,0 +1,10 @@
+{
+  "comment": "Limit-switch tolerance per zone. Fan kicks on when temp exceeds setpoint + tolerance_c.",
+  "default": { "tolerance_c": 1.0 },
+  "zone1":   { "tolerance_c": 1.0 },
+  "zone2":   { "tolerance_c": 1.0 },
+  "zone3":   { "tolerance_c": 1.0 },
+  "zone4":   { "tolerance_c": 1.0 },
+  "zone5":   { "tolerance_c": 1.0 },
+  "zone6":   { "tolerance_c": 1.0 }
+}
