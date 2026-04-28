@@ -224,59 +224,45 @@
       async function pollSensorData() {
         if (mode === 'replay') return;
         try {
-          const res = await fetch('sensor_latest.json?_=' + Date.now());
-          if (!res.ok) return;
-          const data = await res.json();
+          const [latest, fanState, zoneCfg] = await Promise.all([
+            fetch('/api/latest').then(r => r.ok ? r.json() : {}),
+            fetch('/api/fan-state').then(r => r.ok ? r.json() : {}),
+            fetch('/api/zone-config').then(r => r.ok ? r.json() : {})
+          ]);
 
-          const tcKey = 'TC' + ZONE;
-          const dryC = data.thermocouples && data.thermocouples[tcKey] != null
-            ? parseFloat(data.thermocouples[tcKey]) : null;
-          const RH = data.sht30 && data.sht30.humidity_rh != null
-            ? parseFloat(data.sht30.humidity_rh) : null;
+          const dryC = latest['tc' + ZONE] != null ? parseFloat(latest['tc' + ZONE]) : null;
+          const RH   = latest.humidity     != null ? parseFloat(latest.humidity)     : null;
 
           if (dryEl) dryEl.textContent = dryC != null ? fmtTemp(dryC) : '--';
           if (wetEl && dryC != null && RH != null)
             wetEl.textContent = fmtTemp(computeWetBulbC(dryC, RH));
 
-          const zone = data.zones && data.zones[ZONE];
-          if (zone) {
-            if (!document.activeElement || document.activeElement !== setpointIn)
-              setpointIn.value = fmtTemp(parseFloat(zone.setpoint_c));
+          const zd   = (fanState.zones || {})[String(ZONE)] || {};
+          const zcfg = zoneCfg['zone' + ZONE] || zoneCfg['default'] || {};
 
-            currentMode = zone.mode;
-            modeAuto.classList.toggle('zone-mode-btn--active', zone.mode === 'auto');
-            modeManual.classList.toggle('zone-mode-btn--active', zone.mode === 'manual');
-            fanOn.disabled  = (zone.mode !== 'manual');
-            fanOff.disabled = (zone.mode !== 'manual');
-
-            const on = zone.relay_state;
-            relayDot.className = 'zone-status-dot ' + (on ? 'zone-status-dot--on' : 'zone-status-dot--off');
-            fanOn.classList.toggle('mid--fan-active',  on === true);
-            fanOff.classList.toggle('mid--fan-active', on === false && currentMode === 'manual');
-            relayLabel.textContent = on ? 'Fan ON' : 'Fan OFF';
-            if (fanTrigger) fanTrigger.textContent = zone.trigger_c != null ? fmtTemp(zone.trigger_c) : '--';
-            if (toleranceIn && (!document.activeElement || document.activeElement !== toleranceIn))
-              toleranceIn.value = zone.tolerance_c != null ? zone.tolerance_c : 1.0;
-
-            if (alarmBanner) {
-              const level = zone.alarm_level;
-              if (level) {
-                alarmBanner.style.display = '';
-                alarmBanner.className = 'zone-alarm-banner zone-alarm-banner--' + level;
-                if (alarmReason) alarmReason.textContent = zone.alarm_reason || '';
-              } else {
-                alarmBanner.style.display = 'none';
-              }
-            }
-
-            if (zone.alarm_thresholds) {
-              const t = zone.alarm_thresholds;
-              if (thrWarnHigh && document.activeElement !== thrWarnHigh) thrWarnHigh.value = t.warn_high_c ?? '';
-              if (thrCritHigh && document.activeElement !== thrCritHigh) thrCritHigh.value = t.crit_high_c ?? '';
-              if (thrWarnLow  && document.activeElement !== thrWarnLow)  thrWarnLow.value  = t.warn_low_c  ?? '';
-              if (thrCritLow  && document.activeElement !== thrCritLow)  thrCritLow.value  = t.crit_low_c  ?? '';
-            }
+          if (setpointIn) {
+            setpointIn.value    = zd.setpoint != null ? fmtTemp(parseFloat(zd.setpoint)) : '';
+            setpointIn.readOnly = true;
+            setpointIn.style.opacity = '0.55';
           }
+
+          if (toleranceIn && (!document.activeElement || document.activeElement !== toleranceIn))
+            toleranceIn.value = zcfg.tolerance_c != null ? zcfg.tolerance_c : 1.0;
+
+          const isManual = zd.mode === 'manual';
+          modeAuto.classList.toggle('zone-mode-btn--active', !isManual);
+          modeManual.classList.toggle('zone-mode-btn--active', isManual);
+          fanOn.disabled  = !isManual;
+          fanOff.disabled = !isManual;
+
+          const fanIsOn = zd.state === 'on';
+          relayDot.className = 'zone-status-dot ' + (fanIsOn ? 'zone-status-dot--on' : 'zone-status-dot--off');
+          fanOn.classList.toggle('mid--fan-active',  fanIsOn);
+          fanOff.classList.toggle('mid--fan-active', !fanIsOn && isManual);
+          relayLabel.textContent = fanIsOn ? 'Fan ON' : 'Fan OFF';
+          if (fanTrigger) fanTrigger.textContent = zd.trigger != null ? fmtTemp(zd.trigger) : '--';
+
+          if (alarmBanner) alarmBanner.style.display = 'none';
         } catch (e) {
           console.warn('Zone poll error:', e);
         }
@@ -285,42 +271,71 @@
       pollSensorData();
       setInterval(pollSensorData, 5000);
 
-      // ---- POST helper ----
-      async function postZoneUpdate(payload) {
-        if (mode === 'replay') return;
+      async function _getActiveRunId() {
         try {
-          const res = await fetch('/update_zone', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ zone: ZONE, ...payload })
-          });
-          if (!res.ok) console.warn('Zone update failed:', await res.text());
-          else pollSensorData();
-        } catch (e) {
-          console.warn('Zone POST error:', e);
-        }
+          const r = await fetch('/api/runs/active');
+          if (!r.ok) return null;
+          const d = await r.json();
+          return d && d.id ? String(d.id) : null;
+        } catch (e) { return null; }
       }
 
-      document.getElementById('setpoint-apply').addEventListener('click', function () {
-        const sp = parseFloat(setpointIn.value);
-        if (!isNaN(sp) && sp >= 0 && sp <= 60) postZoneUpdate({ setpoint_c: sp });
-      });
-      document.getElementById('tolerance-apply').addEventListener('click', function () {
+      // Setpoint is read-only — driven by target profile; no handler needed
+      const _spApply = document.getElementById('setpoint-apply');
+      if (_spApply) _spApply.disabled = true;
+
+      document.getElementById('tolerance-apply').addEventListener('click', async function () {
         const tol = parseFloat(toleranceIn.value);
-        if (!isNaN(tol) && tol >= 0 && tol <= 10) postZoneUpdate({ tolerance_c: tol });
+        if (isNaN(tol) || tol < 0 || tol > 10) return;
+        try {
+          const cfg = await fetch('/api/zone-config').then(r => r.ok ? r.json() : {});
+          const key = 'zone' + ZONE;
+          cfg[key] = cfg[key] || {};
+          cfg[key].tolerance_c = tol;
+          await fetch('/api/zone-config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(cfg)
+          });
+          pollSensorData();
+        } catch (e) { console.warn('Tolerance update error:', e); }
       });
-      modeAuto.addEventListener('click', function () { postZoneUpdate({ mode: 'auto' }); });
-      modeManual.addEventListener('click', function () { postZoneUpdate({ mode: 'manual' }); });
-      fanOn.addEventListener('click',  function () { postZoneUpdate({ mode: 'manual', manual_state: true  }); });
-      fanOff.addEventListener('click', function () { postZoneUpdate({ mode: 'manual', manual_state: false }); });
-      document.getElementById('thresholds-apply').addEventListener('click', function () {
-        const wh = parseFloat(thrWarnHigh.value);
-        const ch = parseFloat(thrCritHigh.value);
-        const wl = parseFloat(thrWarnLow.value);
-        const cl = parseFloat(thrCritLow.value);
-        if ([wh, ch, wl, cl].some(isNaN)) return;
-        postZoneUpdate({ alarm_thresholds: { warn_high_c: wh, crit_high_c: ch, warn_low_c: wl, crit_low_c: cl } });
+
+      modeAuto.addEventListener('click', async function () {
+        const runId = await _getActiveRunId();
+        if (!runId) return;
+        try {
+          await fetch('/api/runs/' + runId + '/zones/' + ZONE + '/fan', { method: 'DELETE' });
+          pollSensorData();
+        } catch (e) { console.warn('Mode auto error:', e); }
       });
+
+      modeManual.addEventListener('click', function () {
+        modeAuto.classList.remove('zone-mode-btn--active');
+        modeManual.classList.add('zone-mode-btn--active');
+        fanOn.disabled  = false;
+        fanOff.disabled = false;
+      });
+
+      async function _postFanOverride(action) {
+        const runId = await _getActiveRunId();
+        if (!runId) return;
+        try {
+          await fetch('/api/runs/' + runId + '/zones/' + ZONE + '/fan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action, duration_minutes: null })
+          });
+          pollSensorData();
+        } catch (e) { console.warn('Fan override error:', e); }
+      }
+
+      fanOn.addEventListener('click',  function () { _postFanOverride('on');  });
+      fanOff.addEventListener('click', function () { _postFanOverride('off'); });
+
+      // Alarm thresholds — no server endpoint yet
+      const _thrApply = document.getElementById('thresholds-apply');
+      if (_thrApply) _thrApply.disabled = true;
 
       if (typeof BroadcastChannel !== 'undefined') {
         var bc = new BroadcastChannel('sake-sensor');

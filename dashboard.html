@@ -2856,135 +2856,129 @@ const tempSeries = {
 					}
 
 					function loadZoneControls(zone) {
-						fetch('/sensor_latest.json')
-							.then(function(r) { return r.json(); })
-							.then(function(data) {
-								var zd = data.zones && data.zones[zone] ? data.zones[zone] : {};
-								if (setpointInput  && zd.setpoint_c  != null) setpointInput.value  = zd.setpoint_c;
-								if (toleranceInput && zd.tolerance_c != null) toleranceInput.value = zd.tolerance_c;
-								if (triggerVal     && zd.trigger_c   != null) triggerVal.textContent = Number(zd.trigger_c).toFixed(1);
+						// Fetch fan state, zone config, and latest sensor reading in parallel
+						Promise.all([
+							fetch('/api/fan-state').then(function(r) { return r.ok ? r.json() : {}; }),
+							fetch('/api/zone-config').then(function(r) { return r.ok ? r.json() : {}; }),
+							fetch('/api/latest').then(function(r) { return r.ok ? r.json() : {}; })
+						]).then(function(results) {
+							var fanState = results[0];
+							var zoneCfg  = results[1];
+							var latest   = results[2];
 
-								// Wet-bulb
-								var wetEl = document.getElementById('zdc-wet-temp');
-								if (wetEl) {
-									var tcVal = data.thermocouples && data.thermocouples['TC' + zone] != null
-										? parseFloat(data.thermocouples['TC' + zone]) : null;
-									var rhVal = data.sht30 && data.sht30.humidity_rh != null
-										? parseFloat(data.sht30.humidity_rh) : null;
-									var wb = (window._calcWetBulb && tcVal != null && rhVal != null)
-										? window._calcWetBulb(tcVal, rhVal) : null;
-									wetEl.textContent = wb != null ? wb.toFixed(1) : '--';
-								}
+							var zd   = (fanState.zones || {})[String(zone)] || {};
+							var zcfg = zoneCfg['zone' + zone] || zoneCfg['default'] || {};
 
-								// Alarm banner
-								var alarmBanner = document.getElementById('zdc-alarm-banner');
-								var alarmReason = document.getElementById('zdc-alarm-reason');
-								if (alarmBanner) {
-									var level = zd.alarm_level;
-									if (level) {
-										alarmBanner.style.display = '';
-										alarmBanner.className = 'zone-alarm-banner zone-alarm-banner--' + level;
-										if (alarmReason) alarmReason.textContent = zd.alarm_reason || '';
-									} else {
-										alarmBanner.style.display = 'none';
-									}
-								}
+							// Setpoint — read-only, interpolated from target profile by WriteSensors
+							if (setpointInput) {
+								setpointInput.value    = zd.setpoint != null ? Number(zd.setpoint).toFixed(1) : '';
+								setpointInput.readOnly = true;
+								setpointInput.style.opacity = '0.55';
+							}
+							if (setpointApply) setpointApply.disabled = true;
 
-								// Mode
-								var isManual = zd.mode === 'manual';
-								if (modeAutoBtn)    modeAutoBtn.classList.toggle('zone-detail-card__mode-btn--active', !isManual);
-								if (modeManualBtn)  modeManualBtn.classList.toggle('zone-detail-card__mode-btn--active', isManual);
-								if (manualControls) manualControls.style.display = isManual ? '' : 'none';
+							// Tolerance — editable per zone
+							if (toleranceInput && zcfg.tolerance_c != null) toleranceInput.value = zcfg.tolerance_c;
 
-								// Fan relay status
-								if (relayDot && relayLabel) {
-									var on = zd.relay_state;
-									relayDot.className = 'zone-status-dot ' + (on ? 'zone-status-dot--on' : 'zone-status-dot--off');
-									relayLabel.textContent = on ? 'Fan ON' : 'Fan OFF';
-								}
+							// Trigger = setpoint + tolerance
+							if (triggerVal) triggerVal.textContent = zd.trigger != null ? Number(zd.trigger).toFixed(1) : '--';
 
-								// Alarm thresholds
-								var thr = zd.alarm_thresholds || {};
-								if (thrWarnHigh && thr.warn_high_c != null) thrWarnHigh.value = thr.warn_high_c;
-								if (thrCritHigh && thr.crit_high_c != null) thrCritHigh.value = thr.crit_high_c;
-								if (thrWarnLow  && thr.warn_low_c  != null) thrWarnLow.value  = thr.warn_low_c;
-								if (thrCritLow  && thr.crit_low_c  != null) thrCritLow.value  = thr.crit_low_c;
-							})
-							.catch(function() {}); // silent — inputs stay at placeholder
+							// Wet-bulb (from live sensor reading)
+							var wetEl = document.getElementById('zdc-wet-temp');
+							if (wetEl) {
+								var tcVal = latest['tc' + zone] != null ? parseFloat(latest['tc' + zone]) : null;
+								var rhVal = latest.humidity     != null ? parseFloat(latest.humidity)     : null;
+								var wb = (window._calcWetBulb && tcVal != null && rhVal != null)
+									? window._calcWetBulb(tcVal, rhVal) : null;
+								wetEl.textContent = wb != null ? wb.toFixed(1) : '--';
+							}
+
+							// Alarm banner — hidden (no server-side alarm state yet)
+							var alarmBanner = document.getElementById('zdc-alarm-banner');
+							if (alarmBanner) alarmBanner.style.display = 'none';
+
+							// Mode: 'manual' = active fan override; anything else = auto
+							var isManual = zd.mode === 'manual';
+							if (modeAutoBtn)    modeAutoBtn.classList.toggle('zone-detail-card__mode-btn--active', !isManual);
+							if (modeManualBtn)  modeManualBtn.classList.toggle('zone-detail-card__mode-btn--active', isManual);
+							if (manualControls) manualControls.style.display = isManual ? '' : 'none';
+
+							// Fan relay live state
+							if (relayDot && relayLabel) {
+								var fanOn = zd.state === 'on';
+								relayDot.className = 'zone-status-dot ' + (fanOn ? 'zone-status-dot--on' : 'zone-status-dot--off');
+								relayLabel.textContent = fanOn ? 'Fan ON' : 'Fan OFF';
+							}
+						}).catch(function() {});
 					}
 
-					// Setpoint apply
-					if (setpointApply) setpointApply.addEventListener('click', function() {
-						var sp = parseFloat(setpointInput.value);
-						if (!isNaN(sp) && sp >= 0 && sp <= 60) {
-							fetch('/update_zone', {
-								method: 'POST',
-								headers: { 'Content-Type': 'application/json' },
-								body: JSON.stringify({ zone: activeZone, setpoint_c: sp })
-							}).then(function() { loadZoneControls(activeZone); });
-						}
-					});
+					// Setpoint is read-only (driven by target profile in WriteSensors)
+					// setpointApply is already disabled in loadZoneControls — no handler needed
 
-					// Tolerance apply
+					// Tolerance apply — PATCH zone_config via /api/zone-config
 					if (toleranceApply) toleranceApply.addEventListener('click', function() {
 						var tol = parseFloat(toleranceInput.value);
-						if (!isNaN(tol) && tol >= 0 && tol <= 10) {
-							fetch('/update_zone', {
+						if (isNaN(tol) || tol < 0 || tol > 10) return;
+						fetch('/api/zone-config')
+							.then(function(r) { return r.ok ? r.json() : {}; })
+							.then(function(cfg) {
+								var key = 'zone' + activeZone;
+								cfg[key] = cfg[key] || {};
+								cfg[key].tolerance_c = tol;
+								return fetch('/api/zone-config', {
+									method: 'POST',
+									headers: { 'Content-Type': 'application/json' },
+									body: JSON.stringify(cfg)
+								});
+							})
+							.then(function() { loadZoneControls(activeZone); })
+							.catch(function() {});
+					});
+
+					// Mode Auto — clear any active fan override for this zone
+					function _getActiveRunId() {
+						var urlRun = new URLSearchParams(location.search).get('run');
+						if (urlRun) return Promise.resolve(urlRun);
+						return fetch('/api/runs/active')
+							.then(function(r) { return r.ok ? r.json() : null; })
+							.then(function(d) { return d && d.id ? String(d.id) : null; });
+					}
+
+					if (modeAutoBtn) modeAutoBtn.addEventListener('click', function() {
+						_getActiveRunId().then(function(runId) {
+							if (!runId || !activeZone) return;
+							fetch('/api/runs/' + runId + '/zones/' + activeZone + '/fan', { method: 'DELETE' })
+								.then(function() { loadZoneControls(activeZone); })
+								.catch(function() {});
+						});
+					});
+
+					// Mode Manual — show manual controls (no API call; fan buttons issue the override)
+					if (modeManualBtn) modeManualBtn.addEventListener('click', function() {
+						if (modeAutoBtn)    modeAutoBtn.classList.remove('zone-detail-card__mode-btn--active');
+						if (modeManualBtn)  modeManualBtn.classList.add('zone-detail-card__mode-btn--active');
+						if (manualControls) manualControls.style.display = '';
+					});
+
+					// Fan ON / OFF — immediate override with no expiry
+					function _postFanOverride(action) {
+						_getActiveRunId().then(function(runId) {
+							if (!runId || !activeZone) return;
+							fetch('/api/runs/' + runId + '/zones/' + activeZone + '/fan', {
 								method: 'POST',
 								headers: { 'Content-Type': 'application/json' },
-								body: JSON.stringify({ zone: activeZone, tolerance_c: tol })
-							}).then(function() { loadZoneControls(activeZone); });
-						}
-					});
+								body: JSON.stringify({ action: action, duration_minutes: null })
+							})
+								.then(function() { loadZoneControls(activeZone); })
+								.catch(function() {});
+						});
+					}
 
-					// Mode buttons
-					if (modeAutoBtn) modeAutoBtn.addEventListener('click', function() {
-						fetch('/update_zone', {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({ zone: activeZone, mode: 'auto' })
-						}).then(function() { loadZoneControls(activeZone); });
-					});
+					if (fanOnBtn)  fanOnBtn.addEventListener('click',  function() { _postFanOverride('on');  });
+					if (fanOffBtn) fanOffBtn.addEventListener('click', function() { _postFanOverride('off'); });
 
-					if (modeManualBtn) modeManualBtn.addEventListener('click', function() {
-						fetch('/update_zone', {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({ zone: activeZone, mode: 'manual' })
-						}).then(function() { loadZoneControls(activeZone); });
-					});
-
-					if (fanOnBtn) fanOnBtn.addEventListener('click', function() {
-						fetch('/update_zone', {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({ zone: activeZone, mode: 'manual', manual_state: true })
-						}).then(function() { loadZoneControls(activeZone); });
-					});
-
-					if (fanOffBtn) fanOffBtn.addEventListener('click', function() {
-						fetch('/update_zone', {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({ zone: activeZone, mode: 'manual', manual_state: false })
-						}).then(function() { loadZoneControls(activeZone); });
-					});
-
-					// Alarm thresholds apply
-					if (thrApply) thrApply.addEventListener('click', function() {
-						var thr = {
-							warn_high_c: parseFloat(thrWarnHigh.value),
-							crit_high_c: parseFloat(thrCritHigh.value),
-							warn_low_c:  parseFloat(thrWarnLow.value),
-							crit_low_c:  parseFloat(thrCritLow.value),
-						};
-						Object.keys(thr).forEach(function(k) { if (isNaN(thr[k])) delete thr[k]; });
-						fetch('/update_zone', {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({ zone: activeZone, alarm_thresholds: thr })
-						}).then(function() { loadZoneControls(activeZone); });
-					});
+					// Alarm thresholds — no server endpoint yet; inputs are display-only
+					if (thrApply) thrApply.disabled = true;
 
 					// Fan override button clicks
 					fanBtns.forEach(function (btn) {
