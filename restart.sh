@@ -19,7 +19,7 @@ if ss -tlnp 2>/dev/null | grep -q ':8080'; then
 fi
 
 echo "[restart] Starting server..."
-nohup python "$SERVER" >> "$LOGFILE" 2>&1 &
+nohup python3 "$SERVER" >> "$LOGFILE" 2>&1 &
 NEW_PID=$!
 
 sleep 1
