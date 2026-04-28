@@ -447,7 +447,7 @@
         wb -= f / df;
         if (Math.abs(f / df) < 1e-6) break;
       }
-      return Math.round(wb * 2) / 2;
+      return Math.round(wb * 10) / 10;
     }
 
     // ── Label formatter ────────────────────────────────────────────────────────
@@ -716,7 +716,7 @@
         var tc = [1,2,3,4,5,6].map(function (z) {
           var v = data['tc' + z];
           if (v == null || isNaN(v)) return null;
-          return Math.round(parseFloat(v) * 2) / 2;
+          return Math.round(parseFloat(v) * 10) / 10;
         });
         var hum = (data.humidity  != null) ? parseFloat(data.humidity)  : null;
         var sht = (data.sht_temp  != null) ? parseFloat(data.sht_temp)  : null;

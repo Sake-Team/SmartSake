@@ -1451,13 +1451,13 @@
 
 
 			// ── Live sensor poller ──────────────────────────────────────────────
-			// Polls /api/latest every 3 s, rounds temps to nearest 0.5 °C, feeds
+			// Polls /api/latest every 3 s, rounds temps to nearest 0.1 °C, feeds
 			// pushSensorSample() and publishes via BroadcastChannel + localStorage.
 			(function () {
 				'use strict';
 
 				// Round to nearest 0.5 for consistent, readable display values.
-				function roundHalf(v) { return Math.round(v * 2) / 2; }
+				function roundHalf(v) { return Math.round(v * 10) / 10; }
 
 				let currentDryBulb = { temp1:null, temp2:null, temp3:null, temp4:null, temp5:null, temp6:null };
 				let currentFans    = { fan1:0, fan2:0, fan3:0, fan4:0, fan5:0, fan6:0 };
@@ -1752,7 +1752,7 @@ const tempSeries = {
 							wb -= f / df;
 							if (Math.abs(f / df) < 1e-6) break;
 						}
-						return Math.round(wb * 2) / 2; // round to 0.5 °C
+						return Math.round(wb * 10) / 10; // round to 0.1 °C
 					}
 
 					// Elapsed-time mode flag and helpers

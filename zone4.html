@@ -213,7 +213,7 @@
 
       let currentMode = 'auto';
 
-      function fmtTemp(v) { return (Math.round(v / 0.2) * 0.2).toFixed(1); }
+      function fmtTemp(v) { return (Math.round(v * 10) / 10).toFixed(1); }
       function computeWetBulbC(TdbC, RH) {
         const R = Math.min(100, Math.max(1, RH));
         return TdbC * Math.atan(0.151977 * Math.sqrt(R + 8.313659)) +
@@ -381,7 +381,7 @@
           });
         }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
-        function roundHalf(v) { return Math.round(v * 2) / 2; }
+        function roundHalf(v) { return Math.round(v * 10) / 10; }
         function pushSample(time, temp, fan) {
           const t = (temp !== null && temp !== undefined) ? roundHalf(parseFloat(temp)) : null;
           labels.push(new Date(time).toLocaleTimeString());

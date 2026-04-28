@@ -1250,7 +1250,7 @@
 				}
 
 				function fmtTemp(v) {
-					return (Math.round(v / 0.2) * 0.2).toFixed(1);
+					return (Math.round(v * 10) / 10).toFixed(1);
 				}
 
 				// Newton-Raphson wet-bulb iteration
@@ -1579,7 +1579,7 @@
 						wb -= f / df;
 						if (Math.abs(f / df) < 1e-6) break;
 					}
-					return Math.round(wb * 2) / 2;
+					return Math.round(wb * 10) / 10;
 				}
 
 				function buildChartOpts(extraY) {
@@ -1659,7 +1659,7 @@
 
 						var tcVal = latest['tc' + zone] != null ? parseFloat(latest['tc' + zone]) : null;
 						var rhVal = latest.humidity     != null ? parseFloat(latest.humidity)     : null;
-						if (tempEl && tcVal != null) tempEl.textContent = (Math.round(tcVal / 0.2) * 0.2).toFixed(1);
+						if (tempEl && tcVal != null) tempEl.textContent = (Math.round(tcVal * 10) / 10).toFixed(1);
 						var wetEl = document.getElementById('zdc-wet-temp');
 						if (wetEl) {
 							var wb = calcWetBulbLocal(tcVal, rhVal);
