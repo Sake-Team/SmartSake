@@ -134,6 +134,12 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_refcurve_points ON reference_curve_points(curve_id);
         """)
         _seed_reference_curves(conn)
+        # Add temp_target to reference_curve_points if upgrading from older schema
+        try:
+            conn.execute("ALTER TABLE reference_curve_points ADD COLUMN temp_target REAL")
+        except Exception:
+            pass  # column already exists
+
         # Add multi-scale weight columns if upgrading from older schema
         for col in ("weight_lbs_1", "weight_lbs_2", "weight_lbs_3", "weight_lbs_4"):
             try:
