@@ -22,9 +22,15 @@ echo "[restart] Starting server..."
 nohup python3 "$SERVER" >> "$LOGFILE" 2>&1 &
 NEW_PID=$!
 
-sleep 1
+sleep 2
 if kill -0 "$NEW_PID" 2>/dev/null; then
+    LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+    URL="http://${LOCAL_IP:-localhost}:8080"
     echo "[restart] Server started (PID $NEW_PID). Log: $LOGFILE"
+    echo ""
+    echo "  Open: $URL"
+    echo ""
+    DISPLAY=:0 xdg-open "$URL" 2>/dev/null || true
 else
     echo "[restart] ERROR: server failed to start. Check $LOGFILE"
     exit 1
