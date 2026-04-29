@@ -18,12 +18,12 @@ log = logging.getLogger(__name__)
 # Avoids reserved pins: I2C=2/3, 1-Wire=4, HX711 Scale1=5/6.
 # Verify against your physical wiring before first run.
 FAN_PINS = {
-    1: 17,
-    2: 27,
-    3: 22,
-    4: 23,
-    5: 24,
-    6: 25,
+    1: 25,
+    2: 24,
+    3: 23,
+    4: 22,
+    5: 17,
+    6: 27,
 }
 
 _gpio_available = False
