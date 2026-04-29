@@ -440,10 +440,6 @@
 					</span>
 				</div>
 				<div class="zone-detail-card__chart-wrap">
-					<span class="zone-detail-card__chart-label">Temperature over time</span>
-					<canvas id="zdc-temp-chart"></canvas>
-				</div>
-				<div class="zone-detail-card__chart-wrap">
 					<span class="zone-detail-card__chart-label">Fan on/off over time</span>
 					<canvas id="zdc-fan-chart"></canvas>
 				</div>
@@ -1440,7 +1436,6 @@
 				const titleEl        = document.getElementById('zdc-title');
 				const tempEl         = document.getElementById('zdc-temp');
 				const closeBtn       = document.getElementById('zdc-close');
-				const tempCanvas     = document.getElementById('zdc-temp-chart');
 				const fanCanvas      = document.getElementById('zdc-fan-chart');
 				const setpointInput  = document.getElementById('zdc-setpoint');
 				const toleranceInput = document.getElementById('zdc-tolerance');
@@ -1461,7 +1456,6 @@
 				const thrApply       = document.getElementById('zdc-thresholds-apply');
 				const notesInput     = document.getElementById('zdc-notes');
 
-				let zdcTempChart = null;
 				let zdcFanChart  = null;
 				let activeZone   = null;
 				let zdcPollTimer = null;
@@ -1499,17 +1493,8 @@
 
 					loadZoneControls(zone);
 
-					if (zdcTempChart) { zdcTempChart.destroy(); zdcTempChart = null; }
 					if (zdcFanChart)  { zdcFanChart.destroy();  zdcFanChart  = null; }
 
-					var colors = ['#e05252','#52a0e0','#52e07c','#e0c952','#c052e0','#e09052'];
-					var color = colors[zone - 1];
-
-					zdcTempChart = new Chart(tempCanvas.getContext('2d'), {
-						type: 'line',
-						data: { labels: [], datasets: [{ data: [], borderColor: color, backgroundColor: color + '22', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: true }] },
-						options: buildChartOpts()
-					});
 					zdcFanChart = new Chart(fanCanvas.getContext('2d'), {
 						type: 'line',
 						data: { labels: [], datasets: [{ data: [], borderColor: '#52a0e0', backgroundColor: 'rgba(82,160,224,0.10)', borderWidth: 1.5, pointRadius: 0, stepped: true, fill: true }] },
@@ -1540,7 +1525,6 @@
 					if (zdcPollTimer) { clearInterval(zdcPollTimer); zdcPollTimer = null; }
 					clearTimeout(notesSaveTimer);
 					if (notesInput) notesInput.value = '';
-					if (zdcTempChart) { zdcTempChart.destroy(); zdcTempChart = null; }
 					if (zdcFanChart)  { zdcFanChart.destroy();  zdcFanChart  = null; }
 					document.querySelectorAll('.zone-combined').forEach(function (el) { el.classList.remove('zone-combined--active'); });
 					activeZone = null;
@@ -1558,17 +1542,21 @@
 						var zd   = (fanState.zones || {})[String(zone)] || {};
 						var zcfg = zoneCfg['zone' + zone] || zoneCfg['default'] || {};
 
-						// Setpoint — read-only when a curve is active (mode=limit), editable otherwise
-						var hasCurve = zd.mode === 'limit';
+						// Setpoint — read-only ONLY when a curve is actively driving it,
+						// editable when source is config (or no source yet).
+						var curveDriven = zd.setpoint_source === 'curve';
 						if (setpointInput) {
-							setpointInput.value = hasCurve
+							setpointInput.value = curveDriven
 								? (zd.setpoint != null ? Number(zd.setpoint).toFixed(1) : '')
-								: (zcfg.setpoint_c != null ? Number(zcfg.setpoint_c).toFixed(1) : '');
-							setpointInput.readOnly = hasCurve;
-							setpointInput.style.opacity = hasCurve ? '0.55' : '1';
-							setpointInput.placeholder = hasCurve ? 'From curve' : 'e.g. 38.0';
+								: (zcfg.setpoint_c != null
+									? Number(zcfg.setpoint_c).toFixed(1)
+									: (zd.setpoint != null ? Number(zd.setpoint).toFixed(1) : ''));
+							setpointInput.readOnly = curveDriven;
+							setpointInput.disabled = curveDriven;
+							setpointInput.style.opacity = curveDriven ? '0.55' : '1';
+							setpointInput.placeholder = curveDriven ? 'From curve' : 'e.g. 38.0';
 						}
-						if (setpointApply) setpointApply.disabled = hasCurve;
+						if (setpointApply) setpointApply.disabled = curveDriven;
 
 						if (toleranceInput && zcfg.tolerance_c != null) toleranceInput.value = zcfg.tolerance_c;
 						if (triggerVal) triggerVal.textContent = zd.trigger != null ? Number(zd.trigger).toFixed(1) : '--';
@@ -1709,22 +1697,16 @@
 				var _origPush = window.pushSensorSample;
 				window.pushSensorSample = function (sample) {
 					if (_origPush) _origPush(sample);
-					if (activeZone == null || !zdcTempChart || !zdcFanChart) return;
+					if (activeZone == null || !zdcFanChart) return;
 					var t = new Date(sample.time);
 					var label = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-					var temp = sample.temps && sample.temps['temp' + activeZone] != null
-						? parseFloat(sample.temps['temp' + activeZone]) : null;
 					var fan = sample.fans && sample.fans['fan' + activeZone] != null
 						? parseFloat(sample.fans['fan' + activeZone]) : null;
-					zdcTempChart.data.labels.push(label);
-					zdcTempChart.data.datasets[0].data.push(!isNaN(temp) ? temp : null);
 					zdcFanChart.data.labels.push(label);
 					zdcFanChart.data.datasets[0].data.push(!isNaN(fan) ? fan : null);
-					if (zdcTempChart.data.labels.length > MAX_PTS) {
-						zdcTempChart.data.labels.shift(); zdcTempChart.data.datasets[0].data.shift();
+					if (zdcFanChart.data.labels.length > MAX_PTS) {
 						zdcFanChart.data.labels.shift();  zdcFanChart.data.datasets[0].data.shift();
 					}
-					zdcTempChart.update('none');
 					zdcFanChart.update('none');
 					var dryEl = document.getElementById('temp-' + activeZone + '-dry');
 					if (dryEl && tempEl) tempEl.textContent = dryEl.textContent;

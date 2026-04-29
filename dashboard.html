@@ -262,10 +262,6 @@
 						</div>
 
 						<div class="zone-detail-card__chart-wrap">
-							<span class="zone-detail-card__chart-label">Temperature over time</span>
-							<canvas id="zdc-temp-chart"></canvas>
-						</div>
-						<div class="zone-detail-card__chart-wrap">
 							<span class="zone-detail-card__chart-label">Fan on/off over time</span>
 							<canvas id="zdc-fan-chart"></canvas>
 						</div>
@@ -2675,7 +2671,6 @@ const tempSeries = {
 					const notesTA   = null; // notes removed from zone modal
 					const fanStatus = document.getElementById('zdc-fan-status');
 					const fanAutoBtn = document.getElementById('zdc-fan-auto');
-					const tempCanvas = document.getElementById('zdc-temp-chart');
 					const fanCanvas  = document.getElementById('zdc-fan-chart');
 					const fanBtns    = card ? card.querySelectorAll('.zone-detail-card__fan-btn[data-action]') : [];
 
@@ -2701,7 +2696,6 @@ const tempSeries = {
 
 					if (!card) return; // not on dashboard page
 
-					let zdcTempChart = null;
 					let zdcFanChart  = null;
 					let activeZone   = null;
 					let fanRequestPending = false;
@@ -2763,8 +2757,7 @@ const tempSeries = {
 						// Show card immediately — before charts so a JS error can't block the open
 						card.classList.add('is-open');
 
-						// Destroy old charts before creating new ones (prevent memory leak)
-						if (zdcTempChart) { zdcTempChart.destroy(); zdcTempChart = null; }
+						// Destroy old chart before creating new one (prevent memory leak)
 						if (zdcFanChart)  { zdcFanChart.destroy();  zdcFanChart  = null; }
 
 						// Use elapsed or clock labels based on current toggle state
@@ -2772,20 +2765,9 @@ const tempSeries = {
 							? (window._dashElapsedLabels || window._dashLabels || [])
 							: (window._dashLabels || []);
 						const cardLabels = srcLabels.slice();
-						const tempData = ((window._dashTempSeries || {})['temp' + zone] || []).slice();
 						const fanData  = ((window._dashFansSeries  || {})['fan'  + zone] || []).slice();
 
 						const _zdcOpts = buildChartOpts();
-						zdcTempChart = new Chart(tempCanvas.getContext('2d'), {
-							type: 'line',
-							data: {
-								labels: cardLabels,
-								datasets: [{ data: tempData, borderColor: color, backgroundColor: color + '22',
-									borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: true }]
-							},
-							options: _zdcOpts
-						});
-
 						zdcFanChart = new Chart(fanCanvas.getContext('2d'), {
 							type: 'line',
 							data: {
@@ -2802,7 +2784,7 @@ const tempSeries = {
 						});
 
 						// Register charts so applyTimeWindow can clip them
-						window._zdcCharts = [zdcTempChart, zdcFanChart];
+						window._zdcCharts = [zdcFanChart];
 						// Apply current time window immediately
 						if (window._applyTimeWindow) {
 							window._applyTimeWindow(window._activeWindowMinutes || 0);
@@ -2838,7 +2820,6 @@ const tempSeries = {
 						if (zdcPollTimer) { clearInterval(zdcPollTimer); zdcPollTimer = null; }
 						clearTimeout(notesSaveTimer);
 						if (notesInput) notesInput.value = '';
-						if (zdcTempChart) { zdcTempChart.destroy(); zdcTempChart = null; }
 						if (zdcFanChart)  { zdcFanChart.destroy();  zdcFanChart  = null; }
 						window._zdcCharts = null; // unregister so applyTimeWindow skips them
 						document.querySelectorAll('.zone-combined').forEach(function (el) {
@@ -2890,17 +2871,21 @@ const tempSeries = {
 							var zd   = (fanState.zones || {})[String(zone)] || {};
 							var zcfg = zoneCfg['zone' + zone] || zoneCfg['default'] || {};
 
-							// Setpoint — read-only when a curve is active (mode=limit), editable otherwise
-							var hasCurve = zd.mode === 'limit';
+							// Setpoint — read-only ONLY when a curve is actively driving it,
+							// editable when source is config (or no source yet).
+							var curveDriven = zd.setpoint_source === 'curve';
 							if (setpointInput) {
-								setpointInput.value = hasCurve
+								setpointInput.value = curveDriven
 									? (zd.setpoint != null ? Number(zd.setpoint).toFixed(1) : '')
-									: (zcfg.setpoint_c != null ? Number(zcfg.setpoint_c).toFixed(1) : '');
-								setpointInput.readOnly = hasCurve;
-								setpointInput.style.opacity = hasCurve ? '0.55' : '1';
-								setpointInput.placeholder = hasCurve ? 'From curve' : 'e.g. 38.0';
+									: (zcfg.setpoint_c != null
+										? Number(zcfg.setpoint_c).toFixed(1)
+										: (zd.setpoint != null ? Number(zd.setpoint).toFixed(1) : ''));
+								setpointInput.readOnly = curveDriven;
+								setpointInput.disabled = curveDriven;
+								setpointInput.style.opacity = curveDriven ? '0.55' : '1';
+								setpointInput.placeholder = curveDriven ? 'From curve' : 'e.g. 38.0';
 							}
-							if (setpointApply) setpointApply.disabled = hasCurve;
+							if (setpointApply) setpointApply.disabled = curveDriven;
 
 							// Tolerance — editable per zone
 							if (toleranceInput && zcfg.tolerance_c != null) toleranceInput.value = zcfg.tolerance_c;
@@ -3115,20 +3100,15 @@ const tempSeries = {
 
 					// Live data push from polling loop
 					window._zonePanelPush = function (zone, label, temp, fan) {
-						if (activeZone !== zone || !zdcTempChart || !zdcFanChart) return;
+						if (activeZone !== zone || !zdcFanChart) return;
 						var MAX = 120;
-						zdcTempChart.data.labels.push(label);
-						zdcTempChart.data.datasets[0].data.push(temp);
 						zdcFanChart.data.labels.push(label);
 						zdcFanChart.data.datasets[0].data.push(fan);
-						if (zdcTempChart.data.labels.length > MAX) {
-							zdcTempChart.data.labels.shift();
-							zdcTempChart.data.datasets[0].data.shift();
+						if (zdcFanChart.data.labels.length > MAX) {
 							zdcFanChart.data.labels.shift();
 							zdcFanChart.data.datasets[0].data.shift();
 						}
 						// update() with 'none' mode skips animation — critical for Pi 4B performance
-						zdcTempChart.update('none');
 						zdcFanChart.update('none');
 						var dryEl = document.getElementById('temp-' + zone + '-dry');
 						if (dryEl) tempEl.textContent = dryEl.textContent;
@@ -4570,9 +4550,9 @@ const tempSeries = {
 					// modalChart: all scales use infrastructure colors (env modal is handled below)
 					if (window._modalChart) updateChartTheme(window._modalChart, ['x', 'y', 'yTemp']);
 
-					// Zone detail card charts (zdcTempChart / zdcFanChart) are destroyed and
-					// recreated each time a zone is opened — they always call buildChartOpts()
-					// at creation time, so no update needed here.
+					// Zone detail card fan chart (zdcFanChart) is destroyed and recreated
+					// each time a zone is opened — it calls buildChartOpts() at creation
+					// time, so no update needed here.
 				}).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 			</script>
 
