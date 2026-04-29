@@ -56,6 +56,23 @@
                  color: var(--color-text-3); text-decoration: none; margin-bottom: .9rem; }
     .back-link:hover { color: var(--color-text-1); }
 
+    .top-bar { display: flex; align-items: center; justify-content: space-between;
+               gap: .75rem; margin-bottom: .9rem; flex-wrap: wrap; }
+    .top-bar .back-link { margin-bottom: 0; }
+
+    .conn-pill { display: inline-flex; align-items: center; gap: .4rem;
+                 padding: .2rem .6rem; border-radius: 999px;
+                 font-size: .72rem; font-weight: 600; letter-spacing: .03em;
+                 border: 1px solid var(--color-border); background: var(--color-bg-tinted);
+                 color: var(--color-text-3); }
+    .conn-pill::before { content: ''; width: .5rem; height: .5rem; border-radius: 50%;
+                         background: currentColor; flex-shrink: 0; }
+    .conn-pill.conn-live    { color: var(--color-success); }
+    .conn-pill.conn-down    { color: var(--color-critical); }
+    .conn-pill.conn-down::before { animation: conn-blink 1s steps(2) infinite; }
+    @keyframes conn-blink { 50% { opacity: .25; } }
+    .cal-page.is-stale .cal-table tbody { opacity: .55; transition: opacity .2s; }
+
     html, body { overflow: auto !important; }
     .page-wrapper { height: auto !important; }
     main { overflow: visible !important; }
@@ -79,7 +96,10 @@
   </header>
 
   <div class="cal-page">
-    <a class="back-link" href="home.html">&#8592; Home</a>
+    <div class="top-bar">
+      <a class="back-link" href="home.html">&#8592; Home</a>
+      <span id="conn-pill" class="conn-pill" role="status" aria-live="polite">Connecting&hellip;</span>
+    </div>
 
     <!-- ── Thermocouples ────────────────────────────────────── -->
     <div class="panel">
@@ -145,11 +165,15 @@
   'use strict';
 
   var POLL_MS = 2000;
+  var FAIL_THRESHOLD = 2;   // consecutive failed polls before showing "Reconnecting…"
 
   // ── State ─────────────────────────────────────────────────────────────────
   var _zoneCfg    = {};   // mirror of zone_config.json
   var _scaleCfg   = {};   // mirror of scale_config.json
   var _latest     = {};   // mirror of /api/latest
+  var _inFlight   = false;
+  var _failCount  = 0;
+  var _connState  = '';
 
   // ── DOM helpers ───────────────────────────────────────────────────────────
   function el(tag, opts) {
@@ -269,20 +293,49 @@
     }
   }
 
+  // ── Connection-state pill ─────────────────────────────────────────────────
+  function setConn(state) {
+    if (state === _connState) return;
+    _connState = state;
+    var pill = document.getElementById('conn-pill');
+    if (pill) {
+      pill.className = 'conn-pill' + (state ? ' conn-' + state : '');
+      pill.textContent = state === 'live' ? 'Live'
+                       : state === 'down' ? 'Reconnecting…'
+                       : 'Connecting…';
+    }
+    var page = document.querySelector('.cal-page');
+    if (page) page.classList.toggle('is-stale', state === 'down');
+  }
+
   // ── Polling ───────────────────────────────────────────────────────────────
+  function fetchJson(url) {
+    return fetch(url + '?_=' + Date.now()).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    });
+  }
+
   function refresh() {
+    if (_inFlight) return;        // guard against overlapping polls on slow links
+    _inFlight = true;
     Promise.all([
-      fetch('/api/latest?_=' + Date.now()).then(function (r) { return r.ok ? r.json() : {}; }),
-      fetch('/api/zone-config?_=' + Date.now()).then(function (r) { return r.ok ? r.json() : {}; }),
-      fetch('/api/scale-config?_=' + Date.now()).then(function (r) { return r.ok ? r.json() : { scales: {} }; })
+      fetchJson('/api/latest'),
+      fetchJson('/api/zone-config'),
+      fetchJson('/api/scale-config')
     ]).then(function (vals) {
+      _failCount = 0;
+      setConn('live');
       _latest    = vals[0] || {};
       _zoneCfg   = vals[1] || {};
       _scaleCfg  = vals[2] || { scales: {} };
       renderTc();
       renderScale();
     }).catch(function () {
-      // Ignore transient errors so a single failed poll doesn't blank the page
+      _failCount++;
+      if (_failCount >= FAIL_THRESHOLD) setConn('down');
+    }).then(function () {
+      _inFlight = false;
     });
   }
 
