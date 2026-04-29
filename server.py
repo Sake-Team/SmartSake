@@ -869,7 +869,8 @@ def api_fan_state():
     """Return the latest fan_state.json written by the limit-switch fan-control loop."""
     if not os.path.exists(FAN_STATE_JSON):
         return jsonify({"timestamp": None, "zones": {str(z): {"state": None, "mode": "none",
-                        "setpoint": None, "trigger": None} for z in range(1, 7)}})
+                        "setpoint": None, "setpoint_source": None, "trigger": None}
+                        for z in range(1, 7)}})
     try:
         with open(FAN_STATE_JSON) as f:
             return jsonify(json.load(f))
@@ -904,10 +905,15 @@ def api_save_zone_config():
         if not isinstance(val, dict):
             return jsonify({"error": f"config for '{key}' must be an object"}), 400
         if "tolerance_c" in val:
-            if not isinstance(val["tolerance_c"], (int, float)):
+            if not isinstance(val["tolerance_c"], (int, float)) or isinstance(val["tolerance_c"], bool):
                 return jsonify({"error": f"tolerance_c for '{key}' must be a number"}), 400
             if not (0 <= val["tolerance_c"] <= 10):
                 return jsonify({"error": f"tolerance_c for '{key}' must be between 0 and 10"}), 400
+        if "setpoint_c" in val and val["setpoint_c"] is not None:
+            if not isinstance(val["setpoint_c"], (int, float)) or isinstance(val["setpoint_c"], bool):
+                return jsonify({"error": f"setpoint_c for '{key}' must be a number"}), 400
+            if not (0 <= val["setpoint_c"] <= 60):
+                return jsonify({"error": f"setpoint_c for '{key}' must be between 0 and 60"}), 400
     try:
         with open(ZONE_CONFIG_FILE, "w") as f:
             json.dump(body, f, indent=2)

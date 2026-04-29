@@ -79,9 +79,10 @@ _zone_cfg_mtime = 0.0
 
 _fan_hold_counts = {z: 0     for z in range(1, 7)}
 _fan_on          = {z: False for z in range(1, 7)}
-_last_fan_mode     = {z: "none" for z in range(1, 7)}
-_last_fan_setpoint = {z: None   for z in range(1, 7)}
-_last_fan_trigger  = {z: None   for z in range(1, 7)}
+_last_fan_mode            = {z: "none" for z in range(1, 7)}
+_last_fan_setpoint        = {z: None   for z in range(1, 7)}
+_last_fan_setpoint_source = {z: None   for z in range(1, 7)}  # "curve" | "config" | None
+_last_fan_trigger         = {z: None   for z in range(1, 7)}
 
 
 def _load_target_profile(run_id):
@@ -144,7 +145,7 @@ def _zone_setpoint_override(zone):
 
 def evaluate_fan_state(run, tc_readings):
     global _fan_hold_counts, _fan_on
-    global _last_fan_mode, _last_fan_setpoint, _last_fan_trigger
+    global _last_fan_mode, _last_fan_setpoint, _last_fan_setpoint_source, _last_fan_trigger
 
     run_id = run["id"]
     now = datetime.now()
@@ -195,35 +196,43 @@ def evaluate_fan_state(run, tc_readings):
     profile = _load_target_profile(run_id)
     for zone in range(1, 7):
         if zone in override_zones:
-            _last_fan_mode[zone]     = "manual"
-            _last_fan_setpoint[zone] = None
-            _last_fan_trigger[zone]  = None
+            _last_fan_mode[zone]            = "manual"
+            _last_fan_setpoint[zone]        = None
+            _last_fan_setpoint_source[zone] = None
+            _last_fan_trigger[zone]         = None
             continue
 
         if zone in rule_zones:
-            _last_fan_mode[zone]     = "rule"
-            _last_fan_setpoint[zone] = None
-            _last_fan_trigger[zone]  = None
+            _last_fan_mode[zone]            = "rule"
+            _last_fan_setpoint[zone]        = None
+            _last_fan_setpoint_source[zone] = None
+            _last_fan_trigger[zone]         = None
             continue
 
         pts    = profile.get(zone)
         actual = tc_map.get(zone)
         if actual is None:
-            _last_fan_mode[zone]     = "none"
-            _last_fan_setpoint[zone] = None
-            _last_fan_trigger[zone]  = None
+            _last_fan_mode[zone]            = "none"
+            _last_fan_setpoint[zone]        = None
+            _last_fan_setpoint_source[zone] = None
+            _last_fan_trigger[zone]         = None
             continue
 
         setpoint = _interp_target(pts, elapsed_min) if pts else None
+        source = "curve" if setpoint is not None else None
         if setpoint is None:
             setpoint = _zone_setpoint_override(zone)
+            if setpoint is not None:
+                source = "config"
         if setpoint is None:
-            _last_fan_mode[zone]     = "none"
-            _last_fan_setpoint[zone] = None
-            _last_fan_trigger[zone]  = None
+            _last_fan_mode[zone]            = "none"
+            _last_fan_setpoint[zone]        = None
+            _last_fan_setpoint_source[zone] = None
+            _last_fan_trigger[zone]         = None
             continue
 
-        _last_fan_setpoint[zone] = round(setpoint, 2)
+        _last_fan_setpoint[zone]        = round(setpoint, 2)
+        _last_fan_setpoint_source[zone] = source
 
         tolerance = _zone_tolerance(zone)
         trigger   = setpoint + tolerance
@@ -259,10 +268,11 @@ def _write_fan_state_json(fan_states):
     zones = {}
     for z in range(1, 7):
         zones[str(z)] = {
-            "state":    fan_states.get(z),
-            "mode":     _last_fan_mode.get(z, "none"),
-            "setpoint": _last_fan_setpoint.get(z),
-            "trigger":  _last_fan_trigger.get(z),
+            "state":           fan_states.get(z),
+            "mode":            _last_fan_mode.get(z, "none"),
+            "setpoint":        _last_fan_setpoint.get(z),
+            "setpoint_source": _last_fan_setpoint_source.get(z),
+            "trigger":         _last_fan_trigger.get(z),
         }
     data = {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
