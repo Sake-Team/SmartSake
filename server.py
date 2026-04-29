@@ -915,12 +915,224 @@ def api_save_zone_config():
                 return jsonify({"error": f"setpoint_c for '{key}' must be a number"}), 400
             if not (0 <= val["setpoint_c"] <= 60):
                 return jsonify({"error": f"setpoint_c for '{key}' must be between 0 and 60"}), 400
+        if "offset_c" in val and val["offset_c"] is not None:
+            if not isinstance(val["offset_c"], (int, float)) or isinstance(val["offset_c"], bool):
+                return jsonify({"error": f"offset_c for '{key}' must be a number"}), 400
+            if not (-5.0 <= val["offset_c"] <= 5.0):
+                return jsonify({"error": f"offset_c for '{key}' must be between -5 and 5"}), 400
     try:
         with open(ZONE_CONFIG_FILE, "w") as f:
             json.dump(body, f, indent=2)
         return jsonify(body), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ── Calibration ───────────────────────────────────────────────────────────────
+
+TC_OFFSET_MAX_ABS_C = 5.0
+TC_CAL_AVG_SAMPLES  = 3   # average the last N TC readings before computing offset
+
+
+def _read_zone_cfg():
+    """Load zone_config.json, returning {} if missing/unreadable."""
+    if not os.path.exists(ZONE_CONFIG_FILE):
+        return {}
+    try:
+        with open(ZONE_CONFIG_FILE) as f:
+            cfg = json.load(f)
+        return cfg if isinstance(cfg, dict) else {}
+    except Exception:
+        return {}
+
+
+def _write_zone_cfg(cfg):
+    with open(ZONE_CONFIG_FILE, "w") as f:
+        json.dump(cfg, f, indent=2)
+
+
+def _read_scale_cfg_full():
+    """Load scale_config.json. Always returns a dict with 'scales' key."""
+    if not os.path.exists(SCALE_CONFIG_FILE):
+        return {"scales": {}}
+    try:
+        with open(SCALE_CONFIG_FILE) as f:
+            cfg = json.load(f)
+        if not isinstance(cfg, dict):
+            return {"scales": {}}
+        cfg.setdefault("scales", {})
+        return cfg
+    except Exception:
+        return {"scales": {}}
+
+
+def _write_scale_cfg(cfg):
+    with open(SCALE_CONFIG_FILE, "w") as f:
+        json.dump(cfg, f, indent=2)
+
+
+def _latest_sensor_value(key):
+    """Pull a single key from sensor_latest.json, or None."""
+    if not os.path.exists(SENSOR_JSON):
+        return None
+    try:
+        with open(SENSOR_JSON) as f:
+            raw = json.load(f)
+    except Exception:
+        return None
+    if not isinstance(raw, dict):
+        return None
+    if "." in key:
+        sect, k = key.split(".", 1)
+        return raw.get(sect, {}).get(k)
+    return raw.get(key)
+
+
+@app.route("/api/scale-config", methods=["GET"])
+def api_get_scale_config():
+    return jsonify(_read_scale_cfg_full())
+
+
+@app.route("/api/tc-calibration/<int:zone>", methods=["POST"])
+def api_set_tc_offset(zone):
+    """Set a per-zone TC offset directly. Body: {offset_c: <float>}."""
+    if not (1 <= zone <= 6):
+        return jsonify({"error": "zone must be 1..6"}), 400
+    body = request.get_json(force=True, silent=True) or {}
+    raw = body.get("offset_c", 0.0)
+    try:
+        offset = float(raw)
+    except (TypeError, ValueError):
+        return jsonify({"error": "offset_c must be a number"}), 400
+    if offset != offset:  # NaN
+        return jsonify({"error": "offset_c must be finite"}), 400
+    if abs(offset) > TC_OFFSET_MAX_ABS_C:
+        return jsonify({"error": f"|offset_c| must be ≤ {TC_OFFSET_MAX_ABS_C}"}), 400
+
+    cfg = _read_zone_cfg()
+    key = f"zone{zone}"
+    cfg.setdefault(key, {})
+    cfg[key]["offset_c"] = round(offset, 3)
+    try:
+        _write_zone_cfg(cfg)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify({"zone": zone, "offset_c": cfg[key]["offset_c"]}), 200
+
+
+@app.route("/api/tc-calibration/<int:zone>/from-reference", methods=["POST"])
+def api_calibrate_tc_from_reference(zone):
+    """Compute a TC offset from a reference temperature.
+
+    Body: {reference_c: <float>}
+    Reads the current TC value from sensor_latest.json and sets
+    offset_c = (current_raw_after_existing_offset + existing_offset) - reference_c
+    so that: corrected_reading == reference_c.
+    """
+    if not (1 <= zone <= 6):
+        return jsonify({"error": "zone must be 1..6"}), 400
+    body = request.get_json(force=True, silent=True) or {}
+    ref = body.get("reference_c")
+    try:
+        ref = float(ref)
+    except (TypeError, ValueError):
+        return jsonify({"error": "reference_c must be a number"}), 400
+    if not (-50.0 <= ref <= 200.0):
+        return jsonify({"error": "reference_c must be between -50 and 200"}), 400
+
+    current = _latest_sensor_value(f"thermocouples.TC{zone}")
+    if current is None:
+        return jsonify({"error": "no current TC reading available — is the sensor loop running?"}), 503
+
+    cfg = _read_zone_cfg()
+    key = f"zone{zone}"
+    existing_offset = float(cfg.get(key, {}).get("offset_c") or 0.0)
+    raw_value = float(current) + existing_offset   # undo current offset to get the raw reading
+    new_offset = raw_value - float(ref)
+
+    if abs(new_offset) > TC_OFFSET_MAX_ABS_C:
+        return jsonify({
+            "error": f"|computed offset| ({new_offset:+.2f}°C) exceeds ±{TC_OFFSET_MAX_ABS_C}°C — "
+                     f"reference temp probably wrong, or probe is bad"
+        }), 400
+
+    cfg.setdefault(key, {})
+    cfg[key]["offset_c"] = round(new_offset, 3)
+    try:
+        _write_zone_cfg(cfg)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify({
+        "zone":         zone,
+        "reference_c":  ref,
+        "raw_c":        round(raw_value, 2),
+        "offset_c":     cfg[key]["offset_c"],
+    }), 200
+
+
+@app.route("/api/scale-config/<int:scale_id>/tare", methods=["POST"])
+def api_scale_tare(scale_id):
+    """Set tare_offset to the current raw reading. Removes weight ⇒ this becomes zero."""
+    if not (1 <= scale_id <= 4):
+        return jsonify({"error": "scale_id must be 1..4"}), 400
+    raw = _latest_sensor_value(f"weight_raw_{scale_id}")
+    if raw is None:
+        return jsonify({"error": "no current raw reading — is the scale wired and the sensor loop running?"}), 503
+
+    cfg = _read_scale_cfg_full()
+    sc = cfg["scales"].setdefault(str(scale_id), {})
+    sc["tare_offset"] = int(round(float(raw)))
+    try:
+        _write_scale_cfg(cfg)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify({"scale_id": scale_id, "tare_offset": sc["tare_offset"]}), 200
+
+
+@app.route("/api/scale-config/<int:scale_id>/calibrate", methods=["POST"])
+def api_scale_calibrate(scale_id):
+    """Compute calibration_factor from a known weight currently on the scale.
+
+    Body: {known_weight_kg: <float>} (must be > 0)
+    factor = (raw - tare_offset) / known_weight_g
+    """
+    if not (1 <= scale_id <= 4):
+        return jsonify({"error": "scale_id must be 1..4"}), 400
+    body = request.get_json(force=True, silent=True) or {}
+    kw = body.get("known_weight_kg")
+    try:
+        kw = float(kw)
+    except (TypeError, ValueError):
+        return jsonify({"error": "known_weight_kg must be a number"}), 400
+    if kw <= 0 or kw > 200:
+        return jsonify({"error": "known_weight_kg must be > 0 and ≤ 200"}), 400
+
+    raw = _latest_sensor_value(f"weight_raw_{scale_id}")
+    if raw is None:
+        return jsonify({"error": "no current raw reading — is the scale wired and the sensor loop running?"}), 503
+
+    cfg = _read_scale_cfg_full()
+    sc = cfg["scales"].setdefault(str(scale_id), {})
+    tare = float(sc.get("tare_offset") or 0)
+    known_weight_g = kw * 1000.0
+    factor = (float(raw) - tare) / known_weight_g
+    if abs(factor) < 1e-3:
+        return jsonify({
+            "error": "computed factor near zero — is the known weight actually on the scale?"
+        }), 400
+
+    sc["calibration_factor"] = round(factor, 4)
+    try:
+        _write_scale_cfg(cfg)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify({
+        "scale_id":           scale_id,
+        "known_weight_kg":    kw,
+        "raw":                round(float(raw), 1),
+        "tare_offset":        sc.get("tare_offset"),
+        "calibration_factor": sc["calibration_factor"],
+    }), 200
 
 
 if __name__ == "__main__":

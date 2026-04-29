@@ -149,6 +149,28 @@ def _zone_setpoint_override(zone):
     return float(v) if v is not None else None
 
 
+# Maximum permitted single-point offset on a thermocouple. Anything bigger
+# almost certainly indicates a wiring/probe issue, not a calibration error.
+TC_OFFSET_MAX_ABS_C = 5.0
+
+
+def _zone_tc_offset(zone):
+    """Return the per-zone calibration offset in °C (subtracted from raw TC reading)."""
+    cfg = _load_zone_config()
+    v = cfg.get(f"zone{zone}", {}).get("offset_c")
+    if v is None:
+        return 0.0
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return 0.0
+    if v != v:  # NaN guard
+        return 0.0
+    if abs(v) > TC_OFFSET_MAX_ABS_C:
+        return 0.0
+    return v
+
+
 def _classify_alarm(actual, setpoint, tolerance):
     """Return (level, reason) for the given temp/setpoint/tolerance triple.
 
@@ -450,18 +472,56 @@ def read_sht30(sensor):
     return sensor.temperature - SHT30_TEMP_OFFSET_C, sensor.relative_humidity
 
 
-def run_hx711_thread(scale_id, hx_instance):
-    cfg_units = "kg"
+SCALE_CONFIG_FILE = os.path.join(_BASE_DIR, "scale_config.json")
+
+
+def _read_scale_cfg(scale_id):
+    """Return (units, tare_offset, calibration_factor) for a scale, or None on error."""
     try:
-        with open(os.path.join(_BASE_DIR, "scale_config.json")) as f:
-            _sc = json.load(f)
-        cfg_units = _sc["scales"].get(str(scale_id), {}).get("units", "kg")
+        with open(SCALE_CONFIG_FILE) as f:
+            sc = json.load(f).get("scales", {}).get(str(scale_id), {})
+        return (
+            sc.get("units", "kg"),
+            sc.get("tare_offset"),
+            sc.get("calibration_factor"),
+        )
+    except Exception:
+        return None
+
+
+def run_hx711_thread(scale_id, hx_instance):
+    cfg = _read_scale_cfg(scale_id)
+    cfg_units = cfg[0] if cfg else "kg"
+    last_mtime = 0.0
+    try:
+        last_mtime = os.path.getmtime(SCALE_CONFIG_FILE)
     except Exception:
         pass
 
     try:
         print(f"HX711 scale {scale_id} initialized.")
         while True:
+            # Hot-reload tare/factor when scale_config.json changes on disk —
+            # lets the calibration page update a running scale without a restart.
+            try:
+                mtime = os.path.getmtime(SCALE_CONFIG_FILE)
+                if mtime != last_mtime:
+                    last_mtime = mtime
+                    refreshed = _read_scale_cfg(scale_id)
+                    if refreshed:
+                        cfg_units = refreshed[0]
+                        if refreshed[1] is not None:
+                            hx_instance._offset = float(refreshed[1])
+                        if refreshed[2] is not None:
+                            try:
+                                hx_instance.set_scale(float(refreshed[2]))
+                            except Exception:
+                                hx_instance._scale = float(refreshed[2])
+                        print(f"[scale {scale_id}] reloaded calibration "
+                              f"(tare={refreshed[1]}, factor={refreshed[2]}, units={refreshed[0]})")
+            except Exception:
+                pass
+
             try:
                 weight, raw_avg = hx_instance.get_weight(samples=SAMPLES_PER_READ, units=cfg_units)
                 weight_state[scale_id]['kg'] = weight
@@ -511,6 +571,10 @@ def write_json(timestamp, sht_temp, sht_humidity, tc_readings):
         "weight_kg_2": round(weight_state[2]['kg'], 4) if weight_state[2]['kg'] is not None else None,
         "weight_kg_3": round(weight_state[3]['kg'], 4) if weight_state[3]['kg'] is not None else None,
         "weight_kg_4": round(weight_state[4]['kg'], 4) if weight_state[4]['kg'] is not None else None,
+        "weight_raw_1": round(weight_state[1]['raw'], 1) if weight_state[1]['raw'] is not None else None,
+        "weight_raw_2": round(weight_state[2]['raw'], 1) if weight_state[2]['raw'] is not None else None,
+        "weight_raw_3": round(weight_state[3]['raw'], 1) if weight_state[3]['raw'] is not None else None,
+        "weight_raw_4": round(weight_state[4]['raw'], 1) if weight_state[4]['raw'] is not None else None,
         "zones": {}
     }
     tmp_file = JSON_FILE + ".tmp"
@@ -634,11 +698,13 @@ def start_sensor_loop():
                 except Exception as e:
                     print(f"[sensors] SHT30 read error: {e}")
 
-            # Read thermocouples
+            # Read thermocouples (with per-zone calibration offset applied)
             tc_readings = []
             for ch, d in assigned:
                 try:
-                    temp_c = read_temp_c(d)
+                    raw_c    = read_temp_c(d)
+                    offset_c = _zone_tc_offset(ch)
+                    temp_c   = raw_c - offset_c
                     tc_readings.append((ch, temp_c))
                 except Exception as e:
                     tc_readings.append((ch, None))

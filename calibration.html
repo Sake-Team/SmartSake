@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SmartSake — Calibration</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .cal-page { padding: 5.5rem 1.25rem 2rem; max-width: 1100px; margin: 0 auto; }
+    .cal-page h2 { margin: 0 0 .6rem; font-size: 1rem; text-transform: uppercase;
+                   letter-spacing: .05em; color: var(--color-text-3); }
+
+    .panel { background: var(--color-surface); border: 1px solid var(--color-border);
+             border-radius: var(--r-lg); padding: 1rem 1.1rem; margin-bottom: 1rem; }
+
+    .btn { padding: .35rem .7rem; border: none; border-radius: var(--r-sm); cursor: pointer;
+           font-size: .78rem; font-weight: 600; }
+    .btn-primary   { background: var(--color-brand); color: #fff; }
+    .btn-primary:hover { background: var(--color-brand-hover); }
+    .btn-secondary { background: var(--color-bg-tinted); color: var(--color-text-1); }
+    .btn-secondary:hover { background: var(--color-bg-subtle); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+    .cal-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    .cal-table th, .cal-table td { padding: .5rem .55rem; border-bottom: 1px solid var(--color-border);
+                                   text-align: left; vertical-align: middle; }
+    .cal-table th { background: var(--color-bg-subtle); color: var(--color-text-2);
+                    text-transform: uppercase; font-size: .7rem; letter-spacing: .04em; font-weight: 600; }
+    .cal-table td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .cal-table input[type=number] { width: 70px; padding: .25rem .35rem; background: var(--color-bg);
+                                    border: 1px solid var(--color-border); border-radius: var(--r-sm);
+                                    color: var(--color-text-1); font-size: .82rem; text-align: right; }
+    .cal-table input[type=number]:focus { outline: none; border-color: var(--color-brand); }
+    .cal-table .row-actions { display: flex; gap: .35rem; align-items: center; flex-wrap: wrap; }
+
+    .col-zone   { width: 70px; }
+    .col-temp   { width: 110px; }
+    .col-offset { width: 90px; }
+    .col-input  { width: 110px; }
+    .col-action { width: 1%; }
+
+    .status-msg { font-size: .78rem; min-height: 1.1em; }
+    .status-ok  { color: var(--color-success); }
+    .status-err { color: var(--color-critical); }
+
+    .preset-row { display: flex; gap: .35rem; flex-wrap: wrap; margin-top: .6rem; font-size: .78rem;
+                  color: var(--color-text-3); align-items: center; }
+    .preset-btn { padding: .2rem .45rem; font-size: .73rem; background: var(--color-bg-tinted);
+                  color: var(--color-text-2); border: 1px solid var(--color-border); border-radius: var(--r-sm);
+                  cursor: pointer; }
+    .preset-btn:hover { background: var(--color-bg-subtle); color: var(--color-text-1); }
+
+    .panel-help { font-size: .78rem; color: var(--color-text-3); margin: 0 0 .6rem; line-height: 1.45; }
+
+    .back-link { display: inline-flex; align-items: center; gap: .4rem; font-size: .85rem;
+                 color: var(--color-text-3); text-decoration: none; margin-bottom: .9rem; }
+    .back-link:hover { color: var(--color-text-1); }
+
+    html, body { overflow: auto !important; }
+    .page-wrapper { height: auto !important; }
+    main { overflow: visible !important; }
+
+    @media (max-width: 720px) {
+      .cal-table th, .cal-table td { padding: .4rem .35rem; font-size: .8rem; }
+      .cal-table input[type=number] { width: 60px; }
+    }
+  </style>
+  <script src="customize.js" defer></script>
+</head>
+<body>
+<div class="page-wrapper">
+
+  <header class="header">
+    <div class="header-inner">
+      <img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" class="sake-logo-egg">
+      <h1 class="header-title">Calibration</h1>
+      <button id="settings-btn" class="settings-btn" type="button" aria-label="Open settings" title="Settings">&#9881;</button>
+    </div>
+  </header>
+
+  <div class="cal-page">
+    <a class="back-link" href="home.html">&#8592; Home</a>
+
+    <!-- ── Thermocouples ────────────────────────────────────── -->
+    <div class="panel">
+      <h2>Temperature Probes</h2>
+      <p class="panel-help">
+        Place the probe in a known reference (ice bath = 0&deg;C, boiling water at sea level &asymp; 100&deg;C, or another trusted thermometer),
+        wait for the reading to stabilise, type the reference temperature, and click <b>Calibrate</b>.
+        The offset is constrained to &plusmn;5&deg;C — anything larger usually means a wiring or probe issue rather than calibration drift.
+      </p>
+      <table class="cal-table" id="tc-table">
+        <thead>
+          <tr>
+            <th class="col-zone">Zone</th>
+            <th class="col-temp">Live Reading</th>
+            <th class="col-offset">Current Offset</th>
+            <th class="col-input">Reference (&deg;C)</th>
+            <th class="col-input">Manual Offset</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tc-tbody"></tbody>
+      </table>
+      <div class="status-msg" id="tc-status"></div>
+      <div class="preset-row">
+        Quick reference temps:
+        <button type="button" class="preset-btn" data-tc-preset="0">Ice 0&deg;C</button>
+        <button type="button" class="preset-btn" data-tc-preset="100">Boiling 100&deg;C</button>
+        <button type="button" class="preset-btn" data-tc-preset="20">Room 20&deg;C</button>
+        <button type="button" class="preset-btn" data-tc-preset="37">Body 37&deg;C</button>
+        <span style="color:var(--color-text-3);font-size:.72rem">— click to fill all empty Reference inputs.</span>
+      </div>
+    </div>
+
+    <!-- ── Load Cells ──────────────────────────────────────── -->
+    <div class="panel">
+      <h2>Load Cells</h2>
+      <p class="panel-help">
+        <b>Tare</b>: clear the scale, click Tare. <b>Calibrate</b>: place a known weight, type its mass in kg, click Calibrate.
+        The running scale picks up the new tare/factor automatically — no service restart needed.
+      </p>
+      <table class="cal-table" id="scale-table">
+        <thead>
+          <tr>
+            <th class="col-zone">Scale</th>
+            <th class="col-temp">Live (kg)</th>
+            <th class="col-temp">Raw</th>
+            <th class="col-offset">Tare</th>
+            <th class="col-offset">Factor</th>
+            <th class="col-input">Known kg</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="scale-tbody"></tbody>
+      </table>
+      <div class="status-msg" id="scale-status"></div>
+    </div>
+  </div>
+
+</div><!-- .page-wrapper -->
+
+<script>
+(function () {
+  'use strict';
+
+  var POLL_MS = 2000;
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  var _zoneCfg    = {};   // mirror of zone_config.json
+  var _scaleCfg   = {};   // mirror of scale_config.json
+  var _latest     = {};   // mirror of /api/latest
+
+  // ── DOM helpers ───────────────────────────────────────────────────────────
+  function el(tag, opts) {
+    var e = document.createElement(tag);
+    if (!opts) return e;
+    if (opts.text)   e.textContent = opts.text;
+    if (opts.cls)    e.className = opts.cls;
+    if (opts.attrs)  Object.keys(opts.attrs).forEach(function (k) { e.setAttribute(k, opts.attrs[k]); });
+    return e;
+  }
+
+  function setStatus(id, msg, ok) {
+    var n = document.getElementById(id);
+    if (!n) return;
+    n.textContent = msg || '';
+    n.className = 'status-msg' + (ok === true ? ' status-ok' : ok === false ? ' status-err' : '');
+  }
+
+  function fmtNum(v, digits) {
+    if (v == null || v === '' || (typeof v === 'number' && !isFinite(v))) return '—';
+    var n = Number(v);
+    if (!isFinite(n)) return '—';
+    return n.toFixed(digits != null ? digits : 1);
+  }
+
+  // ── Build TC rows once, keep them and update text in place ────────────────
+  function buildTcRows() {
+    var tbody = document.getElementById('tc-tbody');
+    tbody.innerHTML = '';
+    for (var z = 1; z <= 6; z++) {
+      var tr = el('tr', { attrs: { 'data-zone': String(z) } });
+
+      var tdZone = el('td', { cls: 'num', text: 'Z' + z }); tr.appendChild(tdZone);
+      var tdTemp = el('td', { cls: 'num', attrs: { 'data-role': 'temp' }, text: '—' }); tr.appendChild(tdTemp);
+      var tdOff  = el('td', { cls: 'num', attrs: { 'data-role': 'offset' }, text: '—' }); tr.appendChild(tdOff);
+
+      var tdRef = el('td');
+      var refInp = el('input', { attrs: { type: 'number', step: '0.1', min: '-50', max: '200',
+                                          'data-role': 'ref' } });
+      tdRef.appendChild(refInp); tr.appendChild(tdRef);
+
+      var tdMan = el('td');
+      var manInp = el('input', { attrs: { type: 'number', step: '0.1', min: '-5', max: '5',
+                                          'data-role': 'manual' } });
+      tdMan.appendChild(manInp); tr.appendChild(tdMan);
+
+      var tdAct = el('td');
+      var actDiv = el('div', { cls: 'row-actions' });
+      var calBtn  = el('button', { cls: 'btn btn-primary',   text: 'Calibrate', attrs: { type: 'button', 'data-role': 'calibrate' } });
+      var setBtn  = el('button', { cls: 'btn btn-secondary', text: 'Apply',     attrs: { type: 'button', 'data-role': 'apply' } });
+      var clrBtn  = el('button', { cls: 'btn btn-secondary', text: 'Clear',     attrs: { type: 'button', 'data-role': 'clear' } });
+      actDiv.appendChild(calBtn); actDiv.appendChild(setBtn); actDiv.appendChild(clrBtn);
+      tdAct.appendChild(actDiv); tr.appendChild(tdAct);
+
+      tbody.appendChild(tr);
+    }
+    tbody.addEventListener('click', onTcClick);
+  }
+
+  function buildScaleRows() {
+    var tbody = document.getElementById('scale-tbody');
+    tbody.innerHTML = '';
+    for (var s = 1; s <= 4; s++) {
+      var tr = el('tr', { attrs: { 'data-scale': String(s) } });
+      tr.appendChild(el('td', { cls: 'num', text: 'S' + s }));
+      tr.appendChild(el('td', { cls: 'num', attrs: { 'data-role': 'kg'   }, text: '—' }));
+      tr.appendChild(el('td', { cls: 'num', attrs: { 'data-role': 'raw'  }, text: '—' }));
+      tr.appendChild(el('td', { cls: 'num', attrs: { 'data-role': 'tare' }, text: '—' }));
+      tr.appendChild(el('td', { cls: 'num', attrs: { 'data-role': 'fact' }, text: '—' }));
+
+      var tdInp = el('td');
+      var inp = el('input', { attrs: { type: 'number', step: '0.001', min: '0.001', max: '200',
+                                       'data-role': 'known' } });
+      tdInp.appendChild(inp); tr.appendChild(tdInp);
+
+      var tdAct = el('td');
+      var actDiv = el('div', { cls: 'row-actions' });
+      var tareBtn = el('button', { cls: 'btn btn-secondary', text: 'Tare',      attrs: { type: 'button', 'data-role': 'tare' } });
+      var calBtn  = el('button', { cls: 'btn btn-primary',   text: 'Calibrate', attrs: { type: 'button', 'data-role': 'calibrate' } });
+      actDiv.appendChild(tareBtn); actDiv.appendChild(calBtn);
+      tdAct.appendChild(actDiv); tr.appendChild(tdAct);
+
+      tbody.appendChild(tr);
+    }
+    tbody.addEventListener('click', onScaleClick);
+  }
+
+  // ── Render live values into existing rows ─────────────────────────────────
+  function renderTc() {
+    for (var z = 1; z <= 6; z++) {
+      var row = document.querySelector('tr[data-zone="' + z + '"]');
+      if (!row) continue;
+      var live = _latest['tc' + z];
+      var off  = ((_zoneCfg['zone' + z] || {}).offset_c);
+      row.querySelector('[data-role="temp"]').textContent   = fmtNum(live, 2) + (live != null ? ' °C' : '');
+      row.querySelector('[data-role="offset"]').textContent = (off != null ? (off >= 0 ? '+' : '') + fmtNum(off, 2) + ' °C' : '0.00 °C');
+    }
+  }
+
+  function renderScale() {
+    for (var s = 1; s <= 4; s++) {
+      var row = document.querySelector('tr[data-scale="' + s + '"]');
+      if (!row) continue;
+      var sc = (_scaleCfg.scales || {})[String(s)] || {};
+      var kg = _latest['weight_lbs_' + s] != null ? _latest['weight_lbs_' + s] / 2.20462 : null;
+      var raw = _latest['weight_raw_' + s];
+      var notWired = sc.dat_pin == null;
+
+      row.querySelector('[data-role="kg"]').textContent   = notWired ? '— (not wired)' : fmtNum(kg, 3);
+      row.querySelector('[data-role="raw"]').textContent  = fmtNum(raw, 0);
+      row.querySelector('[data-role="tare"]').textContent = fmtNum(sc.tare_offset, 0);
+      row.querySelector('[data-role="fact"]').textContent = fmtNum(sc.calibration_factor, 2);
+
+      // Disable buttons when not wired
+      Array.prototype.forEach.call(row.querySelectorAll('button'), function (b) { b.disabled = notWired; });
+      var inp = row.querySelector('input[data-role="known"]'); if (inp) inp.disabled = notWired;
+    }
+  }
+
+  // ── Polling ───────────────────────────────────────────────────────────────
+  function refresh() {
+    Promise.all([
+      fetch('/api/latest?_=' + Date.now()).then(function (r) { return r.ok ? r.json() : {}; }),
+      fetch('/api/zone-config?_=' + Date.now()).then(function (r) { return r.ok ? r.json() : {}; }),
+      fetch('/api/scale-config?_=' + Date.now()).then(function (r) { return r.ok ? r.json() : { scales: {} }; })
+    ]).then(function (vals) {
+      _latest    = vals[0] || {};
+      _zoneCfg   = vals[1] || {};
+      _scaleCfg  = vals[2] || { scales: {} };
+      renderTc();
+      renderScale();
+    }).catch(function () {
+      // Ignore transient errors so a single failed poll doesn't blank the page
+    });
+  }
+
+  // ── TC actions ───────────────────────────────────────────────────────────
+  function onTcClick(ev) {
+    var btn = ev.target.closest('button');
+    if (!btn) return;
+    var row = btn.closest('tr');
+    var zone = parseInt(row.getAttribute('data-zone'), 10);
+    var role = btn.getAttribute('data-role');
+
+    if (role === 'calibrate') {
+      var refInp = row.querySelector('input[data-role="ref"]');
+      var ref = parseFloat(refInp.value);
+      if (!isFinite(ref)) { setStatus('tc-status', 'Z' + zone + ': enter a reference temp first', false); return; }
+      btn.disabled = true;
+      fetch('/api/tc-calibration/' + zone + '/from-reference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reference_c: ref })
+      }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, body: d }; }); })
+        .then(function (res) {
+          btn.disabled = false;
+          if (!res.ok) { setStatus('tc-status', 'Z' + zone + ': ' + (res.body.error || 'failed'), false); return; }
+          refInp.value = '';
+          setStatus('tc-status',
+            'Z' + zone + ' calibrated: raw ' + res.body.raw_c.toFixed(2) +
+            '°C → ref ' + res.body.reference_c.toFixed(2) +
+            '°C (offset ' + (res.body.offset_c >= 0 ? '+' : '') + res.body.offset_c.toFixed(2) + '°C)',
+            true);
+          refresh();
+        }).catch(function () { btn.disabled = false; setStatus('tc-status', 'Z' + zone + ': network error', false); });
+    }
+
+    else if (role === 'apply') {
+      var manInp = row.querySelector('input[data-role="manual"]');
+      var off = parseFloat(manInp.value);
+      if (!isFinite(off)) { setStatus('tc-status', 'Z' + zone + ': enter an offset first', false); return; }
+      btn.disabled = true;
+      fetch('/api/tc-calibration/' + zone, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ offset_c: off })
+      }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, body: d }; }); })
+        .then(function (res) {
+          btn.disabled = false;
+          if (!res.ok) { setStatus('tc-status', 'Z' + zone + ': ' + (res.body.error || 'failed'), false); return; }
+          manInp.value = '';
+          setStatus('tc-status',
+            'Z' + zone + ' offset set to ' + (res.body.offset_c >= 0 ? '+' : '') + res.body.offset_c.toFixed(2) + '°C',
+            true);
+          refresh();
+        }).catch(function () { btn.disabled = false; setStatus('tc-status', 'Z' + zone + ': network error', false); });
+    }
+
+    else if (role === 'clear') {
+      btn.disabled = true;
+      fetch('/api/tc-calibration/' + zone, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ offset_c: 0 })
+      }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, body: d }; }); })
+        .then(function (res) {
+          btn.disabled = false;
+          if (!res.ok) { setStatus('tc-status', 'Z' + zone + ': ' + (res.body.error || 'failed'), false); return; }
+          setStatus('tc-status', 'Z' + zone + ' offset cleared', true);
+          refresh();
+        }).catch(function () { btn.disabled = false; });
+    }
+  }
+
+  // ── Scale actions ────────────────────────────────────────────────────────
+  function onScaleClick(ev) {
+    var btn = ev.target.closest('button');
+    if (!btn) return;
+    var row = btn.closest('tr');
+    var sid = parseInt(row.getAttribute('data-scale'), 10);
+    var role = btn.getAttribute('data-role');
+
+    if (role === 'tare') {
+      btn.disabled = true;
+      fetch('/api/scale-config/' + sid + '/tare', { method: 'POST' })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, body: d }; }); })
+        .then(function (res) {
+          btn.disabled = false;
+          if (!res.ok) { setStatus('scale-status', 'S' + sid + ': ' + (res.body.error || 'failed'), false); return; }
+          setStatus('scale-status', 'S' + sid + ' tared (offset = ' + res.body.tare_offset + ')', true);
+          refresh();
+        }).catch(function () { btn.disabled = false; setStatus('scale-status', 'S' + sid + ': network error', false); });
+    }
+
+    else if (role === 'calibrate') {
+      var inp = row.querySelector('input[data-role="known"]');
+      var kw = parseFloat(inp.value);
+      if (!isFinite(kw) || kw <= 0) { setStatus('scale-status', 'S' + sid + ': enter known weight first', false); return; }
+      btn.disabled = true;
+      fetch('/api/scale-config/' + sid + '/calibrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ known_weight_kg: kw })
+      }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, body: d }; }); })
+        .then(function (res) {
+          btn.disabled = false;
+          if (!res.ok) { setStatus('scale-status', 'S' + sid + ': ' + (res.body.error || 'failed'), false); return; }
+          inp.value = '';
+          setStatus('scale-status',
+            'S' + sid + ' calibrated: ' + kw.toFixed(3) + ' kg → factor ' + res.body.calibration_factor.toFixed(2),
+            true);
+          refresh();
+        }).catch(function () { btn.disabled = false; setStatus('scale-status', 'S' + sid + ': network error', false); });
+    }
+  }
+
+  // ── Reference-temp preset chips ──────────────────────────────────────────
+  document.querySelectorAll('[data-tc-preset]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var v = b.getAttribute('data-tc-preset');
+      document.querySelectorAll('#tc-tbody input[data-role="ref"]').forEach(function (inp) {
+        if (!inp.value) inp.value = v;
+      });
+    });
+  });
+
+  // ── Init ────────────────────────────────────────────────────────────────
+  buildTcRows();
+  buildScaleRows();
+  refresh();
+  setInterval(refresh, POLL_MS);
+})();
+</script>
+</body>
+</html>
