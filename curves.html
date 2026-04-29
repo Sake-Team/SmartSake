@@ -41,6 +41,7 @@
     .btn-danger:hover { background: var(--color-critical-bg); filter: brightness(1.2); }
     .btn-success   { background: var(--color-success-bg); color: var(--color-success); }
     .btn-success:hover { background: var(--color-success-bg); filter: brightness(1.2); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; filter: none !important; }
     .btn-sm { padding: .25rem .5rem; font-size: .75rem; }
 
     /* ── Editor header ──────────────────────────────────────── */
@@ -83,6 +84,27 @@
     .apply-row { display: flex; gap: .6rem; align-items: center; margin-top: .75rem;
                  padding-top: .65rem; border-top: 1px solid var(--color-border); }
     .apply-run-label { font-size: .85rem; color: var(--color-text-2); }
+
+    /* ── Generate from batches panel ────────────────────────── */
+    .gen-panel { margin-top: 1rem; border-top: 1px solid var(--color-border); padding-top: .75rem; }
+    .gen-panel__toggle { font-size: .82rem; font-weight: 600; color: var(--color-text-2);
+                         cursor: pointer; list-style: none; user-select: none; }
+    .gen-panel__toggle::-webkit-details-marker { display: none; }
+    .gen-panel__toggle:hover { color: var(--color-text-1); }
+    .gen-panel__body { margin-top: .65rem; display: flex; flex-direction: column; gap: .4rem; }
+    .gen-filter-row { display: flex; align-items: center; gap: .5rem; }
+    .gen-label { font-size: .78rem; color: var(--color-text-3); white-space: nowrap; min-width: 56px; }
+    .gen-score-btns { display: flex; gap: .3rem; }
+    .gen-score-btn { padding: .25rem .55rem; font-size: .75rem; font-weight: 600; border: 1px solid var(--color-border-strong);
+                     border-radius: var(--r-sm); background: var(--color-surface); color: var(--color-text-2); cursor: pointer; }
+    .gen-score-btn--active { background: var(--color-brand); color: #fff; border-color: var(--color-brand); }
+    .gen-select { padding: .25rem .4rem; font-size: .8rem; background: var(--color-surface);
+                  border: 1px solid var(--color-border); border-radius: var(--r-sm); color: var(--color-text-1); }
+    .gen-run-list { display: flex; flex-direction: column; gap: .25rem; max-height: 160px;
+                    overflow-y: auto; padding: .3rem 0; }
+    .gen-run-item { display: flex; align-items: center; gap: .4rem; font-size: .8rem; color: var(--color-text-1); }
+    .gen-run-item input[type=checkbox] { flex-shrink: 0; accent-color: var(--color-brand); }
+    .gen-run-item .gen-run-score { color: var(--color-text-3); font-size: .73rem; }
 
     /* ── Zone colour dots ────────────────────────────────────── */
     .zone-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 3px; }
@@ -127,6 +149,66 @@
         <div style="margin-top:.75rem">
           <button class="btn btn-secondary" id="new-curve-btn">+ New Curve</button>
         </div>
+
+        <!-- Generate from batches -->
+        <details class="gen-panel" id="gen-panel">
+          <summary class="gen-panel__toggle">&#9733; Generate from Batches</summary>
+          <div class="gen-panel__body">
+            <div class="gen-filter-row">
+              <span class="gen-label">Min score:</span>
+              <div class="gen-score-btns">
+                <button class="gen-score-btn" data-score="3">3+</button>
+                <button class="gen-score-btn gen-score-btn--active" data-score="4">4+</button>
+                <button class="gen-score-btn" data-score="5">5</button>
+              </div>
+            </div>
+            <div class="gen-run-list" id="gen-run-list">
+              <span style="color:var(--color-text-3);font-size:.8rem">Loading runs…</span>
+            </div>
+            <div class="gen-filter-row" style="margin-top:.5rem">
+              <span class="gen-label">Bucket:</span>
+              <select id="gen-bucket" class="gen-select">
+                <option value="5">5 min</option>
+                <option value="15">15 min</option>
+                <option value="30" selected>30 min</option>
+                <option value="60">1 hr</option>
+                <option value="120">2 hr</option>
+              </select>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="gen-preview-btn" style="width:100%;margin-top:.55rem">Preview</button>
+            <div id="gen-preview-status" class="status-msg" style="margin-top:.3rem"></div>
+            <div id="gen-save-row" style="display:none;margin-top:.5rem;flex-direction:column;gap:.35rem">
+              <input type="text" id="gen-name" placeholder="Curve name…" maxlength="80"
+                style="padding:.35rem .5rem;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--r-sm);color:var(--color-text-1);font-size:.82rem;">
+              <button class="btn btn-primary btn-sm" id="gen-save-btn" style="width:100%">Save as New Curve</button>
+            </div>
+          </div>
+        </details>
+
+        <!-- Import single CSV -->
+        <details class="gen-panel" id="csv-panel">
+          <summary class="gen-panel__toggle">&#9733; Import CSV</summary>
+          <div class="gen-panel__body">
+            <input type="file" id="csv-file" accept=".csv,text/csv"
+              style="width:100%;font-size:.78rem;color:var(--color-text-2);">
+            <div class="gen-filter-row" style="margin-top:.5rem">
+              <span class="gen-label">Bucket:</span>
+              <select id="csv-bucket" class="gen-select">
+                <option value="5" selected>5 min</option>
+                <option value="15">15 min</option>
+                <option value="30">30 min</option>
+                <option value="60">1 hr</option>
+              </select>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="csv-preview-btn" style="width:100%;margin-top:.55rem" disabled>Preview</button>
+            <div id="csv-preview-status" class="status-msg" style="margin-top:.3rem"></div>
+            <div id="csv-save-row" style="display:none;margin-top:.5rem;flex-direction:column;gap:.35rem">
+              <input type="text" id="csv-name" placeholder="Curve name…" maxlength="80"
+                style="padding:.35rem .5rem;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--r-sm);color:var(--color-text-1);font-size:.82rem;">
+              <button class="btn btn-primary btn-sm" id="csv-save-btn" style="width:100%">Save as New Curve</button>
+            </div>
+          </div>
+        </details>
       </div>
 
       <!-- ── Right: Editor ───────────────────────────────────── -->
@@ -198,6 +280,15 @@
   var _curves       = [];    // list from GET /api/reference-curves
   var _editingId    = null;  // null = new curve
   var _activeRunId  = null;  // filled from GET /api/runs?active=1
+
+  function updateApplyRow() {
+    var row = document.getElementById('apply-row');
+    var btn = document.getElementById('apply-btn');
+    if (!_editingId) { row.style.display = 'none'; return; }
+    row.style.display = 'flex';
+    btn.disabled = !_activeRunId;
+    btn.title = _activeRunId ? '' : 'No active run';
+  }
   var _chart        = null;
 
   var CURVE_COLOR = '#c00';
@@ -465,7 +556,7 @@
     document.getElementById('inp-desc').value = '';
     document.getElementById('inp-src').value = '';
     document.getElementById('save-status').textContent = '';
-    document.getElementById('apply-row').style.display = 'none';
+    updateApplyRow();
     document.getElementById('points-tbody').innerHTML = '';
     addEmptyRow(false);
     renderCurveList();
@@ -480,7 +571,7 @@
       document.getElementById('inp-src').value   = curve.source || '';
       document.getElementById('save-status').textContent = '';
       loadPointsIntoTable(curve.points || []);
-      document.getElementById('apply-row').style.display = _activeRunId ? 'flex' : 'none';
+      updateApplyRow();
       renderCurveList();
     }).catch(function () {
       showStatus('save-status', 'Load failed', false);
@@ -515,7 +606,7 @@
       }).then(function (curve) {
         _editingId = curve.id;
         document.getElementById('editor-heading').textContent = 'Edit Curve';
-        document.getElementById('apply-row').style.display = _activeRunId ? 'flex' : 'none';
+        updateApplyRow();
         showStatus('save-status', 'Saved!', true);
         loadCurveList();
       }).catch(function (err) {
@@ -537,6 +628,7 @@
       return r.json();
     }).then(function (curve) {
       _editingId = curve.id;
+      updateApplyRow();
       showStatus('save-status', 'Updated!', true);
       loadCurveList();
     }).catch(function (err) {
@@ -555,7 +647,11 @@
   }
 
   function applyToRun() {
-    if (!_activeRunId || !_editingId) return;
+    if (!_editingId) return;
+    if (!_activeRunId) {
+      showStatus('apply-status', 'No active run — start a run from the dashboard first', false);
+      return;
+    }
     fetch('/api/runs/' + _activeRunId + '/target/from-curve/' + _editingId, { method: 'POST' })
       .then(function (r) {
         if (!r.ok) throw new Error(r.status);
@@ -573,7 +669,7 @@
     }).then(function (run) {
       if (run && run.id) {
         _activeRunId = run.id;
-        if (_editingId) document.getElementById('apply-row').style.display = 'flex';
+        updateApplyRow();
       }
     }).catch(function () {});
   }
@@ -587,6 +683,275 @@
     setTimeout(function () { el.textContent = ''; el.className = 'status-msg'; }, 3000);
   }
 
+  // ── Bridge for generate-from-batches panel ───────────────────────────────────
+  window._genLoadPreview = function (pts) {
+    newCurve();
+    loadPointsIntoTable(pts);
+    document.getElementById('inp-src').value = 'batch-average';
+  };
+
+  window._genAfterSave = function (newId) {
+    loadCurveList();
+    loadCurveIntoEditor(newId);
+  };
+
+})();
+
+// ── Generate from Batches ─────────────────────────────────────────────────────
+(function () {
+  'use strict';
+
+  var _minScore     = 4;
+  var _previewPts   = null;   // last previewed points array
+
+  var panel       = document.getElementById('gen-panel');
+  var runList     = document.getElementById('gen-run-list');
+  var previewBtn  = document.getElementById('gen-preview-btn');
+  var previewStat = document.getElementById('gen-preview-status');
+  var saveRow     = document.getElementById('gen-save-row');
+  var nameInput   = document.getElementById('gen-name');
+  var saveBtn     = document.getElementById('gen-save-btn');
+  var bucketSel   = document.getElementById('gen-bucket');
+
+  // Score filter buttons
+  document.querySelectorAll('.gen-score-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.gen-score-btn').forEach(function (b) {
+        b.classList.remove('gen-score-btn--active');
+      });
+      btn.classList.add('gen-score-btn--active');
+      _minScore = parseInt(btn.dataset.score, 10);
+      loadScoredRuns();
+    });
+  });
+
+  // Load runs when panel opens
+  panel.addEventListener('toggle', function () {
+    if (panel.open) loadScoredRuns();
+  });
+
+  function loadScoredRuns() {
+    runList.innerHTML = '<span style="color:var(--color-text-3);font-size:.8rem">Loading…</span>';
+    fetch('/api/runs/scored?min_score=' + _minScore)
+      .then(function (r) { return r.json(); })
+      .then(function (runs) {
+        runList.innerHTML = '';
+        if (!runs.length) {
+          runList.innerHTML = '<span style="color:var(--color-text-3);font-size:.8rem">No runs with score ' + _minScore + '+</span>';
+          return;
+        }
+        runs.forEach(function (run) {
+          var label = document.createElement('label');
+          label.className = 'gen-run-item';
+
+          var cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.value = run.id;
+          cb.checked = true;
+
+          var nameText = document.createTextNode(run.name || ('Run #' + run.id));
+
+          var scoreSpan = document.createElement('span');
+          scoreSpan.className = 'gen-run-score';
+          var score = run.quality_score != null ? '★' + run.quality_score : '';
+          var date  = run.started_at ? run.started_at.slice(0, 10) : '';
+          scoreSpan.textContent = [score, date].filter(Boolean).join(' · ');
+
+          label.appendChild(cb);
+          label.appendChild(nameText);
+          label.appendChild(scoreSpan);
+          runList.appendChild(label);
+        });
+      })
+      .catch(function () {
+        runList.innerHTML = '<span style="color:var(--color-critical);font-size:.8rem">Failed to load runs</span>';
+      });
+  }
+
+  previewBtn.addEventListener('click', function () {
+    var checked = Array.from(runList.querySelectorAll('input[type=checkbox]:checked'));
+    if (!checked.length) {
+      setPreviewStatus('Select at least one run', false);
+      return;
+    }
+    var runIds    = checked.map(function (cb) { return parseInt(cb.value, 10); });
+    var bucketMin = parseInt(bucketSel.value, 10);
+
+    previewBtn.disabled = true;
+    setPreviewStatus('Generating preview…', null);
+    saveRow.style.display = 'none';
+    _previewPts = null;
+
+    fetch('/api/reference-curves/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ run_ids: runIds, bucket_min: bucketMin })
+    })
+      .then(function (r) {
+        if (!r.ok) return r.json().then(function (d) { throw new Error(d.error || r.status); });
+        return r.json();
+      })
+      .then(function (pts) {
+        previewBtn.disabled = false;
+        if (!pts.length) { setPreviewStatus('No data returned', false); return; }
+
+        _previewPts = pts;
+
+        // Load into editor as a new curve for review/editing
+        // (calls the outer IIFE's globals via window scope aliases set below)
+        window._genLoadPreview(pts);
+
+        setPreviewStatus('Preview loaded — ' + pts.length + ' points from ' + runIds.length + ' run(s)', true);
+        saveRow.style.display = 'flex';
+      })
+      .catch(function (err) {
+        previewBtn.disabled = false;
+        setPreviewStatus(err.message || 'Error', false);
+      });
+  });
+
+  saveBtn.addEventListener('click', function () {
+    if (!_previewPts) { setPreviewStatus('Preview first', false); return; }
+    var name = nameInput.value.trim();
+    if (!name) { nameInput.focus(); return; }
+
+    saveBtn.disabled = true;
+
+    fetch('/api/reference-curves', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name:        name,
+        description: 'Generated from batch average (' + _previewPts.length + ' points)',
+        source:      'batch-average',
+        points:      _previewPts
+      })
+    })
+      .then(function (r) {
+        if (!r.ok) return r.json().then(function (d) { throw new Error(d.error || r.status); });
+        return r.json();
+      })
+      .then(function (curve) {
+        saveBtn.disabled = false;
+        nameInput.value  = '';
+        saveRow.style.display = 'none';
+        _previewPts = null;
+        setPreviewStatus('Saved as "' + curve.name + '"', true);
+        // Reload curve list and open the new curve in the editor
+        window._genAfterSave(curve.id);
+      })
+      .catch(function (err) {
+        saveBtn.disabled = false;
+        setPreviewStatus(err.message || 'Save error', false);
+      });
+  });
+
+  function setPreviewStatus(msg, ok) {
+    previewStat.textContent = msg;
+    if (ok === true)       previewStat.className = 'status-msg status-ok';
+    else if (ok === false) previewStat.className = 'status-msg status-err';
+    else                   previewStat.className = 'status-msg';
+  }
+
+})();
+
+// ── Import CSV (single file → one guide curve) ──────────────────────────────
+(function () {
+  'use strict';
+
+  var fileInput   = document.getElementById('csv-file');
+  var bucketSel   = document.getElementById('csv-bucket');
+  var previewBtn  = document.getElementById('csv-preview-btn');
+  var previewStat = document.getElementById('csv-preview-status');
+  var saveRow     = document.getElementById('csv-save-row');
+  var nameInput   = document.getElementById('csv-name');
+  var saveBtn     = document.getElementById('csv-save-btn');
+
+  var _previewPts = null;
+
+  fileInput.addEventListener('change', function () {
+    previewBtn.disabled = !fileInput.files.length;
+    saveRow.style.display = 'none';
+    _previewPts = null;
+    setStatus('', null);
+  });
+
+  previewBtn.addEventListener('click', function () {
+    var file = fileInput.files[0];
+    if (!file) { setStatus('Choose a CSV first', false); return; }
+
+    var fd = new FormData();
+    fd.append('file', file);
+    fd.append('bucket_min', bucketSel.value);
+
+    previewBtn.disabled = true;
+    setStatus('Parsing…', null);
+    saveRow.style.display = 'none';
+    _previewPts = null;
+
+    fetch('/api/reference-curves/generate-from-csv', { method: 'POST', body: fd })
+      .then(function (r) {
+        if (!r.ok) return r.json().then(function (d) { throw new Error(d.error || r.status); });
+        return r.json();
+      })
+      .then(function (pts) {
+        previewBtn.disabled = false;
+        if (!pts.length) { setStatus('No data after bucketing', false); return; }
+        _previewPts = pts;
+        window._genLoadPreview(pts);
+        setStatus('Preview loaded — ' + pts.length + ' points (' + bucketSel.value + ' min buckets)', true);
+        if (!nameInput.value) {
+          nameInput.value = file.name.replace(/\.csv$/i, '');
+        }
+        saveRow.style.display = 'flex';
+      })
+      .catch(function (err) {
+        previewBtn.disabled = false;
+        setStatus(err.message || 'Error', false);
+      });
+  });
+
+  saveBtn.addEventListener('click', function () {
+    if (!_previewPts) { setStatus('Preview first', false); return; }
+    var name = nameInput.value.trim();
+    if (!name) { nameInput.focus(); return; }
+
+    saveBtn.disabled = true;
+
+    fetch('/api/reference-curves', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name:        name,
+        description: 'Imported from CSV (' + _previewPts.length + ' points, ' + bucketSel.value + ' min buckets)',
+        source:      'csv-import',
+        points:      _previewPts
+      })
+    })
+      .then(function (r) {
+        if (!r.ok) return r.json().then(function (d) { throw new Error(d.error || r.status); });
+        return r.json();
+      })
+      .then(function (curve) {
+        saveBtn.disabled = false;
+        nameInput.value  = '';
+        saveRow.style.display = 'none';
+        _previewPts = null;
+        setStatus('Saved as "' + curve.name + '"', true);
+        window._genAfterSave(curve.id);
+      })
+      .catch(function (err) {
+        saveBtn.disabled = false;
+        setStatus(err.message || 'Save error', false);
+      });
+  });
+
+  function setStatus(msg, ok) {
+    previewStat.textContent = msg;
+    if (ok === true)       previewStat.className = 'status-msg status-ok';
+    else if (ok === false) previewStat.className = 'status-msg status-err';
+    else                   previewStat.className = 'status-msg';
+  }
 })();
 </script>
 </body>

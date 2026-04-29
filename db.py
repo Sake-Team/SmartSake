@@ -716,6 +716,220 @@ def load_curve_as_target(run_id, curve_id):
         """, (run_id, curve_id))
 
 
+# ── Curve generation from historical runs ────────────────────────────────────
+
+def get_scored_runs(min_score=1):
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT r.id, r.name, r.started_at, r.ended_at, m.quality_score
+            FROM runs r
+            JOIN run_metadata m ON m.run_id = r.id
+            WHERE m.quality_score >= ? AND r.status IN ('completed', 'crashed')
+            ORDER BY r.started_at DESC
+        """, (min_score,)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def _bucket_average_one_source(rows, bucket_min):
+    """Bucket a single source's rows into per-bucket zone-averaged temps.
+
+    rows: iterable of {'elapsed_min': float, 'zones': [t1..t6 or None]}.
+    Returns {bucket_start_min: avg_temp_c} where each bucket value is the mean
+    of per-row "average across present zones" temperatures.
+    """
+    from collections import defaultdict
+    buckets = defaultdict(list)
+    for r in rows:
+        zones = [t for t in r.get('zones', []) if t is not None]
+        if not zones:
+            continue
+        elapsed = r.get('elapsed_min')
+        if elapsed is None or elapsed < 0:
+            continue
+        bucket = int(elapsed // bucket_min) * bucket_min
+        buckets[bucket].append(sum(zones) / len(zones))
+    return {b: sum(v) / len(v) for b, v in buckets.items()}
+
+
+def _combine_buckets(per_source_buckets):
+    """Average each bucket across sources. Returns [(elapsed_min, rounded_temp), ...]."""
+    from collections import defaultdict
+    cross = defaultdict(lambda: {'sum': 0.0, 'count': 0})
+    for b in per_source_buckets:
+        for bucket, val in b.items():
+            cross[bucket]['sum'] += val
+            cross[bucket]['count'] += 1
+    return [
+        (em, round(cross[em]['sum'] / cross[em]['count'], 1))
+        for em in sorted(cross) if cross[em]['count']
+    ]
+
+
+def generate_curve_from_runs(run_ids, bucket_min=30):
+    """Average zone temperatures from multiple runs into bucketed reference curve points.
+
+    For each run: compute per-reading zone average → bin into bucket_min-wide buckets →
+    average within bucket. Then average the per-run bucket averages across all runs.
+    Returns [(elapsed_min, avg_temp_rounded), ...] sorted by elapsed_min.
+    """
+    per_run = []
+    with get_conn() as conn:
+        for run_id in run_ids:
+            row = conn.execute("SELECT started_at FROM runs WHERE id=?", (run_id,)).fetchone()
+            if not row:
+                continue
+            started_at = datetime.fromisoformat(row['started_at'])
+
+            readings = conn.execute("""
+                SELECT recorded_at, tc1, tc2, tc3, tc4, tc5, tc6
+                FROM sensor_readings WHERE run_id=?
+                ORDER BY recorded_at ASC
+            """, (run_id,)).fetchall()
+
+            rows = []
+            for r in readings:
+                elapsed = (datetime.fromisoformat(r['recorded_at']) - started_at).total_seconds() / 60
+                rows.append({
+                    'elapsed_min': elapsed,
+                    'zones': [r['tc' + str(i)] for i in range(1, 7)],
+                })
+            per_run.append(_bucket_average_one_source(rows, bucket_min))
+
+    return _combine_buckets(per_run)
+
+
+def generate_curve_from_csv(csv_text, bucket_min=30):
+    """Average zone temperatures from a single CSV into bucketed curve points.
+
+    Returns [(elapsed_min, avg_temp_rounded), ...] sorted by elapsed_min.
+    Raises ValueError if the CSV is unparseable or has no usable rows.
+    """
+    rows = parse_curve_csv(csv_text)
+    if not rows:
+        raise ValueError("CSV contained no usable temperature rows.")
+    return _combine_buckets([_bucket_average_one_source(rows, bucket_min)])
+
+
+_TS_FORMATS = (
+    "%Y-%m-%dT%H:%M:%S",
+    "%Y-%m-%dT%H:%M:%S.%f",
+    "%Y-%m-%d %H:%M:%S",
+    "%Y-%m-%d %H:%M:%S.%f",
+    "%Y-%m-%dT%H:%M",
+    "%Y-%m-%d %H:%M",
+)
+
+
+def _parse_timestamp(s):
+    s = (s or "").strip()
+    if not s:
+        return None
+    try:
+        return datetime.fromisoformat(s.replace("Z", "+00:00").replace("/", "-"))
+    except ValueError:
+        pass
+    for fmt in _TS_FORMATS:
+        try:
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def _parse_float(s):
+    if s is None:
+        return None
+    s = str(s).strip()
+    if not s or s.upper() in ("ERROR", "NA", "NAN", "NULL", "NONE", "-"):
+        return None
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def parse_curve_csv(csv_text):
+    """Parse a sensor CSV into [{'elapsed_min': float, 'zones': [t1..t6]}].
+
+    Tolerates the run-export header (Timestamp, TC1..TC6, ...), the live writer
+    header (timestamp, sht30_temp_c, sht30_humidity_rh, TC1_temp_c..), and any
+    CSV that includes either an 'elapsed_min' column or a recognizable timestamp
+    column plus zone columns named TC1..TC6 (case-insensitive, with or without
+    a _temp_c suffix).
+
+    Missing/invalid temperatures (blank, "ERROR", "NaN", non-numeric) become None.
+    If no elapsed_min column is present, elapsed is derived from the first row's
+    timestamp.
+    """
+    import csv
+    import io
+    import re
+
+    text = (csv_text or "").lstrip("﻿")
+    if not text.strip():
+        return []
+
+    reader = csv.reader(io.StringIO(text))
+    try:
+        header = next(reader)
+    except StopIteration:
+        return []
+    norm = [h.strip().lower() for h in header]
+
+    def find_col(*candidates):
+        for cand in candidates:
+            if cand in norm:
+                return norm.index(cand)
+        return -1
+
+    elapsed_idx = find_col("elapsed_min", "elapsed_minutes", "elapsed")
+    ts_idx      = find_col("timestamp", "recorded_at", "time", "datetime")
+
+    tc_idx = [-1] * 6
+    tc_pat = re.compile(r"^tc[_ ]?([1-6])(?:[_ ]?temp(?:_c)?)?$")
+    for i, h in enumerate(norm):
+        m = tc_pat.match(h)
+        if m:
+            zone = int(m.group(1)) - 1
+            if tc_idx[zone] == -1:
+                tc_idx[zone] = i
+
+    if elapsed_idx == -1 and ts_idx == -1:
+        raise ValueError("CSV has no 'elapsed_min' column and no timestamp column.")
+    if all(idx == -1 for idx in tc_idx):
+        raise ValueError("CSV has no thermocouple columns (expected TC1..TC6).")
+
+    out = []
+    origin = None
+    for raw in reader:
+        if not raw or all(not (c or "").strip() for c in raw):
+            continue
+
+        # Pad short rows so indexing is safe
+        if len(raw) < len(header):
+            raw = raw + [""] * (len(header) - len(raw))
+
+        elapsed = None
+        if elapsed_idx != -1:
+            elapsed = _parse_float(raw[elapsed_idx])
+        if elapsed is None and ts_idx != -1:
+            ts = _parse_timestamp(raw[ts_idx])
+            if ts is not None:
+                if origin is None:
+                    origin = ts
+                elapsed = (ts - origin).total_seconds() / 60.0
+        if elapsed is None:
+            continue
+
+        zones = [
+            _parse_float(raw[idx]) if idx != -1 and idx < len(raw) else None
+            for idx in tc_idx
+        ]
+        out.append({'elapsed_min': elapsed, 'zones': zones})
+
+    return out
+
+
 # ── Correlation (Phase 4C) ─────────────────────────────────────────────────────
 
 def get_scored_run_count():

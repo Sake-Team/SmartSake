@@ -583,6 +583,83 @@ def api_patch_metadata(run_id):
 
 # ── Reference curves ──────────────────────────────────────────────────────────
 
+@app.route("/api/runs/scored", methods=["GET"])
+def api_scored_runs():
+    min_score = request.args.get('min_score', 1, type=int)
+    return jsonify(db.get_scored_runs(min_score))
+
+
+@app.route("/api/reference-curves/generate", methods=["POST"])
+def api_generate_curve():
+    body = request.get_json(force=True, silent=True) or {}
+    run_ids = body.get('run_ids', [])
+    if not run_ids:
+        return jsonify({"error": "run_ids required"}), 400
+    bucket_min = int(body.get('bucket_min', 30))
+    if not (5 <= bucket_min <= 360):
+        return jsonify({"error": "bucket_min must be 5–360"}), 400
+    pts = db.generate_curve_from_runs(run_ids, bucket_min)
+    return jsonify([{"elapsed_min": p[0], "temp_target": p[1]} for p in pts])
+
+
+_CSV_MAX_BYTES = 25 * 1024 * 1024  # 25 MB
+
+
+@app.route("/api/reference-curves/generate-from-csv", methods=["POST"])
+def api_generate_curve_from_csv():
+    """Build a curve from a single uploaded CSV.
+
+    Accepts either:
+      - multipart/form-data with a 'file' part (and optional 'bucket_min' field), or
+      - application/json with {csv_text, bucket_min}.
+    """
+    csv_text = None
+    bucket_min = 30
+
+    if request.files and 'file' in request.files:
+        f = request.files['file']
+        data = f.read(_CSV_MAX_BYTES + 1)
+        if len(data) > _CSV_MAX_BYTES:
+            return jsonify({"error": f"CSV exceeds {_CSV_MAX_BYTES // (1024*1024)} MB limit"}), 413
+        try:
+            csv_text = data.decode('utf-8-sig')
+        except UnicodeDecodeError:
+            try:
+                csv_text = data.decode('latin-1')
+            except Exception:
+                return jsonify({"error": "could not decode CSV (try UTF-8)"}), 400
+        if request.form.get('bucket_min'):
+            try:
+                bucket_min = int(request.form['bucket_min'])
+            except ValueError:
+                return jsonify({"error": "bucket_min must be an integer"}), 400
+    else:
+        body = request.get_json(force=True, silent=True) or {}
+        csv_text = body.get('csv_text')
+        if body.get('bucket_min') is not None:
+            try:
+                bucket_min = int(body['bucket_min'])
+            except (TypeError, ValueError):
+                return jsonify({"error": "bucket_min must be an integer"}), 400
+
+    if not csv_text or not csv_text.strip():
+        return jsonify({"error": "csv_text or file required"}), 400
+    if not (5 <= bucket_min <= 360):
+        return jsonify({"error": "bucket_min must be 5–360"}), 400
+
+    try:
+        pts = db.generate_curve_from_csv(csv_text, bucket_min)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": f"failed to parse CSV: {e}"}), 400
+
+    if not pts:
+        return jsonify({"error": "no usable rows after bucketing — check timestamp/TC columns"}), 400
+
+    return jsonify([{"elapsed_min": p[0], "temp_target": p[1]} for p in pts])
+
+
 @app.route("/api/reference-curves", methods=["GET"])
 def api_list_reference_curves():
     return jsonify(db.get_all_reference_curves())
@@ -615,7 +692,7 @@ def api_create_reference_curve():
     except Exception as e:
         if 'UNIQUE' in str(e):
             return jsonify({"error": "a curve with that name already exists"}), 409
-        raise
+        return jsonify({"error": str(e)}), 500
     return jsonify(db.get_reference_curve(curve_id)), 201
 
 
