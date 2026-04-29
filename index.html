@@ -420,16 +420,6 @@
 						</div>
 					</div>
 				</div>
-				<details class="zone-detail-card__alarms">
-					<summary class="zone-detail-card__alarms-toggle">Alarm Thresholds</summary>
-					<div class="zone-detail-card__alarms-grid">
-						<label class="zone-detail-card__alarm-label">Warn High<input type="number" id="zdc-thr-warn-high" class="zone-detail-card__ctrl-input" step="0.5" min="0" max="60"></label>
-						<label class="zone-detail-card__alarm-label">Crit High<input type="number" id="zdc-thr-crit-high" class="zone-detail-card__ctrl-input" step="0.5" min="0" max="60"></label>
-						<label class="zone-detail-card__alarm-label">Warn Low<input type="number" id="zdc-thr-warn-low" class="zone-detail-card__ctrl-input" step="0.5" min="0" max="60"></label>
-						<label class="zone-detail-card__alarm-label">Crit Low<input type="number" id="zdc-thr-crit-low" class="zone-detail-card__ctrl-input" step="0.5" min="0" max="60"></label>
-						<button type="button" id="zdc-thresholds-apply" class="zone-detail-card__ctrl-btn zone-detail-card__ctrl-btn--full">Apply</button>
-					</div>
-				</details>
 				<div class="zone-detail-card__status-row">
 					<span class="zone-detail-card__status-chip" id="zdc-relay-chip">
 						<span class="zone-status-dot zone-status-dot--off" id="zdc-relay-dot"></span>
@@ -1227,9 +1217,13 @@
 					if (!temperatureReadingActive) return;
 
 					try {
-						const response = await fetch('sensor_latest.json?_=' + Date.now());
-						if (!response.ok) return;
-						const data = await response.json();
+						const [sensorRes, fanRes] = await Promise.all([
+							fetch('sensor_latest.json?_=' + Date.now()),
+							fetch('/api/fan-state?_=' + Date.now()),
+						]);
+						if (!sensorRes.ok) return;
+						const data    = await sensorRes.json();
+						const fanData = fanRes.ok ? await fanRes.json() : { zones: {} };
 
 						const RH = (data.sht30 && data.sht30.humidity_rh != null)
 							? parseFloat(data.sht30.humidity_rh) : null;
@@ -1241,9 +1235,9 @@
 								? parseFloat(data.thermocouples[tcKey]) : null;
 							currentDryBulb[`temp${i}`] = dryC;
 
-							const zone = data.zones && data.zones[i];
-							currentSetpoints[`sp${i}`] = (zone && zone.setpoint_c != null)
-								? parseFloat(zone.setpoint_c) : null;
+							const fz = fanData.zones && fanData.zones[String(i)];
+							currentSetpoints[`sp${i}`] = (fz && fz.setpoint != null)
+								? parseFloat(fz.setpoint) : null;
 
 							if (dryC != null && RH != null) {
 								const wetC = computeWetBulbC(dryC, RH);
@@ -1253,14 +1247,16 @@
 							}
 						}
 
-						// Alarm state handling
+						// Alarm state handling — read alarm_level from /api/fan-state (zones keyed
+						// by string), not from sensor_latest.json. Backend derives this from
+						// |actual - setpoint| vs zone tolerance.
 						for (let i = 1; i <= 6; i++) {
-							const zone = data.zones && data.zones[i];
+							const fz = fanData.zones && fanData.zones[String(i)];
 							const card = document.querySelector(`.zone-combined[href="zone${i}.html"]`);
 							if (card) {
 								card.classList.remove('zone-combined--warn', 'zone-combined--crit');
-								if (zone && zone.alarm_level === 'critical') card.classList.add('zone-combined--crit');
-								else if (zone && zone.alarm_level === 'warning') card.classList.add('zone-combined--warn');
+								if (fz && fz.alarm_level === 'critical') card.classList.add('zone-combined--crit');
+								else if (fz && fz.alarm_level === 'warning') card.classList.add('zone-combined--warn');
 							}
 						}
 
@@ -1449,11 +1445,8 @@
 				const relayDot       = document.getElementById('zdc-relay-dot');
 				const relayLabel     = document.getElementById('zdc-relay-label');
 				const triggerVal     = document.getElementById('zdc-trigger-val');
-				const thrWarnHigh    = document.getElementById('zdc-thr-warn-high');
-				const thrCritHigh    = document.getElementById('zdc-thr-crit-high');
-				const thrWarnLow     = document.getElementById('zdc-thr-warn-low');
-				const thrCritLow     = document.getElementById('zdc-thr-crit-low');
-				const thrApply       = document.getElementById('zdc-thresholds-apply');
+				const alarmBanner    = document.getElementById('zdc-alarm-banner');
+				const alarmReason    = document.getElementById('zdc-alarm-reason');
 				const notesInput     = document.getElementById('zdc-notes');
 
 				let zdcFanChart  = null;
@@ -1570,8 +1563,19 @@
 							wetEl.textContent = wb != null ? wb.toFixed(1) : '--';
 						}
 
-						var alarmBanner = document.getElementById('zdc-alarm-banner');
-						if (alarmBanner) alarmBanner.style.display = 'none';
+						// Alarm banner — driven by zd.alarm_level / zd.alarm_reason from fan_state.json.
+						// Thresholds are derived from setpoint + tolerance on the backend.
+						if (alarmBanner) {
+							var lvl = zd.alarm_level;
+							if (lvl === 'critical' || lvl === 'warning') {
+								alarmBanner.classList.remove('zone-alarm-banner--warning', 'zone-alarm-banner--critical');
+								alarmBanner.classList.add('zone-alarm-banner--' + lvl);
+								if (alarmReason) alarmReason.textContent = zd.alarm_reason || (lvl === 'critical' ? 'Critical deviation' : 'Warning deviation');
+								alarmBanner.style.display = '';
+							} else {
+								alarmBanner.style.display = 'none';
+							}
+						}
 
 						var isManual = zd.mode === 'manual';
 						if (modeAutoBtn)    modeAutoBtn.classList.toggle('zone-detail-card__mode-btn--active', !isManual);
@@ -1674,9 +1678,6 @@
 
 				if (fanOnBtn)  fanOnBtn.addEventListener('click',  function () { _postFanOverride('on');  });
 				if (fanOffBtn) fanOffBtn.addEventListener('click', function () { _postFanOverride('off'); });
-
-				// Alarm thresholds — no server endpoint yet
-				if (thrApply) thrApply.disabled = true;
 
 				// Notes auto-save (debounced 800 ms)
 				if (notesInput) notesInput.addEventListener('input', function() {

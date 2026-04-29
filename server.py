@@ -869,7 +869,8 @@ def api_fan_state():
     """Return the latest fan_state.json written by the limit-switch fan-control loop."""
     if not os.path.exists(FAN_STATE_JSON):
         return jsonify({"timestamp": None, "zones": {str(z): {"state": None, "mode": "none",
-                        "setpoint": None, "setpoint_source": None, "trigger": None}
+                        "setpoint": None, "setpoint_source": None, "trigger": None,
+                        "alarm_level": None, "alarm_reason": None}
                         for z in range(1, 7)}})
     try:
         with open(FAN_STATE_JSON) as f:

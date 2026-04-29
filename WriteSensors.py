@@ -83,6 +83,12 @@ _last_fan_mode            = {z: "none" for z in range(1, 7)}
 _last_fan_setpoint        = {z: None   for z in range(1, 7)}
 _last_fan_setpoint_source = {z: None   for z in range(1, 7)}  # "curve" | "config" | None
 _last_fan_trigger         = {z: None   for z in range(1, 7)}
+_last_fan_alarm_level     = {z: None   for z in range(1, 7)}  # "warning" | "critical" | None
+_last_fan_alarm_reason    = {z: None   for z in range(1, 7)}
+
+# Alarm thresholds — derived from setpoint + tolerance, no separate UI inputs.
+ALARM_WARN_MULT = 1.0   # warning when |actual - setpoint| > tolerance
+ALARM_CRIT_MULT = 2.0   # critical when |actual - setpoint| > 2 × tolerance
 
 
 def _load_target_profile(run_id):
@@ -143,9 +149,34 @@ def _zone_setpoint_override(zone):
     return float(v) if v is not None else None
 
 
+def _classify_alarm(actual, setpoint, tolerance):
+    """Return (level, reason) for the given temp/setpoint/tolerance triple.
+
+    level: "critical" | "warning" | None
+    reason: short human-readable string, or None.
+    """
+    if actual is None or setpoint is None or tolerance is None or tolerance <= 0:
+        return None, None
+    diff = actual - setpoint
+    abs_diff = abs(diff)
+    direction = "above" if diff > 0 else "below"
+    if abs_diff > ALARM_CRIT_MULT * tolerance:
+        return "critical", (
+            f"{abs_diff:.1f}°C {direction} setpoint "
+            f"(>{ALARM_CRIT_MULT:g}× tolerance)"
+        )
+    if abs_diff > ALARM_WARN_MULT * tolerance:
+        return "warning", (
+            f"{abs_diff:.1f}°C {direction} setpoint "
+            f"(>{ALARM_WARN_MULT:g}× tolerance)"
+        )
+    return None, None
+
+
 def evaluate_fan_state(run, tc_readings):
     global _fan_hold_counts, _fan_on
     global _last_fan_mode, _last_fan_setpoint, _last_fan_setpoint_source, _last_fan_trigger
+    global _last_fan_alarm_level, _last_fan_alarm_reason
 
     run_id = run["id"]
     now = datetime.now()
@@ -200,6 +231,8 @@ def evaluate_fan_state(run, tc_readings):
             _last_fan_setpoint[zone]        = None
             _last_fan_setpoint_source[zone] = None
             _last_fan_trigger[zone]         = None
+            _last_fan_alarm_level[zone]     = None
+            _last_fan_alarm_reason[zone]    = None
             continue
 
         if zone in rule_zones:
@@ -207,6 +240,8 @@ def evaluate_fan_state(run, tc_readings):
             _last_fan_setpoint[zone]        = None
             _last_fan_setpoint_source[zone] = None
             _last_fan_trigger[zone]         = None
+            _last_fan_alarm_level[zone]     = None
+            _last_fan_alarm_reason[zone]    = None
             continue
 
         pts    = profile.get(zone)
@@ -216,6 +251,8 @@ def evaluate_fan_state(run, tc_readings):
             _last_fan_setpoint[zone]        = None
             _last_fan_setpoint_source[zone] = None
             _last_fan_trigger[zone]         = None
+            _last_fan_alarm_level[zone]     = None
+            _last_fan_alarm_reason[zone]    = None
             continue
 
         setpoint = _interp_target(pts, elapsed_min) if pts else None
@@ -229,6 +266,8 @@ def evaluate_fan_state(run, tc_readings):
             _last_fan_setpoint[zone]        = None
             _last_fan_setpoint_source[zone] = None
             _last_fan_trigger[zone]         = None
+            _last_fan_alarm_level[zone]     = None
+            _last_fan_alarm_reason[zone]    = None
             continue
 
         _last_fan_setpoint[zone]        = round(setpoint, 2)
@@ -237,6 +276,10 @@ def evaluate_fan_state(run, tc_readings):
         tolerance = _zone_tolerance(zone)
         trigger   = setpoint + tolerance
         _last_fan_trigger[zone] = round(trigger, 2)
+
+        level, reason = _classify_alarm(actual, setpoint, tolerance)
+        _last_fan_alarm_level[zone]  = level
+        _last_fan_alarm_reason[zone] = reason
 
         current_on = _fan_on[zone]
         if actual > trigger:
@@ -273,6 +316,8 @@ def _write_fan_state_json(fan_states):
             "setpoint":        _last_fan_setpoint.get(z),
             "setpoint_source": _last_fan_setpoint_source.get(z),
             "trigger":         _last_fan_trigger.get(z),
+            "alarm_level":     _last_fan_alarm_level.get(z),
+            "alarm_reason":    _last_fan_alarm_reason.get(z),
         }
     data = {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
