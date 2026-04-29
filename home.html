@@ -199,11 +199,7 @@
             <option value="">— None —</option>
           </select>
         </div>
-        <div class="h-field">
-          <span class="h-field-label">Or upload CSV target:</span>
-          <input type="file" id="target-csv" accept=".csv">
-          <span class="upload-status" id="csv-status"></span>
-        </div>
+        <span class="upload-status" id="curve-apply-status"></span>
       </div>
 
       <!-- Tools -->
@@ -249,65 +245,30 @@
       return Math.round((Date.now() - new Date(iso)) / 1000);
     }
 
-    // ── parsed target CSV (held until after run is created) ──────────────────
-    let parsedTargetRows = null;
-
-    document.getElementById('target-csv').addEventListener('change', function (e) {
-      const file = e.target.files[0];
-      const statusEl = document.getElementById('csv-status');
-      if (!file) { parsedTargetRows = null; statusEl.textContent = ''; return; }
-
-      const reader = new FileReader();
-      reader.onload = function (ev) {
-        try {
-          const lines = ev.target.result.trim().split('\n');
-          if (lines.length < 2) throw new Error('empty');
-          const rows = [];
-          for (let i = 1; i < lines.length; i++) {
-            const v = lines[i].split(',');
-            if (v.length >= 2) {
-              rows.push({
-                elapsed_min: parseFloat(v[0]),
-                temp_target: parseFloat(v[1])
-              });
-            }
-          }
-          parsedTargetRows = rows;
-          statusEl.textContent = '✓ ' + rows.length + ' points';
-          statusEl.style.color = '#7fff7f';
-        } catch {
-          parsedTargetRows = null;
-          statusEl.textContent = '✗ invalid CSV';
-          statusEl.style.color = '#ff9f9f';
-        }
-      };
-      reader.readAsText(file);
-    });
-
     // ── start new run ────────────────────────────────────────────────────────
     document.getElementById('start-btn').addEventListener('click', async function () {
       const name = document.getElementById('new-run-name').value.trim();
       if (!name) { document.getElementById('new-run-name').focus(); return; }
 
+      const statusEl = document.getElementById('curve-apply-status');
       this.disabled = true;
+      statusEl.textContent = '';
       try {
         const res = await fetch('/api/runs', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name })
         });
+        if (!res.ok) throw new Error('Failed to create run');
         const run = await res.json();
 
-        // Apply reference curve if selected (CSV takes priority)
         const curveId = Number(document.getElementById('curve-select').value);
-        if (parsedTargetRows && parsedTargetRows.length > 0) {
-          await fetch('/api/runs/' + run.id + '/target', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(parsedTargetRows)
-          });
-        } else if (curveId) {
-          await fetch('/api/runs/' + run.id + '/target/from-curve/' + curveId, { method: 'POST' });
+        if (curveId) {
+          const cr = await fetch('/api/runs/' + run.id + '/target/from-curve/' + curveId, { method: 'POST' });
+          if (!cr.ok) {
+            statusEl.textContent = '✗ Curve apply failed';
+            statusEl.style.color = '#ff9f9f';
+          }
         }
 
         location.href = 'dashboard.html?run=' + run.id + '&mode=live';

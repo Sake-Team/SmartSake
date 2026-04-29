@@ -2890,13 +2890,17 @@ const tempSeries = {
 							var zd   = (fanState.zones || {})[String(zone)] || {};
 							var zcfg = zoneCfg['zone' + zone] || zoneCfg['default'] || {};
 
-							// Setpoint — read-only, interpolated from target profile by WriteSensors
+							// Setpoint — read-only when a curve is active (mode=limit), editable otherwise
+							var hasCurve = zd.mode === 'limit';
 							if (setpointInput) {
-								setpointInput.value    = zd.setpoint != null ? Number(zd.setpoint).toFixed(1) : '';
-								setpointInput.readOnly = true;
-								setpointInput.style.opacity = '0.55';
+								setpointInput.value = hasCurve
+									? (zd.setpoint != null ? Number(zd.setpoint).toFixed(1) : '')
+									: (zcfg.setpoint_c != null ? Number(zcfg.setpoint_c).toFixed(1) : '');
+								setpointInput.readOnly = hasCurve;
+								setpointInput.style.opacity = hasCurve ? '0.55' : '1';
+								setpointInput.placeholder = hasCurve ? 'From curve' : 'e.g. 38.0';
 							}
-							if (setpointApply) setpointApply.disabled = true;
+							if (setpointApply) setpointApply.disabled = hasCurve;
 
 							// Tolerance — editable per zone
 							if (toleranceInput && zcfg.tolerance_c != null) toleranceInput.value = zcfg.tolerance_c;
@@ -2924,6 +2928,16 @@ const tempSeries = {
 							if (modeManualBtn)  modeManualBtn.classList.toggle('zone-detail-card__mode-btn--active', isManual);
 							if (manualControls) manualControls.style.display = isManual ? '' : 'none';
 
+							// Highlight which manual direction is active (red)
+							if (fanOnBtn) {
+								fanOnBtn.classList.toggle('zone-detail-card__mode-btn--active-manual', isManual && zd.state === 'on');
+								fanOnBtn.classList.toggle('zone-detail-card__mode-btn--active', false);
+							}
+							if (fanOffBtn) {
+								fanOffBtn.classList.toggle('zone-detail-card__mode-btn--active-manual', isManual && zd.state === 'off');
+								fanOffBtn.classList.toggle('zone-detail-card__mode-btn--active', false);
+							}
+
 							// Fan relay live state
 							if (relayDot && relayLabel) {
 								var fanOn = zd.state === 'on';
@@ -2933,8 +2947,25 @@ const tempSeries = {
 						}).catch(function() {});
 					}
 
-					// Setpoint is read-only (driven by target profile in WriteSensors)
-					// setpointApply is already disabled in loadZoneControls — no handler needed
+					// Setpoint apply — save manual setpoint to zone_config (used when no curve is active)
+					if (setpointApply) setpointApply.addEventListener('click', function() {
+						var sp = parseFloat(setpointInput.value);
+						if (isNaN(sp) || sp < 0 || sp > 60) return;
+						fetch('/api/zone-config')
+							.then(function(r) { return r.ok ? r.json() : {}; })
+							.then(function(cfg) {
+								var key = 'zone' + activeZone;
+								cfg[key] = cfg[key] || {};
+								cfg[key].setpoint_c = sp;
+								return fetch('/api/zone-config', {
+									method: 'POST',
+									headers: { 'Content-Type': 'application/json' },
+									body: JSON.stringify(cfg)
+								});
+							})
+							.then(function() { loadZoneControls(activeZone); })
+							.catch(function() {});
+					});
 
 					// Tolerance apply — PATCH zone_config via /api/zone-config
 					if (toleranceApply) toleranceApply.addEventListener('click', function() {

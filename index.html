@@ -236,51 +236,6 @@
 					</div>
 
 					<div class="modal-input-section">
-						<div class="curve-toggle">
-							<button type="button" id="btn-show-builder" class="curve-toggle-btn curve-toggle-btn--active">Build Curve</button>
-							<button type="button" id="btn-show-upload" class="curve-toggle-btn">Upload CSV</button>
-						</div>
-
-						<!-- Curve builder panel -->
-						<div id="panel-builder" class="curve-panel">
-							<div class="curve-table-wrap">
-								<table class="curve-table">
-									<thead>
-										<tr>
-											<th>Min</th>
-											<th>Z1 °C</th><th>Z2 °C</th><th>Z3 °C</th>
-											<th>Z4 °C</th><th>Z5 °C</th><th>Z6 °C</th>
-										</tr>
-									</thead>
-									<tbody id="curve-tbody">
-										<tr>
-											<td><input type="number" step="1" min="0" class="curve-cell row-time" placeholder="0"></td>
-											<td><input type="number" step="0.2" min="0" max="60" class="curve-cell row-z1" placeholder="38.0"></td>
-											<td><input type="number" step="0.2" min="0" max="60" class="curve-cell row-z2" placeholder="38.0"></td>
-											<td><input type="number" step="0.2" min="0" max="60" class="curve-cell row-z3" placeholder="38.0"></td>
-											<td><input type="number" step="0.2" min="0" max="60" class="curve-cell row-z4" placeholder="38.0"></td>
-											<td><input type="number" step="0.2" min="0" max="60" class="curve-cell row-z5" placeholder="38.0"></td>
-											<td><input type="number" step="0.2" min="0" max="60" class="curve-cell row-z6" placeholder="38.0"></td>
-										</tr>
-									</tbody>
-								</table>
-							</div>
-							<div class="curve-actions">
-								<button type="button" id="add-row-btn" class="curve-add-btn">+ Add Row</button>
-								<button type="button" id="clear-table-btn" class="curve-clear-btn">Clear</button>
-							</div>
-						</div>
-
-						<!-- CSV upload panel -->
-						<div id="panel-upload" class="curve-panel" style="display:none;">
-							<label for="target-csv-upload">Select Koji Strain CSV:</label>
-							<input type="file" id="target-csv-upload" accept=".csv" class="upload-input">
-							<div id="upload-status" class="upload-status"></div>
-							<small class="help-text">CSV columns: time_minutes, temp1..temp6</small>
-						</div>
-					</div>
-
-					<div class="modal-input-section">
 						<button type="button" class="modal-enter-btn" id="enter-run-btn">Start</button>
 					</div>
 				</div>
@@ -1058,14 +1013,6 @@
 							await fetch('/api/runs/' + run.id + '/target/from-curve/' + startCurveId, { method: 'POST' });
 						}
 
-						// Load curve from builder or CSV upload into targetTemperatures
-						if (window.readCurveBuilder && window.setTargetTemperatures) {
-							const built = window.readCurveBuilder();
-							if (built.length > 0) {
-								window.setTargetTemperatures(built);
-							}
-						}
-
 						startDataCollection();
 						if (window.startTemperatureReading) {
 							window.startTemperatureReading();
@@ -1484,60 +1431,6 @@
 				};
 			})();
 
-			// Curve builder logic
-			(function () {
-				const btnBuilder = document.getElementById('btn-show-builder');
-				const btnUpload  = document.getElementById('btn-show-upload');
-				const panelBuilder = document.getElementById('panel-builder');
-				const panelUpload  = document.getElementById('panel-upload');
-				const tbody = document.getElementById('curve-tbody');
-				const addRowBtn   = document.getElementById('add-row-btn');
-				const clearBtn    = document.getElementById('clear-table-btn');
-
-				if (!btnBuilder || !tbody) return;
-
-				function showPanel(which) {
-					panelBuilder.style.display = which === 'builder' ? '' : 'none';
-					panelUpload.style.display  = which === 'upload'  ? '' : 'none';
-					btnBuilder.classList.toggle('curve-toggle-btn--active', which === 'builder');
-					btnUpload.classList.toggle('curve-toggle-btn--active',  which === 'upload');
-				}
-				btnBuilder.addEventListener('click', () => showPanel('builder'));
-				btnUpload.addEventListener('click',  () => showPanel('upload'));
-
-				function makeRow() {
-					const tr = document.createElement('tr');
-					const cols = ['row-time','row-z1','row-z2','row-z3','row-z4','row-z5','row-z6'];
-					cols.forEach((cls, i) => {
-						const td = document.createElement('td');
-						const inp = document.createElement('input');
-						inp.type = 'number'; inp.step = i === 0 ? '1' : '0.2'; inp.min = '0';
-						if (i > 0) inp.max = '60'; inp.className = 'curve-cell ' + cls;
-						inp.placeholder = i === 0 ? '0' : '38.0'; td.appendChild(inp); tr.appendChild(td);
-					});
-					return tr;
-				}
-
-				addRowBtn.addEventListener('click', () => { tbody.appendChild(makeRow()); });
-				clearBtn.addEventListener('click', () => { tbody.innerHTML = ''; tbody.appendChild(makeRow()); });
-
-				window.readCurveBuilder = function () {
-					const result = [];
-					tbody.querySelectorAll('tr').forEach(tr => {
-						const time = parseFloat(tr.querySelector('.row-time').value);
-						if (!isNaN(time)) {
-							const row = { time_minutes: time };
-							[1,2,3,4,5,6].forEach(i => {
-								const v = parseFloat(tr.querySelector(`.row-z${i}`).value);
-								row[`temp${i}`] = isNaN(v) ? null : v;
-							});
-							result.push(row);
-						}
-					});
-					return result.sort((a,b) => a.time_minutes - b.time_minutes);
-				};
-			})();
-
 			// ── Zone detail modal ───────────────────────────────────────────────
 			(function () {
 				'use strict';
@@ -1665,13 +1558,17 @@
 						var zd   = (fanState.zones || {})[String(zone)] || {};
 						var zcfg = zoneCfg['zone' + zone] || zoneCfg['default'] || {};
 
-						// Setpoint is read-only — driven by target profile in WriteSensors
+						// Setpoint — read-only when a curve is active (mode=limit), editable otherwise
+						var hasCurve = zd.mode === 'limit';
 						if (setpointInput) {
-							setpointInput.value = zd.setpoint != null ? Number(zd.setpoint).toFixed(1) : '';
-							setpointInput.readOnly = true;
-							setpointInput.style.opacity = '0.55';
+							setpointInput.value = hasCurve
+								? (zd.setpoint != null ? Number(zd.setpoint).toFixed(1) : '')
+								: (zcfg.setpoint_c != null ? Number(zcfg.setpoint_c).toFixed(1) : '');
+							setpointInput.readOnly = hasCurve;
+							setpointInput.style.opacity = hasCurve ? '0.55' : '1';
+							setpointInput.placeholder = hasCurve ? 'From curve' : 'e.g. 38.0';
 						}
-						if (setpointApply) setpointApply.disabled = true;
+						if (setpointApply) setpointApply.disabled = hasCurve;
 
 						if (toleranceInput && zcfg.tolerance_c != null) toleranceInput.value = zcfg.tolerance_c;
 						if (triggerVal) triggerVal.textContent = zd.trigger != null ? Number(zd.trigger).toFixed(1) : '--';
@@ -1693,6 +1590,16 @@
 						if (modeManualBtn)  modeManualBtn.classList.toggle('zone-detail-card__mode-btn--active', isManual);
 						if (manualControls) manualControls.style.display = isManual ? '' : 'none';
 
+						// Highlight which manual direction is active (red)
+						if (fanOnBtn) {
+							fanOnBtn.classList.toggle('zone-detail-card__mode-btn--active-manual', isManual && zd.state === 'on');
+							fanOnBtn.classList.toggle('zone-detail-card__mode-btn--active', false);
+						}
+						if (fanOffBtn) {
+							fanOffBtn.classList.toggle('zone-detail-card__mode-btn--active-manual', isManual && zd.state === 'off');
+							fanOffBtn.classList.toggle('zone-detail-card__mode-btn--active', false);
+						}
+
 						if (relayDot && relayLabel) {
 							var fanOn = zd.state === 'on';
 							relayDot.className = 'zone-status-dot ' + (fanOn ? 'zone-status-dot--on' : 'zone-status-dot--off');
@@ -1707,7 +1614,25 @@
 						.then(function(d) { return d && d.id ? String(d.id) : null; });
 				}
 
-				// Setpoint is read-only — no handler needed (disabled in loadZoneControls)
+				// Setpoint apply — save manual setpoint to zone_config (used when no curve is active)
+				if (setpointApply) setpointApply.addEventListener('click', function() {
+					var sp = parseFloat(setpointInput.value);
+					if (isNaN(sp) || sp < 0 || sp > 60) return;
+					fetch('/api/zone-config')
+						.then(function(r) { return r.ok ? r.json() : {}; })
+						.then(function(cfg) {
+							var key = 'zone' + activeZone;
+							cfg[key] = cfg[key] || {};
+							cfg[key].setpoint_c = sp;
+							return fetch('/api/zone-config', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify(cfg)
+							});
+						})
+						.then(function() { loadZoneControls(activeZone); })
+						.catch(function() {});
+				});
 
 				// Tolerance apply — PATCH zone config via /api/zone-config
 				if (toleranceApply) toleranceApply.addEventListener('click', function () {
