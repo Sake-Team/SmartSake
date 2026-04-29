@@ -131,6 +131,22 @@ Check scale pin assignments and calibration:
 Check thermocouple zone map:
   cat ~/MainCode/tc_zone_map.json
 
+Validate the thermocouple zone map (no dupes, all 6 zones present):
+  python ~/MainCode/scripts/identify_tcs.py --check
+
+Live thermocouple monitor (no writes — useful for diagnosing wiring):
+  python ~/MainCode/scripts/identify_tcs.py --monitor
+
+(Re)build thermocouple zone map — interactive, run after first install
+or any probe replacement. Heat each probe in turn when prompted:
+  python ~/MainCode/scripts/identify_tcs.py
+  sudo systemctl restart smartsake   # so the new map is picked up
+
+NOTE: WriteSensors.py now refuses to start with a missing/incomplete
+tc_zone_map.json. There is no auto-assignment — every probe must be
+explicitly mapped to a zone (1..6). If a probe is replaced, re-run
+identify_tcs.py to update the map.
+
 Check sensor health (requires server running):
   curl http://localhost:8080/api/health
 

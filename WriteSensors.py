@@ -58,7 +58,8 @@ _last_db_write_time: float = 0.0
 
 # ── Deviation detection state ─────────────────────────────────────────────────
 _deviation_tracking = {}
-_cached_profile = {"run_id": None, "points": {}}
+_cached_profile = {"run_id": None, "points": {}, "loaded_at": 0.0}
+_PROFILE_CACHE_TTL = 60.0  # re-read DB if curve is swapped mid-run
 _threshold_breach_start = {}
 
 DEVIATION_THRESHOLD_C = 2.0
@@ -84,13 +85,16 @@ _last_fan_trigger  = {z: None   for z in range(1, 7)}
 
 
 def _load_target_profile(run_id):
-    if _cached_profile["run_id"] == run_id:
+    now = time.time()
+    if (_cached_profile["run_id"] == run_id and
+            (now - _cached_profile["loaded_at"]) < _PROFILE_CACHE_TTL):
         return _cached_profile["points"]
     rows = sakedb.get_target_profile(run_id)
     pts = [(r["elapsed_min"], r["temp_target"]) for r in rows if r["temp_target"] is not None]
     shared = {z: pts for z in range(1, 7)} if pts else {}
     _cached_profile["run_id"] = run_id
     _cached_profile["points"] = shared
+    _cached_profile["loaded_at"] = now
     return shared
 
 
@@ -128,6 +132,14 @@ def _zone_tolerance(zone):
     cfg = _load_zone_config()
     default = cfg.get("default", {"tolerance_c": DEFAULT_TOLERANCE_C})
     return cfg.get(f"zone{zone}", default).get("tolerance_c", DEFAULT_TOLERANCE_C)
+
+
+def _zone_setpoint_override(zone):
+    cfg = _load_zone_config()
+    v = cfg.get(f"zone{zone}", {}).get("setpoint_c")
+    if v is None:
+        v = cfg.get("default", {}).get("setpoint_c")
+    return float(v) if v is not None else None
 
 
 def evaluate_fan_state(run, tc_readings):
@@ -196,13 +208,15 @@ def evaluate_fan_state(run, tc_readings):
 
         pts    = profile.get(zone)
         actual = tc_map.get(zone)
-        if pts is None or actual is None:
+        if actual is None:
             _last_fan_mode[zone]     = "none"
             _last_fan_setpoint[zone] = None
             _last_fan_trigger[zone]  = None
             continue
 
-        setpoint = _interp_target(pts, elapsed_min)
+        setpoint = _interp_target(pts, elapsed_min) if pts else None
+        if setpoint is None:
+            setpoint = _zone_setpoint_override(zone)
         if setpoint is None:
             _last_fan_mode[zone]     = "none"
             _last_fan_setpoint[zone] = None
@@ -261,26 +275,61 @@ def _write_fan_state_json(fan_states):
         print(f"Could not write fan_state.json: {e}")
 
 
+class TCZoneMapError(Exception):
+    """Raised when tc_zone_map.json is missing, malformed, or fails validation."""
+
+
+def _validate_tc_zone_map(mapping):
+    """Enforce static 1..6 zone assignments with no duplicates and no gaps."""
+    if not isinstance(mapping, dict) or not mapping:
+        raise TCZoneMapError(
+            f"tc_zone_map.json is empty. Run scripts/identify_tcs.py to "
+            f"assign each probe to a fixed zone (1..6) before starting."
+        )
+
+    channels = []
+    for device_id, ch in mapping.items():
+        if not isinstance(device_id, str) or not device_id.startswith("3b-"):
+            raise TCZoneMapError(f"Invalid device id {device_id!r} (expected '3b-...').")
+        if not isinstance(ch, int) or ch < 1 or ch > MAX_THERMOCOUPLES:
+            raise TCZoneMapError(
+                f"Invalid channel {ch!r} for {device_id} "
+                f"(must be int in 1..{MAX_THERMOCOUPLES})."
+            )
+        channels.append(ch)
+
+    dupes = {c for c in channels if channels.count(c) > 1}
+    if dupes:
+        raise TCZoneMapError(f"Duplicate zone assignments: {sorted(dupes)}.")
+
+    missing = sorted(set(range(1, MAX_THERMOCOUPLES + 1)) - set(channels))
+    if missing:
+        raise TCZoneMapError(
+            f"Missing zones {missing}. All zones 1..{MAX_THERMOCOUPLES} must be assigned. "
+            f"Run scripts/identify_tcs.py to (re)build the map."
+        )
+
+
 def _load_tc_zone_map():
+    """Load and validate the static probe-to-zone map. Raises TCZoneMapError on any issue."""
     try:
         with open(TC_ZONE_MAP_FILE) as f:
             raw = json.load(f)
-        return {k: int(v) for k, v in raw.items()}
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {}
-    except Exception as e:
-        print(f"Could not load tc_zone_map.json: {e}")
-        return {}
+    except FileNotFoundError:
+        raise TCZoneMapError(
+            f"tc_zone_map.json not found at {TC_ZONE_MAP_FILE}. "
+            f"Run scripts/identify_tcs.py to create it."
+        )
+    except json.JSONDecodeError as e:
+        raise TCZoneMapError(f"tc_zone_map.json is not valid JSON: {e}")
 
-
-def _save_tc_zone_map(mapping):
     try:
-        tmp = TC_ZONE_MAP_FILE + ".tmp"
-        with open(tmp, "w") as f:
-            json.dump(mapping, f)
-        os.replace(tmp, TC_ZONE_MAP_FILE)
-    except Exception as e:
-        print(f"Could not save tc_zone_map.json: {e}")
+        mapping = {k: int(v) for k, v in raw.items()}
+    except (TypeError, ValueError) as e:
+        raise TCZoneMapError(f"tc_zone_map.json contains non-integer channel values: {e}")
+
+    _validate_tc_zone_map(mapping)
+    return mapping
 
 
 def check_deviations(run_id, tc_readings, run_started_at):
@@ -479,32 +528,48 @@ def start_sensor_loop():
     except Exception as e:
         print(f"[sensors] SHT30 init failed: {e} — continuing without humidity sensor")
 
-    device_id_to_channel = _load_tc_zone_map()
-    next_channel = max(device_id_to_channel.values(), default=0) + 1
+    try:
+        device_id_to_channel = _load_tc_zone_map()
+        print(f"[sensors] Loaded static TC zone map: "
+              f"{', '.join(f'{cid[:8]}…→z{ch}' for cid, ch in sorted(device_id_to_channel.items(), key=lambda x: x[1]))}")
+    except TCZoneMapError as e:
+        print(f"[sensors] FATAL: {e}")
+        print("[sensors] Sensor loop will not run until the map is fixed.")
+        return
+
+    _warned_unknown_ids = set()
 
     print("[sensors] Entering read loop (2 s interval).")
     while True:
         try:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-            # Discover and auto-assign new thermocouples
             devices = discover_devices()
+
             for d in devices:
                 device_id = format_device_id(d)
-                if device_id not in device_id_to_channel:
-                    if next_channel <= MAX_THERMOCOUPLES:
-                        device_id_to_channel[device_id] = next_channel
-                        next_channel += 1
-                        _save_tc_zone_map(device_id_to_channel)
-                        print(f"[sensors] New TC discovered: {device_id} → channel {next_channel - 1}")
+                if device_id not in device_id_to_channel and device_id not in _warned_unknown_ids:
+                    print(f"[sensors] WARN: unknown thermocouple {device_id} present on bus "
+                          f"but not in tc_zone_map.json — ignoring. Run scripts/identify_tcs.py "
+                          f"to remap if a probe was replaced.")
+                    _warned_unknown_ids.add(device_id)
 
             assigned = sorted(
                 [(device_id_to_channel[format_device_id(d)], d)
                  for d in devices
-                 if format_device_id(d) in device_id_to_channel
-                 and device_id_to_channel[format_device_id(d)] <= MAX_THERMOCOUPLES],
+                 if format_device_id(d) in device_id_to_channel],
                 key=lambda x: x[0]
             )
+
+            seen_zones = {ch for ch, _ in assigned}
+            missing_zones = sorted(set(range(1, MAX_THERMOCOUPLES + 1)) - seen_zones)
+            if missing_zones:
+                # Surface — but don't crash — a probe disconnect mid-run.
+                key = tuple(missing_zones)
+                if key not in _warned_unknown_ids:
+                    print(f"[sensors] WARN: zones {missing_zones} expected but no matching "
+                          f"probe present on the 1-Wire bus — readings will be None.")
+                    _warned_unknown_ids.add(key)
 
             # Read SHT30
             sht_temp, sht_humidity = None, None
