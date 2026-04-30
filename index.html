@@ -429,10 +429,6 @@
 						Trigger: <span id="zdc-trigger-val">--</span>&deg;C
 					</span>
 				</div>
-				<div class="zone-detail-card__chart-wrap">
-					<span class="zone-detail-card__chart-label">Fan on/off over time</span>
-					<canvas id="zdc-fan-chart"></canvas>
-				</div>
 				<!-- Zone notes -->
 				<div class="zone-detail-card__notes">
 					<label class="zone-detail-card__notes-label" for="zdc-notes">Notes</label>
@@ -1432,7 +1428,6 @@
 				const titleEl        = document.getElementById('zdc-title');
 				const tempEl         = document.getElementById('zdc-temp');
 				const closeBtn       = document.getElementById('zdc-close');
-				const fanCanvas      = document.getElementById('zdc-fan-chart');
 				const setpointInput  = document.getElementById('zdc-setpoint');
 				const toleranceInput = document.getElementById('zdc-tolerance');
 				const setpointApply  = document.getElementById('zdc-setpoint-apply');
@@ -1449,11 +1444,9 @@
 				const alarmReason    = document.getElementById('zdc-alarm-reason');
 				const notesInput     = document.getElementById('zdc-notes');
 
-				let zdcFanChart  = null;
 				let activeZone   = null;
 				let zdcPollTimer = null;
 				let notesSaveTimer = null;
-				const MAX_PTS    = 120;
 
 				function calcWetBulbLocal(T, RH) {
 					if (T == null || RH == null || isNaN(T) || isNaN(RH) || RH <= 0 || RH > 100) return null;
@@ -1470,13 +1463,6 @@
 					return Math.round(wb * 10) / 10;
 				}
 
-				function buildChartOpts(extraY) {
-					var yOpts = Object.assign({ ticks: { color: '#888', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.07)' } }, extraY || {});
-					return { animation: false, responsive: true, maintainAspectRatio: false,
-						scales: { x: { display: false }, y: yOpts },
-						plugins: { legend: { display: false }, tooltip: { enabled: false } } };
-				}
-
 				function openCard(zone) {
 					if (activeZone === zone) { closeCard(); return; }
 					activeZone = zone;
@@ -1485,14 +1471,6 @@
 					if (tempEl) tempEl.textContent = dryEl ? dryEl.textContent : '--';
 
 					loadZoneControls(zone);
-
-					if (zdcFanChart)  { zdcFanChart.destroy();  zdcFanChart  = null; }
-
-					zdcFanChart = new Chart(fanCanvas.getContext('2d'), {
-						type: 'line',
-						data: { labels: [], datasets: [{ data: [], borderColor: '#52a0e0', backgroundColor: 'rgba(82,160,224,0.10)', borderWidth: 1.5, pointRadius: 0, stepped: true, fill: true }] },
-						options: buildChartOpts({ min: 0, max: 1 })
-					});
 
 					document.querySelectorAll('.zone-combined').forEach(function (el) { el.classList.remove('zone-combined--active'); });
 					var activeLink = document.querySelector('.zone-combined[href="zone' + zone + '.html"]');
@@ -1518,7 +1496,6 @@
 					if (zdcPollTimer) { clearInterval(zdcPollTimer); zdcPollTimer = null; }
 					clearTimeout(notesSaveTimer);
 					if (notesInput) notesInput.value = '';
-					if (zdcFanChart)  { zdcFanChart.destroy();  zdcFanChart  = null; }
 					document.querySelectorAll('.zone-combined').forEach(function (el) { el.classList.remove('zone-combined--active'); });
 					activeZone = null;
 				}
@@ -1694,21 +1671,11 @@
 					}, 800);
 				});
 
-				// Patch pushSensorSample to forward live data into the open zone chart
+				// Patch pushSensorSample to keep the open modal's temp display in sync
 				var _origPush = window.pushSensorSample;
 				window.pushSensorSample = function (sample) {
 					if (_origPush) _origPush(sample);
-					if (activeZone == null || !zdcFanChart) return;
-					var t = new Date(sample.time);
-					var label = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-					var fan = sample.fans && sample.fans['fan' + activeZone] != null
-						? parseFloat(sample.fans['fan' + activeZone]) : null;
-					zdcFanChart.data.labels.push(label);
-					zdcFanChart.data.datasets[0].data.push(!isNaN(fan) ? fan : null);
-					if (zdcFanChart.data.labels.length > MAX_PTS) {
-						zdcFanChart.data.labels.shift();  zdcFanChart.data.datasets[0].data.shift();
-					}
-					zdcFanChart.update('none');
+					if (activeZone == null) return;
 					var dryEl = document.getElementById('temp-' + activeZone + '-dry');
 					if (dryEl && tempEl) tempEl.textContent = dryEl.textContent;
 				};

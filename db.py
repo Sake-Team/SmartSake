@@ -241,12 +241,21 @@ def _seed_reference_curves(conn):
 # ── Runs ──────────────────────────────────────────────────────────────────────
 
 def create_run(name):
+    now = datetime.now().isoformat()
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO runs (name, started_at, status) VALUES (?, ?, 'active')",
-            (name, datetime.now().isoformat())
+            (name, now)
         )
-        return cur.lastrowid
+        run_id = cur.lastrowid
+        # Default every zone to manual "off" so fans don't spin up while the
+        # operator is still loading the table. They can flip to auto/on per-zone.
+        conn.executemany(
+            "INSERT INTO fan_overrides (run_id, zone, action, expires_at, created_at) "
+            "VALUES (?, ?, 'off', NULL, ?)",
+            [(run_id, z, now) for z in range(1, 7)]
+        )
+        return run_id
 
 
 def end_run(run_id):

@@ -160,8 +160,15 @@
 					<span class="zone-temp-legend__item zone-temp-cold">Too cold</span>
 				</div>
 
-				<!-- Humidity + Weight quick-view cards (like zone buttons) -->
+				<!-- Room temp + Humidity + Weight quick-view cards (like zone buttons) -->
 				<div class="env-weight-stats">
+					<div class="ew-stat-card ew-stat-card--roomtemp">
+						<span class="ew-stat-card__label">Room Temp</span>
+						<div class="ew-stat-card__value-row">
+							<span class="ew-stat-card__value" id="ew-roomtemp-val">—</span>
+							<span class="ew-stat-card__unit">°C</span>
+						</div>
+					</div>
 					<div class="ew-stat-card ew-stat-card--humidity">
 						<span class="ew-stat-card__label">Humidity</span>
 						<div class="ew-stat-card__value-row">
@@ -249,10 +256,6 @@
 							</span>
 						</div>
 
-						<div class="zone-detail-card__chart-wrap">
-							<span class="zone-detail-card__chart-label">Fan on/off over time</span>
-							<canvas id="zdc-fan-chart"></canvas>
-						</div>
 						<div class="zone-detail-card__fan-section">
 							<span class="zone-detail-card__fan-label">Manual Fan Control</span>
 							<span class="zone-detail-card__fan-status" id="zdc-fan-status"></span>
@@ -2107,10 +2110,12 @@ const tempSeries = {
 
 						// Update env/weight quick-view stat cards
 						(function () {
+							var rtEl = document.getElementById('ew-roomtemp-val');
 							var hEl = document.getElementById('ew-humidity-val');
 							var wbEl = document.getElementById('ew-wetbulb-val');
 							var wtEl = document.getElementById('ew-weight-val');
 							var wlEl = document.getElementById('ew-weight-loss-val');
+							if (rtEl) rtEl.textContent = (shtVal != null && !isNaN(shtVal)) ? shtVal.toFixed(1) : '—';
 							if (hEl) hEl.textContent = (!isNaN(humVal) && humVal != null) ? humVal.toFixed(1) : '—';
 							if (wbEl) {
 								var wb = wetBulbData.length ? wetBulbData[wetBulbData.length - 1] : null;
@@ -2332,23 +2337,6 @@ const tempSeries = {
 							}
 							ch.update('none');
 						});
-
-						// -- Zone detail card charts: clip via their own label array (x hidden but min/max clips) --
-						if (window._zdcCharts) {
-							window._zdcCharts.forEach(function (ch) {
-								if (!ch) return;
-								var lbls = ch.data.labels;
-								if (!lbls || !lbls.length) return;
-								if (minutes === 0) {
-									ch.options.scales.x.min = undefined;
-									ch.options.scales.x.max = undefined;
-								} else {
-									ch.options.scales.x.min = lbls[startIdx] !== undefined ? lbls[startIdx] : undefined;
-									ch.options.scales.x.max = lbls[lbls.length - 1] !== undefined ? lbls[lbls.length - 1] : undefined;
-								}
-								ch.update('none');
-							});
-						}
 					}
 
 					window._applyTimeWindow = applyTimeWindow;
@@ -2659,7 +2647,6 @@ const tempSeries = {
 					const notesTA   = null; // notes removed from zone modal
 					const fanStatus = document.getElementById('zdc-fan-status');
 					const fanAutoBtn = document.getElementById('zdc-fan-auto');
-					const fanCanvas  = document.getElementById('zdc-fan-chart');
 					const fanBtns    = card ? card.querySelectorAll('.zone-detail-card__fan-btn[data-action]') : [];
 
 					// New control refs
@@ -2681,40 +2668,10 @@ const tempSeries = {
 
 					if (!card) return; // not on dashboard page
 
-					let zdcFanChart  = null;
 					let activeZone   = null;
 					let fanRequestPending = false;
 					let zdcPollTimer = null;
 					let notesSaveTimer = null;
-
-					// Chart options matching bubbly light style — called fresh each time to pick up current theme
-					function buildChartOpts() {
-						const c = getThemeColors();
-						return {
-							animation: false,
-							responsive: true,
-							maintainAspectRatio: false,
-							scales: {
-								x: { display: false },
-								y: { ticks: { color: c.tick, font: { size: 10 } }, grid: { color: c.grid } }
-							},
-							plugins: {
-								legend: { display: false },
-								tooltip: {
-									backgroundColor: c.surface,
-									borderColor: c.border,
-									borderWidth: 1,
-									titleColor: c.text1,
-									bodyColor: c.text2,
-									padding: 10,
-									bodyFont: { family: 'Inter, system-ui, sans-serif', size: 12 },
-									titleFont: { family: 'Inter, system-ui, sans-serif', size: 12, weight: '600' },
-									cornerRadius: 8,
-									displayColors: true,
-								}
-							}
-						};
-					}
 
 					function getRunId() {
 						return new URLSearchParams(location.search).get('run');
@@ -2739,41 +2696,7 @@ const tempSeries = {
 						const color = getComputedStyle(document.documentElement)
 							.getPropertyValue('--zone-color-' + zone).trim() || fallback[zone - 1];
 
-						// Show card immediately — before charts so a JS error can't block the open
 						card.classList.add('is-open');
-
-						// Destroy old chart before creating new one (prevent memory leak)
-						if (zdcFanChart)  { zdcFanChart.destroy();  zdcFanChart  = null; }
-
-						// Use elapsed or clock labels based on current toggle state
-						const srcLabels = window._elapsedMode
-							? (window._dashElapsedLabels || window._dashLabels || [])
-							: (window._dashLabels || []);
-						const cardLabels = srcLabels.slice();
-						const fanData  = ((window._dashFansSeries  || {})['fan'  + zone] || []).slice();
-
-						const _zdcOpts = buildChartOpts();
-						zdcFanChart = new Chart(fanCanvas.getContext('2d'), {
-							type: 'line',
-							data: {
-								labels: cardLabels.slice(),
-								datasets: [{ data: fanData, borderColor: '#52a0e0',
-									backgroundColor: 'rgba(82,160,224,0.10)',
-									borderWidth: 1.5, pointRadius: 0, stepped: true, fill: true }]
-							},
-							options: Object.assign({}, _zdcOpts, {
-								scales: Object.assign({}, _zdcOpts.scales, {
-									y: Object.assign({}, _zdcOpts.scales.y, { min: 0, max: 1 })
-								})
-							})
-						});
-
-						// Register charts so applyTimeWindow can clip them
-						window._zdcCharts = [zdcFanChart];
-						// Apply current time window immediately
-						if (window._applyTimeWindow) {
-							window._applyTimeWindow(window._activeWindowMinutes || 0);
-						}
 
 						// Highlight active zone button
 						document.querySelectorAll('.zone-combined').forEach(function (el) {
@@ -2805,8 +2728,6 @@ const tempSeries = {
 						if (zdcPollTimer) { clearInterval(zdcPollTimer); zdcPollTimer = null; }
 						clearTimeout(notesSaveTimer);
 						if (notesInput) notesInput.value = '';
-						if (zdcFanChart)  { zdcFanChart.destroy();  zdcFanChart  = null; }
-						window._zdcCharts = null; // unregister so applyTimeWindow skips them
 						document.querySelectorAll('.zone-combined').forEach(function (el) {
 							el.classList.remove('zone-combined--active');
 						});
@@ -3091,18 +3012,9 @@ const tempSeries = {
 						if (e.key === 'Escape' && activeZone) closeCard();
 					});
 
-					// Live data push from polling loop
+					// Live data push from polling loop — keeps modal temp display fresh
 					window._zonePanelPush = function (zone, label, temp, fan) {
-						if (activeZone !== zone || !zdcFanChart) return;
-						var MAX = 120;
-						zdcFanChart.data.labels.push(label);
-						zdcFanChart.data.datasets[0].data.push(fan);
-						if (zdcFanChart.data.labels.length > MAX) {
-							zdcFanChart.data.labels.shift();
-							zdcFanChart.data.datasets[0].data.shift();
-						}
-						// update() with 'none' mode skips animation — critical for Pi 4B performance
-						zdcFanChart.update('none');
+						if (activeZone !== zone) return;
 						var dryEl = document.getElementById('temp-' + zone + '-dry');
 						if (dryEl) tempEl.textContent = dryEl.textContent;
 					};
@@ -4542,10 +4454,6 @@ const tempSeries = {
 					updateChartTheme(weightChart, ['x', 'y']);
 					// modalChart: all scales use infrastructure colors (env modal is handled below)
 					if (window._modalChart) updateChartTheme(window._modalChart, ['x', 'y', 'yTemp']);
-
-					// Zone detail card fan chart (zdcFanChart) is destroyed and recreated
-					// each time a zone is opened — it calls buildChartOpts() at creation
-					// time, so no update needed here.
 				}).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 			</script>
 
