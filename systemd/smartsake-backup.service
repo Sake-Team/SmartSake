@@ -1,14 +1,10 @@
-# NOTE: Uses old User=pi and /home/pi/MainCode paths.
-# The canonical deployment is now User=kojitable at /home/kojitable/ClaudeAgents
-# (see smartsake.service). Update User, WorkingDirectory, and ExecStart when
-# migrating the backup job to the new environment.
 [Unit]
 Description=SmartSake Database Backup
 
 [Service]
 Type=oneshot
-User=pi
-WorkingDirectory=/home/pi/MainCode
-ExecStart=/home/pi/MainCode/.venv/bin/python backup_db.py
+User=kojitable
+WorkingDirectory=/home/kojitable/ClaudeAgents
+ExecStart=/usr/bin/python3 /home/kojitable/ClaudeAgents/backup_db.py
 StandardOutput=journal
 StandardError=journal

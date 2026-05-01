@@ -4,9 +4,9 @@ SmartSake Flask server (API + static files).
 Start with:  python server.py
 Default port: 8080
 
-Sensor collection runs as a separate systemd service (smartsake-sensors.service)
-via WriteSensors.py.  This server reads sensor_latest.json and fan_state.json
-written by that service — it does NOT run a sensor loop itself.
+When run directly (python server.py), starts the sensor loop as a background
+thread.  When imported by gunicorn, the sensor loop must run separately via
+smartsake-sensors.service to avoid duplicate loops across workers.
 """
 
 import json
@@ -33,9 +33,8 @@ if _stale:
     db.mark_crashed(_stale["id"])
     print(f"[startup] Previous run '{_stale['name']}' (id={_stale['id']}) marked as crashed.")
 
-# Sensor loop runs as a separate systemd service (smartsake-sensors.service) — do NOT start it here.
-# With gunicorn using multiple workers, starting a sensor thread per worker would create
-# duplicate loops writing conflicting data and fighting over GPIO.
+# Sensor loop is started in __main__ block below (safe for single-process mode).
+# Do NOT start it at module level — gunicorn workers would each spawn their own loop.
 
 
 # ── Static pages ──────────────────────────────────────────────────────────────
@@ -1161,6 +1160,12 @@ def api_scale_calibrate(scale_id):
 
 
 if __name__ == "__main__":
-    # Dev: python server.py  (sensor loop already running in background thread)
-    # Production: use gunicorn via systemd/smartsake.service
+    # Start sensor loop as a background thread (safe — single process, one loop).
+    # Under gunicorn this block never runs, so no duplicate loops.
+    import threading
+    import WriteSensors
+    _sensor_thread = threading.Thread(target=WriteSensors.start_sensor_loop, daemon=True)
+    _sensor_thread.start()
+    print("[startup] Sensor loop started as background thread.")
+
     app.run(host="0.0.0.0", port=8080, debug=False)
