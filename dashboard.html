@@ -4623,6 +4623,29 @@ const tempSeries = {
 		// Expose for dashboard-phase2.js IIFEs
 		window._runId = runId;
 
+		// ── Date/duration helpers ──────────────────────────────────────────
+		function fmtReplayDate(iso) {
+			if (!iso) return '';
+			var d = new Date(iso);
+			return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+				+ ' · '
+				+ d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+		}
+
+		function fmtDuration(startIso, endIso) {
+			if (!startIso) return '';
+			var start = new Date(startIso);
+			var end = endIso ? new Date(endIso) : new Date();
+			var diffMs = end - start;
+			if (diffMs < 0) return '';
+			var hours = Math.floor(diffMs / 3600000);
+			var days = Math.floor(hours / 24);
+			var remHours = hours % 24;
+			if (days > 0) return days + 'd ' + remHours + 'h';
+			if (hours > 0) return hours + 'h ' + Math.floor((diffMs % 3600000) / 60000) + 'm';
+			return Math.floor(diffMs / 60000) + 'm';
+		}
+
 		// Update zone links to carry run id + mode
 		for (let z = 1; z <= 6; z++) {
 			const a = document.getElementById('zone-link-' + z);
@@ -4654,6 +4677,23 @@ const tempSeries = {
 					if (el) el.textContent = run.name;
 					const disp = document.getElementById('run-name-display');
 					if (disp) disp.textContent = '- ' + run.name;
+					// Show run dates in replay banner
+					var dateEl = document.getElementById('replay-run-dates');
+					if (!dateEl) {
+						dateEl = document.createElement('span');
+						dateEl.id = 'replay-run-dates';
+						dateEl.style.cssText = 'font-size:.8rem;color:var(--color-text-3);margin-left:8px;';
+						var nameEl = document.getElementById('replay-run-name');
+						if (nameEl) nameEl.parentNode.insertBefore(dateEl, nameEl.nextSibling);
+					}
+					var dateStr = fmtReplayDate(run.started_at);
+					if (run.ended_at) {
+						dateStr += ' → ' + fmtReplayDate(run.ended_at);
+						dateStr += ' (' + fmtDuration(run.started_at, run.ended_at) + ')';
+					} else {
+						dateStr = 'Started ' + dateStr;
+					}
+					dateEl.textContent = dateStr;
 					// Set run start time BEFORE processing readings so elapsedLabels are correct
 					if (window.setRunStartTime && run.started_at) {
 						window.setRunStartTime(new Date(run.started_at).getTime());
@@ -4703,7 +4743,11 @@ const tempSeries = {
 			.then(function (run) {
 				localStorage.setItem('currentRunName', run.name);
 				const disp = document.getElementById('run-name-display');
-				if (disp) disp.textContent = '- ' + run.name;
+				if (disp && run.started_at) {
+					disp.textContent = '- ' + run.name + '  (started ' + fmtReplayDate(run.started_at) + ')';
+				} else if (disp) {
+					disp.textContent = '- ' + run.name;
+				}
 				const btn = document.getElementById('start-run-btn');
 				if (btn) { btn.textContent = 'End Run'; btn.classList.add('end-run-btn-active'); }
 				if (window.setRunStartTime && run.started_at) {

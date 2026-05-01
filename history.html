@@ -182,7 +182,23 @@
 	function fmtDate(iso) {
 		if (!iso) return '—';
 		const d = new Date(iso);
-		return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+		return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+			+ ' · '
+			+ d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+	}
+
+	function fmtDuration(startIso, endIso) {
+		if (!startIso) return '—';
+		const start = new Date(startIso);
+		const end = endIso ? new Date(endIso) : new Date();
+		const diffMs = end - start;
+		if (diffMs < 0) return '—';
+		const hours = Math.floor(diffMs / 3600000);
+		const days = Math.floor(hours / 24);
+		const remHours = hours % 24;
+		if (days > 0) return days + 'd ' + remHours + 'h';
+		if (hours > 0) return hours + 'h ' + Math.floor((diffMs % 3600000) / 60000) + 'm';
+		return Math.floor(diffMs / 60000) + 'm';
 	}
 
 	function starsHtml(score) {
@@ -220,10 +236,15 @@
 		const rows = runs.map(r => {
 			const statusCls = r.status === 'completed' ? 'badge--completed' :
 			                  r.status === 'crashed'   ? 'badge--crashed' : 'badge--active';
+			const durText = fmtDuration(r.started_at, r.ended_at);
+			const durDisplay = (!r.ended_at && r.status === 'active')
+				? durText + ' <span style="color:var(--color-accent);font-size:.78rem;">(ongoing)</span>'
+				: durText;
 			return `<tr data-id="${r.id}" class="${_selectedRunId === r.id ? 'is-selected' : ''}">
 				<td>${r.name}</td>
 				<td>${fmtDate(r.started_at)}</td>
 				<td>${r.ended_at ? fmtDate(r.ended_at) : '—'}</td>
+				<td>${durDisplay}</td>
 				<td><span class="badge ${statusCls}">${r.status}</span></td>
 				<td>${starsHtml(r.quality_score)}</td>
 				<td>${r.koji_variety || '—'}</td>
@@ -232,7 +253,7 @@
 		}).join('');
 		wrap.innerHTML = `<table class="run-table">
 			<thead><tr>
-				<th>Name</th><th>Started</th><th>Ended</th><th>Status</th><th>Quality</th><th>Koji variety</th><th></th>
+				<th>Name</th><th>Started</th><th>Ended</th><th>Duration</th><th>Status</th><th>Quality</th><th>Koji variety</th><th></th>
 			</tr></thead>
 			<tbody>${rows}</tbody>
 		</table>`;
