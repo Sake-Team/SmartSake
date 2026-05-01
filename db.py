@@ -377,6 +377,24 @@ def get_all_readings(run_id):
         return [dict(r) for r in rows]
 
 
+def stream_readings(run_id):
+    """Yield sensor_readings rows one at a time (cursor-based, no fetchall).
+
+    Each yielded item is a sqlite3.Row.  Caller must iterate to completion
+    or the connection will be held open.
+    """
+    conn = get_conn()
+    try:
+        cursor = conn.execute(
+            "SELECT * FROM sensor_readings WHERE run_id=? ORDER BY recorded_at ASC",
+            (run_id,)
+        )
+        for row in cursor:
+            yield row
+    finally:
+        conn.close()
+
+
 def get_room_history(hours, max_points=600):
     """Return up to max_points sensor readings from the last `hours` hours, across all runs."""
     from datetime import timedelta

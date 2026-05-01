@@ -1,17 +1,16 @@
 """
-SmartSake Flask server + sensor collector.
+SmartSake Flask server (API + static files).
 
 Start with:  python server.py
 Default port: 8080
 
-Sensor collection (thermocouples, SHT30, load cells) runs in a background
-daemon thread started at import time.  No separate WriteSensors.py process
-is required — one command runs everything.
+Sensor collection runs as a separate systemd service (smartsake-sensors.service)
+via WriteSensors.py.  This server reads sensor_latest.json and fan_state.json
+written by that service — it does NOT run a sensor loop itself.
 """
 
 import json
 import os
-import threading
 import time
 from flask import Flask, jsonify, request, send_from_directory, abort
 
@@ -33,15 +32,9 @@ if _stale:
     db.mark_crashed(_stale["id"])
     print(f"[startup] Previous run '{_stale['name']}' (id={_stale['id']}) marked as crashed.")
 
-# ── Start sensor loop in background thread ────────────────────────────────────
-def _start_sensor_thread():
-    try:
-        import WriteSensors
-        WriteSensors.start_sensor_loop()
-    except Exception as e:
-        print(f"[startup] Sensor loop failed to start: {e}")
-
-threading.Thread(target=_start_sensor_thread, daemon=True, name="sensor-loop").start()
+# Sensor loop runs as a separate systemd service (smartsake-sensors.service) — do NOT start it here.
+# With gunicorn using multiple workers, starting a sensor thread per worker would create
+# duplicate loops writing conflicting data and fighting over GPIO.
 
 
 # ── Static pages ──────────────────────────────────────────────────────────────
@@ -827,36 +820,52 @@ def api_room_history():
 
 @app.route("/api/runs/<int:run_id>/export.csv")
 def api_export_csv(run_id):
+    import csv
+    import io
+    from flask import Response
+
     run = db.get_run(run_id)
     if not run:
         abort(404)
-    readings = db.get_all_readings(run_id)
+
     zone_notes = db.get_zone_notes(run_id)
-    # Combine all zone notes into one string for the Notes column
     notes_str = " | ".join(
         f"Zone {z}: {note}"
         for z, note in sorted(zone_notes.items())
         if note and note.strip()
     )
-    # Escape quotes in notes
-    notes_escaped = notes_str.replace('"', '""')
 
-    lines = ["Timestamp,TC1,TC2,TC3,TC4,TC5,TC6,SHT_Temp,Humidity,"
-             "Fan1,Fan2,Fan3,Fan4,Fan5,Fan6,Weight_lbs,Notes"]
-    for r in readings:
-        row = ",".join(str(r.get(k) or "") for k in [
-            "recorded_at",
-            "tc1","tc2","tc3","tc4","tc5","tc6",
-            "sht_temp","humidity",
-            "fan1","fan2","fan3","fan4","fan5","fan6",
-            "weight_lbs"
-        ])
-        lines.append(f'{row},"{notes_escaped}"')
+    columns = [
+        "recorded_at",
+        "tc1", "tc2", "tc3", "tc4", "tc5", "tc6",
+        "sht_temp", "humidity",
+        "fan1", "fan2", "fan3", "fan4", "fan5", "fan6",
+        "weight_lbs",
+    ]
+    header = ["Timestamp", "TC1", "TC2", "TC3", "TC4", "TC5", "TC6",
+              "SHT_Temp", "Humidity",
+              "Fan1", "Fan2", "Fan3", "Fan4", "Fan5", "Fan6",
+              "Weight_lbs", "Notes"]
 
-    from flask import Response
+    def generate():
+        # Write header row
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(header)
+        yield buf.getvalue()
+
+        # Stream data rows from cursor — no fetchall, no bulk memory
+        for row in db.stream_readings(run_id):
+            buf = io.StringIO()
+            writer = csv.writer(buf)
+            vals = [row[col] if row[col] is not None else "" for col in columns]
+            vals.append(notes_str)
+            writer.writerow(vals)
+            yield buf.getvalue()
+
     filename = run["name"].replace(" ", "_") + ".csv"
     return Response(
-        "\n".join(lines),
+        generate(),
         mimetype="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
@@ -921,8 +930,10 @@ def api_save_zone_config():
             if not (-5.0 <= val["offset_c"] <= 5.0):
                 return jsonify({"error": f"offset_c for '{key}' must be between -5 and 5"}), 400
     try:
-        with open(ZONE_CONFIG_FILE, "w") as f:
+        tmp = ZONE_CONFIG_FILE + ".tmp"
+        with open(tmp, "w") as f:
             json.dump(body, f, indent=2)
+        os.replace(tmp, ZONE_CONFIG_FILE)
         return jsonify(body), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -947,8 +958,10 @@ def _read_zone_cfg():
 
 
 def _write_zone_cfg(cfg):
-    with open(ZONE_CONFIG_FILE, "w") as f:
+    tmp = ZONE_CONFIG_FILE + ".tmp"
+    with open(tmp, "w") as f:
         json.dump(cfg, f, indent=2)
+    os.replace(tmp, ZONE_CONFIG_FILE)
 
 
 def _read_scale_cfg_full():
@@ -967,8 +980,10 @@ def _read_scale_cfg_full():
 
 
 def _write_scale_cfg(cfg):
-    with open(SCALE_CONFIG_FILE, "w") as f:
+    tmp = SCALE_CONFIG_FILE + ".tmp"
+    with open(tmp, "w") as f:
         json.dump(cfg, f, indent=2)
+    os.replace(tmp, SCALE_CONFIG_FILE)
 
 
 def _latest_sensor_value(key):

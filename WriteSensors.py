@@ -346,8 +346,10 @@ def _write_fan_state_json(fan_states):
         "zones": zones,
     }
     try:
-        with open(FAN_STATE_JSON, "w") as f:
+        tmp = FAN_STATE_JSON + ".tmp"
+        with open(tmp, "w") as f:
             json.dump(data, f)
+        os.replace(tmp, FAN_STATE_JSON)
     except Exception as e:
         print(f"Could not write fan_state.json: {e}")
 
