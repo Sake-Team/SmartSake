@@ -186,6 +186,12 @@ def init_db():
         except Exception:
             pass
 
+        # Add pinned column for auto-prune protection
+        try:
+            conn.execute("ALTER TABLE runs ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0")
+        except Exception:
+            pass  # column already exists
+
 
 def _seed_reference_curves(conn):
     """Insert built-in koji reference curves if none exist yet."""
@@ -338,6 +344,44 @@ def delete_run(run_id):
         conn.execute("DELETE FROM run_metadata WHERE run_id=?", (run_id,))
         conn.execute("DELETE FROM sensor_readings WHERE run_id=?", (run_id,))
         conn.execute("DELETE FROM runs WHERE id=?", (run_id,))
+
+
+def set_run_pinned(run_id, pinned):
+    """Lock or unlock a run to protect it from auto-pruning."""
+    with get_conn() as conn:
+        conn.execute("UPDATE runs SET pinned=? WHERE id=?", (1 if pinned else 0, run_id))
+
+
+def prune_for_space(min_free_mb=500):
+    """Delete unlocked runs (oldest first) until disk has min_free_mb free.
+
+    Only deletes ended, unlocked runs. Never touches active or locked runs.
+    Returns the number of runs deleted.
+    """
+    import shutil
+    db_path = str(DB_FILE.parent)
+    free_mb = shutil.disk_usage(db_path).free / (1024 * 1024)
+    if free_mb >= min_free_mb:
+        return 0
+
+    with get_conn() as conn:
+        candidates = conn.execute("""
+            SELECT id, name FROM runs
+            WHERE pinned = 0
+              AND status != 'active'
+              AND ended_at IS NOT NULL
+            ORDER BY ended_at ASC
+        """).fetchall()
+
+    count = 0
+    for row in candidates:
+        delete_run(row['id'])
+        count += 1
+        # Re-check free space after each deletion
+        free_mb = shutil.disk_usage(db_path).free / (1024 * 1024)
+        if free_mb >= min_free_mb:
+            break
+    return count
 
 
 # ── Sensor readings ───────────────────────────────────────────────────────────

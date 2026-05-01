@@ -56,6 +56,16 @@
 		.corr-canvas-wrap { position: relative; height: 200px; }
 		.corr-need-more { font-size: .82rem; color: var(--color-text-3); padding: 20px 0; text-align: center; }
 
+		/* ── Lock button ──────────────────────────────────────────── */
+		.lock-btn {
+			background: var(--color-bg-subtle); border: 1px solid var(--color-border);
+			border-radius: var(--r-sm); padding: 3px 10px; font-size: .78rem;
+			cursor: pointer; color: var(--color-text-3); white-space: nowrap;
+		}
+		.lock-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+		.lock-btn.lock-on { background: var(--color-success-bg); color: var(--color-success); border-color: var(--color-success); font-weight: 600; }
+		.lock-btn:disabled { opacity: .5; cursor: not-allowed; }
+
 		/* ── Buttons — rely on styles.css canonical .btn system ── */
 
 		/* ── No-select panel ─────────────────────────────────────── */
@@ -240,7 +250,9 @@
 			const durDisplay = (!r.ended_at && r.status === 'active')
 				? durText + ' <span style="color:var(--color-accent);font-size:.78rem;">(ongoing)</span>'
 				: durText;
+			const lockCls = r.pinned ? 'lock-on' : '';
 			return `<tr data-id="${r.id}" class="${_selectedRunId === r.id ? 'is-selected' : ''}">
+				<td><button class="lock-btn ${lockCls}" data-pin="${r.id}" title="${r.pinned ? 'Unlock — data can be auto-deleted when disk space is low' : 'Lock — keeps raw data forever'}">${r.pinned ? 'Locked' : 'Lock'}</button></td>
 				<td>${r.name}</td>
 				<td>${fmtDate(r.started_at)}</td>
 				<td>${r.ended_at ? fmtDate(r.ended_at) : '—'}</td>
@@ -253,12 +265,34 @@
 		}).join('');
 		wrap.innerHTML = `<table class="run-table">
 			<thead><tr>
-				<th>Name</th><th>Started</th><th>Ended</th><th>Duration</th><th>Status</th><th>Quality</th><th>Koji variety</th><th></th>
+				<th></th><th>Name</th><th>Started</th><th>Ended</th><th>Duration</th><th>Status</th><th>Quality</th><th>Koji variety</th><th></th>
 			</tr></thead>
 			<tbody>${rows}</tbody>
 		</table>`;
 		wrap.querySelectorAll('[data-select]').forEach(btn => {
 			btn.addEventListener('click', () => selectRun(Number(btn.dataset.select)));
+		});
+		wrap.querySelectorAll('[data-pin]').forEach(btn => {
+			btn.addEventListener('click', function (e) {
+				e.stopPropagation();
+				const rid = Number(btn.dataset.pin);
+				const run = _runs.find(r => r.id === rid);
+				if (!run) return;
+				const newPinned = !run.pinned;
+				if (!newPinned && !confirm('Unlock this run? Raw data can be auto-deleted when disk space runs low.')) return;
+				btn.disabled = true;
+				fetch('/api/runs/' + rid + '/pin', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ pinned: newPinned })
+				}).then(function () {
+					run.pinned = newPinned ? 1 : 0;
+					btn.textContent = newPinned ? 'Locked' : 'Lock';
+					btn.title = newPinned ? 'Unlock — data can be auto-deleted when disk space is low' : 'Lock — keeps raw data forever';
+					btn.classList.toggle('lock-on', newPinned);
+					btn.disabled = false;
+				}).catch(function () { btn.disabled = false; });
+			});
 		});
 	}
 

@@ -305,6 +305,30 @@ def api_delete_run(run_id):
     return "", 204
 
 
+@app.route("/api/runs/<int:run_id>/pin", methods=["POST"])
+def api_pin_run(run_id):
+    if not db.get_run(run_id):
+        abort(404)
+    body = request.get_json(force=True, silent=True) or {}
+    pinned = body.get("pinned", True)
+    db.set_run_pinned(run_id, pinned)
+    return jsonify({"ok": True, "pinned": bool(pinned)})
+
+
+@app.route("/api/prune", methods=["POST"])
+def api_prune_runs():
+    """Prune oldest unlocked runs until disk has enough free space."""
+    import shutil
+    body = request.get_json(force=True, silent=True) or {}
+    min_free = int(body.get("min_free_mb", 500))
+    if min_free < 100:
+        return jsonify({"error": "min_free_mb must be at least 100"}), 400
+    free_before = shutil.disk_usage(str(db.DB_FILE.parent)).free // (1024 * 1024)
+    count = db.prune_for_space(min_free)
+    free_after = shutil.disk_usage(str(db.DB_FILE.parent)).free // (1024 * 1024)
+    return jsonify({"pruned": count, "free_mb_before": free_before, "free_mb_after": free_after})
+
+
 # ── Readings ──────────────────────────────────────────────────────────────────
 
 @app.route("/api/runs/<int:run_id>/readings", methods=["GET"])

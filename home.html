@@ -149,6 +149,10 @@
       margin-top: 2px;
     }
     .run-row-actions { display: flex; gap: 0.35rem; flex-shrink: 0; }
+    .lock-btn { background: var(--color-bg-subtle, #2a2a2a); border: 1px solid var(--color-border); color: var(--color-text-3); cursor: pointer; }
+    .lock-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+    .lock-btn.lock-on { background: var(--color-success-bg, rgba(0,180,80,.12)); color: var(--color-success, #0b4); border-color: var(--color-success, #0b4); font-weight: 600; }
+    .lock-btn:disabled { opacity: .5; cursor: not-allowed; }
 
     /* ── empty state ── */
     .empty-msg {
@@ -359,6 +363,7 @@
               '<div class="run-row-meta">' + fmtDate(run.started_at) + ' &mdash; ' + duration(run.started_at, run.ended_at) + '</div>' +
             '</div>' +
             '<div class="run-row-actions">' +
+              '<button class="btn btn-sm lock-btn' + (run.pinned ? ' lock-on' : '') + '">' + (run.pinned ? 'Locked' : 'Lock') + '</button>' +
               '<button class="btn btn-secondary btn-sm view-btn">View</button>' +
               '<button class="btn btn-secondary btn-sm details-btn">Details</button>' +
               '<button class="btn btn-danger btn-sm delete-btn">Delete</button>' +
@@ -372,6 +377,24 @@
           row.querySelector('.details-btn').onclick = function (e) {
             e.stopPropagation();
             location.href = 'history.html?run=' + run.id;
+          };
+
+          row.querySelector('.lock-btn').onclick = function (e) {
+            e.stopPropagation();
+            var btn = e.currentTarget;
+            var newPinned = !run.pinned;
+            if (!newPinned && !confirm('Unlock this run? Raw data can be auto-deleted when disk space runs low.')) return;
+            btn.disabled = true;
+            fetch('/api/runs/' + run.id + '/pin', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ pinned: newPinned })
+            }).then(function () {
+              run.pinned = newPinned ? 1 : 0;
+              btn.textContent = newPinned ? 'Locked' : 'Lock';
+              btn.classList.toggle('lock-on', newPinned);
+              btn.disabled = false;
+            }).catch(function () { btn.disabled = false; });
           };
 
           row.querySelector('.delete-btn').onclick = async function (e) {
