@@ -1305,18 +1305,49 @@ body:has(#start-run-btn.end-run-btn-active) .set-temp-btn { display: inline-flex
 .zone-detail-card__close:hover { background: var(--color-bg-subtle); color: var(--color-brand); }
 .zone-detail-card__temp-val { font-size: 2rem; font-weight: 700; color: var(--color-text-1); transition: color var(--t); }
 .zone-detail-card__fan-section { display: flex; flex-direction: column; gap: 6px; }
-.zone-detail-card__fan-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.zone-detail-card__fan-btn {
-	background: var(--color-surface);
+.zone-detail-card__fan-segmented {
+	display: flex;
 	border: 1px solid var(--color-border-strong);
-	border-radius: var(--r-sm);
-	color: var(--color-text-1);
-	padding: 10px 12px;
-	min-height: 44px;
-	font-size: 0.78rem;
-	cursor: pointer;
+	border-radius: var(--r-pill);
+	overflow: hidden;
+	background: var(--color-surface);
 }
-.zone-detail-card__fan-btn--active { background: #e8f0fa; border-color: #52a0e0; color: #1a5fa0; font-weight: 600; }
+.zone-detail-card__fan-seg {
+	flex: 1;
+	min-height: 44px;
+	padding: 8px 4px;
+	font-size: 0.75rem;
+	font-weight: 500;
+	color: var(--color-text-2);
+	background: var(--color-surface);
+	border: none;
+	border-right: 1px solid var(--color-border);
+	cursor: pointer;
+	transition: background var(--t), color var(--t), font-weight var(--t);
+	white-space: nowrap;
+	text-align: center;
+}
+.zone-detail-card__fan-seg:last-child { border-right: none; }
+.zone-detail-card__fan-seg:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Active states — Auto (brand), Off variants (warm), On variants (cool) */
+.zone-detail-card__fan-seg--auto.zone-detail-card__fan-seg--active {
+	background: var(--color-brand);
+	color: var(--color-text-light);
+	font-weight: 700;
+}
+.zone-detail-card__fan-seg--off.zone-detail-card__fan-seg--active {
+	background: var(--color-warm-bg);
+	color: var(--color-critical);
+	font-weight: 700;
+	border-color: var(--color-warm-bd);
+}
+.zone-detail-card__fan-seg--on.zone-detail-card__fan-seg--active {
+	background: var(--color-ok-bg);
+	color: var(--color-success-hover);
+	font-weight: 700;
+	border-color: var(--color-ok-bd);
+}
 
 /* ── Zone notes ────────────────────────────────── */
 .zone-detail-card__notes { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
@@ -1362,7 +1393,7 @@ body:has(#start-run-btn.end-run-btn-active) .set-temp-btn { display: inline-flex
   font-size: 0.8rem;
   color: var(--color-text-2);
   min-height: 1.2em;
-  margin-bottom: 6px;
+  margin-top: 2px;
 }
 
 /* ── Zone detail modal controls ──────────────── */

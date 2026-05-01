@@ -243,15 +243,15 @@
 						</div>
 
 						<div class="zone-detail-card__fan-section">
-							<span class="zone-detail-card__fan-label">Manual Fan Control</span>
-							<span class="zone-detail-card__fan-status" id="zdc-fan-status"></span>
-							<div class="zone-detail-card__fan-btns">
-								<button class="zone-detail-card__fan-btn" data-action="off" data-duration="60">Off for 1 hr</button>
-								<button class="zone-detail-card__fan-btn" data-action="on" data-duration="60">On for 1 hr</button>
-								<button class="zone-detail-card__fan-btn" data-action="off" data-duration="">Off until end</button>
-								<button class="zone-detail-card__fan-btn" data-action="on" data-duration="">On until end</button>
-								<button class="zone-detail-card__fan-btn zone-detail-card__fan-btn--auto" id="zdc-fan-auto" style="display:none;">Return to automatic</button>
+							<span class="zone-detail-card__fan-label">Fan Mode</span>
+							<div class="zone-detail-card__fan-segmented">
+								<button class="zone-detail-card__fan-seg zone-detail-card__fan-seg--auto" data-mode="auto">Auto</button>
+								<button class="zone-detail-card__fan-seg zone-detail-card__fan-seg--off" data-mode="off-1h">Off · 1hr</button>
+								<button class="zone-detail-card__fan-seg zone-detail-card__fan-seg--off" data-mode="off">Off</button>
+								<button class="zone-detail-card__fan-seg zone-detail-card__fan-seg--on" data-mode="on-1h">On · 1hr</button>
+								<button class="zone-detail-card__fan-seg zone-detail-card__fan-seg--on" data-mode="on">On</button>
 							</div>
+							<span class="zone-detail-card__fan-status" id="zdc-fan-status"></span>
 						</div>
 
 						<!-- Zone notes -->
@@ -2631,9 +2631,8 @@ const tempSeries = {
 					const tempEl    = document.getElementById('zdc-temp');
 					const closeBtn  = document.getElementById('zdc-close');
 					const notesTA   = null; // notes removed from zone modal
-					const fanStatus = document.getElementById('zdc-fan-status');
-					const fanAutoBtn = document.getElementById('zdc-fan-auto');
-					const fanBtns    = card ? card.querySelectorAll('.zone-detail-card__fan-btn[data-action]') : [];
+					const fanStatus  = document.getElementById('zdc-fan-status');
+					const fanSegBtns = card ? card.querySelectorAll('.zone-detail-card__fan-seg') : [];
 
 					// New control refs
 					const setpointInput  = document.getElementById('zdc-setpoint');
@@ -2717,29 +2716,43 @@ const tempSeries = {
 
 					function loadFanState(runId, zone) {
 						fanStatus.textContent = '';
-						fanAutoBtn.style.display = 'none';
-						fanBtns.forEach(function (b) { b.classList.remove('zone-detail-card__fan-btn--active'); });
+						fanSegBtns.forEach(function (b) { b.classList.remove('zone-detail-card__fan-seg--active'); });
+
+						if (!runId) {
+							fanStatus.textContent = 'No active run';
+							fanSegBtns.forEach(function (b) { b.disabled = true; });
+							return;
+						}
+						fanSegBtns.forEach(function (b) { b.disabled = false; });
 
 						fetch('/api/runs/' + runId + '/fan-overrides')
 							.then(function (r) { return r.ok ? r.json() : { overrides: {} }; })
 							.then(function (d) {
 								var ov = (d.overrides || {})[zone];
-								if (!ov) { fanStatus.textContent = 'Automatic'; return; }
-								var expires = ov.expires_at
-									? ' (expires ' + new Date(ov.expires_at).toLocaleTimeString() + ')'
-									: ' (until end of run)';
-								fanStatus.textContent = 'Fan ' + ov.action.toUpperCase() + ' — manual override' + expires;
-								fanAutoBtn.style.display = '';
-								// Highlight matching button
-								fanBtns.forEach(function (b) {
-									var matchAction  = b.dataset.action === ov.action;
-									var matchDuration = ov.expires_at
-										? b.dataset.duration !== ''
-										: b.dataset.duration === '';
-									if (matchAction && matchDuration) {
-										b.classList.add('zone-detail-card__fan-btn--active');
+								var activeMode = 'auto';
+								if (ov) {
+									var timed = !!ov.expires_at;
+									if (ov.action === 'off') activeMode = timed ? 'off-1h' : 'off';
+									else if (ov.action === 'on') activeMode = timed ? 'on-1h' : 'on';
+								}
+
+								// Highlight the matching segment
+								fanSegBtns.forEach(function (b) {
+									if (b.dataset.mode === activeMode) {
+										b.classList.add('zone-detail-card__fan-seg--active');
 									}
 								});
+
+								// Set status text
+								if (!ov) {
+									fanStatus.textContent = 'Automatic';
+								} else {
+									var label = ov.action === 'off' ? 'Fan OFF' : 'Fan ON';
+									var detail = ov.expires_at
+										? ' — manual (expires ' + new Date(ov.expires_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ')'
+										: ' — manual (until end of run)';
+									fanStatus.textContent = label + detail;
+								}
 							})
 							.catch(function () { fanStatus.textContent = ''; });
 					}
@@ -2877,52 +2890,47 @@ const tempSeries = {
 						}, 800);
 					});
 
-					// Fan override button clicks
-					fanBtns.forEach(function (btn) {
+					// Fan segmented-control click handler
+					fanSegBtns.forEach(function (btn) {
 						btn.addEventListener('click', function () {
 							var runId = getRunId();
 							if (!runId || !activeZone || fanRequestPending) return;
-							var action   = btn.dataset.action;
-							var duration = btn.dataset.duration !== '' ? parseInt(btn.dataset.duration, 10) : null;
-							if (!action) return;
+							var mode = btn.dataset.mode;
+							// If already active, do nothing
+							if (btn.classList.contains('zone-detail-card__fan-seg--active')) return;
 
 							fanRequestPending = true;
-							fanBtns.forEach(function (b) { b.disabled = true; });
+							fanSegBtns.forEach(function (b) { b.disabled = true; });
 							fanStatus.textContent = 'Saving…';
 
-							fetch('/api/runs/' + runId + '/zones/' + activeZone + '/fan', {
-								method: 'POST',
-								headers: { 'Content-Type': 'application/json' },
-								body: JSON.stringify({ action: action, duration_minutes: duration })
-							})
-								.then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+							var url = '/api/runs/' + runId + '/zones/' + activeZone + '/fan';
+							var fetchOpts;
+
+							if (mode === 'auto') {
+								fetchOpts = { method: 'DELETE' };
+							} else {
+								var action = (mode === 'off-1h' || mode === 'off') ? 'off' : 'on';
+								var duration = (mode === 'off-1h' || mode === 'on-1h') ? 60 : null;
+								fetchOpts = {
+									method: 'POST',
+									headers: { 'Content-Type': 'application/json' },
+									body: JSON.stringify({ action: action, duration_minutes: duration })
+								};
+							}
+
+							fetch(url, fetchOpts)
+								.then(function (r) {
+									if (!r.ok) return Promise.reject(r.status);
+									return mode === 'auto' ? null : r.json();
+								})
 								.then(function () { loadFanState(runId, activeZone); })
 								.catch(function () { fanStatus.textContent = 'Error — try again'; })
 								.finally(function () {
 									fanRequestPending = false;
-									fanBtns.forEach(function (b) { b.disabled = false; });
+									fanSegBtns.forEach(function (b) { b.disabled = false; });
 								});
 						});
 					});
-
-					// "Return to automatic" clears the override
-					if (fanAutoBtn) {
-						fanAutoBtn.addEventListener('click', function () {
-							var runId = getRunId();
-							if (!runId || !activeZone || fanRequestPending) return;
-							fanRequestPending = true;
-							fanAutoBtn.disabled = true;
-							fanStatus.textContent = 'Clearing…';
-
-							fetch('/api/runs/' + runId + '/zones/' + activeZone + '/fan', { method: 'DELETE' })
-								.then(function () { loadFanState(runId, activeZone); })
-								.catch(function () { fanStatus.textContent = 'Error — try again'; })
-								.finally(function () {
-									fanRequestPending = false;
-									fanAutoBtn.disabled = false;
-								});
-						});
-					}
 
 
 					// Intercept zone button clicks — always open the modal
