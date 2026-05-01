@@ -229,20 +229,6 @@
 									<button type="button" id="zdc-tolerance-apply" class="zone-detail-card__ctrl-btn">Apply</button>
 								</div>
 							</div>
-							<div class="zone-detail-card__control-row">
-								<span class="zone-detail-card__ctrl-label">Mode</span>
-								<div class="zone-detail-card__mode-btns">
-									<button type="button" id="zdc-mode-auto" class="zone-detail-card__mode-btn zone-detail-card__mode-btn--active" data-mode="auto">Auto</button>
-									<button type="button" id="zdc-mode-manual" class="zone-detail-card__mode-btn" data-mode="manual">Manual</button>
-								</div>
-							</div>
-							<div class="zone-detail-card__control-row" id="zdc-manual-controls" style="display:none;">
-								<span class="zone-detail-card__ctrl-label">Fan</span>
-								<div class="zone-detail-card__mode-btns">
-									<button type="button" id="zdc-fan-on-btn" class="zone-detail-card__mode-btn">Fan ON</button>
-									<button type="button" id="zdc-fan-off-btn" class="zone-detail-card__mode-btn">Fan OFF</button>
-								</div>
-							</div>
 						</div>
 
 						<!-- Status row -->
@@ -2654,11 +2640,6 @@ const tempSeries = {
 					const toleranceInput = document.getElementById('zdc-tolerance');
 					const setpointApply  = document.getElementById('zdc-setpoint-apply');
 					const toleranceApply = document.getElementById('zdc-tolerance-apply');
-					const modeAutoBtn    = document.getElementById('zdc-mode-auto');
-					const modeManualBtn  = document.getElementById('zdc-mode-manual');
-					const manualControls = document.getElementById('zdc-manual-controls');
-					const fanOnBtn       = document.getElementById('zdc-fan-on-btn');
-					const fanOffBtn      = document.getElementById('zdc-fan-off-btn');
 					const relayDot       = document.getElementById('zdc-relay-dot');
 					const relayLabel     = document.getElementById('zdc-relay-label');
 					const triggerVal     = document.getElementById('zdc-trigger-val');
@@ -2824,22 +2805,6 @@ const tempSeries = {
 								}
 							}
 
-							// Mode: 'manual' = active fan override; anything else = auto
-							var isManual = zd.mode === 'manual';
-							if (modeAutoBtn)    modeAutoBtn.classList.toggle('zone-detail-card__mode-btn--active', !isManual);
-							if (modeManualBtn)  modeManualBtn.classList.toggle('zone-detail-card__mode-btn--active', isManual);
-							if (manualControls) manualControls.style.display = isManual ? '' : 'none';
-
-							// Highlight which manual direction is active (red)
-							if (fanOnBtn) {
-								fanOnBtn.classList.toggle('zone-detail-card__mode-btn--active-manual', isManual && zd.state === 'on');
-								fanOnBtn.classList.toggle('zone-detail-card__mode-btn--active', false);
-							}
-							if (fanOffBtn) {
-								fanOffBtn.classList.toggle('zone-detail-card__mode-btn--active-manual', isManual && zd.state === 'off');
-								fanOffBtn.classList.toggle('zone-detail-card__mode-btn--active', false);
-							}
-
 							// Fan relay live state
 							if (relayDot && relayLabel) {
 								var fanOn = zd.state === 'on';
@@ -2889,7 +2854,6 @@ const tempSeries = {
 							.catch(function() {});
 					});
 
-					// Mode Auto — clear any active fan override for this zone
 					function _getActiveRunId() {
 						var urlRun = new URLSearchParams(location.search).get('run');
 						if (urlRun) return Promise.resolve(urlRun);
@@ -2897,39 +2861,6 @@ const tempSeries = {
 							.then(function(r) { return r.ok ? r.json() : null; })
 							.then(function(d) { return d && d.id ? String(d.id) : null; });
 					}
-
-					if (modeAutoBtn) modeAutoBtn.addEventListener('click', function() {
-						_getActiveRunId().then(function(runId) {
-							if (!runId || !activeZone) return;
-							fetch('/api/runs/' + runId + '/zones/' + activeZone + '/fan', { method: 'DELETE' })
-								.then(function() { loadZoneControls(activeZone); })
-								.catch(function() {});
-						});
-					});
-
-					// Mode Manual — show manual controls (no API call; fan buttons issue the override)
-					if (modeManualBtn) modeManualBtn.addEventListener('click', function() {
-						if (modeAutoBtn)    modeAutoBtn.classList.remove('zone-detail-card__mode-btn--active');
-						if (modeManualBtn)  modeManualBtn.classList.add('zone-detail-card__mode-btn--active');
-						if (manualControls) manualControls.style.display = '';
-					});
-
-					// Fan ON / OFF — immediate override with no expiry
-					function _postFanOverride(action) {
-						_getActiveRunId().then(function(runId) {
-							if (!runId || !activeZone) return;
-							fetch('/api/runs/' + runId + '/zones/' + activeZone + '/fan', {
-								method: 'POST',
-								headers: { 'Content-Type': 'application/json' },
-								body: JSON.stringify({ action: action, duration_minutes: null })
-							})
-								.then(function() { loadZoneControls(activeZone); })
-								.catch(function() {});
-						});
-					}
-
-					if (fanOnBtn)  fanOnBtn.addEventListener('click',  function() { _postFanOverride('on');  });
-					if (fanOffBtn) fanOffBtn.addEventListener('click', function() { _postFanOverride('off'); });
 
 					// Notes auto-save (debounced 800 ms)
 					if (notesInput) notesInput.addEventListener('input', function() {
