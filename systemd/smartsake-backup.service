@@ -1,3 +1,7 @@
+# NOTE: Uses old User=pi and /home/pi/MainCode paths.
+# The canonical deployment is now User=kojitable at /home/kojitable/ClaudeAgents
+# (see smartsake.service). Update User, WorkingDirectory, and ExecStart when
+# migrating the backup job to the new environment.
 [Unit]
 Description=SmartSake Database Backup
 

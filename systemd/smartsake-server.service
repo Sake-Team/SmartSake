@@ -1,3 +1,7 @@
+# DEPRECATED — see smartsake.service
+# This was the gunicorn web server from the old split architecture
+# (User=pi, /home/pi/MainCode). The canonical service is smartsake.service
+# which runs server.py directly as User=kojitable under /home/kojitable/ClaudeAgents.
 [Unit]
 Description=SmartSake Web Server
 After=network.target smartsake-sensors.service

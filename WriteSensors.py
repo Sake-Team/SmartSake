@@ -45,6 +45,10 @@ CSV_FILE = "sensor_data.csv"
 JSON_FILE = "sensor_latest.json"
 MAX_CSV_ROWS = 43200  # ~24 hrs at 2-second interval
 
+# Cached CSV line count — avoids re-reading the entire file on every 2s write.
+# Initialized from disk on first use, then incremented in memory.
+_csv_line_count = None
+
 SHT30_TEMP_OFFSET_C = 0.0
 
 # Shared state updated by background threads
@@ -538,23 +542,38 @@ def run_hx711_thread(scale_id, hx_instance):
 
 
 def write_csv(timestamp, sht_temp, sht_humidity, tc_readings):
+    global _csv_line_count
+
     file_exists = os.path.isfile(CSV_FILE)
+
+    # Initialize cached line count from disk once (first call or after restart)
+    if _csv_line_count is None:
+        if file_exists:
+            try:
+                with open(CSV_FILE, "r") as f:
+                    _csv_line_count = sum(1 for _ in f)
+            except Exception:
+                _csv_line_count = 0
+        else:
+            _csv_line_count = 0
+
     with open(CSV_FILE, "a", newline="") as f:
         writer = csv.writer(f)
         if not file_exists:
             headers = ["timestamp", "sht30_temp_c", "sht30_humidity_rh"]
             headers += [f"TC{ch}_temp_c" for ch, _ in tc_readings]
             writer.writerow(headers)
+            _csv_line_count += 1
         row = [timestamp, sht_temp, sht_humidity]
         row += [f"{temp:.2f}" if temp is not None else "ERROR" for _, temp in tc_readings]
         writer.writerow(row)
+        _csv_line_count += 1
 
     try:
-        with open(CSV_FILE, "r") as f:
-            line_count = sum(1 for _ in f)
-        if line_count > MAX_CSV_ROWS:
+        if _csv_line_count > MAX_CSV_ROWS:
             datestr = datetime.now().strftime("%Y%m%d_%H%M%S")
             os.rename(CSV_FILE, f"{CSV_FILE}.{datestr}.bak")
+            _csv_line_count = 0  # reset after rotation
     except Exception as e:
         print(f"CSV rotation error: {e}")
 
@@ -603,6 +622,7 @@ def _handle_shutdown(signum, frame):
         except Exception as e:
             print(f"Could not end run cleanly: {e}")
     fan_gpio.cleanup()
+    sakedb.close_conn()
     raise SystemExit(0)
 
 

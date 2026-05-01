@@ -1,3 +1,8 @@
+# DEPRECATED — see smartsake.service
+# This was the standalone sensor collector from the old split architecture
+# (User=pi, /home/pi/MainCode). The canonical service is smartsake.service
+# which runs server.py as User=kojitable under /home/kojitable/ClaudeAgents
+# and starts the sensor loop in-process.
 [Unit]
 Description=SmartSake Sensor Collector
 After=network.target
