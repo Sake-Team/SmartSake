@@ -5,7 +5,9 @@ import csv
 import os
 import shutil
 import signal
+import statistics
 import threading
+from collections import deque
 from datetime import datetime, timedelta
 
 import db as sakedb
@@ -70,8 +72,25 @@ _threshold_breach_start = {}
 DEVIATION_THRESHOLD_C = 2.0
 DEVIATION_HOLD_MIN    = 10.0
 
+# ── TC noise filter ──────────────────────────────────────────────────────────
+TC_FILTER_WINDOW = 5          # rolling median over last 5 readings (~10s at 2s cycle)
+_tc_history = {}              # {zone: deque(maxlen=TC_FILTER_WINDOW)}
+
+
+def _tc_filtered(zone, raw_c):
+    """Return rolling-median-filtered TC value. Kills single-reading spikes."""
+    if raw_c is None:
+        return None
+    buf = _tc_history.get(zone)
+    if buf is None:
+        buf = deque(maxlen=TC_FILTER_WINDOW)
+        _tc_history[zone] = buf
+    buf.append(raw_c)
+    return statistics.median(buf)
+
+
 # ── Limit-switch fan-control constants ───────────────────────────────────────
-DEADBAND_HOLD       = 3
+DEADBAND_HOLD       = 5          # ~10s at 2s cycle — protects relay life
 DEFAULT_TOLERANCE_C = 1.0
 
 _BASE_DIR        = os.path.dirname(os.path.abspath(__file__))
@@ -763,19 +782,23 @@ def start_sensor_loop():
                 except Exception as e:
                     print(f"[sensors] SHT30 read error: {e}")
 
-            # Read thermocouples (with per-zone calibration applied)
+            # Read thermocouples: raw → median filter → calibration
             tc_readings = []
             for ch, d in assigned:
                 try:
-                    raw_c  = read_temp_c(d)
-                    temp_c = _zone_tc_correct(ch, raw_c)
+                    raw_c    = read_temp_c(d)
+                    filtered = _tc_filtered(ch, raw_c)
+                    temp_c   = _zone_tc_correct(ch, filtered)
                     tc_readings.append((ch, temp_c))
                 except Exception as e:
                     tc_readings.append((ch, None))
                     print(f"[sensors] TC{ch} read error: {e}")
 
             write_csv(timestamp, sht_temp, sht_humidity, tc_readings)
-            write_json(timestamp, sht_temp, sht_humidity, tc_readings)
+            # Throttle JSON writes to every 3rd cycle (~6s) to reduce SD card wear.
+            # Dashboard polls every 3s so no visible staleness.
+            if _loop_iteration % 3 == 0:
+                write_json(timestamp, sht_temp, sht_humidity, tc_readings)
 
             # DB write — only when a run is active
             active = sakedb.get_active_run()
@@ -784,6 +807,7 @@ def start_sensor_loop():
                 if _active_run_id != new_id:
                     _threshold_breach_start.clear()
                     _deviation_tracking.clear()
+                    _tc_history.clear()
                 _active_run_id = new_id
                 reading = {
                     "recorded_at": timestamp,
@@ -799,7 +823,8 @@ def start_sensor_loop():
                         on = state == "on"
                         fan_gpio.set_fan(zone, on)
                         reading[f"fan{zone}"] = 1 if on else 0
-                    _write_fan_state_json(fan_states)
+                    if _loop_iteration % 3 == 0:
+                        _write_fan_state_json(fan_states)
                 except Exception as e:
                     print(f"[sensors] Fan evaluation error: {e}")
 

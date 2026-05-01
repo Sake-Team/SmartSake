@@ -430,6 +430,22 @@ main { padding: 8px 16px 16px; }
 .start-run-btn.end-run-btn-active         { background: var(--color-surface-dark); }
 .start-run-btn.end-run-btn-active:hover   { background: #000000; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
 
+.e-stop-btn {
+  display: none;
+  background: var(--clr-alarm-high, #c0392b);
+  color: #fff;
+  border: none;
+  border-radius: var(--r-md);
+  padding: 8px 14px;
+  font-weight: 700;
+  font-size: .85rem;
+  cursor: pointer;
+  letter-spacing: .04em;
+}
+.e-stop-btn:hover { background: #a93226; }
+.e-stop-btn:disabled { opacity: .5; cursor: not-allowed; }
+body:has(#start-run-btn.end-run-btn-active) .e-stop-btn { display: inline-flex; }
+
 /* ----- Zone combined cards (home dashboard) ----- */
 .zones-combined {
   display: grid;

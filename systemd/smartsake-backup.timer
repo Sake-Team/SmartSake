@@ -1,8 +1,8 @@
 [Unit]
-Description=SmartSake Database Backup — Daily at 02:00
+Description=SmartSake Database Backup — Every 6 hours
 
 [Timer]
-OnCalendar=*-*-* 02:00:00
+OnCalendar=*-*-* 00/6:00:00
 Persistent=true
 
 [Install]

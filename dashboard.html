@@ -63,9 +63,14 @@
 					<button id="elapsed-toggle-btn" class="elapsed-toggle-btn" type="button" title="Toggle elapsed/clock time axis">Clock</button>
 				</div>
 				<button id="set-temp-btn" class="set-temp-btn" type="button">Set temp</button>
+				<button id="e-stop-btn" class="e-stop-btn" type="button" title="Emergency stop — all fans off">STOP</button>
 				<button id="start-run-btn" class="start-run-btn">Start Run</button>
 			</div>
 		</header>
+
+		<div id="conn-lost-banner" style="display:none;background:var(--clr-alarm-high,#b33);color:#fff;text-align:center;padding:6px 12px;font-weight:600;font-size:.95rem;">
+			Connection lost — readings may be stale
+		</div>
 
 		<main>
 			<div class="stage">
@@ -1444,6 +1449,11 @@
 				let currentHumidity = null;
 				let pollIntervalId  = null;
 				let lastTimestamp   = null;
+				let _pollFails      = 0;
+				function _showConnBanner() {
+					var el = document.getElementById('conn-lost-banner');
+					if (el) el.style.display = _pollFails >= 2 ? '' : 'none';
+				}
 
 				const bc = (typeof BroadcastChannel !== 'undefined')
 					? new BroadcastChannel('sake-sensor') : null;
@@ -1465,8 +1475,9 @@
 				async function fetchAndApply() {
 					try {
 						const res = await fetch('/api/latest');
-						if (!res.ok) return;
+						if (!res.ok) { _pollFails++; _showConnBanner(); return; }
 						const d = await res.json();
+						_pollFails = 0; _showConnBanner();
 
 						// Deduplicate — skip if timestamp unchanged
 						if (d.timestamp && d.timestamp === lastTimestamp) return;
@@ -1528,6 +1539,8 @@
 						if (bc) { try { bc.postMessage(sample); } catch(e) {} }
 
 					} catch (err) {
+						_pollFails++;
+						_showConnBanner();
 						console.warn('Sensor poll failed:', err);
 					}
 				}
@@ -4529,6 +4542,7 @@ const tempSeries = {
 
 		if (resetBtn) {
 			resetBtn.addEventListener('click', function () {
+				if (!confirm('Reset all theme settings to defaults?')) return;
 				const s = Object.assign({}, DEFAULTS);
 				saveSettings(s);
 				applyCSSVars(s);
@@ -4953,6 +4967,23 @@ const tempSeries = {
 			window._refreshProjection = refreshProjection;
 		}
 		init();
+	})();
+	</script>
+
+	<script>
+	(function () {
+		var btn = document.getElementById('e-stop-btn');
+		if (!btn) return;
+		btn.addEventListener('click', function () {
+			if (!confirm('EMERGENCY STOP — turn off ALL fans?')) return;
+			var runId = window._runId || localStorage.getItem('currentRunId');
+			if (!runId) { alert('No active run'); return; }
+			btn.disabled = true;
+			fetch('/api/runs/' + runId + '/emergency-stop', { method: 'POST' })
+				.then(function (r) { return r.json(); })
+				.then(function () { btn.disabled = false; })
+				.catch(function () { btn.disabled = false; alert('Stop failed — check server'); });
+		});
 	})();
 	</script>
 

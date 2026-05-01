@@ -690,6 +690,7 @@
 
     // ── Clear calibration ────────────────────────────────────────────────
     if (role === 'clear') {
+      if (!confirm('Clear calibration for zone ' + zone + '? This cannot be undone.')) return;
       btn.disabled = true;
       _pending[zone] = { low: null, high: null };
       // Close any open inline panel for this zone

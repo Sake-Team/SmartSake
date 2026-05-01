@@ -14,6 +14,7 @@ def get_conn():
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA foreign_keys=ON")
         _local.conn = conn
     return _local.conn
 
@@ -382,17 +383,6 @@ def get_latest_reading(run_id):
         return dict(row) if row else None
 
 
-def get_all_readings(run_id):
-    with get_conn() as conn:
-        rows = conn.execute("""
-            SELECT *,
-                   weight_lbs_1, weight_lbs_2, weight_lbs_3, weight_lbs_4,
-                   (COALESCE(weight_lbs_1,0)+COALESCE(weight_lbs_2,0)+COALESCE(weight_lbs_3,0)+COALESCE(weight_lbs_4,0)) AS weight_total_lbs
-            FROM sensor_readings WHERE run_id=? ORDER BY recorded_at ASC
-        """, (run_id,)).fetchall()
-        return [dict(r) for r in rows]
-
-
 def stream_readings(run_id):
     """Yield sensor_readings rows one at a time (cursor-based, no fetchall).
 
@@ -434,25 +424,28 @@ def get_room_history(hours, max_points=600):
 
 
 def get_readings_sampled(run_id, n=300):
-    """Return up to n evenly-strided readings for run_id."""
+    """Return up to n evenly-strided readings for run_id.
+
+    Uses rowid modulo instead of ROW_NUMBER() window function to avoid
+    materializing all rows before filtering — O(n) output instead of O(total).
+    """
     with get_conn() as conn:
-        total = conn.execute(
-            "SELECT COUNT(*) FROM sensor_readings WHERE run_id=?", (run_id,)
-        ).fetchone()[0]
+        bounds = conn.execute(
+            "SELECT COUNT(*), MIN(rowid), MAX(rowid) FROM sensor_readings WHERE run_id=?",
+            (run_id,)
+        ).fetchone()
+        total, min_rid, max_rid = bounds[0], bounds[1], bounds[2]
         if total == 0:
             return []
         stride = max(1, total // n)
         rows = conn.execute("""
-            WITH rn AS (
-                SELECT *,
-                       weight_lbs_1, weight_lbs_2, weight_lbs_3, weight_lbs_4,
-                       (COALESCE(weight_lbs_1,0)+COALESCE(weight_lbs_2,0)+COALESCE(weight_lbs_3,0)+COALESCE(weight_lbs_4,0)) AS weight_total_lbs,
-                       (ROW_NUMBER() OVER (ORDER BY recorded_at ASC) - 1) AS rn
-                FROM sensor_readings WHERE run_id = ?
-            )
-            SELECT * FROM rn WHERE rn % ? = 0
+            SELECT *,
+                   (COALESCE(weight_lbs_1,0)+COALESCE(weight_lbs_2,0)
+                    +COALESCE(weight_lbs_3,0)+COALESCE(weight_lbs_4,0)) AS weight_total_lbs
+            FROM sensor_readings
+            WHERE run_id = ? AND (rowid - ?) % ? = 0
             ORDER BY recorded_at ASC
-        """, (run_id, stride)).fetchall()
+        """, (run_id, min_rid, stride)).fetchall()
         return [dict(r) for r in rows]
 
 
@@ -808,7 +801,7 @@ def _combine_buckets(per_source_buckets):
 def generate_curve_from_runs(run_ids, bucket_min=30):
     """Average zone temperatures from multiple runs into bucketed reference curve points.
 
-    For each run: compute per-reading zone average → bin into bucket_min-wide buckets →
+    For each run: stream readings from cursor (never fetchall) → bucket on the fly →
     average within bucket. Then average the per-run bucket averages across all runs.
     Returns [(elapsed_min, avg_temp_rounded), ...] sorted by elapsed_min.
     """
@@ -820,20 +813,25 @@ def generate_curve_from_runs(run_ids, bucket_min=30):
                 continue
             started_at = datetime.fromisoformat(row['started_at'])
 
-            readings = conn.execute("""
-                SELECT recorded_at, tc1, tc2, tc3, tc4, tc5, tc6
-                FROM sensor_readings WHERE run_id=?
-                ORDER BY recorded_at ASC
-            """, (run_id,)).fetchall()
+            def _stream_rows(rid, t0):
+                """Yield row dicts from cursor without loading all into memory."""
+                cur = conn.execute("""
+                    SELECT recorded_at, tc1, tc2, tc3, tc4, tc5, tc6
+                    FROM sensor_readings WHERE run_id=?
+                    ORDER BY recorded_at ASC
+                """, (rid,))
+                while True:
+                    batch = cur.fetchmany(2000)
+                    if not batch:
+                        break
+                    for r in batch:
+                        elapsed = (datetime.fromisoformat(r['recorded_at']) - t0).total_seconds() / 60
+                        yield {
+                            'elapsed_min': elapsed,
+                            'zones': [r['tc' + str(i)] for i in range(1, 7)],
+                        }
 
-            rows = []
-            for r in readings:
-                elapsed = (datetime.fromisoformat(r['recorded_at']) - started_at).total_seconds() / 60
-                rows.append({
-                    'elapsed_min': elapsed,
-                    'zones': [r['tc' + str(i)] for i in range(1, 7)],
-                })
-            per_run.append(_bucket_average_one_source(rows, bucket_min))
+            per_run.append(_bucket_average_one_source(_stream_rows(run_id, started_at), bucket_min))
 
     return _combine_buckets(per_run)
 

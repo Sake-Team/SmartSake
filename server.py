@@ -414,6 +414,17 @@ def api_clear_fan_override(run_id, zone):
     return jsonify({"ok": True})
 
 
+@app.route("/api/runs/<int:run_id>/emergency-stop", methods=["POST"])
+def api_emergency_stop(run_id):
+    """Override all 6 zones to OFF (no duration — stays off until cleared)."""
+    if not db.get_run(run_id):
+        abort(404)
+    for zone in range(1, 7):
+        db.set_fan_override(run_id, zone, "off", None)
+        fan_gpio.set_fan(zone, False)
+    return jsonify({"ok": True, "message": "All fans stopped"})
+
+
 # ── Fan rules ─────────────────────────────────────────────────────────────────
 
 @app.route("/api/runs/<int:run_id>/fan-rules", methods=["GET"])
