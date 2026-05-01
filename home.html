@@ -350,15 +350,10 @@
 
           const crashedTag = run.status === 'crashed'
             ? ' <span style="color:#ff7070;font-size:.72rem;font-weight:600">[crashed]</span>' : '';
-          const starsHtml = run.quality_score
-            ? '<span style="color:#c8960a">' + '★'.repeat(run.quality_score) + '</span>'
-              + '<span style="color:#333">' + '★'.repeat(5 - run.quality_score) + '</span>'
-            : '';
 
           row.innerHTML =
             '<div class="run-row-info">' +
               '<div class="run-row-name">' + escHtml(run.name) + crashedTag +
-                (starsHtml ? ' ' + starsHtml : '') +
               '</div>' +
               '<div class="run-row-meta">' + fmtDate(run.started_at) + ' &mdash; ' + duration(run.started_at, run.ended_at) + '</div>' +
             '</div>' +

@@ -595,15 +595,6 @@ def api_patch_metadata(run_id):
         except (TypeError, ValueError):
             return jsonify({"error": "polish_ratio must be 0-100"}), 400
 
-    if 'quality_score' in body and body['quality_score'] is not None:
-        try:
-            qs = int(body['quality_score'])
-            if not (1 <= qs <= 5):
-                raise ValueError
-            body['quality_score'] = qs
-        except (TypeError, ValueError):
-            return jsonify({"error": "quality_score must be 1-5"}), 400
-
     if 'koji_variety' in body and body['koji_variety'] not in (None, 'yellow', 'white', 'black', 'other'):
         return jsonify({"error": "koji_variety must be yellow, white, black, or other"}), 400
 
@@ -619,12 +610,6 @@ def api_patch_metadata(run_id):
 
 
 # ── Reference curves ──────────────────────────────────────────────────────────
-
-@app.route("/api/runs/scored", methods=["GET"])
-def api_scored_runs():
-    min_score = request.args.get('min_score', 1, type=int)
-    return jsonify(db.get_scored_runs(min_score))
-
 
 @app.route("/api/reference-curves/generate", methods=["POST"])
 def api_generate_curve():
@@ -751,25 +736,6 @@ def api_load_curve_as_target(run_id, curve_id):
     return jsonify(db.get_target_profile(run_id)), 201
 
 
-# ── Correlation ────────────────────────────────────────────────────────────────
-
-_CORR_VARIABLES = ('avg_humidity_stage2', 'total_weight_loss_pct', 'avg_temp_all_zones', 'peak_deviation')
-
-
-@app.route("/api/correlation", methods=["GET"])
-def api_correlation():
-    variable = request.args.get('variable')
-    if variable not in _CORR_VARIABLES:
-        return jsonify({"error": f"variable must be one of: {', '.join(_CORR_VARIABLES)}"}), 400
-    count = db.get_scored_run_count()
-    if count < 5:
-        return jsonify({"error": "Need at least 5 scored runs", "count": count}), 400
-    rows = db.get_correlation_data(variable)
-    points = [{"run_id": r[0], "run_name": r[1], "x": r[3], "y": r[2]}
-              for r in rows if r[3] is not None]
-    pearson_r = db.compute_pearson_r([(p['x'], p['y']) for p in points])
-    return jsonify({"variable": variable, "n": len(points),
-                    "pearson_r": pearson_r, "points": points})
 
 
 # ── Phase 2: Completed runs, weight/humidity analytics ───────────────────────

@@ -304,8 +304,7 @@
       .then(runs => {
         sel.innerHTML = '<option value="">— Add past run overlay —</option>' +
           runs.map(r =>
-            `<option value="${r.id}">${r.name}` +
-            (r.quality_score ? ` ★${r.quality_score}` : "") + `</option>`
+            `<option value="${r.id}">${r.name}</option>`
           ).join("");
         sel.addEventListener("change", () => {
           const val = Number(sel.value);

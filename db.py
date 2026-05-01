@@ -319,7 +319,7 @@ def get_active_run():
 def get_all_runs():
     with get_conn() as conn:
         rows = conn.execute("""
-            SELECT r.*, m.quality_score, m.koji_variety
+            SELECT r.*, m.koji_variety
             FROM runs r
             LEFT JOIN run_metadata m ON m.run_id = r.id
             ORDER BY r.started_at DESC
@@ -713,7 +713,7 @@ def get_run_metadata(run_id):
 def upsert_run_metadata(run_id, data):
     """Upsert only the keys present in data. Returns updated metadata dict."""
     allowed = ('koji_variety', 'inoculation_rate', 'source_rice',
-               'polish_ratio', 'quality_score', 'tasting_notes')
+               'polish_ratio')
     keys = [k for k in allowed if k in data]
     if not keys:
         return get_run_metadata(run_id)
@@ -794,18 +794,6 @@ def load_curve_as_target(run_id, curve_id):
 
 
 # ── Curve generation from historical runs ────────────────────────────────────
-
-def get_scored_runs(min_score=1):
-    with get_conn() as conn:
-        rows = conn.execute("""
-            SELECT r.id, r.name, r.started_at, r.ended_at, m.quality_score
-            FROM runs r
-            JOIN run_metadata m ON m.run_id = r.id
-            WHERE m.quality_score >= ? AND r.status IN ('completed', 'crashed')
-            ORDER BY r.started_at DESC
-        """, (min_score,)).fetchall()
-        return [dict(r) for r in rows]
-
 
 def _bucket_average_one_source(rows, bucket_min):
     """Bucket a single source's rows into per-bucket zone-averaged temps.
@@ -1012,159 +1000,6 @@ def parse_curve_csv(csv_text):
     return out
 
 
-# ── Correlation (Phase 4C) ─────────────────────────────────────────────────────
-
-def get_scored_run_count():
-    with get_conn() as conn:
-        return conn.execute(
-            "SELECT COUNT(*) FROM run_metadata WHERE quality_score IS NOT NULL"
-        ).fetchone()[0]
-
-
-def get_correlation_data(variable):
-    """Return [(run_id, run_name, x_value, y_value)] for the requested variable.
-
-    Only runs with a quality_score are included.
-    """
-    with get_conn() as conn:
-        if variable == 'avg_humidity_stage2':
-            # Average humidity during hours 12-24 (elapsed minutes 720-1440)
-            rows = conn.execute("""
-                SELECT r.id, r.name, m.quality_score,
-                       AVG(sr.humidity) AS x_val
-                FROM runs r
-                JOIN run_metadata m ON m.run_id = r.id
-                JOIN sensor_readings sr ON sr.run_id = r.id
-                WHERE m.quality_score IS NOT NULL
-                  AND sr.humidity IS NOT NULL
-                  AND (CAST((julianday(sr.recorded_at) - julianday(r.started_at)) * 1440 AS INTEGER))
-                      BETWEEN 720 AND 1440
-                GROUP BY r.id
-                HAVING AVG(sr.humidity) IS NOT NULL
-            """).fetchall()
-
-        elif variable == 'total_weight_loss_pct':
-            rows = conn.execute("""
-                SELECT r.id, r.name, m.quality_score,
-                       ((first_w.weight_lbs - last_w.weight_lbs) / first_w.weight_lbs * 100) AS x_val
-                FROM runs r
-                JOIN run_metadata m ON m.run_id = r.id
-                JOIN (SELECT run_id, weight_lbs FROM sensor_readings
-                      WHERE (run_id, recorded_at) IN
-                            (SELECT run_id, MIN(recorded_at) FROM sensor_readings GROUP BY run_id)
-                        AND weight_lbs IS NOT NULL) first_w ON first_w.run_id = r.id
-                JOIN (SELECT run_id, weight_lbs FROM sensor_readings
-                      WHERE (run_id, recorded_at) IN
-                            (SELECT run_id, MAX(recorded_at) FROM sensor_readings GROUP BY run_id)
-                        AND weight_lbs IS NOT NULL) last_w ON last_w.run_id = r.id
-                WHERE m.quality_score IS NOT NULL
-                  AND first_w.weight_lbs > 0
-            """).fetchall()
-
-        elif variable == 'avg_temp_all_zones':
-            rows = conn.execute("""
-                SELECT r.id, r.name, m.quality_score,
-                       AVG((COALESCE(sr.tc1,0) + COALESCE(sr.tc2,0) + COALESCE(sr.tc3,0) +
-                            COALESCE(sr.tc4,0) + COALESCE(sr.tc5,0) + COALESCE(sr.tc6,0)) /
-                           NULLIF(
-                               (sr.tc1 IS NOT NULL) + (sr.tc2 IS NOT NULL) + (sr.tc3 IS NOT NULL) +
-                               (sr.tc4 IS NOT NULL) + (sr.tc5 IS NOT NULL) + (sr.tc6 IS NOT NULL), 0
-                           )) AS x_val
-                FROM runs r
-                JOIN run_metadata m ON m.run_id = r.id
-                JOIN sensor_readings sr ON sr.run_id = r.id
-                WHERE m.quality_score IS NOT NULL
-                GROUP BY r.id
-                HAVING x_val IS NOT NULL
-            """).fetchall()
-
-        elif variable == 'peak_deviation':
-            # Max absolute deviation from target profile (uses sampled data)
-            # Fetch per-run in Python to allow linear interpolation
-            scored = conn.execute("""
-                SELECT r.id, r.name, m.quality_score
-                FROM runs r JOIN run_metadata m ON m.run_id = r.id
-                WHERE m.quality_score IS NOT NULL
-            """).fetchall()
-            result = []
-            for row in scored:
-                rid = row['id']
-                profile = conn.execute(
-                    "SELECT elapsed_min, temp_target FROM target_profiles WHERE run_id=? ORDER BY elapsed_min",
-                    (rid,)
-                ).fetchall()
-                if not profile:
-                    continue
-                readings = conn.execute("""
-                    WITH rn AS (
-                        SELECT recorded_at, tc1, tc2, tc3, tc4, tc5, tc6,
-                               (ROW_NUMBER() OVER (ORDER BY recorded_at) - 1) AS rn,
-                               COUNT(*) OVER () AS total
-                        FROM sensor_readings WHERE run_id=?
-                    )
-                    SELECT * FROM rn WHERE rn % MAX(1, total/300) = 0
-                """, (rid,)).fetchall()
-                run_start = conn.execute(
-                    "SELECT started_at FROM runs WHERE id=?", (rid,)
-                ).fetchone()['started_at']
-                from datetime import datetime as _dt
-                start_dt = _dt.fromisoformat(run_start)
-                profile_pts = [(r['elapsed_min'], r['temp_target']) for r in profile]
-                max_dev = 0.0
-                for sr in readings:
-                    rec_dt = _dt.fromisoformat(sr['recorded_at'])
-                    elapsed = (rec_dt - start_dt).total_seconds() / 60
-                    # Linear interpolation
-                    target = _interp(profile_pts, elapsed)
-                    if target is None:
-                        continue
-                    for col in ('tc1', 'tc2', 'tc3', 'tc4', 'tc5', 'tc6'):
-                        v = sr[col]
-                        if v is not None:
-                            max_dev = max(max_dev, abs(v - target))
-                result.append((rid, row['name'], row['quality_score'], max_dev))
-            return result
-        else:
-            return []
-
-        return [(r['id'], r['name'], r['quality_score'], r['x_val']) for r in rows]
-
-
-def _interp(profile_pts, elapsed):
-    """Linear interpolation of target temp at elapsed_min. Clamps at edges."""
-    if not profile_pts:
-        return None
-    if elapsed <= profile_pts[0][0]:
-        return profile_pts[0][1]
-    if elapsed >= profile_pts[-1][0]:
-        return profile_pts[-1][1]
-    for i in range(len(profile_pts) - 1):
-        t0, v0 = profile_pts[i]
-        t1, v1 = profile_pts[i + 1]
-        if t0 <= elapsed <= t1:
-            frac = (elapsed - t0) / (t1 - t0)
-            return v0 + frac * (v1 - v0)
-    return None
-
-
-def compute_pearson_r(points):
-    """Compute Pearson r from [(x, y), ...]. Returns float or None."""
-    pts = [(x, y) for x, y in points if x is not None and y is not None]
-    n = len(pts)
-    if n < 3:
-        return None
-    xs = [p[0] for p in pts]
-    ys = [p[1] for p in pts]
-    mx = sum(xs) / n
-    my = sum(ys) / n
-    num = sum((x - mx) * (y - my) for x, y in pts)
-    dx = sum((x - mx) ** 2 for x in xs) ** 0.5
-    dy = sum((y - my) ** 2 for y in ys) ** 0.5
-    if dx == 0 or dy == 0:
-        return None
-    return round(num / (dx * dy), 3)
-
-
 # ── Zone notes ────────────────────────────────────────────────────────────────
 
 def save_zone_note(run_id, zone, text):
@@ -1187,10 +1022,10 @@ def get_zone_notes(run_id):
 # ── Phase 2: Completed runs, weight/humidity analytics ────────────────────────
 
 def get_completed_runs():
-    """Return completed/crashed runs joined with metadata quality_score."""
+    """Return completed/crashed runs joined with metadata."""
     with get_conn() as conn:
         rows = conn.execute("""
-            SELECT r.*, m.quality_score, m.koji_variety
+            SELECT r.*, m.koji_variety
             FROM runs r
             LEFT JOIN run_metadata m ON m.run_id = r.id
             WHERE r.status IN ('completed', 'crashed')

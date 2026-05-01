@@ -94,7 +94,7 @@
     .gen-panel__body { margin-top: .65rem; display: flex; flex-direction: column; gap: .4rem; }
     .gen-filter-row { display: flex; align-items: center; gap: .5rem; }
     .gen-label { font-size: .78rem; color: var(--color-text-3); white-space: nowrap; min-width: 56px; }
-    .gen-score-btns { display: flex; gap: .3rem; }
+    .gen-score-btns { display: none; }
     .gen-score-btn { padding: .25rem .55rem; font-size: .75rem; font-weight: 600; border: 1px solid var(--color-border-strong);
                      border-radius: var(--r-sm); background: var(--color-surface); color: var(--color-text-2); cursor: pointer; }
     .gen-score-btn--active { background: var(--color-brand); color: #fff; border-color: var(--color-brand); }
@@ -152,16 +152,9 @@
 
         <!-- Generate from batches -->
         <details class="gen-panel" id="gen-panel">
-          <summary class="gen-panel__toggle">&#9733; Generate from Batches</summary>
+          <summary class="gen-panel__toggle">Generate from Batches</summary>
           <div class="gen-panel__body">
-            <div class="gen-filter-row">
-              <span class="gen-label">Min score:</span>
-              <div class="gen-score-btns">
-                <button class="gen-score-btn" data-score="3">3+</button>
-                <button class="gen-score-btn gen-score-btn--active" data-score="4">4+</button>
-                <button class="gen-score-btn" data-score="5">5</button>
-              </div>
-            </div>
+            <p style="font-size:.8rem;color:var(--color-text-3);margin:0 0 .5rem;">Select completed runs to average into a reference curve.</p>
             <div class="gen-run-list" id="gen-run-list">
               <span style="color:var(--color-text-3);font-size:.8rem">Loading runs…</span>
             </div>
@@ -701,7 +694,6 @@
 (function () {
   'use strict';
 
-  var _minScore     = 4;
   var _previewPts   = null;   // last previewed points array
 
   var panel       = document.getElementById('gen-panel');
@@ -713,31 +705,19 @@
   var saveBtn     = document.getElementById('gen-save-btn');
   var bucketSel   = document.getElementById('gen-bucket');
 
-  // Score filter buttons
-  document.querySelectorAll('.gen-score-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      document.querySelectorAll('.gen-score-btn').forEach(function (b) {
-        b.classList.remove('gen-score-btn--active');
-      });
-      btn.classList.add('gen-score-btn--active');
-      _minScore = parseInt(btn.dataset.score, 10);
-      loadScoredRuns();
-    });
-  });
-
   // Load runs when panel opens
   panel.addEventListener('toggle', function () {
-    if (panel.open) loadScoredRuns();
+    if (panel.open) loadCompletedRuns();
   });
 
-  function loadScoredRuns() {
+  function loadCompletedRuns() {
     runList.innerHTML = '<span style="color:var(--color-text-3);font-size:.8rem">Loading…</span>';
-    fetch('/api/runs/scored?min_score=' + _minScore)
+    fetch('/api/runs/completed')
       .then(function (r) { return r.json(); })
       .then(function (runs) {
         runList.innerHTML = '';
         if (!runs.length) {
-          runList.innerHTML = '<span style="color:var(--color-text-3);font-size:.8rem">No runs with score ' + _minScore + '+</span>';
+          runList.innerHTML = '<span style="color:var(--color-text-3);font-size:.8rem">No completed runs yet</span>';
           return;
         }
         runs.forEach(function (run) {
@@ -753,9 +733,8 @@
 
           var scoreSpan = document.createElement('span');
           scoreSpan.className = 'gen-run-score';
-          var score = run.quality_score != null ? '★' + run.quality_score : '';
           var date  = run.started_at ? run.started_at.slice(0, 10) : '';
-          scoreSpan.textContent = [score, date].filter(Boolean).join(' · ');
+          scoreSpan.textContent = date;
 
           label.appendChild(cb);
           label.appendChild(nameText);
