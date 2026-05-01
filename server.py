@@ -1037,6 +1037,12 @@ def api_set_tc_offset(zone):
     key = f"zone{zone}"
     cfg.setdefault(key, {})
     cfg[key]["offset_c"] = round(offset, 3)
+    # When clearing (offset=0), also remove two-point and pending fields
+    if offset == 0:
+        cfg[key].pop("cal_slope", None)
+        cfg[key].pop("cal_intercept", None)
+        cfg[key].pop("cal_pending_low", None)
+        cfg[key].pop("cal_pending_high", None)
     try:
         _write_zone_cfg(cfg)
     except Exception as e:
@@ -1091,6 +1097,133 @@ def api_calibrate_tc_from_reference(zone):
         "reference_c":  ref,
         "raw_c":        round(raw_value, 2),
         "offset_c":     cfg[key]["offset_c"],
+    }), 200
+
+
+@app.route("/api/tc-calibration/<int:zone>/two-point", methods=["POST"])
+def api_calibrate_tc_two_point(zone):
+    """Two-point linear calibration. Body: {low_ref_c, low_raw_c, high_ref_c, high_raw_c}."""
+    if not (1 <= zone <= 6):
+        return jsonify({"error": "zone must be 1..6"}), 400
+    body = request.get_json(force=True, silent=True) or {}
+
+    # Extract and validate all four floats
+    try:
+        low_ref  = float(body["low_ref_c"])
+        low_raw  = float(body["low_raw_c"])
+        high_ref = float(body["high_ref_c"])
+        high_raw = float(body["high_raw_c"])
+    except (KeyError, TypeError, ValueError) as e:
+        return jsonify({"error": f"all four fields required as numbers: low_ref_c, low_raw_c, high_ref_c, high_raw_c ({e})"}), 400
+
+    # NaN guard
+    for name, val in [("low_ref_c", low_ref), ("low_raw_c", low_raw),
+                      ("high_ref_c", high_ref), ("high_raw_c", high_raw)]:
+        if val != val:
+            return jsonify({"error": f"{name} must be finite"}), 400
+
+    # Sanity checks
+    if high_raw == low_raw:
+        return jsonify({"error": "high_raw_c and low_raw_c must differ (division by zero)"}), 400
+    if high_ref <= low_ref:
+        return jsonify({"error": "high_ref_c must be greater than low_ref_c"}), 400
+
+    slope     = (high_ref - low_ref) / (high_raw - low_raw)
+    intercept = low_ref - slope * low_raw
+
+    # Slope sanity: must be 0.8–1.2
+    if not (0.8 <= slope <= 1.2):
+        return jsonify({
+            "error": f"computed slope {slope:.4f} is outside 0.8–1.2 — "
+                     f"check your reference temperatures or probe"
+        }), 400
+
+    cfg = _read_zone_cfg()
+    key = f"zone{zone}"
+    cfg.setdefault(key, {})
+    cfg[key]["cal_slope"]     = round(slope, 6)
+    cfg[key]["cal_intercept"] = round(intercept, 4)
+    # Clear legacy offset and pending points
+    cfg[key].pop("offset_c", None)
+    cfg[key].pop("cal_pending_low", None)
+    cfg[key].pop("cal_pending_high", None)
+    try:
+        _write_zone_cfg(cfg)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({
+        "zone":          zone,
+        "cal_slope":     cfg[key]["cal_slope"],
+        "cal_intercept": cfg[key]["cal_intercept"],
+        "low_ref_c":     low_ref,
+        "low_raw_c":     low_raw,
+        "high_ref_c":    high_ref,
+        "high_raw_c":    high_raw,
+    }), 200
+
+
+@app.route("/api/tc-calibration/<int:zone>/record-point", methods=["POST"])
+def api_record_cal_point(zone):
+    """Record one calibration point. Body: {reference_c: <float>, label: 'low'|'high'}."""
+    if not (1 <= zone <= 6):
+        return jsonify({"error": "zone must be 1..6"}), 400
+    body = request.get_json(force=True, silent=True) or {}
+    label = body.get("label")
+    if label not in ("low", "high"):
+        return jsonify({"error": "label must be 'low' or 'high'"}), 400
+    try:
+        ref = float(body["reference_c"])
+    except (KeyError, TypeError, ValueError):
+        return jsonify({"error": "reference_c must be a number"}), 400
+    if ref != ref:
+        return jsonify({"error": "reference_c must be finite"}), 400
+    if not (-50.0 <= ref <= 200.0):
+        return jsonify({"error": "reference_c must be between -50 and 200"}), 400
+
+    # Read the current corrected TC value and undo any existing calibration
+    # to get the true raw reading.
+    current = _latest_sensor_value(f"thermocouples.TC{zone}")
+    if current is None:
+        return jsonify({"error": "no current TC reading — is the sensor loop running?"}), 503
+
+    cfg = _read_zone_cfg()
+    key = f"zone{zone}"
+    zcfg = cfg.get(key, {})
+
+    # Undo existing calibration to recover raw value
+    cal_slope     = zcfg.get("cal_slope")
+    cal_intercept = zcfg.get("cal_intercept")
+    corrected = float(current)
+    if cal_slope is not None and cal_intercept is not None:
+        try:
+            s = float(cal_slope)
+            i = float(cal_intercept)
+            if s != 0:
+                raw_c = (corrected - i) / s
+            else:
+                raw_c = corrected
+        except (TypeError, ValueError):
+            raw_c = corrected
+    else:
+        existing_offset = float(zcfg.get("offset_c") or 0.0)
+        raw_c = corrected + existing_offset
+
+    cfg.setdefault(key, {})
+    cfg[key][f"cal_pending_{label}"] = {
+        "raw_c": round(raw_c, 4),
+        "ref_c": round(ref, 2),
+    }
+    try:
+        _write_zone_cfg(cfg)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({
+        "zone":  zone,
+        "label": label,
+        "raw_c": round(raw_c, 4),
+        "ref_c": round(ref, 2),
     }), 200
 
 

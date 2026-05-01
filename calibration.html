@@ -14,7 +14,7 @@
              border-radius: var(--r-lg); padding: 1rem 1.1rem; margin-bottom: 1rem; }
 
     .btn { padding: .35rem .7rem; border: none; border-radius: var(--r-sm); cursor: pointer;
-           font-size: .78rem; font-weight: 600; }
+           font-size: .78rem; font-weight: 600; min-height: 44px; min-width: 44px; }
     .btn-primary   { background: var(--color-brand); color: #fff; }
     .btn-primary:hover { background: var(--color-brand-hover); }
     .btn-secondary { background: var(--color-bg-tinted); color: var(--color-text-1); }
@@ -29,25 +29,23 @@
     .cal-table td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
     .cal-table input[type=number] { width: 70px; padding: .25rem .35rem; background: var(--color-bg);
                                     border: 1px solid var(--color-border); border-radius: var(--r-sm);
-                                    color: var(--color-text-1); font-size: .82rem; text-align: right; }
+                                    color: var(--color-text-1); font-size: .82rem; text-align: right;
+                                    min-height: 44px; }
     .cal-table input[type=number]:focus { outline: none; border-color: var(--color-brand); }
     .cal-table .row-actions { display: flex; gap: .35rem; align-items: center; flex-wrap: wrap; }
 
-    .col-zone   { width: 70px; }
+    .col-zone   { width: 55px; }
     .col-temp   { width: 110px; }
-    .col-offset { width: 90px; }
-    .col-input  { width: 110px; }
+    .col-status { }
     .col-action { width: 1%; }
 
     .status-msg { font-size: .78rem; min-height: 1.1em; }
     .status-ok  { color: var(--color-success); }
     .status-err { color: var(--color-critical); }
 
-    .preset-row { display: flex; gap: .35rem; flex-wrap: wrap; margin-top: .6rem; font-size: .78rem;
-                  color: var(--color-text-3); align-items: center; }
     .preset-btn { padding: .2rem .45rem; font-size: .73rem; background: var(--color-bg-tinted);
                   color: var(--color-text-2); border: 1px solid var(--color-border); border-radius: var(--r-sm);
-                  cursor: pointer; }
+                  cursor: pointer; min-height: 44px; }
     .preset-btn:hover { background: var(--color-bg-subtle); color: var(--color-text-1); }
 
     .panel-help { font-size: .78rem; color: var(--color-text-3); margin: 0 0 .6rem; line-height: 1.45; }
@@ -72,6 +70,30 @@
     .conn-pill.conn-down::before { animation: conn-blink 1s steps(2) infinite; }
     @keyframes conn-blink { 50% { opacity: .25; } }
     .cal-page.is-stale .cal-table tbody { opacity: .55; transition: opacity .2s; }
+
+    /* ── Two-point calibration inline workflow ─────────────────────────── */
+    .cal-inline { background: var(--color-bg-subtle); border: 1px solid var(--color-border);
+                  border-radius: var(--r-sm); padding: .75rem 1rem; margin: .35rem 0; }
+    .cal-inline td { border-bottom: none; }
+    .cal-step { margin-bottom: .6rem; }
+    .cal-step:last-child { margin-bottom: 0; }
+    .cal-step-label { font-weight: 600; font-size: .8rem; color: var(--color-text-2); margin-bottom: .3rem; }
+    .cal-step-row { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+    .cal-step-recorded { font-size: .78rem; color: var(--color-success); margin-top: .25rem; }
+    .cal-preview { font-size: .78rem; color: var(--color-text-2); margin-top: .5rem;
+                   padding: .5rem .65rem; background: var(--color-surface);
+                   border: 1px solid var(--color-border); border-radius: var(--r-sm); }
+    .cal-preview-line { margin: .15rem 0; }
+    .cal-preview-actions { display: flex; gap: .4rem; margin-top: .5rem; }
+    .cal-presets { display: flex; gap: .25rem; align-items: center; }
+    .cal-presets span { font-size: .72rem; color: var(--color-text-3); }
+
+    /* ── Quick Cal inline ──────────────────────────────────────────────── */
+    .quick-cal-inline { background: var(--color-bg-subtle); border: 1px solid var(--color-border);
+                        border-radius: var(--r-sm); padding: .75rem 1rem; margin: .35rem 0; }
+    .quick-cal-row { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+    .quick-cal-presets { display: flex; gap: .25rem; align-items: center; margin-top: .4rem; }
+    .quick-cal-presets span { font-size: .72rem; color: var(--color-text-3); }
 
     html, body { overflow: auto !important; }
     .page-wrapper { height: auto !important; }
@@ -105,32 +127,21 @@
     <div class="panel">
       <h2>Temperature Probes</h2>
       <p class="panel-help">
-        Place the probe in a known reference (ice bath = 0&deg;C, boiling water at sea level &asymp; 100&deg;C, or another trusted thermometer),
-        wait for the reading to stabilise, type the reference temperature, and click <b>Calibrate</b>.
-        The offset is constrained to &plusmn;5&deg;C — anything larger usually means a wiring or probe issue rather than calibration drift.
+        <b>2-Point Cal</b> (recommended): record two reference temperatures (e.g. ice bath 0&deg;C and hot water 50&deg;C) for a linear correction.
+        <b>Quick Cal</b>: single-point offset using one reference. Both methods auto-apply — no service restart needed.
       </p>
       <table class="cal-table" id="tc-table">
         <thead>
           <tr>
             <th class="col-zone">Zone</th>
             <th class="col-temp">Live Reading</th>
-            <th class="col-offset">Current Offset</th>
-            <th class="col-input">Reference (&deg;C)</th>
-            <th class="col-input">Manual Offset</th>
+            <th class="col-status">Calibration Status</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody id="tc-tbody"></tbody>
       </table>
       <div class="status-msg" id="tc-status"></div>
-      <div class="preset-row">
-        Quick reference temps:
-        <button type="button" class="preset-btn" data-tc-preset="0">Ice 0&deg;C</button>
-        <button type="button" class="preset-btn" data-tc-preset="100">Boiling 100&deg;C</button>
-        <button type="button" class="preset-btn" data-tc-preset="20">Room 20&deg;C</button>
-        <button type="button" class="preset-btn" data-tc-preset="37">Body 37&deg;C</button>
-        <span style="color:var(--color-text-3);font-size:.72rem">— click to fill all empty Reference inputs.</span>
-      </div>
     </div>
 
     <!-- ── Load Cells ──────────────────────────────────────── -->
@@ -165,21 +176,27 @@
   'use strict';
 
   var POLL_MS = 2000;
-  var FAIL_THRESHOLD = 2;   // consecutive failed polls before showing "Reconnecting…"
+  var FAIL_THRESHOLD = 2;
 
   // ── State ─────────────────────────────────────────────────────────────────
-  var _zoneCfg    = {};   // mirror of zone_config.json
-  var _scaleCfg   = {};   // mirror of scale_config.json
-  var _latest     = {};   // mirror of /api/latest
+  var _zoneCfg    = {};
+  var _scaleCfg   = {};
+  var _latest     = {};
   var _inFlight   = false;
   var _failCount  = 0;
   var _connState  = '';
+  var _openPanel  = {};  // zone -> 'two-point' | 'quick' | null
+
+  // Client-side pending state (mirrors server cal_pending_* but also tracks
+  // in-progress workflow before Apply is clicked).
+  var _pending = {};  // zone -> { low: {raw_c, ref_c} | null, high: {raw_c, ref_c} | null }
 
   // ── DOM helpers ───────────────────────────────────────────────────────────
   function el(tag, opts) {
     var e = document.createElement(tag);
     if (!opts) return e;
     if (opts.text)   e.textContent = opts.text;
+    if (opts.html)   e.innerHTML = opts.html;
     if (opts.cls)    e.className = opts.cls;
     if (opts.attrs)  Object.keys(opts.attrs).forEach(function (k) { e.setAttribute(k, opts.attrs[k]); });
     return e;
@@ -199,40 +216,217 @@
     return n.toFixed(digits != null ? digits : 1);
   }
 
-  // ── Build TC rows once, keep them and update text in place ────────────────
+  // ── Calibration status text ──────────────────────────────────────────────
+  function calStatusText(zone) {
+    var zcfg = _zoneCfg['zone' + zone] || {};
+    var slope = zcfg.cal_slope;
+    var intercept = zcfg.cal_intercept;
+    var offset = zcfg.offset_c;
+    var pendLow = zcfg.cal_pending_low;
+    var pendHigh = zcfg.cal_pending_high;
+
+    if (slope != null && intercept != null) {
+      return '2-point: slope ' + Number(slope).toFixed(4) + ', intercept ' +
+             (intercept >= 0 ? '+' : '') + Number(intercept).toFixed(2) + '°C';
+    }
+    if (offset != null && offset !== 0) {
+      return '1-point: offset ' + (offset >= 0 ? '+' : '') + Number(offset).toFixed(2) + '°C';
+    }
+    if (pendLow && !pendHigh) {
+      return 'Point 1 recorded (' + Number(pendLow.ref_c).toFixed(1) + '°C)';
+    }
+    if (pendHigh && !pendLow) {
+      return 'Point 2 recorded (' + Number(pendHigh.ref_c).toFixed(1) + '°C)';
+    }
+    if (pendLow && pendHigh) {
+      return 'Both points recorded — ready to apply';
+    }
+    return 'Uncalibrated';
+  }
+
+  // ── Build TC rows ────────────────────────────────────────────────────────
   function buildTcRows() {
     var tbody = document.getElementById('tc-tbody');
     tbody.innerHTML = '';
     for (var z = 1; z <= 6; z++) {
       var tr = el('tr', { attrs: { 'data-zone': String(z) } });
 
-      var tdZone = el('td', { cls: 'num', text: 'Z' + z }); tr.appendChild(tdZone);
-      var tdTemp = el('td', { cls: 'num', attrs: { 'data-role': 'temp' }, text: '—' }); tr.appendChild(tdTemp);
-      var tdOff  = el('td', { cls: 'num', attrs: { 'data-role': 'offset' }, text: '—' }); tr.appendChild(tdOff);
-
-      var tdRef = el('td');
-      var refInp = el('input', { attrs: { type: 'number', step: '0.1', min: '-50', max: '200',
-                                          'data-role': 'ref' } });
-      tdRef.appendChild(refInp); tr.appendChild(tdRef);
-
-      var tdMan = el('td');
-      var manInp = el('input', { attrs: { type: 'number', step: '0.1', min: '-5', max: '5',
-                                          'data-role': 'manual' } });
-      tdMan.appendChild(manInp); tr.appendChild(tdMan);
+      tr.appendChild(el('td', { cls: 'num', text: 'Z' + z }));
+      tr.appendChild(el('td', { cls: 'num', attrs: { 'data-role': 'temp' }, text: '—' }));
+      tr.appendChild(el('td', { attrs: { 'data-role': 'cal-status' }, text: 'Uncalibrated' }));
 
       var tdAct = el('td');
       var actDiv = el('div', { cls: 'row-actions' });
-      var calBtn  = el('button', { cls: 'btn btn-primary',   text: 'Calibrate', attrs: { type: 'button', 'data-role': 'calibrate' } });
-      var setBtn  = el('button', { cls: 'btn btn-secondary', text: 'Apply',     attrs: { type: 'button', 'data-role': 'apply' } });
-      var clrBtn  = el('button', { cls: 'btn btn-secondary', text: 'Clear',     attrs: { type: 'button', 'data-role': 'clear' } });
-      actDiv.appendChild(calBtn); actDiv.appendChild(setBtn); actDiv.appendChild(clrBtn);
-      tdAct.appendChild(actDiv); tr.appendChild(tdAct);
-
+      actDiv.appendChild(el('button', { cls: 'btn btn-primary', text: '2-Point Cal',
+        attrs: { type: 'button', 'data-role': 'open-two-point' } }));
+      actDiv.appendChild(el('button', { cls: 'btn btn-secondary', text: 'Quick Cal',
+        attrs: { type: 'button', 'data-role': 'open-quick' } }));
+      actDiv.appendChild(el('button', { cls: 'btn btn-secondary', text: 'Clear',
+        attrs: { type: 'button', 'data-role': 'clear' } }));
+      tdAct.appendChild(actDiv);
+      tr.appendChild(tdAct);
       tbody.appendChild(tr);
+
+      // Inline workflow row (hidden by default)
+      var inlineTr = el('tr', { attrs: { 'data-zone-inline': String(z) } });
+      inlineTr.style.display = 'none';
+      var inlineTd = el('td', { attrs: { colspan: '4' } });
+      inlineTd.appendChild(el('div', { attrs: { id: 'inline-' + z } }));
+      inlineTr.appendChild(inlineTd);
+      tbody.appendChild(inlineTr);
+
+      _pending[z] = { low: null, high: null };
     }
     tbody.addEventListener('click', onTcClick);
   }
 
+  // ── Render two-point inline workflow ─────────────────────────────────────
+  function renderTwoPointInline(zone) {
+    var container = document.getElementById('inline-' + zone);
+    if (!container) return;
+    var p = _pending[zone] || { low: null, high: null };
+    // Also load from server state if we have no local pending
+    var zcfg = _zoneCfg['zone' + zone] || {};
+    if (!p.low && zcfg.cal_pending_low) p.low = zcfg.cal_pending_low;
+    if (!p.high && zcfg.cal_pending_high) p.high = zcfg.cal_pending_high;
+    _pending[zone] = p;
+
+    var html = '<div class="cal-inline">';
+
+    // Step 1: Low point
+    html += '<div class="cal-step">';
+    html += '<div class="cal-step-label">Step 1: Place probe in COLD reference</div>';
+    html += '<div class="cal-step-row">';
+    html += '<input type="number" step="0.1" min="-50" max="200" id="two-ref-low-' + zone + '" placeholder="Ref °C" style="width:80px">';
+    html += '<button type="button" class="btn btn-secondary" data-role="record-low">Record Low</button>';
+    html += '<div class="cal-presets"><span>Presets:</span>';
+    html += '<button type="button" class="preset-btn" data-fill-target="two-ref-low-' + zone + '" data-fill-val="0">Ice 0°C</button>';
+    html += '<button type="button" class="preset-btn" data-fill-target="two-ref-low-' + zone + '" data-fill-val="20">Room 20°C</button>';
+    html += '</div></div>';
+    if (p.low) {
+      html += '<div class="cal-step-recorded">✓ Recorded: raw ' +
+              Number(p.low.raw_c).toFixed(2) + '°C → ref ' +
+              Number(p.low.ref_c).toFixed(1) + '°C</div>';
+    }
+    html += '</div>';
+
+    // Step 2: High point
+    html += '<div class="cal-step">';
+    html += '<div class="cal-step-label">Step 2: Place probe in HOT reference</div>';
+    html += '<div class="cal-step-row">';
+    html += '<input type="number" step="0.1" min="-50" max="200" id="two-ref-high-' + zone + '" placeholder="Ref °C" style="width:80px">';
+    html += '<button type="button" class="btn btn-secondary" data-role="record-high">Record High</button>';
+    html += '<div class="cal-presets"><span>Presets:</span>';
+    html += '<button type="button" class="preset-btn" data-fill-target="two-ref-high-' + zone + '" data-fill-val="50">50°C</button>';
+    html += '<button type="button" class="preset-btn" data-fill-target="two-ref-high-' + zone + '" data-fill-val="100">Boiling 100°C</button>';
+    html += '</div></div>';
+    if (p.high) {
+      html += '<div class="cal-step-recorded">✓ Recorded: raw ' +
+              Number(p.high.raw_c).toFixed(2) + '°C → ref ' +
+              Number(p.high.ref_c).toFixed(1) + '°C</div>';
+    }
+    html += '</div>';
+
+    // Preview + Apply (only when both points recorded)
+    if (p.low && p.high && p.high.raw_c !== p.low.raw_c) {
+      var slope = (p.high.ref_c - p.low.ref_c) / (p.high.raw_c - p.low.raw_c);
+      var intercept = p.low.ref_c - slope * p.low.raw_c;
+      var at0   = (slope * 0 + intercept).toFixed(1);
+      var at50  = (slope * 50 + intercept).toFixed(1);
+      var at100 = (slope * 100 + intercept).toFixed(1);
+      html += '<div class="cal-preview">';
+      html += '<div class="cal-preview-line"><b>Preview:</b> slope = ' + slope.toFixed(4) +
+              ', intercept = ' + (intercept >= 0 ? '+' : '') + intercept.toFixed(2) + '°C</div>';
+      html += '<div class="cal-preview-line">At 0°C: reads ' + at0 +
+              '°C &nbsp;|&nbsp; At 50°C: reads ' + at50 +
+              '°C &nbsp;|&nbsp; At 100°C: reads ' + at100 + '°C</div>';
+      if (slope < 0.8 || slope > 1.2) {
+        html += '<div class="cal-preview-line status-err">Slope outside 0.8–1.2 — check references</div>';
+      }
+      html += '<div class="cal-preview-actions">';
+      html += '<button type="button" class="btn btn-primary" data-role="apply-two-point"' +
+              (slope < 0.8 || slope > 1.2 ? ' disabled' : '') + '>Apply Calibration</button>';
+      html += '<button type="button" class="btn btn-secondary" data-role="cancel-two-point">Cancel</button>';
+      html += '</div></div>';
+    } else {
+      html += '<div class="cal-preview-actions" style="margin-top:.5rem">';
+      html += '<button type="button" class="btn btn-secondary" data-role="cancel-two-point">Cancel</button>';
+      html += '</div>';
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+
+    // Wire up preset fill buttons inside the inline panel
+    container.querySelectorAll('[data-fill-target]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var target = document.getElementById(btn.getAttribute('data-fill-target'));
+        if (target) target.value = btn.getAttribute('data-fill-val');
+      });
+    });
+  }
+
+  // ── Render quick cal inline ──────────────────────────────────────────────
+  function renderQuickInline(zone) {
+    var container = document.getElementById('inline-' + zone);
+    if (!container) return;
+
+    var html = '<div class="quick-cal-inline">';
+    html += '<div class="cal-step-label">Quick Cal: enter reference temperature</div>';
+    html += '<div class="quick-cal-row">';
+    html += '<input type="number" step="0.1" min="-50" max="200" id="quick-ref-' + zone + '" placeholder="Ref °C" style="width:80px">';
+    html += '<button type="button" class="btn btn-primary" data-role="quick-calibrate">Calibrate</button>';
+    html += '<button type="button" class="btn btn-secondary" data-role="cancel-quick">Cancel</button>';
+    html += '</div>';
+    html += '<div class="quick-cal-presets"><span>Presets:</span>';
+    html += '<button type="button" class="preset-btn" data-fill-target="quick-ref-' + zone + '" data-fill-val="0">Ice 0°C</button>';
+    html += '<button type="button" class="preset-btn" data-fill-target="quick-ref-' + zone + '" data-fill-val="100">Boiling 100°C</button>';
+    html += '<button type="button" class="preset-btn" data-fill-target="quick-ref-' + zone + '" data-fill-val="20">Room 20°C</button>';
+    html += '<button type="button" class="preset-btn" data-fill-target="quick-ref-' + zone + '" data-fill-val="37">Body 37°C</button>';
+    html += '</div></div>';
+
+    container.innerHTML = html;
+
+    container.querySelectorAll('[data-fill-target]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var target = document.getElementById(btn.getAttribute('data-fill-target'));
+        if (target) target.value = btn.getAttribute('data-fill-val');
+      });
+    });
+  }
+
+  // ── Show / hide inline panel ─────────────────────────────────────────────
+  function toggleInline(zone, mode) {
+    var inlineRow = document.querySelector('tr[data-zone-inline="' + zone + '"]');
+    if (!inlineRow) return;
+
+    // Close any other open panels
+    for (var z = 1; z <= 6; z++) {
+      if (z !== zone && _openPanel[z]) {
+        var otherRow = document.querySelector('tr[data-zone-inline="' + z + '"]');
+        if (otherRow) otherRow.style.display = 'none';
+        _openPanel[z] = null;
+      }
+    }
+
+    if (_openPanel[zone] === mode) {
+      // Toggle off
+      inlineRow.style.display = 'none';
+      _openPanel[zone] = null;
+      return;
+    }
+
+    _openPanel[zone] = mode;
+    inlineRow.style.display = '';
+
+    if (mode === 'two-point') {
+      renderTwoPointInline(zone);
+    } else if (mode === 'quick') {
+      renderQuickInline(zone);
+    }
+  }
+
+  // ── Build scale rows (unchanged) ─────────────────────────────────────────
   function buildScaleRows() {
     var tbody = document.getElementById('scale-tbody');
     tbody.innerHTML = '';
@@ -251,9 +445,10 @@
 
       var tdAct = el('td');
       var actDiv = el('div', { cls: 'row-actions' });
-      var tareBtn = el('button', { cls: 'btn btn-secondary', text: 'Tare',      attrs: { type: 'button', 'data-role': 'tare' } });
-      var calBtn  = el('button', { cls: 'btn btn-primary',   text: 'Calibrate', attrs: { type: 'button', 'data-role': 'calibrate' } });
-      actDiv.appendChild(tareBtn); actDiv.appendChild(calBtn);
+      actDiv.appendChild(el('button', { cls: 'btn btn-secondary', text: 'Tare',
+        attrs: { type: 'button', 'data-role': 'tare' } }));
+      actDiv.appendChild(el('button', { cls: 'btn btn-primary', text: 'Calibrate',
+        attrs: { type: 'button', 'data-role': 'calibrate' } }));
       tdAct.appendChild(actDiv); tr.appendChild(tdAct);
 
       tbody.appendChild(tr);
@@ -261,15 +456,20 @@
     tbody.addEventListener('click', onScaleClick);
   }
 
-  // ── Render live values into existing rows ─────────────────────────────────
+  // ── Render live values ────────────────────────────────────────────────────
   function renderTc() {
     for (var z = 1; z <= 6; z++) {
       var row = document.querySelector('tr[data-zone="' + z + '"]');
       if (!row) continue;
       var live = _latest['tc' + z];
-      var off  = ((_zoneCfg['zone' + z] || {}).offset_c);
-      row.querySelector('[data-role="temp"]').textContent   = fmtNum(live, 2) + (live != null ? ' °C' : '');
-      row.querySelector('[data-role="offset"]').textContent = (off != null ? (off >= 0 ? '+' : '') + fmtNum(off, 2) + ' °C' : '0.00 °C');
+      row.querySelector('[data-role="temp"]').textContent =
+        fmtNum(live, 2) + (live != null ? ' °C' : '');
+      row.querySelector('[data-role="cal-status"]').textContent = calStatusText(z);
+
+      // Re-render inline panel if open (to update pending state from server)
+      if (_openPanel[z] === 'two-point') {
+        renderTwoPointInline(z);
+      }
     }
   }
 
@@ -287,7 +487,6 @@
       row.querySelector('[data-role="tare"]').textContent = fmtNum(sc.tare_offset, 0);
       row.querySelector('[data-role="fact"]').textContent = fmtNum(sc.calibration_factor, 2);
 
-      // Disable buttons when not wired
       Array.prototype.forEach.call(row.querySelectorAll('button'), function (b) { b.disabled = notWired; });
       var inp = row.querySelector('input[data-role="known"]'); if (inp) inp.disabled = notWired;
     }
@@ -317,7 +516,7 @@
   }
 
   function refresh() {
-    if (_inFlight) return;        // guard against overlapping polls on slow links
+    if (_inFlight) return;
     _inFlight = true;
     Promise.all([
       fetchJson('/api/latest'),
@@ -344,55 +543,160 @@
     var btn = ev.target.closest('button');
     if (!btn) return;
     var row = btn.closest('tr');
-    var zone = parseInt(row.getAttribute('data-zone'), 10);
+    var zone = parseInt(row.getAttribute('data-zone') || row.getAttribute('data-zone-inline'), 10);
+    if (!zone) {
+      // May be inside inline row — walk up
+      var inlineRow = btn.closest('tr[data-zone-inline]');
+      if (inlineRow) zone = parseInt(inlineRow.getAttribute('data-zone-inline'), 10);
+    }
+    if (!zone) return;
+
     var role = btn.getAttribute('data-role');
 
-    if (role === 'calibrate') {
-      var refInp = row.querySelector('input[data-role="ref"]');
-      var ref = parseFloat(refInp.value);
-      if (!isFinite(ref)) { setStatus('tc-status', 'Z' + zone + ': enter a reference temp first', false); return; }
+    // ── Open panels ──────────────────────────────────────────────────────
+    if (role === 'open-two-point') {
+      _pending[zone] = { low: null, high: null };
+      // Load any existing pending from server config
+      var zcfg = _zoneCfg['zone' + zone] || {};
+      if (zcfg.cal_pending_low)  _pending[zone].low  = zcfg.cal_pending_low;
+      if (zcfg.cal_pending_high) _pending[zone].high = zcfg.cal_pending_high;
+      toggleInline(zone, 'two-point');
+      return;
+    }
+    if (role === 'open-quick') {
+      toggleInline(zone, 'quick');
+      return;
+    }
+
+    // ── Record low point ─────────────────────────────────────────────────
+    if (role === 'record-low' || role === 'record-high') {
+      var label = role === 'record-low' ? 'low' : 'high';
+      var inputId = role === 'record-low' ? 'two-ref-low-' + zone : 'two-ref-high-' + zone;
+      var refInp = document.getElementById(inputId);
+      var ref = refInp ? parseFloat(refInp.value) : NaN;
+      if (!isFinite(ref)) {
+        setStatus('tc-status', 'Z' + zone + ': enter a reference temperature first', false);
+        return;
+      }
+      btn.disabled = true;
+      fetch('/api/tc-calibration/' + zone + '/record-point', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reference_c: ref, label: label })
+      }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, body: d }; }); })
+        .then(function (res) {
+          btn.disabled = false;
+          if (!res.ok) {
+            setStatus('tc-status', 'Z' + zone + ': ' + (res.body.error || 'failed'), false);
+            return;
+          }
+          _pending[zone][label] = { raw_c: res.body.raw_c, ref_c: res.body.ref_c };
+          setStatus('tc-status',
+            'Z' + zone + ' ' + label + ' point recorded: raw ' +
+            res.body.raw_c.toFixed(2) + '°C → ref ' + res.body.ref_c.toFixed(1) + '°C',
+            true);
+          renderTwoPointInline(zone);
+          refresh();
+        }).catch(function () {
+          btn.disabled = false;
+          setStatus('tc-status', 'Z' + zone + ': network error', false);
+        });
+      return;
+    }
+
+    // ── Apply two-point calibration ──────────────────────────────────────
+    if (role === 'apply-two-point') {
+      var p = _pending[zone];
+      if (!p || !p.low || !p.high) return;
+      btn.disabled = true;
+      fetch('/api/tc-calibration/' + zone + '/two-point', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          low_ref_c:  p.low.ref_c,
+          low_raw_c:  p.low.raw_c,
+          high_ref_c: p.high.ref_c,
+          high_raw_c: p.high.raw_c
+        })
+      }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, body: d }; }); })
+        .then(function (res) {
+          btn.disabled = false;
+          if (!res.ok) {
+            setStatus('tc-status', 'Z' + zone + ': ' + (res.body.error || 'failed'), false);
+            return;
+          }
+          _pending[zone] = { low: null, high: null };
+          toggleInline(zone, 'two-point');  // close panel
+          setStatus('tc-status',
+            'Z' + zone + ' two-point cal applied: slope ' +
+            res.body.cal_slope.toFixed(4) + ', intercept ' +
+            (res.body.cal_intercept >= 0 ? '+' : '') + res.body.cal_intercept.toFixed(2) + '°C',
+            true);
+          refresh();
+        }).catch(function () {
+          btn.disabled = false;
+          setStatus('tc-status', 'Z' + zone + ': network error', false);
+        });
+      return;
+    }
+
+    // ── Cancel two-point ─────────────────────────────────────────────────
+    if (role === 'cancel-two-point') {
+      _pending[zone] = { low: null, high: null };
+      toggleInline(zone, 'two-point');  // toggles off since already open
+      return;
+    }
+
+    // ── Quick calibrate ──────────────────────────────────────────────────
+    if (role === 'quick-calibrate') {
+      var qInp = document.getElementById('quick-ref-' + zone);
+      var qRef = qInp ? parseFloat(qInp.value) : NaN;
+      if (!isFinite(qRef)) {
+        setStatus('tc-status', 'Z' + zone + ': enter a reference temp first', false);
+        return;
+      }
       btn.disabled = true;
       fetch('/api/tc-calibration/' + zone + '/from-reference', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reference_c: ref })
+        body: JSON.stringify({ reference_c: qRef })
       }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, body: d }; }); })
         .then(function (res) {
           btn.disabled = false;
-          if (!res.ok) { setStatus('tc-status', 'Z' + zone + ': ' + (res.body.error || 'failed'), false); return; }
-          refInp.value = '';
+          if (!res.ok) {
+            setStatus('tc-status', 'Z' + zone + ': ' + (res.body.error || 'failed'), false);
+            return;
+          }
+          toggleInline(zone, 'quick');  // close panel
           setStatus('tc-status',
             'Z' + zone + ' calibrated: raw ' + res.body.raw_c.toFixed(2) +
             '°C → ref ' + res.body.reference_c.toFixed(2) +
-            '°C (offset ' + (res.body.offset_c >= 0 ? '+' : '') + res.body.offset_c.toFixed(2) + '°C)',
+            '°C (offset ' + (res.body.offset_c >= 0 ? '+' : '') +
+            res.body.offset_c.toFixed(2) + '°C)',
             true);
           refresh();
-        }).catch(function () { btn.disabled = false; setStatus('tc-status', 'Z' + zone + ': network error', false); });
-    }
-
-    else if (role === 'apply') {
-      var manInp = row.querySelector('input[data-role="manual"]');
-      var off = parseFloat(manInp.value);
-      if (!isFinite(off)) { setStatus('tc-status', 'Z' + zone + ': enter an offset first', false); return; }
-      btn.disabled = true;
-      fetch('/api/tc-calibration/' + zone, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ offset_c: off })
-      }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, body: d }; }); })
-        .then(function (res) {
+        }).catch(function () {
           btn.disabled = false;
-          if (!res.ok) { setStatus('tc-status', 'Z' + zone + ': ' + (res.body.error || 'failed'), false); return; }
-          manInp.value = '';
-          setStatus('tc-status',
-            'Z' + zone + ' offset set to ' + (res.body.offset_c >= 0 ? '+' : '') + res.body.offset_c.toFixed(2) + '°C',
-            true);
-          refresh();
-        }).catch(function () { btn.disabled = false; setStatus('tc-status', 'Z' + zone + ': network error', false); });
+          setStatus('tc-status', 'Z' + zone + ': network error', false);
+        });
+      return;
     }
 
-    else if (role === 'clear') {
+    // ── Cancel quick ─────────────────────────────────────────────────────
+    if (role === 'cancel-quick') {
+      toggleInline(zone, 'quick');
+      return;
+    }
+
+    // ── Clear calibration ────────────────────────────────────────────────
+    if (role === 'clear') {
       btn.disabled = true;
+      _pending[zone] = { low: null, high: null };
+      // Close any open inline panel for this zone
+      var inlineRow = document.querySelector('tr[data-zone-inline="' + zone + '"]');
+      if (inlineRow) inlineRow.style.display = 'none';
+      _openPanel[zone] = null;
+
       fetch('/api/tc-calibration/' + zone, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -400,14 +704,21 @@
       }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, body: d }; }); })
         .then(function (res) {
           btn.disabled = false;
-          if (!res.ok) { setStatus('tc-status', 'Z' + zone + ': ' + (res.body.error || 'failed'), false); return; }
-          setStatus('tc-status', 'Z' + zone + ' offset cleared', true);
+          if (!res.ok) {
+            setStatus('tc-status', 'Z' + zone + ': ' + (res.body.error || 'failed'), false);
+            return;
+          }
+          setStatus('tc-status', 'Z' + zone + ' calibration cleared', true);
           refresh();
-        }).catch(function () { btn.disabled = false; });
+        }).catch(function () {
+          btn.disabled = false;
+          setStatus('tc-status', 'Z' + zone + ': network error', false);
+        });
+      return;
     }
   }
 
-  // ── Scale actions ────────────────────────────────────────────────────────
+  // ── Scale actions (unchanged) ────────────────────────────────────────────
   function onScaleClick(ev) {
     var btn = ev.target.closest('button');
     if (!btn) return;
@@ -448,16 +759,6 @@
         }).catch(function () { btn.disabled = false; setStatus('scale-status', 'S' + sid + ': network error', false); });
     }
   }
-
-  // ── Reference-temp preset chips ──────────────────────────────────────────
-  document.querySelectorAll('[data-tc-preset]').forEach(function (b) {
-    b.addEventListener('click', function () {
-      var v = b.getAttribute('data-tc-preset');
-      document.querySelectorAll('#tc-tbody input[data-role="ref"]').forEach(function (inp) {
-        if (!inp.value) inp.value = v;
-      });
-    });
-  });
 
   // ── Init ────────────────────────────────────────────────────────────────
   buildTcRows();

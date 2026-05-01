@@ -154,26 +154,63 @@ def _zone_setpoint_override(zone):
     return float(v) if v is not None else None
 
 
-# Maximum permitted single-point offset on a thermocouple. Anything bigger
-# almost certainly indicates a wiring/probe issue, not a calibration error.
+# Two-point calibration sanity limits.
+# Slope must be within 20% of unity (0.8–1.2) — larger deviations indicate
+# a wiring/probe problem, not a calibration issue.
+TC_CAL_SLOPE_MIN = 0.8
+TC_CAL_SLOPE_MAX = 1.2
+# The correction at 50°C must not shift the reading by more than 10°C.
+TC_CAL_MAX_CORRECTION_AT_50 = 10.0
+# Legacy single-point offset cap (backward compat).
 TC_OFFSET_MAX_ABS_C = 5.0
 
 
-def _zone_tc_offset(zone):
-    """Return the per-zone calibration offset in °C (subtracted from raw TC reading)."""
+def _zone_tc_correct(zone, raw_c):
+    """Apply per-zone thermocouple calibration and return the corrected temperature.
+
+    Priority:
+      1. Two-point linear calibration (cal_slope + cal_intercept) — most accurate.
+      2. Legacy single-point offset (offset_c) — backward compatible fallback.
+      3. No calibration — returns raw_c unchanged.
+    """
     cfg = _load_zone_config()
-    v = cfg.get(f"zone{zone}", {}).get("offset_c")
+    zcfg = cfg.get(f"zone{zone}", {})
+
+    # ── Two-point calibration ───────────────────────────────────────────────
+    slope = zcfg.get("cal_slope")
+    intercept = zcfg.get("cal_intercept")
+    if slope is not None and intercept is not None:
+        try:
+            slope = float(slope)
+            intercept = float(intercept)
+        except (TypeError, ValueError):
+            slope = intercept = None
+        if slope is not None and intercept is not None:
+            # NaN guard
+            if slope != slope or intercept != intercept:
+                return raw_c
+            # Sanity: slope must be 0.8–1.2
+            if not (TC_CAL_SLOPE_MIN <= slope <= TC_CAL_SLOPE_MAX):
+                return raw_c
+            corrected = slope * raw_c + intercept
+            # Sanity: correction at 50°C must not exceed ±10°C
+            if abs((slope * 50.0 + intercept) - 50.0) > TC_CAL_MAX_CORRECTION_AT_50:
+                return raw_c
+            return corrected
+
+    # ── Legacy single-point offset fallback ─────────────────────────────────
+    v = zcfg.get("offset_c")
     if v is None:
-        return 0.0
+        return raw_c
     try:
         v = float(v)
     except (TypeError, ValueError):
-        return 0.0
+        return raw_c
     if v != v:  # NaN guard
-        return 0.0
+        return raw_c
     if abs(v) > TC_OFFSET_MAX_ABS_C:
-        return 0.0
-    return v
+        return raw_c
+    return raw_c - v
 
 
 def _classify_alarm(actual, setpoint, tolerance):
@@ -726,13 +763,12 @@ def start_sensor_loop():
                 except Exception as e:
                     print(f"[sensors] SHT30 read error: {e}")
 
-            # Read thermocouples (with per-zone calibration offset applied)
+            # Read thermocouples (with per-zone calibration applied)
             tc_readings = []
             for ch, d in assigned:
                 try:
-                    raw_c    = read_temp_c(d)
-                    offset_c = _zone_tc_offset(ch)
-                    temp_c   = raw_c - offset_c
+                    raw_c  = read_temp_c(d)
+                    temp_c = _zone_tc_correct(ch, raw_c)
                     tc_readings.append((ch, temp_c))
                 except Exception as e:
                     tc_readings.append((ch, None))
