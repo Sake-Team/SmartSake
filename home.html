@@ -360,6 +360,7 @@
             '<div class="run-row-actions">' +
               '<button class="btn btn-sm lock-btn' + (run.pinned ? ' lock-on' : '') + '">' + (run.pinned ? 'Locked' : 'Lock') + '</button>' +
               '<button class="btn btn-secondary btn-sm view-btn">View</button>' +
+              '<button class="btn btn-secondary btn-sm summary-btn">Summary</button>' +
               '<button class="btn btn-secondary btn-sm details-btn">Details</button>' +
               '<button class="btn btn-danger btn-sm delete-btn">Delete</button>' +
             '</div>';
@@ -367,6 +368,11 @@
           row.querySelector('.view-btn').onclick = function (e) {
             e.stopPropagation();
             location.href = 'dashboard.html?run=' + run.id + '&mode=replay';
+          };
+
+          row.querySelector('.summary-btn').onclick = function (e) {
+            e.stopPropagation();
+            location.href = 'summary.html?run=' + run.id;
           };
 
           row.querySelector('.details-btn').onclick = function (e) {

@@ -1034,6 +1034,51 @@ def get_completed_runs():
         return [dict(r) for r in rows]
 
 
+def get_run_summary(run_id):
+    """Return hourly temp stats per zone for a run.
+
+    Returns list of {hour, zones: {1: {min, max, avg}, ...}}.
+    Hour 0 = first hour of the run, etc.
+    """
+    with get_conn() as conn:
+        run = conn.execute("SELECT started_at FROM runs WHERE id=?", (run_id,)).fetchone()
+        if not run:
+            return []
+        rows = conn.execute("""
+            SELECT
+                CAST((julianday(recorded_at) - julianday(?)) * 24 AS INTEGER) AS hour,
+                MIN(tc1) AS min1, MAX(tc1) AS max1, AVG(tc1) AS avg1,
+                MIN(tc2) AS min2, MAX(tc2) AS max2, AVG(tc2) AS avg2,
+                MIN(tc3) AS min3, MAX(tc3) AS max3, AVG(tc3) AS avg3,
+                MIN(tc4) AS min4, MAX(tc4) AS max4, AVG(tc4) AS avg4,
+                MIN(tc5) AS min5, MAX(tc5) AS max5, AVG(tc5) AS avg5,
+                MIN(tc6) AS min6, MAX(tc6) AS max6, AVG(tc6) AS avg6
+            FROM sensor_readings
+            WHERE run_id = ?
+            GROUP BY hour
+            ORDER BY hour ASC
+        """, (run['started_at'], run_id)).fetchall()
+
+        result = []
+        for r in rows:
+            h = r['hour']
+            if h is None or h < 0:
+                continue
+            zones = {}
+            for z in range(1, 7):
+                mn = r[f'min{z}']
+                mx = r[f'max{z}']
+                av = r[f'avg{z}']
+                if mn is not None:
+                    zones[z] = {
+                        'min': round(mn, 1),
+                        'max': round(mx, 1),
+                        'avg': round(av, 1),
+                    }
+            result.append({'hour': h, 'zones': zones})
+        return result
+
+
 def get_weight_analytics(run_id):
     """Return weight analytics for run_id.
 

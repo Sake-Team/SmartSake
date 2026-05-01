@@ -745,6 +745,14 @@ def api_runs_completed():
     return jsonify(db.get_completed_runs())
 
 
+@app.route("/api/runs/<int:run_id>/summary", methods=["GET"])
+def api_run_summary(run_id):
+    """Hourly temp stats per zone for a completed run."""
+    if not db.get_run(run_id):
+        abort(404)
+    return jsonify(db.get_run_summary(run_id))
+
+
 @app.route("/api/runs/<int:run_id>/weight-analytics", methods=["GET"])
 def api_weight_analytics(run_id):
     run = db.get_run(run_id)
