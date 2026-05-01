@@ -3,6 +3,7 @@ import json
 import time
 import csv
 import os
+import shutil
 import signal
 import threading
 from datetime import datetime, timedelta
@@ -659,10 +660,15 @@ def start_sensor_loop():
         return
 
     _warned_unknown_ids = set()
+    _consecutive_failures = 0
+    _MAX_FAILURES_BEFORE_ALERT = 15
+    _SENSOR_STATUS_FILE = os.path.join(_BASE_DIR, "sensor_status.json")
+    _loop_iteration = 0
 
     print("[sensors] Entering read loop (2 s interval).")
     while True:
         try:
+            _loop_iteration += 1
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
             devices = discover_devices()
@@ -718,7 +724,11 @@ def start_sensor_loop():
             # DB write — only when a run is active
             active = sakedb.get_active_run()
             if active:
-                _active_run_id = active["id"]
+                new_id = active["id"]
+                if _active_run_id != new_id:
+                    _threshold_breach_start.clear()
+                    _deviation_tracking.clear()
+                _active_run_id = new_id
                 reading = {
                     "recorded_at": timestamp,
                     "sht_temp":  round(sht_temp,    2) if sht_temp    is not None else None,
@@ -756,8 +766,45 @@ def start_sensor_loop():
             else:
                 _active_run_id = None
 
+            # Disk space check every ~4 minutes (120 iterations at 2s)
+            if _loop_iteration % 120 == 0:
+                try:
+                    usage = shutil.disk_usage(_BASE_DIR)
+                    if usage.free < 100 * 1024 * 1024:  # 100 MB
+                        import json as _json
+                        status = {
+                            "status": "warning",
+                            "message": f"Low disk space: {usage.free // (1024 * 1024)} MB free",
+                            "free_mb": usage.free // (1024 * 1024),
+                            "last_check_at": datetime.now().isoformat(),
+                        }
+                        tmp = _SENSOR_STATUS_FILE + ".tmp"
+                        with open(tmp, "w") as sf:
+                            _json.dump(status, sf)
+                        os.replace(tmp, _SENSOR_STATUS_FILE)
+                except Exception:
+                    pass
+
+            _consecutive_failures = 0
+
         except Exception as e:
             print(f"[sensors] Unexpected loop error: {e}")
+            _consecutive_failures += 1
+            if _consecutive_failures >= _MAX_FAILURES_BEFORE_ALERT:
+                try:
+                    import json as _json
+                    status = {
+                        "status": "error",
+                        "message": str(e),
+                        "consecutive_failures": _consecutive_failures,
+                        "last_error_at": datetime.now().isoformat(),
+                    }
+                    tmp = _SENSOR_STATUS_FILE + ".tmp"
+                    with open(tmp, "w") as sf:
+                        _json.dump(status, sf)
+                    os.replace(tmp, _SENSOR_STATUS_FILE)
+                except Exception:
+                    pass
 
         time.sleep(2)
 

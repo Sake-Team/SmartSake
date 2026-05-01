@@ -17,11 +17,12 @@ from flask import Flask, jsonify, request, send_from_directory, abort
 import db
 import fan_gpio
 
-BASE_DIR          = os.path.dirname(os.path.abspath(__file__))
-SENSOR_JSON       = os.path.join(BASE_DIR, "sensor_latest.json")
-FAN_STATE_JSON    = os.path.join(BASE_DIR, "fan_state.json")
-ZONE_CONFIG_FILE  = os.path.join(BASE_DIR, "zone_config.json")
-SCALE_CONFIG_FILE = os.path.join(BASE_DIR, "scale_config.json")
+BASE_DIR            = os.path.dirname(os.path.abspath(__file__))
+SENSOR_JSON         = os.path.join(BASE_DIR, "sensor_latest.json")
+FAN_STATE_JSON      = os.path.join(BASE_DIR, "fan_state.json")
+ZONE_CONFIG_FILE    = os.path.join(BASE_DIR, "zone_config.json")
+SCALE_CONFIG_FILE   = os.path.join(BASE_DIR, "scale_config.json")
+SENSOR_STATUS_JSON  = os.path.join(BASE_DIR, "sensor_status.json")
 
 app = Flask(__name__, static_folder=BASE_DIR, static_url_path="")
 
@@ -149,12 +150,22 @@ def api_sensor_status():
 
     active_run = db.get_active_run()
 
+    # Read sensor_status.json (written by sensor loop on sustained failures / low disk)
+    loop_status = None
+    if os.path.exists(SENSOR_STATUS_JSON):
+        try:
+            with open(SENSOR_STATUS_JSON) as f:
+                loop_status = json.load(f)
+        except Exception:
+            pass
+
     return jsonify({
         "sensor_file_age_s":  sensor_age_s,
         "sensor_file_ts":     sensor_ts,
         "last_db_write_age_s": last_write_age,
         "active_run_id":      active_run_id,
         "active_run":         active_run["name"] if active_run else None,
+        "loop_status":        loop_status,
         "libs": {
             "thermocouples": tc_available,
             "hx711_scales":  hx_available,
@@ -301,10 +312,9 @@ def api_delete_run(run_id):
 def api_readings(run_id):
     if not db.get_run(run_id):
         abort(404)
-    n = request.args.get('n', type=int)
-    if n and n > 0:
-        return jsonify(db.get_readings_sampled(run_id, n))
-    return jsonify(db.get_all_readings(run_id))
+    n = request.args.get('n', 600, type=int)
+    n = max(1, min(n, 10000))
+    return jsonify(db.get_readings_sampled(run_id, n))
 
 
 @app.route("/api/runs/<int:run_id>/latest", methods=["GET"])

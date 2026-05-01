@@ -1,16 +1,32 @@
 import sqlite3
 import os
+import threading
 from datetime import datetime
 
 DB_FILE = os.path.join(os.path.dirname(__file__), "smartsake.db")
 
+_local = threading.local()
+
 
 def get_conn():
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA synchronous=NORMAL")
-    return conn
+    if not hasattr(_local, 'conn') or _local.conn is None:
+        conn = sqlite3.connect(str(DB_FILE), timeout=10)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        _local.conn = conn
+    return _local.conn
+
+
+def close_conn():
+    """Close this thread's cached connection (call on thread exit)."""
+    conn = getattr(_local, 'conn', None)
+    if conn:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        _local.conn = None
 
 
 def init_db():
@@ -381,18 +397,15 @@ def stream_readings(run_id):
     """Yield sensor_readings rows one at a time (cursor-based, no fetchall).
 
     Each yielded item is a sqlite3.Row.  Caller must iterate to completion
-    or the connection will be held open.
+    or the cursor will be held open.
     """
     conn = get_conn()
-    try:
-        cursor = conn.execute(
-            "SELECT * FROM sensor_readings WHERE run_id=? ORDER BY recorded_at ASC",
-            (run_id,)
-        )
-        for row in cursor:
-            yield row
-    finally:
-        conn.close()
+    cursor = conn.execute(
+        "SELECT * FROM sensor_readings WHERE run_id=? ORDER BY recorded_at ASC",
+        (run_id,)
+    )
+    for row in cursor:
+        yield row
 
 
 def get_room_history(hours, max_points=600):
