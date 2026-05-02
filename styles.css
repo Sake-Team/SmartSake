@@ -3,7 +3,8 @@
    Clean, consistent, Framer-inspired
    ============================================= */
 
- @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+/* Inter font loaded via <link> in HTML (non-blocking), not @import (render-blocking).
+   If Inter is unavailable (offline Pi), system-ui fallback is seamless. */
 
 /* ----- Custom Properties ----- */
 :root {
