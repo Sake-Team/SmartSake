@@ -44,9 +44,13 @@ except ImportError as _e:
 
 
 CSV_FILE = "sensor_data.csv"
-MAX_CSV_ROWS = 5760   # ~24 hrs at 15-second interval
+MAX_CSV_ROWS = 8640   # ~24 hrs at 10-second interval
 
-# Cached CSV line count — avoids re-reading the entire file on every 2s write.
+# ── Polling intervals ────────────────────────────────────────────────────────
+SENSOR_INTERVAL_S = 10   # TC + SHT30 + fan control + CSV/JSON/DB
+WEIGHT_INTERVAL_S = 30   # HX711 thread ADC read cycle
+
+# Cached CSV line count — avoids re-reading the entire file on every write.
 # Initialized from disk on first use, then incremented in memory.
 _csv_line_count = None
 
@@ -75,7 +79,7 @@ DEVIATION_THRESHOLD_C = 2.0
 DEVIATION_HOLD_MIN    = 10.0
 
 # ── TC noise filter ──────────────────────────────────────────────────────────
-TC_FILTER_WINDOW = 3          # rolling median over last 3 readings (~45s at 15s cycle)
+TC_FILTER_WINDOW = 3          # rolling median over last 3 readings (~30s at 10s cycle)
 _tc_history = {}              # {zone: deque(maxlen=TC_FILTER_WINDOW)}
 
 
@@ -92,7 +96,7 @@ def _tc_filtered(zone, raw_c):
 
 
 # ── Limit-switch fan-control constants ───────────────────────────────────────
-DEADBAND_HOLD       = 1          # ~15s at 15s cycle — protects relay life
+DEADBAND_HOLD       = 1          # ~10s at 10s cycle — protects relay life
 DEFAULT_TOLERANCE_C = 1.0
 
 _BASE_DIR        = os.path.dirname(os.path.abspath(__file__))
@@ -560,7 +564,7 @@ def _read_scale_cfg(scale_id):
         return None
 
 
-_HX711_LOG_EVERY = 60  # write scale JSON every 60th read (~30s at 0.5s sleep)
+_HX711_LOG_EVERY = 1   # write scale JSON every read (reads are every WEIGHT_INTERVAL_S)
 
 def run_hx711_thread(scale_id, hx_instance):
     cfg = _read_scale_cfg(scale_id)
@@ -608,7 +612,7 @@ def run_hx711_thread(scale_id, hx_instance):
             except Exception as e:
                 print(f"HX711 scale {scale_id} read error: {e}")
             _iter += 1
-            time.sleep(0.5)
+            time.sleep(WEIGHT_INTERVAL_S)
     except Exception as e:
         print(f"HX711 scale {scale_id} thread failed: {e} -- running without scale")
 
@@ -659,7 +663,9 @@ def write_csv(timestamp, sht_temp, sht_humidity, tc_readings):
 
 
 def write_json(timestamp, sht_temp, sht_humidity, tc_readings):
-    # Snapshot weight_state under lock to prevent torn reads
+    # Snapshot weight_state under lock to prevent torn reads.
+    # Weight threads update at WEIGHT_INTERVAL_S; between updates the
+    # last-known value is still the best we have, so always include it.
     with _weight_lock:
         ws = {sid: dict(v) for sid, v in weight_state.items()}
     data = {
@@ -768,7 +774,7 @@ def start_sensor_loop():
     _SENSOR_STATUS_FILE = os.path.join(_VOLATILE_DIR, "sensor_status.json")
     _loop_iteration = 0
 
-    print("[sensors] Entering read loop (15 s interval).")
+    print(f"[sensors] Entering read loop ({SENSOR_INTERVAL_S}s temp/fan, {WEIGHT_INTERVAL_S}s weight).")
     while True:
         try:
             _loop_iteration += 1
@@ -871,8 +877,8 @@ def start_sensor_loop():
             else:
                 _active_run_id = None
 
-            # Disk space check every ~4 minutes (16 iterations at 15s)
-            if _loop_iteration % 16 == 0:
+            # Disk space check every ~4 minutes (24 iterations at 10s)
+            if _loop_iteration % 24 == 0:
                 try:
                     usage = shutil.disk_usage(_BASE_DIR)
                     if usage.free < 100 * 1024 * 1024:  # 100 MB
@@ -911,7 +917,7 @@ def start_sensor_loop():
                 except Exception:
                     pass
 
-        time.sleep(15)
+        time.sleep(SENSOR_INTERVAL_S)
 
 
 if __name__ == "__main__":
