@@ -44,7 +44,6 @@ except ImportError as _e:
 
 
 CSV_FILE = "sensor_data.csv"
-JSON_FILE = "sensor_latest.json"
 MAX_CSV_ROWS = 43200  # ~24 hrs at 2-second interval
 
 # Cached CSV line count — avoids re-reading the entire file on every 2s write.
@@ -97,8 +96,14 @@ DEADBAND_HOLD       = 5          # ~10s at 2s cycle — protects relay life
 DEFAULT_TOLERANCE_C = 1.0
 
 _BASE_DIR        = os.path.dirname(os.path.abspath(__file__))
+
+# Volatile JSON files go to tmpfs when running under systemd to reduce SD writes.
+# systemd's RuntimeDirectory=smartsake creates /run/smartsake/ owned by the service user.
+_VOLATILE_DIR    = "/run/smartsake" if os.path.isdir("/run/smartsake") else _BASE_DIR
+
+JSON_FILE        = os.path.join(_VOLATILE_DIR, "sensor_latest.json")
+FAN_STATE_JSON   = os.path.join(_VOLATILE_DIR, "fan_state.json")
 ZONE_CONFIG_FILE = os.path.join(_BASE_DIR, "zone_config.json")
-FAN_STATE_JSON   = os.path.join(_BASE_DIR, "fan_state.json")
 TC_ZONE_MAP_FILE = os.path.join(_BASE_DIR, "tc_zone_map.json")
 
 _zone_cfg       = {}
@@ -760,7 +765,7 @@ def start_sensor_loop():
     _warned_unknown_ids = set()
     _consecutive_failures = 0
     _MAX_FAILURES_BEFORE_ALERT = 15
-    _SENSOR_STATUS_FILE = os.path.join(_BASE_DIR, "sensor_status.json")
+    _SENSOR_STATUS_FILE = os.path.join(_VOLATILE_DIR, "sensor_status.json")
     _loop_iteration = 0
 
     print("[sensors] Entering read loop (2 s interval).")
@@ -816,7 +821,10 @@ def start_sensor_loop():
                     tc_readings.append((ch, None))
                     print(f"[sensors] TC{ch} read error: {e}")
 
-            write_csv(timestamp, sht_temp, sht_humidity, tc_readings)
+            # Throttle CSV to every 5th cycle (~10s) — still fine for fallback log,
+            # reduces SD writes from 43K/day to ~8.6K/day.
+            if _loop_iteration % 5 == 0:
+                write_csv(timestamp, sht_temp, sht_humidity, tc_readings)
             # Throttle JSON writes to every 3rd cycle (~6s) to reduce SD card wear.
             # Dashboard polls every 3s so no visible staleness.
             if _loop_iteration % 3 == 0:

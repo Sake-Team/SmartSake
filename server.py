@@ -18,11 +18,16 @@ import db
 import fan_gpio
 
 BASE_DIR            = os.path.dirname(os.path.abspath(__file__))
-SENSOR_JSON         = os.path.join(BASE_DIR, "sensor_latest.json")
-FAN_STATE_JSON      = os.path.join(BASE_DIR, "fan_state.json")
+
+# Volatile JSON files live on tmpfs when running under systemd (RuntimeDirectory=smartsake).
+# Falls back to BASE_DIR in dev / non-systemd environments.
+_VOLATILE_DIR       = "/run/smartsake" if os.path.isdir("/run/smartsake") else BASE_DIR
+
+SENSOR_JSON         = os.path.join(_VOLATILE_DIR, "sensor_latest.json")
+FAN_STATE_JSON      = os.path.join(_VOLATILE_DIR, "fan_state.json")
+SENSOR_STATUS_JSON  = os.path.join(_VOLATILE_DIR, "sensor_status.json")
 ZONE_CONFIG_FILE    = os.path.join(BASE_DIR, "zone_config.json")
 SCALE_CONFIG_FILE   = os.path.join(BASE_DIR, "scale_config.json")
-SENSOR_STATUS_JSON  = os.path.join(BASE_DIR, "sensor_status.json")
 
 app = Flask(__name__, static_folder=BASE_DIR, static_url_path="")
 
@@ -52,6 +57,13 @@ _stale = db.get_active_run()
 if _stale:
     db.mark_crashed(_stale["id"])
     print(f"[startup] Previous run '{_stale['name']}' (id={_stale['id']}) marked as crashed.")
+
+# Close each request's thread-local DB connection after the response is sent.
+# Flask's dev server creates a new thread per request; without this, stale
+# connections accumulate until the thread is garbage-collected.
+@app.teardown_appcontext
+def _teardown_db(exc):
+    db.close_conn()
 
 # Sensor loop is started in __main__ block below (safe for single-process mode).
 # Do NOT start it at module level — gunicorn workers would each spawn their own loop.
@@ -773,13 +785,7 @@ def api_weight_analytics(run_id):
     data["weight_target_min"] = run.get("weight_target_min")
     data["weight_target_max"] = run.get("weight_target_max")
     # Add per-scale breakdown from live sensor_latest.json
-    raw_sensor = {}
-    if os.path.exists(SENSOR_JSON):
-        try:
-            with open(SENSOR_JSON) as f:
-                raw_sensor = json.load(f)
-        except Exception:
-            pass
+    raw_sensor = _read_json_cached(SENSOR_JSON)
     breakdown = {}
     for i in range(1, 5):
         val = raw_sensor.get(f"weight_kg_{i}")

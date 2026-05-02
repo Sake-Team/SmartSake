@@ -170,8 +170,12 @@
     _buildToolbar();
     _registerPlugin();
     _loadMarkers();
-    // Refresh markers every 30s in case another session added one
-    setInterval(_loadMarkers, 30000);
+    // Refresh markers every 30s — with visibility guard to avoid polling when hidden
+    var _stageTimer = setInterval(_loadMarkers, 30000);
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) { clearInterval(_stageTimer); _stageTimer = null; }
+      else if (!_stageTimer) { _loadMarkers(); _stageTimer = setInterval(_loadMarkers, 30000); }
+    });
   }
 
   if (document.readyState === "loading") {
@@ -441,7 +445,11 @@
     _registerWeightPlugin();
     _setupTargetForm();
     _poll();
-    setInterval(_poll, 30000);
+    var _weightTimer = setInterval(_poll, 30000);
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) { clearInterval(_weightTimer); _weightTimer = null; }
+      else if (!_weightTimer) { _poll(); _weightTimer = setInterval(_poll, 30000); }
+    });
   }
 
   if (document.readyState === "loading") {

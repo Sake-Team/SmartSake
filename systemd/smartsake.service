@@ -14,6 +14,8 @@ StandardOutput=journal
 StandardError=journal
 # Give hardware time to be ready before first run
 ExecStartPre=/bin/sleep 3
+# Volatile files (sensor_latest.json, fan_state.json) go here instead of SD card
+RuntimeDirectory=smartsake
 # Resource limits — prevent runaway memory or CPU from killing the Pi
 MemoryMax=256M
 MemoryHigh=200M
