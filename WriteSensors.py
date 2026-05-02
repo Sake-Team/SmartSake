@@ -44,7 +44,7 @@ except ImportError as _e:
 
 
 CSV_FILE = "sensor_data.csv"
-MAX_CSV_ROWS = 43200  # ~24 hrs at 2-second interval
+MAX_CSV_ROWS = 5760   # ~24 hrs at 15-second interval
 
 # Cached CSV line count — avoids re-reading the entire file on every 2s write.
 # Initialized from disk on first use, then incremented in memory.
@@ -75,7 +75,7 @@ DEVIATION_THRESHOLD_C = 2.0
 DEVIATION_HOLD_MIN    = 10.0
 
 # ── TC noise filter ──────────────────────────────────────────────────────────
-TC_FILTER_WINDOW = 5          # rolling median over last 5 readings (~10s at 2s cycle)
+TC_FILTER_WINDOW = 3          # rolling median over last 3 readings (~45s at 15s cycle)
 _tc_history = {}              # {zone: deque(maxlen=TC_FILTER_WINDOW)}
 
 
@@ -92,7 +92,7 @@ def _tc_filtered(zone, raw_c):
 
 
 # ── Limit-switch fan-control constants ───────────────────────────────────────
-DEADBAND_HOLD       = 5          # ~10s at 2s cycle — protects relay life
+DEADBAND_HOLD       = 1          # ~15s at 15s cycle — protects relay life
 DEFAULT_TOLERANCE_C = 1.0
 
 _BASE_DIR        = os.path.dirname(os.path.abspath(__file__))
@@ -693,7 +693,7 @@ def _watchdog_thread():
         time.sleep(10)
         if _active_run_id is not None and _last_db_write_time > 0:
             age = time.time() - _last_db_write_time
-            if age > 30:
+            if age > 60:
                 print(f"[WATCHDOG] WARNING: No DB write in {age:.0f}s during active run {_active_run_id}")
 
 
@@ -768,7 +768,7 @@ def start_sensor_loop():
     _SENSOR_STATUS_FILE = os.path.join(_VOLATILE_DIR, "sensor_status.json")
     _loop_iteration = 0
 
-    print("[sensors] Entering read loop (2 s interval).")
+    print("[sensors] Entering read loop (15 s interval).")
     while True:
         try:
             _loop_iteration += 1
@@ -821,14 +821,8 @@ def start_sensor_loop():
                     tc_readings.append((ch, None))
                     print(f"[sensors] TC{ch} read error: {e}")
 
-            # Throttle CSV to every 5th cycle (~10s) — still fine for fallback log,
-            # reduces SD writes from 43K/day to ~8.6K/day.
-            if _loop_iteration % 5 == 0:
-                write_csv(timestamp, sht_temp, sht_humidity, tc_readings)
-            # Throttle JSON writes to every 3rd cycle (~6s) to reduce SD card wear.
-            # Dashboard polls every 3s so no visible staleness.
-            if _loop_iteration % 3 == 0:
-                write_json(timestamp, sht_temp, sht_humidity, tc_readings)
+            write_csv(timestamp, sht_temp, sht_humidity, tc_readings)
+            write_json(timestamp, sht_temp, sht_humidity, tc_readings)
 
             # DB write — only when a run is active
             active = sakedb.get_active_run()
@@ -853,8 +847,7 @@ def start_sensor_loop():
                         on = state == "on"
                         fan_gpio.set_fan(zone, on)
                         reading[f"fan{zone}"] = 1 if on else 0
-                    if _loop_iteration % 3 == 0:
-                        _write_fan_state_json(fan_states)
+                    _write_fan_state_json(fan_states)
                 except Exception as e:
                     print(f"[sensors] Fan evaluation error: {e}")
 
@@ -878,8 +871,8 @@ def start_sensor_loop():
             else:
                 _active_run_id = None
 
-            # Disk space check every ~4 minutes (120 iterations at 2s)
-            if _loop_iteration % 120 == 0:
+            # Disk space check every ~4 minutes (16 iterations at 15s)
+            if _loop_iteration % 16 == 0:
                 try:
                     usage = shutil.disk_usage(_BASE_DIR)
                     if usage.free < 100 * 1024 * 1024:  # 100 MB
@@ -918,7 +911,7 @@ def start_sensor_loop():
                 except Exception:
                     pass
 
-        time.sleep(2)
+        time.sleep(15)
 
 
 if __name__ == "__main__":

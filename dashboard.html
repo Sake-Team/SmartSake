@@ -1550,7 +1550,7 @@
 				function startTemperatureReading() {
 					if (pollIntervalId) return;
 					fetchAndApply();
-					pollIntervalId = setInterval(fetchAndApply, 3000);
+					pollIntervalId = setInterval(fetchAndApply, 15000);
 				}
 
 				function stopTemperatureReading() {
@@ -1650,7 +1650,7 @@
 				function startFanPolling() {
 					if (_fanPollId) return;
 					fetchFanState();
-					_fanPollId = setInterval(fetchFanState, 5000);
+					_fanPollId = setInterval(fetchFanState, 15000);
 				}
 
 				function stopFanPolling() {
@@ -2713,9 +2713,9 @@ const tempSeries = {
 								.catch(function() {});
 						});
 
-						// Poll zone controls every 5 s while modal is open
+						// Poll zone controls every 15 s while modal is open
 						if (zdcPollTimer) clearInterval(zdcPollTimer);
-						zdcPollTimer = setInterval(function () { loadZoneControls(activeZone); }, 5000);
+						zdcPollTimer = setInterval(function () { loadZoneControls(activeZone); }, 15000);
 					}
 
 					function closeCard() {
