@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>SmartSake</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  /* ── Mobile overrides ─────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html {
+    /* Force dark — ignore styles.css :root light defaults */
+    --color-bg:            #111114;
+    --color-surface:       #1c1c20;
+    --color-border:        rgba(255,255,255,0.08);
+    --color-border-strong: rgba(255,255,255,0.15);
+    --color-text-1:        #f0f0f0;
+    --color-text-2:        #a0a0a8;
+    --color-text-3:        #666672;
+    --color-bg-subtle:     #28282e;
+    --color-bg-tinted:     #323238;
+    --color-run-name:      #93c5fd;
+    --color-warning:       #e6a817;
+    --color-critical:      #c0392b;
+    --color-success:       #22c55e;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--color-bg);
+    color: var(--color-text-1);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100dvh;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  /* ── Header ─────────────────────────────────────────────────────── */
+  .m-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .m-header__left {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .m-header__title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .m-header__run {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--color-run-name);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 140px;
+  }
+
+  .m-header__elapsed {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-3);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* ── Zone grid ──────────────────────────────────────────────────── */
+  .m-zones {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 12px 16px;
+  }
+
+  .m-zone {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md, 8px);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: border-color 0.2s ease;
+    min-height: 0;
+  }
+
+  .m-zone--warn  { border-color: var(--color-warning); }
+  .m-zone--crit  { border-color: var(--color-critical); animation: pulse-border 1.4s ease-in-out infinite; }
+  .m-zone--ok    { border-color: var(--color-border); }
+
+  @keyframes pulse-border {
+    0%, 100% { border-color: var(--color-critical); }
+    50%      { border-color: rgba(192, 57, 43, 0.3); }
+  }
+
+  .m-zone__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .m-zone__label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-3);
+  }
+
+  .m-zone__fan {
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    line-height: 1.3;
+    letter-spacing: 0.02em;
+  }
+
+  .m-zone__fan--on  { background: #1a3e1a; color: #88ee88; border: 1px solid #3a7a3a; }
+  .m-zone__fan--off { background: #2a2a2a; color: #888;    border: 1px solid #555; }
+  .m-zone__fan--na  { background: transparent; color: var(--color-text-3); border: 1px solid var(--color-border); }
+
+  .m-zone__temp {
+    font-size: 2.25rem;
+    font-weight: 700;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+
+  .m-zone__unit {
+    font-size: 0.9rem;
+    font-weight: 400;
+    color: var(--color-text-3);
+    margin-left: 1px;
+  }
+
+  .m-zone__setpoint {
+    font-size: 0.65rem;
+    color: var(--color-text-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Environment bar ────────────────────────────────────────────── */
+  .m-env {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .m-env__item {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+
+  .m-env__value {
+    font-size: 0.95rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .m-env__label {
+    font-size: 0.7rem;
+    color: var(--color-text-3);
+    font-weight: 500;
+  }
+
+  /* ── Weight summary ─────────────────────────────────────────────── */
+  .m-weight {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .m-weight[hidden] { display: none; }
+
+  .m-weight__value {
+    font-size: 0.95rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .m-weight__label {
+    font-size: 0.7rem;
+    color: var(--color-text-3);
+    font-weight: 500;
+  }
+
+  /* ── Idle state ─────────────────────────────────────────────────── */
+  .m-idle {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--color-text-3);
+  }
+
+  .m-idle__msg {
+    font-size: 1rem;
+    font-weight: 500;
+    margin-bottom: 12px;
+  }
+
+  .m-idle__link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 10px 20px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text-1);
+    background: var(--color-bg-subtle);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--r-md, 8px);
+    text-decoration: none;
+    transition: background 0.15s ease;
+  }
+
+  .m-idle__link:active { background: var(--color-bg-tinted); }
+
+  /* ── Footer / timestamp ─────────────────────────────────────────── */
+  .m-footer {
+    text-align: center;
+    padding: 12px 16px 20px;
+    font-size: 0.65rem;
+    color: var(--color-text-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .m-footer__stale { color: var(--color-warning); }
+
+  /* ── Connection lost banner ─────────────────────────────────────── */
+  .m-conn-lost {
+    display: none;
+    background: var(--color-critical);
+    color: #fff;
+    text-align: center;
+    padding: 6px 12px;
+    font-weight: 600;
+    font-size: 0.8rem;
+  }
+
+  .m-conn-lost--visible { display: block; }
+</style>
+</head>
+<body>
+
+<div class="m-conn-lost" id="conn-lost">Connection lost</div>
+
+<header class="m-header">
+  <div class="m-header__left">
+    <span class="m-header__title">SmartSake</span>
+    <span class="m-header__run" id="run-name"></span>
+  </div>
+  <span class="m-header__elapsed" id="elapsed"></span>
+</header>
+
+<main id="main-content">
+  <!-- Populated by JS -->
+</main>
+
+<footer class="m-footer" id="footer">
+  <span id="last-update"></span>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  var POLL_MS = 15000;
+  var pollTimer = null;
+  var pollFails = 0;
+  var MAX_FAILS = 3;
+
+  var mainEl    = document.getElementById('main-content');
+  var runNameEl = document.getElementById('run-name');
+  var elapsedEl = document.getElementById('elapsed');
+  var footerEl  = document.getElementById('last-update');
+  var connEl    = document.getElementById('conn-lost');
+
+  // ── Helpers ────────────────────────────────────────────────────────
+
+  function fmtTemp(v) {
+    if (v === null || v === undefined || isNaN(v)) return '--';
+    return Number(v).toFixed(1);
+  }
+
+  function fmtElapsed(startISO) {
+    if (!startISO) return '';
+    var start = new Date(startISO);
+    var diff = Math.max(0, Math.floor((Date.now() - start.getTime()) / 1000));
+    var d = Math.floor(diff / 86400);
+    var h = Math.floor((diff % 86400) / 3600);
+    var m = Math.floor((diff % 3600) / 60);
+    if (d > 0) return d + 'd ' + h + 'h ' + String(m).padStart(2, '0') + 'm';
+    if (h > 0) return h + 'h ' + String(m).padStart(2, '0') + 'm';
+    return m + 'm';
+  }
+
+  function fmtTime(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    var h = d.getHours();
+    var m = String(d.getMinutes()).padStart(2, '0');
+    var s = String(d.getSeconds()).padStart(2, '0');
+    var ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return h + ':' + m + ':' + s + ' ' + ampm;
+  }
+
+  function fanBadgeHTML(state) {
+    if (state === 1 || state === 'on') {
+      return '<span class="m-zone__fan m-zone__fan--on">ON</span>';
+    }
+    if (state === 0 || state === 'off') {
+      return '<span class="m-zone__fan m-zone__fan--off">OFF</span>';
+    }
+    return '<span class="m-zone__fan m-zone__fan--na">--</span>';
+  }
+
+  function alarmClass(level) {
+    if (level === 'critical') return 'm-zone--crit';
+    if (level === 'warning')  return 'm-zone--warn';
+    return 'm-zone--ok';
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────
+
+  function renderActive(latest, fanData, run) {
+    // Header
+    runNameEl.textContent = run.name || '';
+    elapsedEl.textContent = fmtElapsed(run.started_at);
+
+    var zones = (fanData && fanData.zones) ? fanData.zones : {};
+
+    var html = '<div class="m-zones">';
+    for (var i = 1; i <= 6; i++) {
+      var temp = latest['tc' + i];
+      var fan  = latest['fan' + i];
+      var zd   = zones[String(i)] || {};
+      var alarm = zd.alarm_level || null;
+      var sp    = zd.setpoint;
+      var cls   = alarmClass(alarm);
+
+      var spText = '';
+      if (sp !== null && sp !== undefined && isFinite(Number(sp))) {
+        spText = 'SP ' + Number(sp).toFixed(1) + '°C';
+      }
+
+      html += '<div class="m-zone ' + cls + '">'
+            +   '<div class="m-zone__top">'
+            +     '<span class="m-zone__label">Zone ' + i + '</span>'
+            +     fanBadgeHTML(fan)
+            +   '</div>'
+            +   '<div class="m-zone__temp">'
+            +     fmtTemp(temp)
+            +     '<span class="m-zone__unit">°C</span>'
+            +   '</div>'
+            +   (spText ? '<span class="m-zone__setpoint">' + spText + '</span>' : '')
+            + '</div>';
+    }
+    html += '</div>';
+
+    // Environment bar
+    var shtTemp  = latest.sht_temp;
+    var humidity = latest.humidity;
+    html += '<div class="m-env">';
+    html += '<div class="m-env__item">'
+          +   '<span class="m-env__value">' + fmtTemp(humidity) + '%</span>'
+          +   '<span class="m-env__label">Humidity</span>'
+          + '</div>';
+    html += '<div class="m-env__item">'
+          +   '<span class="m-env__value">' + fmtTemp(shtTemp) + '°</span>'
+          +   '<span class="m-env__label">Ambient</span>'
+          + '</div>';
+    html += '</div>';
+
+    // Weight summary
+    var wTotal = latest.weight_total_lbs;
+    if (wTotal !== null && wTotal !== undefined && wTotal > 0) {
+      html += '<div class="m-weight">'
+            +   '<span class="m-weight__value">' + Number(wTotal).toFixed(1) + ' lbs</span>'
+            +   '<span class="m-weight__label">Total weight</span>'
+            + '</div>';
+    }
+
+    mainEl.innerHTML = html;
+  }
+
+  function renderIdle() {
+    runNameEl.textContent = '';
+    elapsedEl.textContent = '';
+    mainEl.innerHTML = '<div class="m-idle">'
+      + '<p class="m-idle__msg">No active run</p>'
+      + '<a class="m-idle__link" href="home.html">Open dashboard</a>'
+      + '</div>';
+  }
+
+  // ── Data fetching ──────────────────────────────────────────────────
+
+  function fetchAll() {
+    var latestP  = fetch('/api/latest').then(function (r) { return r.json(); });
+    var fanP     = fetch('/api/fan-state').then(function (r) { return r.json(); });
+    var runP     = fetch('/api/runs/active').then(function (r) {
+      if (r.status === 404) return null;
+      return r.json();
+    });
+
+    Promise.all([latestP, fanP, runP])
+      .then(function (results) {
+        var latest  = results[0];
+        var fanData = results[1];
+        var run     = results[2];
+
+        pollFails = 0;
+        connEl.classList.remove('m-conn-lost--visible');
+
+        if (!run || run.error) {
+          renderIdle();
+        } else {
+          renderActive(latest, fanData, run);
+        }
+
+        // Footer timestamp
+        var ts = latest.timestamp || null;
+        if (ts) {
+          var age = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+          var cls = age > 60 ? ' class="m-footer__stale"' : '';
+          footerEl.innerHTML = '<span' + cls + '>Updated ' + fmtTime(ts) + '</span>';
+        } else {
+          footerEl.textContent = '';
+        }
+      })
+      .catch(function () {
+        pollFails++;
+        if (pollFails >= MAX_FAILS) {
+          connEl.classList.add('m-conn-lost--visible');
+        }
+      });
+  }
+
+  // ── Polling lifecycle ──────────────────────────────────────────────
+
+  function startPolling() {
+    fetchAll();
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(fetchAll, POLL_MS);
+  }
+
+  function stopPolling() {
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  }
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) {
+      stopPolling();
+    } else {
+      startPolling();
+    }
+  });
+
+  // ── Init ───────────────────────────────────────────────────────────
+  startPolling();
+})();
+</script>
+</body>
+</html>
