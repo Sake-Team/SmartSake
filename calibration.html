@@ -13,14 +13,6 @@
     .panel { background: var(--color-surface); border: 1px solid var(--color-border);
              border-radius: var(--r-lg); padding: 1rem 1.1rem; margin-bottom: 1rem; }
 
-    .btn { padding: .35rem .7rem; border: none; border-radius: var(--r-sm); cursor: pointer;
-           font-size: .78rem; font-weight: 600; min-height: 44px; min-width: 44px; }
-    .btn-primary   { background: var(--color-brand); color: #fff; }
-    .btn-primary:hover { background: var(--color-brand-hover); }
-    .btn-secondary { background: var(--color-bg-tinted); color: var(--color-text-1); }
-    .btn-secondary:hover { background: var(--color-bg-subtle); }
-    .btn:disabled { opacity: .45; cursor: not-allowed; }
-
     .cal-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
     .cal-table th, .cal-table td { padding: .5rem .55rem; border-bottom: 1px solid var(--color-border);
                                    text-align: left; vertical-align: middle; }
@@ -50,13 +42,11 @@
 
     .panel-help { font-size: .78rem; color: var(--color-text-3); margin: 0 0 .6rem; line-height: 1.45; }
 
-    .back-link { display: inline-flex; align-items: center; gap: .4rem; font-size: .85rem;
-                 color: var(--color-text-3); text-decoration: none; margin-bottom: .9rem; }
+    .back-link { font-size: .82rem; color: var(--color-text-2); text-decoration: none; }
     .back-link:hover { color: var(--color-text-1); }
 
-    .top-bar { display: flex; align-items: center; justify-content: space-between;
+    .top-bar { display: flex; align-items: center; justify-content: flex-end;
                gap: .75rem; margin-bottom: .9rem; flex-wrap: wrap; }
-    .top-bar .back-link { margin-bottom: 0; }
 
     .conn-pill { display: inline-flex; align-items: center; gap: .4rem;
                  padding: .2rem .6rem; border-radius: 999px;
@@ -115,11 +105,13 @@
       <h1 class="header-title">Calibration</h1>
       <button id="settings-btn" class="settings-btn" type="button" aria-label="Open settings" title="Settings">&#9881;</button>
     </div>
+    <div class="header-right">
+      <a href="home.html" class="back-link">&larr; Home</a>
+    </div>
   </header>
 
   <div class="cal-page">
     <div class="top-bar">
-      <a class="back-link" href="home.html">&#8592; Home</a>
       <span id="conn-pill" class="conn-pill" role="status" aria-live="polite">Connecting&hellip;</span>
     </div>
 

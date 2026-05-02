@@ -18,7 +18,6 @@
       min-height: 100%;
       background: var(--color-bg);
       color: var(--color-text-1);
-      font-size: 14px;
     }
 
     .rh-range-group { display: flex; gap: 2px; flex-shrink: 0; }
@@ -35,7 +34,7 @@
       transition: background 0.12s, color 0.12s;
     }
     .rh-range-btn:hover { background: var(--color-bg-subtle); color: var(--color-text-1); }
-    .rh-range-btn.active { background: rgba(82,160,224,0.22); color: #82c0f0; font-weight: 600; }
+    .rh-range-btn.active { background: var(--color-bg-tinted); color: var(--color-accent); font-weight: 600; }
 
     .rh-clock {
       font-size: 0.78rem;
@@ -62,11 +61,11 @@
     }
     .rh-nav-btn:hover { background: var(--color-bg-tinted); color: var(--color-text-1); }
     .rh-nav-btn--active {
-      border-color: rgba(50,175,50,0.4);
-      color: #7fff7f;
-      background: rgba(50,175,50,0.1);
+      border-color: var(--color-success);
+      color: var(--color-success);
+      background: var(--color-success-bg);
     }
-    .rh-nav-btn--active:hover { background: rgba(50,175,50,0.18); }
+    .rh-nav-btn--active:hover { background: var(--color-success-bg); }
 
     /* ── Status bar ─────────────────────────────────────────────── */
     .rh-status-bar {
@@ -260,6 +259,7 @@
   <script src="customize.js" defer></script>
 </head>
 <body>
+<div class="page-wrapper">
 
   <!-- ── Header ──────────────────────────────────────────────── -->
   <header class="header">
@@ -838,5 +838,6 @@
 
   })();
   </script>
+</div>
 </body>
 </html>

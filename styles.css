@@ -260,6 +260,17 @@ header {
   border-color: var(--color-brand);
 }
 .btn-brand:hover { background: var(--color-brand-hover); border-color: var(--color-brand-hover); }
+.btn-success {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+.btn-success:hover { filter: brightness(1.1); }
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: none !important;
+}
 
 /* Focus-visible rings — entire interactive family */
 .btn:focus-visible,
@@ -267,6 +278,7 @@ header {
 .btn-secondary:focus-visible,
 .btn-ghost:focus-visible,
 .btn-danger:focus-visible,
+.btn-success:focus-visible,
 .btn-brand:focus-visible,
 .start-run-btn:focus-visible,
 .modal-enter-btn:focus-visible,

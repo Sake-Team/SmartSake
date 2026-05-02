@@ -30,20 +30,6 @@
     .curve-item-src  { font-size: .75rem; color: var(--color-text-3); }
     .curve-item-actions { display: flex; gap: .3rem; flex-shrink: 0; }
 
-    /* ── Buttons ─────────────────────────────────────────────── */
-    .btn { padding: .4rem .8rem; border: none; border-radius: var(--r-sm); cursor: pointer;
-           font-size: .82rem; font-weight: 600; }
-    .btn-primary   { background: var(--color-brand); color: #fff; }
-    .btn-primary:hover { background: var(--color-brand-hover); }
-    .btn-secondary { background: var(--color-bg-tinted); color: var(--color-text-1); }
-    .btn-secondary:hover { background: var(--color-bg-subtle); }
-    .btn-danger    { background: var(--color-critical-bg); color: var(--color-critical); }
-    .btn-danger:hover { background: var(--color-critical-bg); filter: brightness(1.2); }
-    .btn-success   { background: var(--color-success-bg); color: var(--color-success); }
-    .btn-success:hover { background: var(--color-success-bg); filter: brightness(1.2); }
-    .btn:disabled { opacity: 0.45; cursor: not-allowed; filter: none !important; }
-    .btn-sm { padding: .25rem .5rem; font-size: .75rem; }
-
     /* ── Editor header ──────────────────────────────────────── */
     .editor-top { display: flex; flex-wrap: wrap; gap: .6rem; align-items: flex-end; margin-bottom: .75rem; }
     .editor-top label { display: flex; flex-direction: column; gap: .2rem; font-size: .8rem; color: var(--color-text-2); }
@@ -110,8 +96,7 @@
     .zone-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 3px; }
 
     /* ── Back link ───────────────────────────────────────────── */
-    .back-link { display: inline-flex; align-items: center; gap: .4rem; font-size: .85rem;
-                 color: var(--color-text-3); text-decoration: none; margin-bottom: .9rem; }
+    .back-link { font-size: .82rem; color: var(--color-text-2); text-decoration: none; }
     .back-link:hover { color: var(--color-text-1); }
 
     /* ── Header clearance ──────────────────────────────────── */
@@ -133,10 +118,12 @@
       <h1 class="header-title">Curves</h1>
       <button id="settings-btn" class="settings-btn" type="button" aria-label="Open settings" title="Settings">&#9881;</button>
     </div>
+    <div class="header-right">
+      <a href="home.html" class="back-link">&larr; Home</a>
+    </div>
   </header>
 
   <div class="curves-page">
-    <a class="back-link" href="home.html">&#8592; Home</a>
 
     <div class="curves-grid">
 
@@ -144,7 +131,7 @@
       <div class="panel" id="library-panel">
         <h2>Saved Curves</h2>
         <ul class="curve-list" id="curve-list">
-          <li style="color:#555;font-size:.85rem;font-style:italic">Loading…</li>
+          <li style="color:var(--color-text-3);font-size:.85rem;font-style:italic">Loading…</li>
         </ul>
         <div style="margin-top:.75rem">
           <button class="btn btn-secondary" id="new-curve-btn">+ New Curve</button>
@@ -284,7 +271,7 @@
   }
   var _chart        = null;
 
-  var CURVE_COLOR = '#c00';
+  var CURVE_COLOR = getComputedStyle(document.documentElement).getPropertyValue('--color-critical').trim() || '#c00';
   var _themeObserver = null;
 
   function getThemeColors() {
@@ -492,7 +479,7 @@
       renderCurveList();
     }).catch(function () {
       document.getElementById('curve-list').innerHTML =
-        '<li style="color:#f66;font-size:.85rem">Failed to load curves</li>';
+        '<li style="color:var(--color-critical);font-size:.85rem">Failed to load curves</li>';
     });
   }
 
@@ -500,7 +487,7 @@
     var ul = document.getElementById('curve-list');
     ul.innerHTML = '';
     if (!_curves.length) {
-      ul.innerHTML = '<li style="color:#555;font-size:.85rem;font-style:italic">No curves saved yet</li>';
+      ul.innerHTML = '<li style="color:var(--color-text-3);font-size:.85rem;font-style:italic">No curves saved yet</li>';
       return;
     }
     _curves.forEach(function (c) {

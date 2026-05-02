@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
 	<title>SmartSake — Run Summary</title>
 	<link rel="stylesheet" href="styles.css">
 	<style>
@@ -47,10 +47,15 @@
 	<script src="customize.js" defer></script>
 </head>
 <body>
+<div class="page-wrapper">
 <header class="header">
 	<div class="header-inner">
-		<a href="home.html" class="back-link">Home</a>
+		<img src="images/VoidSakeLogo.jpg" alt="Smart Sake logo" class="sake-logo-egg">
 		<h1 class="header-title">Run Summary</h1>
+		<button id="settings-btn" class="settings-btn" type="button" aria-label="Open settings" title="Settings">&#9881;</button>
+	</div>
+	<div class="header-right">
+		<a href="home.html" class="back-link">&larr; Home</a>
 	</div>
 </header>
 
@@ -150,5 +155,6 @@
 	});
 })();
 </script>
+</div>
 </body>
 </html>
