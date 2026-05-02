@@ -46,11 +46,27 @@ def discover_devices():
     return _cached_devices
 
 
-def read_temp_c(device_folder):
-    """Read temperature in Celsius from a MAX31850K device."""
+def read_temp_c(device_folder, timeout_s=3):
+    """Read temperature in Celsius from a MAX31850K device.
+
+    Uses a timeout to prevent the sensor loop from hanging if the 1-Wire bus locks up.
+    """
+    import signal
+
     device_file = f"{device_folder}/w1_slave"
-    with open(device_file, "r") as f:
-        lines = f.readlines()
+
+    def _alarm_handler(signum, frame):
+        raise TimeoutError(f"1-Wire read timed out ({device_file})")
+
+    old_handler = signal.signal(signal.SIGALRM, _alarm_handler)
+    signal.alarm(timeout_s)
+    try:
+        with open(device_file, "r") as f:
+            lines = f.readlines()
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old_handler)
+
     if not lines[0].strip().endswith("YES"):
         raise RuntimeError("CRC check failed")
     temp_pos = lines[1].find("t=")

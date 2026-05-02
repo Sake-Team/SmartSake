@@ -4,6 +4,8 @@
 [Unit]
 Description=SmartSake Sensor Collector (standalone)
 After=local-fs.target
+# Don't run alongside the main service — it already has the sensor loop
+Conflicts=smartsake.service
 
 [Service]
 Type=simple
@@ -14,6 +16,9 @@ Restart=on-failure
 RestartSec=5
 StandardOutput=journal
 StandardError=journal
+# Resource limits
+MemoryMax=128M
+CPUQuota=50%
 
 [Install]
 WantedBy=multi-user.target

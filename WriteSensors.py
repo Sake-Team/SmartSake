@@ -53,7 +53,10 @@ _csv_line_count = None
 
 SHT30_TEMP_OFFSET_C = 0.0
 
-# Shared state updated by background threads
+# Shared state updated by background HX711 threads, read by main sensor loop.
+# Use _weight_lock when reading or writing to prevent torn reads.
+import threading as _threading
+_weight_lock = _threading.Lock()
 weight_state = {
     1: {'kg': None, 'raw': None},
     2: {'kg': None, 'raw': None},
@@ -590,8 +593,9 @@ def run_hx711_thread(scale_id, hx_instance):
 
             try:
                 weight, raw_avg = hx_instance.get_weight(samples=SAMPLES_PER_READ, units=cfg_units)
-                weight_state[scale_id]['kg'] = weight
-                weight_state[scale_id]['raw'] = raw_avg
+                with _weight_lock:
+                    weight_state[scale_id]['kg'] = weight
+                    weight_state[scale_id]['raw'] = raw_avg
                 # Throttle per-scale JSON writes — weight_state (in-memory) is the
                 # primary data path; these files are a secondary log.
                 if _iter % _HX711_LOG_EVERY == 0:
@@ -637,11 +641,22 @@ def write_csv(timestamp, sht_temp, sht_humidity, tc_readings):
             datestr = datetime.now().strftime("%Y%m%d_%H%M%S")
             os.rename(CSV_FILE, f"{CSV_FILE}.{datestr}.bak")
             _csv_line_count = 0  # reset after rotation
+            # Keep only the 3 most recent .bak files — prevent SD card fill
+            import glob as _glob
+            baks = sorted(_glob.glob(f"{CSV_FILE}.*.bak"), key=os.path.getmtime)
+            for old_bak in baks[:-3]:
+                try:
+                    os.remove(old_bak)
+                except OSError:
+                    pass
     except Exception as e:
         print(f"CSV rotation error: {e}")
 
 
 def write_json(timestamp, sht_temp, sht_humidity, tc_readings):
+    # Snapshot weight_state under lock to prevent torn reads
+    with _weight_lock:
+        ws = {sid: dict(v) for sid, v in weight_state.items()}
     data = {
         "timestamp": timestamp,
         "sht30": {
@@ -652,14 +667,14 @@ def write_json(timestamp, sht_temp, sht_humidity, tc_readings):
             f"TC{ch}": round(temp, 2) if temp is not None else None
             for ch, temp in tc_readings
         },
-        "weight_kg_1": round(weight_state[1]['kg'], 4) if weight_state[1]['kg'] is not None else None,
-        "weight_kg_2": round(weight_state[2]['kg'], 4) if weight_state[2]['kg'] is not None else None,
-        "weight_kg_3": round(weight_state[3]['kg'], 4) if weight_state[3]['kg'] is not None else None,
-        "weight_kg_4": round(weight_state[4]['kg'], 4) if weight_state[4]['kg'] is not None else None,
-        "weight_raw_1": round(weight_state[1]['raw'], 1) if weight_state[1]['raw'] is not None else None,
-        "weight_raw_2": round(weight_state[2]['raw'], 1) if weight_state[2]['raw'] is not None else None,
-        "weight_raw_3": round(weight_state[3]['raw'], 1) if weight_state[3]['raw'] is not None else None,
-        "weight_raw_4": round(weight_state[4]['raw'], 1) if weight_state[4]['raw'] is not None else None,
+        "weight_kg_1": round(ws[1]['kg'], 4) if ws[1]['kg'] is not None else None,
+        "weight_kg_2": round(ws[2]['kg'], 4) if ws[2]['kg'] is not None else None,
+        "weight_kg_3": round(ws[3]['kg'], 4) if ws[3]['kg'] is not None else None,
+        "weight_kg_4": round(ws[4]['kg'], 4) if ws[4]['kg'] is not None else None,
+        "weight_raw_1": round(ws[1]['raw'], 1) if ws[1]['raw'] is not None else None,
+        "weight_raw_2": round(ws[2]['raw'], 1) if ws[2]['raw'] is not None else None,
+        "weight_raw_3": round(ws[3]['raw'], 1) if ws[3]['raw'] is not None else None,
+        "weight_raw_4": round(ws[4]['raw'], 1) if ws[4]['raw'] is not None else None,
         "zones": {}
     }
     tmp_file = JSON_FILE + ".tmp"
@@ -840,9 +855,10 @@ def start_sensor_loop():
                 except Exception as e:
                     print(f"[sensors] Deviation check error: {e}")
 
-                for _sid in range(1, 5):
-                    _wkg = weight_state[_sid]['kg']
-                    reading[f"weight_lbs_{_sid}"] = round(_wkg * 2.20462, 4) if _wkg is not None else None
+                with _weight_lock:
+                    for _sid in range(1, 5):
+                        _wkg = weight_state[_sid]['kg']
+                        reading[f"weight_lbs_{_sid}"] = round(_wkg * 2.20462, 4) if _wkg is not None else None
                 reading["weight_lbs"] = reading.get("weight_lbs_1")
 
                 try:

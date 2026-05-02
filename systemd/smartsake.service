@@ -14,6 +14,14 @@ StandardOutput=journal
 StandardError=journal
 # Give hardware time to be ready before first run
 ExecStartPre=/bin/sleep 3
+# Resource limits — prevent runaway memory or CPU from killing the Pi
+MemoryMax=256M
+MemoryHigh=200M
+CPUQuota=80%
+# Watchdog — systemd restarts the service if it stops responding
+WatchdogSec=60
+# OOM priority — prefer killing this over system services
+OOMScoreAdjust=200
 
 [Install]
 WantedBy=multi-user.target
