@@ -4987,6 +4987,20 @@ const tempSeries = {
 	})();
 	</script>
 
+	<script>
+	// ── Visibility guard — pause all polling when tab is hidden ──────────────
+	(function () {
+		document.addEventListener('visibilitychange', function () {
+			if (document.hidden) {
+				if (window.stopTemperatureReading) window.stopTemperatureReading();
+				if (window.stopFanPolling) window.stopFanPolling();
+			} else {
+				if (window.startTemperatureReading) window.startTemperatureReading();
+				if (window.startFanPolling) window.startFanPolling();
+			}
+		});
+	})();
+	</script>
 	<script src="dashboard-phase2.js"></script>
 </body>
 

@@ -451,27 +451,28 @@ def stream_readings(run_id):
 
 
 def get_room_history(hours, max_points=600):
-    """Return up to max_points sensor readings from the last `hours` hours, across all runs."""
+    """Return up to max_points sensor readings from the last `hours` hours, across all runs.
+
+    Uses rowid modulo instead of ROW_NUMBER() to avoid materializing all rows.
+    """
     from datetime import timedelta
     cutoff = (datetime.now() - timedelta(hours=hours)).isoformat()
     with get_conn() as conn:
-        total = conn.execute(
-            "SELECT COUNT(*) FROM sensor_readings WHERE recorded_at >= ?", (cutoff,)
-        ).fetchone()[0]
+        bounds = conn.execute(
+            "SELECT COUNT(*), MIN(sr.rowid), MAX(sr.rowid) FROM sensor_readings sr WHERE sr.recorded_at >= ?",
+            (cutoff,)
+        ).fetchone()
+        total, min_rid, max_rid = bounds[0], bounds[1], bounds[2]
         if total == 0:
             return []
         stride = max(1, total // max_points)
         rows = conn.execute("""
-            WITH rn AS (
-                SELECT sr.*, r.name AS run_name,
-                       (ROW_NUMBER() OVER (ORDER BY sr.recorded_at ASC) - 1) AS rn
-                FROM sensor_readings sr
-                JOIN runs r ON sr.run_id = r.id
-                WHERE sr.recorded_at >= ?
-            )
-            SELECT * FROM rn WHERE rn % ? = 0
-            ORDER BY recorded_at ASC
-        """, (cutoff, stride)).fetchall()
+            SELECT sr.*, r.name AS run_name
+            FROM sensor_readings sr
+            JOIN runs r ON sr.run_id = r.id
+            WHERE sr.recorded_at >= ? AND (sr.rowid - ?) % ? = 0
+            ORDER BY sr.recorded_at ASC
+        """, (cutoff, min_rid, stride)).fetchall()
         return [dict(r) for r in rows]
 
 
@@ -1158,23 +1159,20 @@ def get_weight_analytics(run_id):
                     (window[0]["total_lbs"] - window[-1]["total_lbs"]) / hr_diff, 4
                 )
 
-        # Downsampled sparkline (max 120 points)
-        total_count = conn.execute(
-            f"SELECT COUNT(*) FROM sensor_readings WHERE run_id=? AND {_ANY}",
+        # Downsampled sparkline (max 120 points) — rowid modulo, no window function
+        wt_bounds = conn.execute(
+            f"SELECT COUNT(*), MIN(rowid), MAX(rowid) FROM sensor_readings WHERE run_id=? AND {_ANY}",
             (run_id,)
-        ).fetchone()[0]
+        ).fetchone()
+        total_count, wt_min_rid = wt_bounds[0], wt_bounds[1]
         stride = max(1, total_count // 120)
         started_at = run["started_at"]
         samples_raw = conn.execute(f"""
-            WITH rn AS (
-                SELECT {_TOTAL} AS total_lbs, recorded_at,
-                       (ROW_NUMBER() OVER (ORDER BY recorded_at ASC) - 1) AS rn
-                FROM sensor_readings
-                WHERE run_id=? AND {_ANY}
-            )
-            SELECT total_lbs, recorded_at FROM rn WHERE rn % ? = 0
+            SELECT {_TOTAL} AS total_lbs, recorded_at
+            FROM sensor_readings
+            WHERE run_id=? AND {_ANY} AND (rowid - ?) % ? = 0
             ORDER BY recorded_at ASC
-        """, (run_id, stride)).fetchall()
+        """, (run_id, wt_min_rid or 0, stride)).fetchall()
 
         from datetime import datetime as _dt
         start_dt = _dt.fromisoformat(started_at)

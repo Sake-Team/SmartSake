@@ -29,9 +29,21 @@ def read_sht30(sensor):
     return sensor.temperature, sensor.relative_humidity
 
 
+_cached_devices = None
+_cache_time = 0
+_CACHE_TTL = 120  # re-scan 1-Wire bus every 2 minutes, not every cycle
+
 def discover_devices():
-    """Discover MAX31850K devices on the 1-Wire bus (appear as '3b-*')."""
-    return sorted(glob.glob(f"{W1_BASE}/3b-*"))[:MAX_THERMOCOUPLES]
+    """Discover MAX31850K devices on the 1-Wire bus (appear as '3b-*').
+    Caches the result for _CACHE_TTL seconds since devices only change on plug/unplug."""
+    import time as _time
+    global _cached_devices, _cache_time
+    now = _time.monotonic()
+    if _cached_devices is not None and (now - _cache_time) < _CACHE_TTL:
+        return _cached_devices
+    _cached_devices = sorted(glob.glob(f"{W1_BASE}/3b-*"))[:MAX_THERMOCOUPLES]
+    _cache_time = now
+    return _cached_devices
 
 
 def read_temp_c(device_folder):

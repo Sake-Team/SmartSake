@@ -26,6 +26,26 @@ SENSOR_STATUS_JSON  = os.path.join(BASE_DIR, "sensor_status.json")
 
 app = Flask(__name__, static_folder=BASE_DIR, static_url_path="")
 
+# ── Mtime-cached JSON file reader ────────────────────────────────────────────
+_json_cache = {}  # path -> (mtime, data)
+
+def _read_json_cached(path):
+    """Read a JSON file, returning cached data if the file hasn't changed."""
+    try:
+        mtime = os.path.getmtime(path)
+    except OSError:
+        return {}
+    cached = _json_cache.get(path)
+    if cached and cached[0] == mtime:
+        return cached[1]
+    try:
+        with open(path) as f:
+            data = json.load(f)
+        _json_cache[path] = (mtime, data)
+        return data
+    except Exception:
+        return {}
+
 # ── Database init + crash recovery ───────────────────────────────────────────
 db.init_db()
 _stale = db.get_active_run()
@@ -43,8 +63,22 @@ if _stale:
 def index():
     return send_from_directory(BASE_DIR, "home.html")
 
+_SAFE_EXTENSIONS = {
+    '.html', '.css', '.js', '.json', '.map',
+    '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp',
+    '.woff', '.woff2', '.ttf', '.eot',
+    '.csv',
+}
+
 @app.route("/<path:filename>")
 def static_files(filename):
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in _SAFE_EXTENSIONS:
+        abort(403)
+    # Block access to sensitive JSON configs
+    base = os.path.basename(filename).lower()
+    if base in ('scale_config.json', 'zone_config.json', 'sensor_status.json'):
+        abort(403)
     return send_from_directory(BASE_DIR, filename)
 
 
@@ -60,16 +94,7 @@ def api_latest():
     nested structure into flat keys so the
     dashboard and zone pages use the same key names as the historical readings API.
     """
-    raw = {}
-
-    if os.path.exists(SENSOR_JSON):
-        try:
-            with open(SENSOR_JSON) as f:
-                loaded = json.load(f)
-            if isinstance(loaded, dict):
-                raw = loaded
-        except Exception:
-            pass
+    raw = _read_json_cached(SENSOR_JSON)
 
     # Normalize sensor_latest.json nested structure → flat DB column names
     result = {"timestamp": raw.get("timestamp")}
@@ -81,13 +106,7 @@ def api_latest():
         result[f"tc{i}"] = round(val, 2) if isinstance(val, (int, float)) else None
 
     # Fan states — read from fan_state.json written by WriteSensors.py PID loop.
-    fan_state_data = {}
-    if os.path.exists(FAN_STATE_JSON):
-        try:
-            with open(FAN_STATE_JSON) as f:
-                fan_state_data = json.load(f)
-        except Exception:
-            pass
+    fan_state_data = _read_json_cached(FAN_STATE_JSON)
     fzones = fan_state_data.get("zones", {})
     for i in range(1, 7):
         z = fzones.get(str(i), {})
@@ -142,21 +161,14 @@ def api_sensor_status():
     if os.path.exists(SENSOR_JSON):
         try:
             sensor_age_s = round(time.time() - os.path.getmtime(SENSOR_JSON), 1)
-            with open(SENSOR_JSON) as f:
-                sensor_ts = json.load(f).get("timestamp")
+            sensor_ts = _read_json_cached(SENSOR_JSON).get("timestamp")
         except Exception:
             pass
 
     active_run = db.get_active_run()
 
     # Read sensor_status.json (written by sensor loop on sustained failures / low disk)
-    loop_status = None
-    if os.path.exists(SENSOR_STATUS_JSON):
-        try:
-            with open(SENSOR_STATUS_JSON) as f:
-                loop_status = json.load(f)
-        except Exception:
-            pass
+    loop_status = _read_json_cached(SENSOR_STATUS_JSON) or None
 
     return jsonify({
         "sensor_file_age_s":  sensor_age_s,
@@ -182,10 +194,8 @@ def api_health():
 
     if os.path.exists(SENSOR_JSON):
         try:
-            mtime = os.path.getmtime(SENSOR_JSON)
-            sensor_age_s = round(time.time() - mtime, 1)
-            with open(SENSOR_JSON) as f:
-                raw = json.load(f)
+            sensor_age_s = round(time.time() - os.path.getmtime(SENSOR_JSON), 1)
+            raw = _read_json_cached(SENSOR_JSON)
         except Exception:
             pass
 
@@ -899,11 +909,10 @@ def api_fan_state():
                         "setpoint": None, "setpoint_source": None, "trigger": None,
                         "alarm_level": None, "alarm_reason": None}
                         for z in range(1, 7)}})
-    try:
-        with open(FAN_STATE_JSON) as f:
-            return jsonify(json.load(f))
-    except Exception:
+    data = _read_json_cached(FAN_STATE_JSON)
+    if not data:
         return jsonify({"error": "could not read fan_state.json"}), 500
+    return jsonify(data)
 
 
 # ── Zone configuration ─────────────────────────────────────────────────────────
@@ -913,11 +922,10 @@ def api_get_zone_config():
     """Return current zone tolerances from zone_config.json."""
     if not os.path.exists(ZONE_CONFIG_FILE):
         return jsonify({"error": "zone_config.json not found"}), 404
-    try:
-        with open(ZONE_CONFIG_FILE) as f:
-            return jsonify(json.load(f))
-    except Exception:
+    data = _read_json_cached(ZONE_CONFIG_FILE)
+    if not data:
         return jsonify({"error": "could not read zone_config.json"}), 500
+    return jsonify(data)
 
 
 @app.route("/api/zone-config", methods=["POST"])
