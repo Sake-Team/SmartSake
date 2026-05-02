@@ -552,10 +552,13 @@ def _read_scale_cfg(scale_id):
         return None
 
 
+_HX711_LOG_EVERY = 60  # write scale JSON every 60th read (~30s at 0.5s sleep)
+
 def run_hx711_thread(scale_id, hx_instance):
     cfg = _read_scale_cfg(scale_id)
     cfg_units = cfg[0] if cfg else "kg"
     last_mtime = 0.0
+    _iter = 0
     try:
         last_mtime = os.path.getmtime(SCALE_CONFIG_FILE)
     except Exception:
@@ -589,9 +592,13 @@ def run_hx711_thread(scale_id, hx_instance):
                 weight, raw_avg = hx_instance.get_weight(samples=SAMPLES_PER_READ, units=cfg_units)
                 weight_state[scale_id]['kg'] = weight
                 weight_state[scale_id]['raw'] = raw_avg
-                log_weight(scale_id, weight, cfg_units)
+                # Throttle per-scale JSON writes — weight_state (in-memory) is the
+                # primary data path; these files are a secondary log.
+                if _iter % _HX711_LOG_EVERY == 0:
+                    log_weight(scale_id, weight, cfg_units)
             except Exception as e:
                 print(f"HX711 scale {scale_id} read error: {e}")
+            _iter += 1
             time.sleep(0.5)
     except Exception as e:
         print(f"HX711 scale {scale_id} thread failed: {e} -- running without scale")

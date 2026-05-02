@@ -594,35 +594,17 @@
       if (el) el.style.display = isEmpty ? 'flex' : 'none';
     }
 
-    // ── Render charts from current log window ─────────────────────────────────
-    function renderCharts() {
-      var rows = getWindow();
-      var isEmpty = rows.length === 0;
-
-      setEmpty('temp-empty', isEmpty);
-      setEmpty('env-empty',  isEmpty);
-      setEmpty('wt-empty',   isEmpty);
-
-      var labels   = rows.map(function (r) { return fmtLabel(r.t, activeMinutes); });
-      var zones    = [0,1,2,3,4,5].map(function (z) { return rows.map(function (r) { return r.v[z]; }); });
-      var humArr   = rows.map(function (r) { return r.v[6]; });
-      var shtArr   = rows.map(function (r) { return r.v[7]; });
-      var wbArr    = rows.map(function (r) { return calcWetBulb(r.v[7], r.v[6]); });
-      var wtArr    = rows.map(function (r) { return r.v[8]; });
-
-      // ── Temp chart ────────────────────────────────────────────────────────
+    // ── Create charts once, update data in place ─────────────────────────────
+    function initCharts() {
       var tCtx = document.getElementById('rh-temp-canvas').getContext('2d');
-      if (tempChart) { tempChart.destroy(); }
       tempChart = new Chart(tCtx, {
         type: 'line',
         data: {
-          labels: labels,
-          datasets: zones.map(function (data, i) {
+          labels: [],
+          datasets: [0,1,2,3,4,5].map(function (i) {
             return {
-              label: 'Zone ' + (i + 1),
-              data: data,
-              borderColor: ZONE_COLORS[i],
-              backgroundColor: 'transparent',
+              label: 'Zone ' + (i + 1), data: [],
+              borderColor: ZONE_COLORS[i], backgroundColor: 'transparent',
               borderWidth: 2.5, pointRadius: 0, tension: 0.3
             };
           })
@@ -639,21 +621,19 @@
         }
       });
 
-      // ── Env chart ─────────────────────────────────────────────────────────
       var eCtx = document.getElementById('rh-env-canvas').getContext('2d');
-      if (envChart) { envChart.destroy(); }
       envChart = new Chart(eCtx, {
         type: 'line',
         data: {
-          labels: labels,
+          labels: [],
           datasets: [
-            { label: 'Dry Bulb (°C)', data: shtArr, yAxisID: 'yT',
+            { label: 'Dry Bulb (°C)', data: [], yAxisID: 'yT',
               borderColor: '#f0a040', backgroundColor: 'transparent',
               borderWidth: 2.5, pointRadius: 0, tension: 0.3 },
-            { label: 'Wet Bulb (°C)', data: wbArr, yAxisID: 'yT',
+            { label: 'Wet Bulb (°C)', data: [], yAxisID: 'yT',
               borderColor: '#40c0d0', backgroundColor: 'transparent',
               borderWidth: 2.5, pointRadius: 0, tension: 0.3 },
-            { label: 'Humidity (%)', data: humArr, yAxisID: 'yH',
+            { label: 'Humidity (%)', data: [], yAxisID: 'yH',
               borderColor: '#7070e0', backgroundColor: 'transparent',
               borderWidth: 1.5, pointRadius: 0, tension: 0.3, borderDash: [4, 3] }
           ]
@@ -669,8 +649,7 @@
               title: { display: true, text: '°C', color: getThemeColors().tick, font: { size: 10 } }
             }),
             yH: {
-              type: 'linear', position: 'right',
-              min: 0, max: 100,
+              type: 'linear', position: 'right', min: 0, max: 100,
               ticks: { color: getThemeColors().tick, font: { size: 10 } },
               grid: { drawOnChartArea: false },
               title: { display: true, text: '%', color: getThemeColors().tick, font: { size: 10 } }
@@ -679,18 +658,14 @@
         }
       });
 
-      // ── Weight chart ──────────────────────────────────────────────────────
       var wCtx = document.getElementById('rh-wt-canvas').getContext('2d');
-      if (wtChart) { wtChart.destroy(); }
       wtChart = new Chart(wCtx, {
         type: 'line',
         data: {
-          labels: labels,
+          labels: [],
           datasets: [{
-            label: 'Weight (lbs)',
-            data: wtArr,
-            borderColor: '#52e0a0',
-            backgroundColor: '#52e0a018',
+            label: 'Weight (lbs)', data: [],
+            borderColor: '#52e0a0', backgroundColor: '#52e0a018',
             borderWidth: 2.5, pointRadius: 0, tension: 0.3, fill: true
           }]
         },
@@ -705,6 +680,40 @@
           })
         }
       });
+    }
+
+    // ── Update chart data in place (no destroy/recreate) ─────────────────────
+    function renderCharts() {
+      var rows = getWindow();
+      var isEmpty = rows.length === 0;
+
+      setEmpty('temp-empty', isEmpty);
+      setEmpty('env-empty',  isEmpty);
+      setEmpty('wt-empty',   isEmpty);
+
+      var labels   = rows.map(function (r) { return fmtLabel(r.t, activeMinutes); });
+      var zones    = [0,1,2,3,4,5].map(function (z) { return rows.map(function (r) { return r.v[z]; }); });
+      var humArr   = rows.map(function (r) { return r.v[6]; });
+      var shtArr   = rows.map(function (r) { return r.v[7]; });
+      var wbArr    = rows.map(function (r) { return calcWetBulb(r.v[7], r.v[6]); });
+      var wtArr    = rows.map(function (r) { return r.v[8]; });
+
+      // Temp chart — update datasets in place
+      tempChart.data.labels = labels;
+      zones.forEach(function (data, i) { tempChart.data.datasets[i].data = data; });
+      tempChart.update('none');
+
+      // Env chart
+      envChart.data.labels = labels;
+      envChart.data.datasets[0].data = shtArr;
+      envChart.data.datasets[1].data = wbArr;
+      envChart.data.datasets[2].data = humArr;
+      envChart.update('none');
+
+      // Weight chart
+      wtChart.data.labels = labels;
+      wtChart.data.datasets[0].data = wtArr;
+      wtChart.update('none');
     }
 
     // ── Poll /api/latest — log a reading + update live strip ──────────────────
@@ -727,7 +736,8 @@
         log.push(entry);
         if (!logStartTime) logStartTime = entry.t;
         trimLog();
-        saveLog();
+        // Save to localStorage every 5th poll (~5 min) instead of every poll
+        if (log.length % 5 === 0) saveLog();
 
         // Update live strip
         for (var z = 1; z <= 6; z++) {
@@ -805,36 +815,51 @@
     // ── Boot ───────────────────────────────────────────────────────────────────
     buildTempLegend();
     loadLog();
+    initCharts();
     updateStatusBar();
     renderCharts();
 
-    // First immediate poll, then on interval
-    poll();
-    setInterval(poll, POLL_MS);
+    // ── Visibility-aware polling — pause when tab is hidden ────���─────────────
+    var _pollTimer = null, _liveTimer = null, _runTimer = null;
 
-    // Live strip updates faster than the log interval
-    setInterval(function () {
-      fetch('/api/latest').then(function (r) { return r.json(); }).then(function (data) {
-        for (var z = 1; z <= 6; z++) {
-          var el = document.getElementById('lv-z' + z);
-          var v  = data['tc' + z];
-          if (el) el.textContent = (v != null && !isNaN(v)) ? parseFloat(v).toFixed(1) + '°' : '--';
-        }
-        var hum = data.humidity  != null ? parseFloat(data.humidity)  : null;
-        var sht = data.sht_temp  != null ? parseFloat(data.sht_temp)  : null;
-        var wt  = data.weight_lbs != null ? parseFloat(data.weight_lbs): null;
-        var humEl = document.getElementById('lv-hum');
-        var wbEl  = document.getElementById('lv-wb');
-        var wtEl  = document.getElementById('lv-wt');
-        if (humEl) humEl.textContent = (hum != null && !isNaN(hum)) ? hum.toFixed(1) + '%' : '--%';
-        var wb = calcWetBulb(sht, hum);
-        if (wbEl) wbEl.textContent = wb != null ? 'WB ' + wb.toFixed(1) + '°C' : 'WB —°C';
-        if (wtEl) wtEl.textContent = (wt != null && !isNaN(wt)) ? wt.toFixed(2) + ' lbs' : '-- lbs';
-      }).catch(function () {});
-    }, LIVE_POLL_MS);
+    function startPolling() {
+      if (!_pollTimer) { poll(); _pollTimer = setInterval(poll, POLL_MS); }
+      if (!_liveTimer) {
+        _liveTimer = setInterval(function () {
+          fetch('/api/latest').then(function (r) { return r.json(); }).then(function (data) {
+            for (var z = 1; z <= 6; z++) {
+              var el = document.getElementById('lv-z' + z);
+              var v  = data['tc' + z];
+              if (el) el.textContent = (v != null && !isNaN(v)) ? parseFloat(v).toFixed(1) + '°' : '--';
+            }
+            var hum = data.humidity  != null ? parseFloat(data.humidity)  : null;
+            var sht = data.sht_temp  != null ? parseFloat(data.sht_temp)  : null;
+            var wt  = data.weight_lbs != null ? parseFloat(data.weight_lbs): null;
+            var humEl = document.getElementById('lv-hum');
+            var wbEl  = document.getElementById('lv-wb');
+            var wtEl  = document.getElementById('lv-wt');
+            if (humEl) humEl.textContent = (hum != null && !isNaN(hum)) ? hum.toFixed(1) + '%' : '--%';
+            var wb = calcWetBulb(sht, hum);
+            if (wbEl) wbEl.textContent = wb != null ? 'WB ' + wb.toFixed(1) + '°C' : 'WB —°C';
+            if (wtEl) wtEl.textContent = (wt != null && !isNaN(wt)) ? wt.toFixed(2) + ' lbs' : '-- lbs';
+          }).catch(function () {});
+        }, LIVE_POLL_MS);
+      }
+      if (!_runTimer) { pollRun(); _runTimer = setInterval(pollRun, 30000); }
+    }
 
-    pollRun();
-    setInterval(pollRun, 30000);
+    function stopPolling() {
+      if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+      if (_liveTimer) { clearInterval(_liveTimer); _liveTimer = null; }
+      if (_runTimer)  { clearInterval(_runTimer);  _runTimer = null; }
+    }
+
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) { stopPolling(); saveLog(); } else startPolling();
+    });
+    window.addEventListener('beforeunload', saveLog);
+
+    startPolling();
 
   })();
   </script>

@@ -2,8 +2,9 @@ import sqlite3
 import os
 import threading
 from datetime import datetime
+from pathlib import Path
 
-DB_FILE = os.path.join(os.path.dirname(__file__), "smartsake.db")
+DB_FILE = Path(__file__).parent / "smartsake.db"
 
 _local = threading.local()
 
@@ -12,7 +13,7 @@ def get_conn():
     if not hasattr(_local, 'conn') or _local.conn is None:
         conn = sqlite3.connect(str(DB_FILE), timeout=10)
         conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
+        # journal_mode=WAL is persistent (set once in init_db), no need to repeat
         conn.execute("PRAGMA synchronous=NORMAL")
         conn.execute("PRAGMA foreign_keys=ON")
         _local.conn = conn
@@ -32,6 +33,7 @@ def close_conn():
 
 def init_db():
     with get_conn() as conn:
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS runs (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -335,15 +337,21 @@ def get_run(run_id):
 
 def delete_run(run_id):
     with get_conn() as conn:
-        conn.execute("DELETE FROM zone_notes WHERE run_id=?", (run_id,))
-        conn.execute("DELETE FROM target_profiles WHERE run_id=?", (run_id,))
-        conn.execute("DELETE FROM fan_overrides WHERE run_id=?", (run_id,))
-        conn.execute("DELETE FROM fan_rules WHERE run_id=?", (run_id,))
-        conn.execute("DELETE FROM deviation_events WHERE run_id=?", (run_id,))
-        conn.execute("DELETE FROM run_events WHERE run_id=?", (run_id,))
-        conn.execute("DELETE FROM run_metadata WHERE run_id=?", (run_id,))
-        conn.execute("DELETE FROM sensor_readings WHERE run_id=?", (run_id,))
-        conn.execute("DELETE FROM runs WHERE id=?", (run_id,))
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            conn.execute("DELETE FROM zone_notes WHERE run_id=?", (run_id,))
+            conn.execute("DELETE FROM target_profiles WHERE run_id=?", (run_id,))
+            conn.execute("DELETE FROM fan_overrides WHERE run_id=?", (run_id,))
+            conn.execute("DELETE FROM fan_rules WHERE run_id=?", (run_id,))
+            conn.execute("DELETE FROM deviation_events WHERE run_id=?", (run_id,))
+            conn.execute("DELETE FROM run_events WHERE run_id=?", (run_id,))
+            conn.execute("DELETE FROM run_metadata WHERE run_id=?", (run_id,))
+            conn.execute("DELETE FROM sensor_readings WHERE run_id=?", (run_id,))
+            conn.execute("DELETE FROM runs WHERE id=?", (run_id,))
+            conn.execute("COMMIT")
+        except Exception:
+            conn.execute("ROLLBACK")
+            raise
 
 
 def set_run_pinned(run_id, pinned):

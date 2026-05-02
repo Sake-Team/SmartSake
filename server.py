@@ -323,9 +323,9 @@ def api_prune_runs():
     min_free = int(body.get("min_free_mb", 500))
     if min_free < 100:
         return jsonify({"error": "min_free_mb must be at least 100"}), 400
-    free_before = shutil.disk_usage(str(db.DB_FILE.parent)).free // (1024 * 1024)
+    free_before = shutil.disk_usage(str(db.DB_FILE.parent)).free // (1024**2)
     count = db.prune_for_space(min_free)
-    free_after = shutil.disk_usage(str(db.DB_FILE.parent)).free // (1024 * 1024)
+    free_after = shutil.disk_usage(str(db.DB_FILE.parent)).free // (1024**2)
     return jsonify({"pruned": count, "free_mb_before": free_before, "free_mb_after": free_after})
 
 

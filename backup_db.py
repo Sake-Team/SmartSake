@@ -33,9 +33,26 @@ def run_backup():
     dst_conn = sqlite3.connect(str(dest))
     try:
         src_conn.backup(dst_conn)
-        print(f"[backup] {DB_FILE.name} → {dest.name}")
-    finally:
+        # Verify backup integrity before closing
+        result = dst_conn.execute("PRAGMA integrity_check").fetchone()
+        if result[0] != "ok":
+            print(f"[backup] INTEGRITY CHECK FAILED on {dest.name}: {result[0]}")
+            dst_conn.close()
+            dest.unlink(missing_ok=True)
+            src_conn.close()
+            return
+        print(f"[backup] {DB_FILE.name} → {dest.name} (verified)")
+    except (OSError, sqlite3.Error) as e:
+        print(f"[backup] FAILED: {e}")
         dst_conn.close()
+        dest.unlink(missing_ok=True)
+        src_conn.close()
+        return
+    finally:
+        try:
+            dst_conn.close()
+        except Exception:
+            pass
         src_conn.close()
 
     # Prune old backup files — keep the most recent KEEP_BACKUPS
@@ -68,5 +85,5 @@ def run_prune():
 
 
 if __name__ == "__main__":
+    run_prune()   # free space first so backup has room to write
     run_backup()
-    run_prune()

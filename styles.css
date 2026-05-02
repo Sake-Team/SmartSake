@@ -909,8 +909,7 @@ body:has(#start-run-btn.end-run-btn-active) .e-stop-btn { display: inline-flex; 
   position: fixed;
   inset: 0;
   background: var(--color-modal-overlay);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
+  /* backdrop-filter: blur(3px);  — removed, too expensive for Pi GPU */
   z-index: 1000;
   display: flex;
   align-items: center;

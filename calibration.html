@@ -757,7 +757,17 @@
   buildTcRows();
   buildScaleRows();
   refresh();
-  setInterval(refresh, POLL_MS);
+
+  // Visibility-aware polling — pause when tab is hidden
+  var _calTimer = setInterval(refresh, POLL_MS);
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) {
+      clearInterval(_calTimer); _calTimer = null;
+    } else if (!_calTimer) {
+      refresh();
+      _calTimer = setInterval(refresh, POLL_MS);
+    }
+  });
 })();
 </script>
 </body>
