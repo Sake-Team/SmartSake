@@ -460,6 +460,14 @@ def api_save_target(run_id):
     return jsonify(db.get_target_profile(run_id)), 201
 
 
+@app.route("/api/runs/<int:run_id>/target", methods=["DELETE"])
+def api_clear_target(run_id):
+    if not db.get_run(run_id):
+        abort(404)
+    db.clear_target_profile(run_id)
+    return "", 204
+
+
 # ── Zone notes ────────────────────────────────────────────────────────────────
 
 @app.route("/api/runs/<int:run_id>/zones", methods=["GET"])
@@ -838,11 +846,16 @@ def api_delete_reference_curve(curve_id):
 
 @app.route("/api/runs/<int:run_id>/target/from-curve/<int:curve_id>", methods=["POST"])
 def api_load_curve_as_target(run_id, curve_id):
-    if not db.get_run(run_id):
-        abort(404)
-    if not db.get_reference_curve(curve_id):
-        abort(404)
-    db.load_curve_as_target(run_id, curve_id)
+    run = db.get_run(run_id)
+    if not run:
+        return jsonify({"error": f"run {run_id} not found"}), 404
+    curve = db.get_reference_curve(curve_id)
+    if not curve:
+        return jsonify({"error": f"curve {curve_id} not found"}), 404
+    try:
+        db.load_curve_as_target(run_id, curve_id)
+    except Exception as e:
+        return jsonify({"error": f"failed to apply curve: {e}"}), 500
     return jsonify(db.get_target_profile(run_id)), 201
 
 
@@ -997,15 +1010,40 @@ def api_export_csv(run_id):
 
 @app.route("/api/fan-state", methods=["GET"])
 def api_fan_state():
-    """Return the latest fan_state.json written by the limit-switch fan-control loop."""
+    """Return the latest fan_state.json written by the limit-switch fan-control loop.
+
+    Merges zone_config.json setpoints as fallback when fan_state doesn't have them
+    (e.g. no active run, or zone mode is 'none').
+    """
     if not os.path.exists(FAN_STATE_JSON):
-        return jsonify({"timestamp": None, "zones": {str(z): {"state": None, "mode": "none",
-                        "setpoint": None, "setpoint_source": None, "trigger": None,
-                        "alarm_level": None, "alarm_reason": None}
-                        for z in range(1, 7)}})
-    data = _read_json_cached(FAN_STATE_JSON)
-    if not data:
-        return jsonify({"error": "could not read fan_state.json"}), 500
+        data = {"timestamp": None, "zones": {str(z): {"state": None, "mode": "none",
+                "setpoint": None, "setpoint_source": None, "trigger": None,
+                "alarm_level": None, "alarm_reason": None}
+                for z in range(1, 7)}}
+    else:
+        data = _read_json_cached(FAN_STATE_JSON)
+        if not data:
+            return jsonify({"error": "could not read fan_state.json"}), 500
+
+    # Merge zone_config setpoints as fallback for coloring
+    zone_cfg = _read_json_cached(ZONE_CONFIG_FILE)
+    if zone_cfg:
+        default_sp = zone_cfg.get("default", {}).get("setpoint_c")
+        default_tol = zone_cfg.get("default", {}).get("tolerance_c", 2.0)
+        zones = data.get("zones", {})
+        for z in range(1, 7):
+            zd = zones.get(str(z), {})
+            if zd.get("setpoint") is None:
+                zcfg = zone_cfg.get(f"zone{z}", {})
+                sp = zcfg.get("setpoint_c", default_sp)
+                tol = zcfg.get("tolerance_c", default_tol)
+                if sp is not None:
+                    zd["setpoint"] = sp
+                    zd["setpoint_source"] = "config"
+                    zd["trigger"] = sp + (tol if tol else 2.0)
+                    zones[str(z)] = zd
+        data["zones"] = zones
+
     return jsonify(data)
 
 

@@ -527,6 +527,11 @@ def get_target_profile(run_id):
         return [dict(r) for r in rows]
 
 
+def clear_target_profile(run_id):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM target_profiles WHERE run_id=?", (run_id,))
+
+
 # ── Fan overrides ─────────────────────────────────────────────────────────
 
 def set_fan_override(run_id, zone, action, duration_minutes=None):
