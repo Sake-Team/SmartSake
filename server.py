@@ -1035,6 +1035,83 @@ def _latest_sensor_value(key):
     return raw.get(key)
 
 
+# ── Thermocouple probe discovery and zone mapping ────────────────────────────
+
+TC_ZONE_MAP_FILE = os.path.join(BASE_DIR, "tc_zone_map.json")
+
+
+@app.route("/api/tc-probes", methods=["GET"])
+def api_tc_probes():
+    """Return all 1-Wire thermocouple probes on the bus with live readings."""
+    import glob as _glob
+    W1_BASE = "/sys/bus/w1/devices"
+    probes = []
+    for dev_path in sorted(_glob.glob(f"{W1_BASE}/3b-*")):
+        device_id = os.path.basename(dev_path)
+        temp_c = None
+        try:
+            slave_file = os.path.join(dev_path, "w1_slave")
+            with open(slave_file, "r") as f:
+                lines = f.readlines()
+            if lines[0].strip().endswith("YES"):
+                pos = lines[1].find("t=")
+                if pos != -1:
+                    temp_c = round(int(lines[1][pos + 2:]) / 1000.0, 2)
+        except Exception:
+            pass
+        probes.append({"id": device_id, "temp_c": temp_c})
+    return jsonify({"probes": probes, "count": len(probes)})
+
+
+@app.route("/api/tc-zone-map", methods=["GET"])
+def api_get_tc_zone_map():
+    """Return the current tc_zone_map.json contents."""
+    try:
+        with open(TC_ZONE_MAP_FILE) as f:
+            mapping = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        mapping = {}
+    return jsonify({"mapping": mapping})
+
+
+@app.route("/api/tc-zone-map", methods=["POST"])
+def api_set_tc_zone_map():
+    """Save a new thermocouple zone mapping.
+
+    Body: {"mapping": {"3b-xxxx": 1, "3b-yyyy": 2, ...}}
+    Validates that values are ints 1-6 with no duplicates.
+    """
+    body = request.get_json(force=True, silent=True) or {}
+    mapping = body.get("mapping")
+    if not isinstance(mapping, dict):
+        return jsonify({"error": "body must contain 'mapping' object"}), 400
+
+    # Validate
+    seen_zones = set()
+    cleaned = {}
+    for device_id, zone in mapping.items():
+        if not isinstance(device_id, str) or not device_id.startswith("3b-"):
+            return jsonify({"error": f"Invalid device id: {device_id}"}), 400
+        try:
+            zone = int(zone)
+        except (TypeError, ValueError):
+            return jsonify({"error": f"Zone must be integer, got: {zone}"}), 400
+        if zone < 1 or zone > 6:
+            return jsonify({"error": f"Zone must be 1-6, got: {zone}"}), 400
+        if zone in seen_zones:
+            return jsonify({"error": f"Duplicate zone assignment: {zone}"}), 400
+        seen_zones.add(zone)
+        cleaned[device_id] = zone
+
+    # Atomic write
+    tmp = TC_ZONE_MAP_FILE + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(cleaned, f, indent=2, sort_keys=True)
+    os.replace(tmp, TC_ZONE_MAP_FILE)
+
+    return jsonify({"ok": True, "mapping": cleaned, "zones_assigned": len(cleaned)})
+
+
 @app.route("/api/scale-config", methods=["GET"])
 def api_get_scale_config():
     return jsonify(_read_scale_cfg_full())

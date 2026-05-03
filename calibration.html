@@ -117,6 +117,31 @@
       <span id="conn-pill" class="conn-pill" role="status" aria-live="polite">Connecting&hellip;</span>
     </div>
 
+    <!-- ── Thermocouple Mapping ──────────────────────────────── -->
+    <div class="panel" id="mapping-panel">
+      <h2>Probe &rarr; Zone Mapping</h2>
+      <p class="panel-help">
+        Assign each physical thermocouple probe to a zone (1-6). Heat a probe to identify it — its temperature will rise in the table below.
+        Changes take effect on next service restart or sensor loop cycle.
+      </p>
+      <table class="cal-table" id="map-table">
+        <thead>
+          <tr>
+            <th>Probe ID</th>
+            <th class="col-temp">Live Temp</th>
+            <th style="width:100px">Zone</th>
+          </tr>
+        </thead>
+        <tbody id="map-tbody">
+          <tr><td colspan="3" style="color:var(--color-text-3)">Scanning 1-Wire bus&hellip;</td></tr>
+        </tbody>
+      </table>
+      <div style="display:flex; gap:.5rem; align-items:center; margin-top:.75rem; flex-wrap:wrap;">
+        <button class="btn btn-primary" id="map-save-btn" disabled>Save Mapping</button>
+        <span class="status-msg" id="map-status"></span>
+      </div>
+    </div>
+
     <!-- ── Thermocouples ────────────────────────────────────── -->
     <div class="panel">
       <h2>Temperature Probes</h2>
@@ -770,6 +795,173 @@
       _calTimer = setInterval(refresh, POLL_MS);
     }
   });
+
+  // ══════════════════════════════════════════════════════════════════════
+  // ── Probe → Zone Mapping UI ──────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
+
+  var _mapTbody   = document.getElementById('map-tbody');
+  var _mapSaveBtn = document.getElementById('map-save-btn');
+  var _mapStatus  = document.getElementById('map-status');
+  var _mapProbes  = [];
+  var _mapCurrent = {};  // current saved mapping: {probeId: zone}
+  var MAP_POLL_MS = 3000;
+  var _mapTimer   = null;
+
+  function mapSetStatus(msg, ok) {
+    _mapStatus.textContent = msg;
+    _mapStatus.className = 'status-msg ' + (ok ? 'status-ok' : 'status-err');
+  }
+
+  function loadCurrentMap() {
+    fetch('/api/tc-zone-map')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        _mapCurrent = data.mapping || {};
+        renderMapTable();
+      })
+      .catch(function () {});
+  }
+
+  function pollProbes() {
+    fetch('/api/tc-probes')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        _mapProbes = data.probes || [];
+        renderMapTable();
+      })
+      .catch(function () {});
+  }
+
+  function renderMapTable() {
+    if (_mapProbes.length === 0) {
+      _mapTbody.innerHTML = '<tr><td colspan="3" style="color:var(--color-text-3)">No probes detected on 1-Wire bus</td></tr>';
+      _mapSaveBtn.disabled = true;
+      return;
+    }
+
+    // Build inverse map: zone -> probeId (from saved)
+    var zoneToProbe = {};
+    for (var pid in _mapCurrent) {
+      zoneToProbe[_mapCurrent[pid]] = pid;
+    }
+
+    var html = '';
+    _mapProbes.forEach(function (probe) {
+      var currentZone = _mapCurrent[probe.id] || '';
+      var tempStr = (probe.temp_c !== null && probe.temp_c !== undefined) ? probe.temp_c.toFixed(1) + '°C' : 'err';
+
+      html += '<tr>'
+            +   '<td><code style="font-size:.8rem">' + probe.id + '</code></td>'
+            +   '<td class="num" style="font-weight:600">' + tempStr + '</td>'
+            +   '<td>'
+            +     '<select class="map-zone-select" data-probe="' + probe.id + '" style="'
+            +       'min-height:44px; padding:.3rem .5rem; background:var(--color-bg);'
+            +       'border:1px solid var(--color-border); border-radius:var(--r-sm);'
+            +       'color:var(--color-text-1); font-size:.82rem;">'
+            +       '<option value="">—</option>'
+            +       '<option value="1"' + (currentZone == 1 ? ' selected' : '') + '>Zone 1</option>'
+            +       '<option value="2"' + (currentZone == 2 ? ' selected' : '') + '>Zone 2</option>'
+            +       '<option value="3"' + (currentZone == 3 ? ' selected' : '') + '>Zone 3</option>'
+            +       '<option value="4"' + (currentZone == 4 ? ' selected' : '') + '>Zone 4</option>'
+            +       '<option value="5"' + (currentZone == 5 ? ' selected' : '') + '>Zone 5</option>'
+            +       '<option value="6"' + (currentZone == 6 ? ' selected' : '') + '>Zone 6</option>'
+            +     '</select>'
+            +   '</td>'
+            + '</tr>';
+    });
+    _mapTbody.innerHTML = html;
+    _mapSaveBtn.disabled = false;
+
+    // Attach change listeners to enable save
+    var selects = _mapTbody.querySelectorAll('.map-zone-select');
+    selects.forEach(function (sel) {
+      sel.addEventListener('change', function () {
+        // Check for duplicate zone assignments
+        var assigned = {};
+        var dupes = false;
+        selects.forEach(function (s) {
+          var v = s.value;
+          if (v) {
+            if (assigned[v]) { dupes = true; s.style.borderColor = 'var(--color-critical)'; assigned[v].style.borderColor = 'var(--color-critical)'; }
+            else { assigned[v] = s; s.style.borderColor = ''; }
+          } else { s.style.borderColor = ''; }
+        });
+        if (dupes) {
+          mapSetStatus('Duplicate zone assignment — each zone can only have one probe', false);
+          _mapSaveBtn.disabled = true;
+        } else {
+          _mapStatus.textContent = '';
+          _mapSaveBtn.disabled = false;
+        }
+      });
+    });
+  }
+
+  function saveMap() {
+    var selects = _mapTbody.querySelectorAll('.map-zone-select');
+    var mapping = {};
+    var zones = {};
+    var hasAny = false;
+
+    selects.forEach(function (sel) {
+      var probe = sel.getAttribute('data-probe');
+      var zone = sel.value;
+      if (zone) {
+        if (zones[zone]) {
+          mapSetStatus('Duplicate zone ' + zone + ' — fix before saving', false);
+          return;
+        }
+        zones[zone] = true;
+        mapping[probe] = parseInt(zone);
+        hasAny = true;
+      }
+    });
+
+    if (!hasAny) {
+      mapSetStatus('Assign at least one probe to a zone', false);
+      return;
+    }
+
+    _mapSaveBtn.disabled = true;
+    fetch('/api/tc-zone-map', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({mapping: mapping})
+    })
+      .then(function (r) { return r.json().then(function (d) { return {ok: r.ok, data: d}; }); })
+      .then(function (res) {
+        if (res.ok) {
+          _mapCurrent = res.data.mapping;
+          mapSetStatus('Saved — ' + res.data.zones_assigned + ' zone(s) mapped. Restart service to apply.', true);
+        } else {
+          mapSetStatus(res.data.error || 'Save failed', false);
+        }
+        _mapSaveBtn.disabled = false;
+      })
+      .catch(function (e) {
+        mapSetStatus('Network error: ' + e.message, false);
+        _mapSaveBtn.disabled = false;
+      });
+  }
+
+  _mapSaveBtn.addEventListener('click', saveMap);
+
+  // Start probe polling (faster than main calibration poll for responsive mapping)
+  loadCurrentMap();
+  pollProbes();
+  _mapTimer = setInterval(pollProbes, MAP_POLL_MS);
+
+  // Pause/resume with visibility
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) {
+      if (_mapTimer) { clearInterval(_mapTimer); _mapTimer = null; }
+    } else if (!_mapTimer) {
+      pollProbes();
+      _mapTimer = setInterval(pollProbes, MAP_POLL_MS);
+    }
+  });
+
 })();
 </script>
 </body>
