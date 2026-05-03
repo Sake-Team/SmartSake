@@ -35,11 +35,12 @@ _CACHE_TTL = 120  # re-scan 1-Wire bus every 2 minutes, not every cycle
 
 def discover_devices():
     """Discover MAX31850K devices on the 1-Wire bus (appear as '3b-*').
-    Caches the result for _CACHE_TTL seconds since devices only change on plug/unplug."""
+    Caches the result for _CACHE_TTL seconds since devices only change on plug/unplug.
+    Does NOT cache empty results — retries every call until probes appear."""
     import time as _time
     global _cached_devices, _cache_time
     now = _time.monotonic()
-    if _cached_devices is not None and (now - _cache_time) < _CACHE_TTL:
+    if _cached_devices and (now - _cache_time) < _CACHE_TTL:
         return _cached_devices
     _cached_devices = sorted(glob.glob(f"{W1_BASE}/3b-*"))[:MAX_THERMOCOUPLES]
     _cache_time = now

@@ -808,6 +808,8 @@ def start_sensor_loop():
             device_id_to_channel = _hot_reload_tc_zone_map()
 
             devices = discover_devices()
+            if _loop_iteration == 1:
+                print(f"[sensors] 1-Wire bus scan: {len(devices)} probe(s) found")
 
             # Build assigned list: mapped probes get their zone, unmapped
             # probes get auto-assigned to the next free zone slot so they
