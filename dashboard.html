@@ -1687,6 +1687,7 @@
 
 				window.startFanPolling  = startFanPolling;
 				window.stopFanPolling   = stopFanPolling;
+				window._applyFanBadgesExt = _applyFanBadges;
 				window.getZoneSetpoints = function () { return Object.assign({}, _zoneSetpoints); };
 				window.getZoneTriggers  = function () { return Object.assign({}, _zoneTriggers); };
 			})();
@@ -2879,7 +2880,17 @@ const tempSeries = {
 									body: JSON.stringify(cfg)
 								});
 							})
-							.then(function() { loadZoneControls(activeZone); })
+							.then(function() {
+								loadZoneControls(activeZone);
+								// Refresh zone cards after sensor loop picks up new setpoint
+								setTimeout(function() {
+									fetch('/api/fan-state').then(function(r) { return r.ok ? r.json() : {}; })
+										.then(function(d) {
+											if (window._applyFanBadgesExt) window._applyFanBadgesExt(d);
+											if (window.applyDeviationColors) window.applyDeviationColors();
+										}).catch(function(){});
+								}, 1500);
+							})
 							.catch(function() {});
 					});
 
@@ -2899,7 +2910,16 @@ const tempSeries = {
 									body: JSON.stringify(cfg)
 								});
 							})
-							.then(function() { loadZoneControls(activeZone); })
+							.then(function() {
+								loadZoneControls(activeZone);
+								setTimeout(function() {
+									fetch('/api/fan-state').then(function(r) { return r.ok ? r.json() : {}; })
+										.then(function(d) {
+											if (window._applyFanBadgesExt) window._applyFanBadgesExt(d);
+											if (window.applyDeviationColors) window.applyDeviationColors();
+										}).catch(function(){});
+								}, 1500);
+							})
 							.catch(function() {});
 					});
 
@@ -2959,7 +2979,17 @@ const tempSeries = {
 									if (!r.ok) return Promise.reject(r.status);
 									return mode === 'auto' ? null : r.json();
 								})
-								.then(function () { loadFanState(runId, activeZone); })
+								.then(function () {
+									loadFanState(runId, activeZone);
+									// Instantly refresh zone card badges + colors
+									if (window.startFanPolling) {
+										fetch('/api/fan-state').then(function(r) { return r.ok ? r.json() : {}; })
+											.then(function(d) {
+												if (window._applyFanBadgesExt) window._applyFanBadgesExt(d);
+												if (window.applyDeviationColors) window.applyDeviationColors();
+											}).catch(function(){});
+									}
+								})
 								.catch(function () { fanStatus.textContent = 'Error — try again'; })
 								.finally(function () {
 									fanRequestPending = false;
