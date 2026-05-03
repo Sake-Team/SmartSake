@@ -45,6 +45,15 @@ sudo bash scripts/onboarding.sh     # Phase 2: map thermocouples, calibrate, sta
 
 The setup wizard auto-detects which phase to run. After Phase 2, open `http://<pi-ip>:8080` and start a run.
 
+For sensor setup without the full onboarding (e.g., after replacing a probe):
+
+```bash
+./setup.sh              # map thermocouples, verify sensors, start service
+./setup.sh --remap      # re-run TC identification only
+./setup.sh --verify     # check all sensors without starting
+./setup.sh --status     # show sensor + service state
+```
+
 For manual setup or troubleshooting individual steps, see the full instructions below.
 
 ---
