@@ -4,6 +4,13 @@ Temperature monitoring and fan control system for koji fermentation, built on a 
 
 Reads six MAX31850K thermocouples, an SHT30 humidity sensor, and up to four HX711 load cells. Controls six relay-switched fans to hold temperature curves. Serves a real-time web dashboard over the local network.
 
+<!-- ## Screenshots
+Drop PNGs into `images/` and uncomment:
+![Dashboard](images/dashboard.png)
+![Mobile View](images/mobile.png)
+![Curve Builder](images/curves.png)
+-->
+
 ## About the Project
 
 SmartSake is the controls and instrumentation half of a senior capstone project for the **University of Kentucky Biosystems & Agricultural Engineering** department (BAE 402/403, Fall 2025 – Spring 2026). The mechanical half — the koji table and load cell housings — is documented in `hardware/` and `docs/`.
@@ -12,6 +19,32 @@ SmartSake is the controls and instrumentation half of a senior capstone project 
 **Advisor:** Dr. Alicia Modenbach
 
 For background on the design — problem definition, constraints, alternatives considered, and economic justification — see [`docs/design-report.pdf`](docs/design-report.pdf).
+
+## Safety
+
+This system controls mains-voltage equipment near food-contact surfaces. Before powering anything on:
+
+- **Electrical:** All 120 VAC wiring (relay → fan power) must be enclosed and follow [`docs/schematics/power-schematic.pdf`](docs/schematics/power-schematic.pdf). Do not energize with the relay board exposed. The Pi must be on a separate 5V supply, never tapped from the fan rail.
+- **Thermal:** Fans run hot under sustained load. The auto fan-control loop has no upper bound — a misconfigured `tolerance_c` of 0 will keep fans on indefinitely. Always set a sane tolerance (1–2 °C) and check the dashboard during the first hour of every new run.
+- **Food contact:** Only the load cell housing surface and the koji table top are food-contact. Use food-safe PETG or food-safe-coated PLA for the [STL parts](hardware/stl/), and sanitize between runs.
+- **Watchdog:** The systemd watchdog (60 s) will restart the server if it hangs, but it does **not** force fans off. The fans hold their last commanded state during a server crash. If you need a hard cutoff, kill power at the relay board.
+- **Emergency stop:** The dashboard's emergency-stop overrides all six zones to OFF until cleared. Use it before opening the table.
+
+## Quickstart
+
+If your Pi is wired and SSH-able:
+
+```bash
+git clone https://github.com/Sake-Team/SmartSake.git
+cd SmartSake
+git checkout ClaudeAgents
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python3 scripts/identify_tcs.py    # map probes to zones (interactive, one-time)
+sudo bash systemd/install.sh        # install + start services
+```
+
+Open `http://<pi-ip>:8080` and start a run. Full setup details below.
 
 ---
 
@@ -23,8 +56,12 @@ For background on the design — problem definition, constraints, alternatives c
 4. [Using the Dashboard](#4-using-the-dashboard)
 5. [Hardware Files](#5-hardware-files)
 6. [Documentation](#6-documentation)
-7. [Contributing](#7-contributing)
-8. [License](#8-license)
+7. [Troubleshooting](#7-troubleshooting)
+8. [API Reference](#8-api-reference)
+9. [Glossary](#9-glossary)
+10. [Contributing](#10-contributing)
+11. [License](#11-license)
+12. [Acknowledgments](#12-acknowledgments)
 
 ---
 
@@ -471,7 +508,137 @@ The native Fusion 360 file (`SakeTableCAD.f3z`) is not included due to size; con
 
 ---
 
-## 7. Contributing
+## 7. Troubleshooting
+
+### Dashboard won't load / can't reach Pi
+- `ping <pi-ip>` — confirm the Pi is on the network
+- On the Pi: `sudo ss -tlnp | grep 8080` — confirm something is listening
+- `sudo systemctl status smartsake` — check for crash loops
+- If the port is taken by a stale process: `pkill -f "python.*server.py"` then `./restart.sh`
+
+### "Sensor loop will not start — tc_zone_map.json incomplete"
+All six probes must be mapped before the loop runs. There is no auto-assignment.
+```bash
+python3 scripts/identify_tcs.py            # interactive — heat each probe in turn
+python3 scripts/identify_tcs.py --check    # validate (no dupes, all 6 present)
+sudo systemctl restart smartsake
+```
+
+### Probe shows N/A or wild jumps
+- Check the 1-Wire bus on GPIO 4 — `ls /sys/bus/w1/devices/` should list six `3b-…` entries
+- Loose probe wiring is the most common cause; reseat at the screw terminal
+- Live monitor without writes: `python3 scripts/identify_tcs.py --monitor`
+
+### Fan stuck ON or OFF
+1. Check the dashboard zone card for an active manual override or rule — clear it
+2. Verify relay logic is active-LOW (GPIO LOW = fan ON) — see `fan_gpio.py`
+3. If a relay is mechanically stuck, hard-cycle the relay board's 5V supply
+4. Use the dashboard's **emergency stop** to force all fans OFF, then diagnose
+
+### Scale reads zero or drifts
+- Re-tare without recalibrating: `python3 load_cell_hx711.py --tare --scale N`
+- Full calibration with a known weight: `python3 load_cell_hx711.py --calibrate --scale N`
+- Confirm DAT/CLK pins in `scale_config.json` match the wiring (defaults: 5/6 for scale 1)
+- HX711 is sensitive to vibration and temperature swings; mount it rigidly
+
+### "Database is locked"
+Another process is writing. Stop everything and restart cleanly:
+```bash
+sudo systemctl stop smartsake smartsake-sensors
+sudo systemctl start smartsake
+```
+The `-sensors` standalone unit conflicts with the main service — only one of them should be active.
+
+### Hot-reload not picking up config changes
+The server uses an mtime check. If you edit `zone_config.json` over SMB or with an editor that writes atomically (replacing the file), mtime updates correctly. If you `cat >` the file, mtime may not change — `touch zone_config.json` to force.
+
+---
+
+## 8. API Reference
+
+All endpoints are JSON unless noted. Base URL is `http://<pi-ip>:8080`.
+
+### Health & status
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/health` | Overall system health (sensor loop, DB, GPIO) |
+| GET | `/api/sensor-status` | Sensor loop diagnostics, library availability, last-write age |
+| GET | `/api/latest` | Latest TC + SHT30 + weight reading |
+| GET | `/api/fan-state` | Latest fan state per zone (mode, setpoint, alarm) |
+
+### Runs
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/runs` | List all runs |
+| GET | `/api/runs/active` | Currently active run (if any) |
+| POST | `/api/runs` | Start a new run — body: `{name, target_curve_id?}` |
+| GET | `/api/runs/<id>` | Get run metadata |
+| POST | `/api/runs/<id>/end` | Mark run completed |
+| DELETE | `/api/runs/<id>` | Delete run (unless locked) |
+| POST | `/api/runs/<id>/pin` | Lock/unlock run from deletion |
+| POST | `/api/prune` | Free disk by deleting oldest unlocked runs |
+| GET | `/api/runs/<id>/readings` | Full reading history |
+| GET | `/api/runs/<id>/latest` | Latest reading for this run |
+| GET | `/api/runs/<id>/summary` | Hourly temp stats per zone |
+| GET | `/api/runs/<id>/export.csv` | Stream all readings as CSV |
+| GET | `/api/runs/completed` | List completed runs |
+| GET | `/api/room-history?hours=N` | Ambient SHT30 history |
+
+### Targets, fans, zones
+| Method | Path | Purpose |
+|---|---|---|
+| GET / POST | `/api/runs/<id>/target` | Get/set per-run reference temperature curve |
+| POST | `/api/runs/<id>/target/from-curve/<curve_id>` | Load a saved curve as the target |
+| GET | `/api/runs/<id>/zones` | All per-zone notes |
+| GET / PUT | `/api/runs/<id>/zones/<n>` | Get/save zone note |
+| GET | `/api/runs/<id>/fan-overrides` | Active manual overrides |
+| POST / DELETE | `/api/runs/<id>/zones/<n>/fan` | Set/clear manual override on zone N |
+| POST | `/api/runs/<id>/emergency-stop` | Force all six zones OFF |
+| GET / POST | `/api/runs/<id>/fan-rules` | List/create rule-based triggers |
+| PATCH / DELETE | `/api/runs/<id>/fan-rules/<rule_id>` | Toggle/delete rule |
+| GET | `/api/runs/<id>/deviations` | All deviation events |
+| GET | `/api/runs/<id>/deviations/active` | Currently-active deviations |
+
+### Reference curves
+| Method | Path | Purpose |
+|---|---|---|
+| GET / POST | `/api/reference-curves` | List/save curves |
+| GET / DELETE | `/api/reference-curves/<id>` | Get/delete curve |
+| POST | `/api/reference-curves/generate` | Build a curve from setpoints |
+| POST | `/api/reference-curves/generate-from-csv` | Build a curve from a CSV upload |
+
+### Calibration & config
+| Method | Path | Purpose |
+|---|---|---|
+| GET / POST | `/api/zone-config` | Read/write `zone_config.json` |
+| GET | `/api/scale-config` | Read `scale_config.json` |
+| POST | `/api/tc-calibration/<zone>` | Set per-zone TC offset directly |
+
+Most write endpoints validate input (range checks on `tolerance_c`, `setpoint_c`, `offset_c`) and return `400` with an `error` key on failure. See `server.py` for exact validation rules.
+
+---
+
+## 9. Glossary
+
+For readers without a brewing background:
+
+| Term | Meaning |
+|---|---|
+| **Sake** | Japanese alcoholic beverage made by fermenting rice; requires koji to convert rice starches to sugars before yeast fermentation |
+| **Koji** (麹) | Steamed rice inoculated with *Aspergillus oryzae* mold; produces enzymes that convert starch to sugar |
+| **Kojikin** (麹菌) | The *A. oryzae* spores themselves, sprinkled onto cooled steamed rice to start a koji batch |
+| **Koji-muro** | Traditional koji-making room — warm, humid, temperature-controlled. SmartSake automates this. |
+| **Koji table** | The wooden/stainless table inside the koji-muro where rice ferments. Our table has six independently-controlled fan zones. |
+| **Moromi** | The main fermentation mash — koji + steamed rice + yeast + water. Happens after koji is finished. |
+| **Tane-kōji** | The "seed koji" — a previous batch of koji used to inoculate a new batch (alternative to dried kojikin) |
+| **Zone** | One of the six independently-monitored regions of the koji table, each with its own thermocouple and fan |
+| **Setpoint** | Target temperature for a zone, in °C |
+| **Tolerance** | How far above setpoint the temp must go before the fan kicks on (typically 1–2 °C) |
+| **Reference curve** | A planned temperature schedule over a 24–48 hr koji run; the dashboard plots actual vs. reference |
+
+---
+
+## 10. Contributing
 
 This is an active capstone project. If you are on the team:
 
@@ -487,6 +654,15 @@ For external contributors: please open an issue describing the change before sub
 
 ---
 
-## 8. License
+## 11. License
 
 This project is released for academic and educational use. Hardware designs (CAD, STL, schematics) and software are © 2025–2026 the SmartSake team. Reuse for non-commercial purposes is permitted with attribution. Contact the team for commercial licensing.
+
+---
+
+## 12. Acknowledgments
+
+- **Dr. Alicia Modenbach** — capstone advisor, BAE Department
+- **University of Kentucky Biosystems & Agricultural Engineering** — capstone program, lab space, fabrication resources
+- **Open-source projects:** Flask, Adafruit CircuitPython libraries, Chart.js, the HX711 driver community
+- **The brewing community** — for centuries of documented technique that made the temperature curves possible
