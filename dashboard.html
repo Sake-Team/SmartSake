@@ -2722,9 +2722,9 @@ const tempSeries = {
 						var activeLink = document.getElementById('zone-link-' + zone);
 						if (activeLink) activeLink.classList.add('zone-combined--active');
 
-						// Load fan override state (only when a run is active)
+						// Load fan override state (works with or without active run)
 						const runId = getRunId();
-						if (runId) loadFanState(runId, zone);
+						loadFanState(runId, zone);
 
 						// Load zone note
 						_getActiveRunId().then(function(rid) {
@@ -2757,7 +2757,25 @@ const tempSeries = {
 						fanSegBtns.forEach(function (b) { b.disabled = false; });
 
 						if (!runId) {
-							fanStatus.textContent = 'Direct control (no run)';
+							// No active run — auto control still works via zone_config setpoints
+							fetch('/api/fan-state')
+								.then(function (r) { return r.ok ? r.json() : {}; })
+								.then(function (d) {
+									var zd = (d.zones || {})[String(zone)] || {};
+									var mode = zd.mode || 'none';
+									if (mode === 'limit') {
+										fanStatus.textContent = 'Automatic (no run)';
+										fanSegBtns.forEach(function (b) {
+											if (b.dataset.mode === 'auto') b.classList.add('zone-detail-card__fan-seg--active');
+										});
+									} else {
+										fanStatus.textContent = 'No setpoint — set one for auto control';
+										fanSegBtns.forEach(function (b) {
+											if (b.dataset.mode === 'auto') b.classList.add('zone-detail-card__fan-seg--active');
+										});
+									}
+								})
+								.catch(function () { fanStatus.textContent = 'Direct control (no run)'; });
 							return;
 						}
 

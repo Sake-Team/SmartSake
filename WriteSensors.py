@@ -444,6 +444,77 @@ def evaluate_fan_state(run, tc_readings):
     return result
 
 
+def evaluate_fan_state_no_run(tc_readings):
+    """Standalone auto fan control using zone_config setpoints (no active run needed).
+
+    Uses the same trigger logic as the in-run version but without curves,
+    overrides, or rules. Purely setpoint + tolerance from zone_config.json.
+    """
+    global _fan_hold_counts, _fan_on
+    global _last_fan_mode, _last_fan_setpoint, _last_fan_setpoint_source
+    global _last_fan_trigger, _last_fan_alarm_level, _last_fan_alarm_reason
+
+    result = {z: "off" for z in range(1, 7)}
+    tc_map = {ch: temp for ch, temp in tc_readings}
+
+    for zone in range(1, 7):
+        actual = tc_map.get(zone)
+        if actual is None:
+            _last_fan_mode[zone]            = "none"
+            _last_fan_setpoint[zone]        = None
+            _last_fan_setpoint_source[zone] = None
+            _last_fan_trigger[zone]         = None
+            _last_fan_alarm_level[zone]     = None
+            _last_fan_alarm_reason[zone]    = None
+            continue
+
+        setpoint = _zone_setpoint_override(zone)
+        if setpoint is None:
+            _last_fan_mode[zone]            = "none"
+            _last_fan_setpoint[zone]        = None
+            _last_fan_setpoint_source[zone] = None
+            _last_fan_trigger[zone]         = None
+            _last_fan_alarm_level[zone]     = None
+            _last_fan_alarm_reason[zone]    = None
+            continue
+
+        _last_fan_setpoint[zone]        = round(setpoint, 2)
+        _last_fan_setpoint_source[zone] = "config"
+
+        tolerance = _zone_tolerance(zone)
+        trigger   = setpoint + tolerance
+        _last_fan_trigger[zone] = round(trigger, 2)
+
+        level, reason = _classify_alarm(actual, setpoint, tolerance)
+        _last_fan_alarm_level[zone]  = level
+        _last_fan_alarm_reason[zone] = reason
+
+        current_on = _fan_on[zone]
+        if actual > trigger:
+            desired_on = True
+        elif actual <= setpoint:
+            desired_on = False
+        else:
+            desired_on = current_on  # hysteresis
+
+        if desired_on == current_on:
+            _fan_hold_counts[zone] = 0
+            fan_on = desired_on
+        else:
+            _fan_hold_counts[zone] += 1
+            if _fan_hold_counts[zone] >= DEADBAND_HOLD:
+                fan_on = desired_on
+                _fan_hold_counts[zone] = 0
+            else:
+                fan_on = current_on
+
+        _fan_on[zone] = fan_on
+        result[zone] = "on" if fan_on else "off"
+        _last_fan_mode[zone] = "limit"
+
+    return result
+
+
 def _write_fan_state_json(fan_states):
     zones = {}
     for z in range(1, 7):
@@ -946,15 +1017,23 @@ def start_sensor_loop():
                     print(f"[sensors] DB write failed: {e}")
             else:
                 _active_run_id = None
-                # No active run — reset modes so stale "manual" doesn't persist
-                for z in range(1, 7):
-                    _last_fan_mode[z] = "none"
-                    _last_fan_setpoint[z] = None
-                    _last_fan_setpoint_source[z] = None
-                    _last_fan_trigger[z] = None
-                    _last_fan_alarm_level[z] = None
-                    _last_fan_alarm_reason[z] = None
-                _write_fan_state_json({z: "off" for z in range(1, 7)})
+                # No active run — still do auto fan control if setpoints are configured
+                try:
+                    fan_states = evaluate_fan_state_no_run(tc_readings)
+                    for zone, state in fan_states.items():
+                        fan_gpio.set_fan(zone, state == "on")
+                    _write_fan_state_json(fan_states)
+                except Exception as e:
+                    print(f"[sensors] No-run fan evaluation error: {e}")
+                    # Fallback: write all off
+                    for z in range(1, 7):
+                        _last_fan_mode[z] = "none"
+                        _last_fan_setpoint[z] = None
+                        _last_fan_setpoint_source[z] = None
+                        _last_fan_trigger[z] = None
+                        _last_fan_alarm_level[z] = None
+                        _last_fan_alarm_reason[z] = None
+                    _write_fan_state_json({z: "off" for z in range(1, 7)})
 
             # Disk space check every ~4 minutes (24 iterations at 10s)
             if _loop_iteration % 24 == 0:
