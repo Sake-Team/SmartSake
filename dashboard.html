@@ -2754,13 +2754,12 @@ const tempSeries = {
 					function loadFanState(runId, zone) {
 						fanStatus.textContent = '';
 						fanSegBtns.forEach(function (b) { b.classList.remove('zone-detail-card__fan-seg--active'); });
+						fanSegBtns.forEach(function (b) { b.disabled = false; });
 
 						if (!runId) {
-							fanStatus.textContent = 'No active run';
-							fanSegBtns.forEach(function (b) { b.disabled = true; });
+							fanStatus.textContent = 'Direct control (no run)';
 							return;
 						}
-						fanSegBtns.forEach(function (b) { b.disabled = false; });
 
 						fetch('/api/runs/' + runId + '/fan-overrides')
 							.then(function (r) { return r.ok ? r.json() : { overrides: {} }; })
@@ -2950,7 +2949,7 @@ const tempSeries = {
 					fanSegBtns.forEach(function (btn) {
 						btn.addEventListener('click', function () {
 							var runId = getRunId();
-							if (!runId || !activeZone || fanRequestPending) return;
+							if (!activeZone || fanRequestPending) return;
 							var mode = btn.dataset.mode;
 							// If already active, do nothing
 							if (btn.classList.contains('zone-detail-card__fan-seg--active')) return;
@@ -2959,19 +2958,30 @@ const tempSeries = {
 							fanSegBtns.forEach(function (b) { b.disabled = true; });
 							fanStatus.textContent = 'Saving…';
 
-							var url = '/api/runs/' + runId + '/zones/' + activeZone + '/fan';
-							var fetchOpts;
+							var url, fetchOpts;
 
-							if (mode === 'auto') {
-								fetchOpts = { method: 'DELETE' };
-							} else {
-								var action = (mode === 'off-1h' || mode === 'off') ? 'off' : 'on';
-								var duration = (mode === 'off-1h' || mode === 'on-1h') ? 60 : null;
+							if (!runId) {
+								// No active run — use direct fan GPIO endpoint
+								var action = (mode === 'off-1h' || mode === 'off' || mode === 'auto') ? 'off' : 'on';
+								url = '/api/fans/' + activeZone;
 								fetchOpts = {
 									method: 'POST',
 									headers: { 'Content-Type': 'application/json' },
-									body: JSON.stringify({ action: action, duration_minutes: duration })
+									body: JSON.stringify({ action: action })
 								};
+							} else {
+								url = '/api/runs/' + runId + '/zones/' + activeZone + '/fan';
+								if (mode === 'auto') {
+									fetchOpts = { method: 'DELETE' };
+								} else {
+									var action = (mode === 'off-1h' || mode === 'off') ? 'off' : 'on';
+									var duration = (mode === 'off-1h' || mode === 'on-1h') ? 60 : null;
+									fetchOpts = {
+										method: 'POST',
+										headers: { 'Content-Type': 'application/json' },
+										body: JSON.stringify({ action: action, duration_minutes: duration })
+									};
+								}
 							}
 
 							fetch(url, fetchOpts)
