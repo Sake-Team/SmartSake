@@ -38,13 +38,14 @@ If your Pi is wired and SSH-able:
 git clone https://github.com/Sake-Team/SmartSake.git
 cd SmartSake
 git checkout ClaudeAgents
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-python3 scripts/identify_tcs.py    # map probes to zones (interactive, one-time)
-sudo bash systemd/install.sh        # install + start services
+sudo bash scripts/onboarding.sh     # Phase 1: install packages, enable overlays
+# --- Pi reboots here ---
+sudo bash scripts/onboarding.sh     # Phase 2: map thermocouples, calibrate, start service
 ```
 
-Open `http://<pi-ip>:8080` and start a run. Full setup details below.
+The setup wizard auto-detects which phase to run. After Phase 2, open `http://<pi-ip>:8080` and start a run.
+
+For manual setup or troubleshooting individual steps, see the full instructions below.
 
 ---
 
@@ -69,7 +70,7 @@ Open `http://<pi-ip>:8080` and start a run. Full setup details below.
 
 ### Parts List
 
-Quick reference — for the full Bill of Materials with vendors, part numbers, and costs see [`hardware/bill-of-materials.xlsx`](hardware/bill-of-materials.xlsx).
+Quick reference — for the full Bill of Materials with vendors, part numbers, and costs see [`BOM.md`](BOM.md).
 
 | Component | Model | Qty |
 |---|---|---|
