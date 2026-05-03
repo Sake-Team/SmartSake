@@ -15,16 +15,34 @@ import fan_gpio
 
 # ── Hardware library imports — guarded so missing libs log a warning and degrade
 # gracefully rather than crashing the whole process. ──────────────────────────
+MAX_THERMOCOUPLES = 6
+_W1_BASE = "/sys/bus/w1/devices"
+
 try:
     from sensors import discover_devices, read_temp_c, format_device_id, MAX_THERMOCOUPLES
     _TC_AVAILABLE = True
-except ImportError as _e:
-    print(f"[WARN] Thermocouple libs not available ({_e}) — TC readings disabled")
+except (ImportError, SyntaxError) as _e:
+    print(f"[WARN] sensors.py import failed ({_e}) — using built-in 1-Wire fallback")
     _TC_AVAILABLE = False
-    MAX_THERMOCOUPLES = 6
-    def discover_devices(): return []
-    def read_temp_c(d): raise RuntimeError("TC libs not loaded")
-    def format_device_id(d): return d
+
+    def discover_devices():
+        """Fallback: scan 1-Wire bus directly."""
+        return sorted(glob.glob(f"{_W1_BASE}/3b-*"))[:MAX_THERMOCOUPLES]
+
+    def read_temp_c(device_folder):
+        """Fallback: read temperature from w1_slave file."""
+        device_file = f"{device_folder}/w1_slave"
+        with open(device_file, "r") as f:
+            lines = f.readlines()
+        if not lines[0].strip().endswith("YES"):
+            raise RuntimeError("CRC check failed")
+        pos = lines[1].find("t=")
+        if pos == -1:
+            raise RuntimeError("Temperature data not found")
+        return int(lines[1][pos + 2:]) / 1000.0
+
+    def format_device_id(device_folder):
+        return os.path.basename(device_folder)
 
 try:
     from load_cell_hx711 import HX711, SAMPLES_PER_READ, load_scale_config, log_weight
@@ -301,7 +319,8 @@ def evaluate_fan_state(run, tc_readings):
     started_at = datetime.fromisoformat(run["started_at"])
     elapsed_min = (now - started_at).total_seconds() / 60
 
-    result = {z: None for z in range(1, 7)}
+    # Default all zones to "off" — overrides/rules/auto can turn them on
+    result = {z: "off" for z in range(1, 7)}
     tc_map = {ch: temp for ch, temp in tc_readings}
 
     overrides = sakedb.get_all_fan_overrides(run_id)
@@ -429,7 +448,7 @@ def _write_fan_state_json(fan_states):
     zones = {}
     for z in range(1, 7):
         zones[str(z)] = {
-            "state":           fan_states.get(z),
+            "state":           fan_states.get(z) or "off",
             "mode":            _last_fan_mode.get(z, "none"),
             "setpoint":        _last_fan_setpoint.get(z),
             "setpoint_source": _last_fan_setpoint_source.get(z),
@@ -927,6 +946,8 @@ def start_sensor_loop():
                     print(f"[sensors] DB write failed: {e}")
             else:
                 _active_run_id = None
+                # No active run — still write fan state so dashboard shows all off
+                _write_fan_state_json({z: "off" for z in range(1, 7)})
 
             # Disk space check every ~4 minutes (24 iterations at 10s)
             if _loop_iteration % 24 == 0:
