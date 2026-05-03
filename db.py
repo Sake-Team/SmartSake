@@ -159,7 +159,16 @@ def init_db():
         except Exception:
             pass  # column already exists
 
+        # Add temp_target to target_profiles if upgrading from older schema
+        try:
+            conn.execute("ALTER TABLE target_profiles ADD COLUMN temp_target REAL")
+        except Exception:
+            pass  # column already exists
+
         _seed_reference_curves(conn)
+
+        # Fix curves seeded before temp_target column existed (all NULL values)
+        _fix_null_temp_target_curves(conn)
 
         # Add multi-scale weight columns if upgrading from older schema
         for col in ("weight_lbs_1", "weight_lbs_2", "weight_lbs_3", "weight_lbs_4"):
@@ -193,6 +202,20 @@ def init_db():
             conn.execute("ALTER TABLE runs ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0")
         except Exception:
             pass  # column already exists
+
+
+def _fix_null_temp_target_curves(conn):
+    """Re-seed curves if they have NULL temp_target (from pre-migration seeding)."""
+    row = conn.execute(
+        "SELECT COUNT(*) FROM reference_curve_points WHERE temp_target IS NULL"
+    ).fetchone()
+    if not row or row[0] == 0:
+        return
+    # Delete and re-seed — the _seed_reference_curves function checks count > 0,
+    # so we need to wipe first.
+    print("[db] Fixing reference curves with NULL temp_target — re-seeding...")
+    conn.execute("DELETE FROM reference_curve_points")
+    conn.execute("DELETE FROM reference_curves")
 
 
 def _seed_reference_curves(conn):

@@ -4710,7 +4710,7 @@ const tempSeries = {
 				btn.disabled = true;
 				fetch('/api/runs/' + runId + '/target/from-curve/' + curveId, { method: 'POST' })
 					.then(function (r) {
-						if (!r.ok) throw new Error('Failed');
+						if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || r.status); });
 						return fetch('/api/runs/' + runId + '/target');
 					})
 					.then(function (r) { return r.json(); })
@@ -4720,8 +4720,8 @@ const tempSeries = {
 						status.textContent = 'Curve applied!';
 						status.style.color = '#7fff7f';
 					})
-					.catch(function () {
-						status.textContent = 'Failed to apply curve';
+					.catch(function (e) {
+						status.textContent = 'Failed: ' + (e.message || 'unknown error');
 						status.style.color = '#ff9f9f';
 					})
 					.finally(function () { btn.disabled = false; });
