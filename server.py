@@ -555,18 +555,26 @@ def api_emergency_stop(run_id):
 
 @app.route("/api/fans/<int:zone>", methods=["POST"])
 def api_direct_fan(zone):
-    """Direct fan GPIO control — works without an active run.
+    """Direct fan control — works without an active run.
 
-    POST {"action": "on"} or {"action": "off"}
+    POST {"action": "on"|"off"} — sets manual override (persists until "auto")
+    POST {"action": "auto"} — clears override, returns to automatic control
     """
+    import WriteSensors
     if zone < 1 or zone > 6:
         return jsonify({"error": "zone must be 1-6"}), 400
     body = request.get_json(force=True, silent=True) or {}
     action = body.get("action")
-    if action not in ("on", "off"):
-        return jsonify({"error": "action must be 'on' or 'off'"}), 400
-    fan_gpio.set_fan(zone, action == "on")
-    return jsonify({"ok": True, "zone": zone, "fan": action})
+    if action not in ("on", "off", "auto"):
+        return jsonify({"error": "action must be 'on', 'off', or 'auto'"}), 400
+    if action == "auto":
+        WriteSensors.clear_no_run_override(zone)
+        # Don't change GPIO — sensor loop's auto logic will set it next cycle
+        return jsonify({"ok": True, "zone": zone, "fan": "auto"})
+    else:
+        WriteSensors.set_no_run_override(zone, action)
+        fan_gpio.set_fan(zone, action == "on")
+        return jsonify({"ok": True, "zone": zone, "fan": action})
 
 
 # ── Fan rules ─────────────────────────────────────────────────────────────────
@@ -1029,7 +1037,32 @@ def api_fan_state():
         if not data:
             return jsonify({"error": "could not read fan_state.json"}), 500
 
-    # Cross-reference override DB to correct stale mode info
+    # Merge zone_config setpoints FIRST (needed by cross-reference below)
+    zone_cfg = _read_json_cached(ZONE_CONFIG_FILE)
+    if zone_cfg:
+        default_sp = zone_cfg.get("default", {}).get("setpoint_c")
+        default_tol = zone_cfg.get("default", {}).get("tolerance_c", 2.0)
+        zones = data.get("zones", {})
+        for z in range(1, 7):
+            zd = zones.get(str(z), {})
+            if zd.get("setpoint") is None:
+                zcfg = zone_cfg.get(f"zone{z}", {})
+                sp = zcfg.get("setpoint_c", default_sp)
+                tol = zcfg.get("tolerance_c", default_tol)
+                if sp is not None:
+                    zd["setpoint"] = sp
+                    zd["setpoint_source"] = "config"
+                    zd["trigger"] = sp + (tol if tol else 2.0)
+                    zones[str(z)] = zd
+            # Always include tolerance in response for card display
+            if zd.get("tolerance") is None:
+                zcfg = zone_cfg.get(f"zone{z}", {})
+                tol = zcfg.get("tolerance_c", zone_cfg.get("default", {}).get("tolerance_c", 2.0))
+                zd["tolerance"] = tol
+                zones[str(z)] = zd
+        data["zones"] = zones
+
+    # Cross-reference override state to correct stale mode info
     active_run = db.get_active_run()
     if active_run:
         overrides = db.get_all_fan_overrides(active_run["id"])
@@ -1048,23 +1081,22 @@ def api_fan_state():
                     zd["mode"] = "limit" if zd.get("setpoint") is not None else "none"
                     zones[str(z)] = zd
         data["zones"] = zones
-
-    # Merge zone_config setpoints as fallback for coloring
-    zone_cfg = _read_json_cached(ZONE_CONFIG_FILE)
-    if zone_cfg:
-        default_sp = zone_cfg.get("default", {}).get("setpoint_c")
-        default_tol = zone_cfg.get("default", {}).get("tolerance_c", 2.0)
+    else:
+        # No active run — cross-reference no-run overrides
+        import WriteSensors
+        no_run_ov = WriteSensors.get_no_run_overrides()
         zones = data.get("zones", {})
         for z in range(1, 7):
             zd = zones.get(str(z), {})
-            if zd.get("setpoint") is None:
-                zcfg = zone_cfg.get(f"zone{z}", {})
-                sp = zcfg.get("setpoint_c", default_sp)
-                tol = zcfg.get("tolerance_c", default_tol)
-                if sp is not None:
-                    zd["setpoint"] = sp
-                    zd["setpoint_source"] = "config"
-                    zd["trigger"] = sp + (tol if tol else 2.0)
+            if z in no_run_ov:
+                if zd.get("mode") != "manual":
+                    zd["mode"] = "manual"
+                    zd["state"] = no_run_ov[z]
+                    zones[str(z)] = zd
+            else:
+                # No override — if stale mode says manual, correct it
+                if zd.get("mode") == "manual":
+                    zd["mode"] = "limit" if zd.get("setpoint") is not None else "none"
                     zones[str(z)] = zd
         data["zones"] = zones
 

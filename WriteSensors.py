@@ -143,6 +143,27 @@ _last_fan_trigger         = {z: None   for z in range(1, 7)}
 _last_fan_alarm_level     = {z: None   for z in range(1, 7)}  # "warning" | "critical" | None
 _last_fan_alarm_reason    = {z: None   for z in range(1, 7)}
 
+# ── No-run manual overrides (volatile, in-memory) ────────────────────────────
+# When no run is active, users can still manually force fans on/off.
+# These overrides are checked by evaluate_fan_state_no_run before auto logic.
+# Cleared when a run starts, or when user clicks "Auto".
+_no_run_overrides = {}  # zone_int -> "on" | "off"
+
+
+def set_no_run_override(zone, action):
+    """Set a manual override for a zone when no run is active."""
+    _no_run_overrides[zone] = action
+
+
+def clear_no_run_override(zone):
+    """Clear manual override — zone returns to auto control."""
+    _no_run_overrides.pop(zone, None)
+
+
+def get_no_run_overrides():
+    """Return current no-run overrides dict (for API display)."""
+    return dict(_no_run_overrides)
+
 # Alarm thresholds — derived from setpoint + tolerance, no separate UI inputs.
 ALARM_WARN_MULT = 1.0   # warning when |actual - setpoint| > tolerance
 ALARM_CRIT_MULT = 2.0   # critical when |actual - setpoint| > 2 × tolerance
@@ -328,6 +349,8 @@ def evaluate_fan_state(run, tc_readings):
     for zone, ov in overrides.items():
         result[zone] = ov["action"]
         override_zones.add(zone)
+        # Keep _fan_on in sync so transition back to auto has correct hysteresis
+        _fan_on[zone] = (ov["action"] == "on")
 
     rules = sakedb.get_fan_rules(run_id)
     rule_zones = set()
@@ -447,8 +470,8 @@ def evaluate_fan_state(run, tc_readings):
 def evaluate_fan_state_no_run(tc_readings):
     """Standalone auto fan control using zone_config setpoints (no active run needed).
 
-    Uses the same trigger logic as the in-run version but without curves,
-    overrides, or rules. Purely setpoint + tolerance from zone_config.json.
+    Uses the same trigger logic as the in-run version but without curves or rules.
+    Respects _no_run_overrides for manual control when user clicks On/Off buttons.
     """
     global _fan_hold_counts, _fan_on
     global _last_fan_mode, _last_fan_setpoint, _last_fan_setpoint_source
@@ -458,6 +481,19 @@ def evaluate_fan_state_no_run(tc_readings):
     tc_map = {ch: temp for ch, temp in tc_readings}
 
     for zone in range(1, 7):
+        # Check no-run manual overrides first
+        if zone in _no_run_overrides:
+            action = _no_run_overrides[zone]
+            result[zone] = action
+            _fan_on[zone] = (action == "on")
+            _last_fan_mode[zone]            = "manual"
+            _last_fan_setpoint[zone]        = None
+            _last_fan_setpoint_source[zone] = None
+            _last_fan_trigger[zone]         = None
+            _last_fan_alarm_level[zone]     = None
+            _last_fan_alarm_reason[zone]    = None
+            continue
+
         actual = tc_map.get(zone)
         if actual is None:
             _last_fan_mode[zone]            = "none"
@@ -965,6 +1001,9 @@ def start_sensor_loop():
                     _threshold_breach_start.clear()
                     _deviation_tracking.clear()
                     _tc_history.clear()
+
+                    # Clear no-run overrides (run has its own override system)
+                    _no_run_overrides.clear()
 
                     if resuming:
                         # Reconnecting to existing run after restart — don't force fans off

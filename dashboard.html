@@ -1616,11 +1616,16 @@
 						_zoneTriggers[z]  = (trigger !== null && trigger !== undefined && isFinite(Number(trigger)))
 							? Number(trigger) : null;
 
-						// Update setpoint display on zone card
+						// Update setpoint + tolerance display on zone card
 						var spRow = document.getElementById('setpoint-row-' + z);
 						if (spRow) {
 							if (_zoneSetpoints[z] !== null) {
-								spRow.textContent = 'SP: ' + _zoneSetpoints[z].toFixed(1) + '°C';
+								var tolVal = zd.tolerance;
+								var spText = 'SP: ' + _zoneSetpoints[z].toFixed(1) + '°C';
+								if (tolVal !== null && tolVal !== undefined && isFinite(Number(tolVal))) {
+									spText += ' ±' + Number(tolVal).toFixed(1);
+								}
+								spRow.textContent = spText;
 							} else {
 								spRow.textContent = '';
 							}
@@ -2757,19 +2762,27 @@ const tempSeries = {
 						fanSegBtns.forEach(function (b) { b.disabled = false; });
 
 						if (!runId) {
-							// No active run — auto control still works via zone_config setpoints
+							// No active run — check fan-state for mode (auto vs manual override)
 							fetch('/api/fan-state')
 								.then(function (r) { return r.ok ? r.json() : {}; })
 								.then(function (d) {
 									var zd = (d.zones || {})[String(zone)] || {};
 									var mode = zd.mode || 'none';
-									if (mode === 'limit') {
-										fanStatus.textContent = 'Automatic (no run)';
+									var state = zd.state || 'off';
+									if (mode === 'manual') {
+										// Manual override active
+										var activeBtn = (state === 'on') ? 'on' : 'off';
+										fanSegBtns.forEach(function (b) {
+											if (b.dataset.mode === activeBtn) b.classList.add('zone-detail-card__fan-seg--active');
+										});
+										fanStatus.textContent = 'Manual override — ' + state.toUpperCase();
+									} else if (mode === 'limit') {
+										fanStatus.textContent = 'Automatic — fan ' + state.toUpperCase();
 										fanSegBtns.forEach(function (b) {
 											if (b.dataset.mode === 'auto') b.classList.add('zone-detail-card__fan-seg--active');
 										});
 									} else {
-										fanStatus.textContent = 'No setpoint — set one for auto control';
+										fanStatus.textContent = 'No setpoint configured — set one for auto control';
 										fanSegBtns.forEach(function (b) {
 											if (b.dataset.mode === 'auto') b.classList.add('zone-detail-card__fan-seg--active');
 										});
@@ -2979,8 +2992,11 @@ const tempSeries = {
 							var url, fetchOpts;
 
 							if (!runId) {
-								// No active run — use direct fan GPIO endpoint
-								var action = (mode === 'off-1h' || mode === 'off' || mode === 'auto') ? 'off' : 'on';
+								// No active run — use direct fan endpoint with override system
+								var action;
+								if (mode === 'auto') action = 'auto';
+								else if (mode === 'off-1h' || mode === 'off') action = 'off';
+								else action = 'on';
 								url = '/api/fans/' + activeZone;
 								fetchOpts = {
 									method: 'POST',
