@@ -862,9 +862,27 @@ def start_sensor_loop():
             if active:
                 new_id = active["id"]
                 if _active_run_id != new_id:
+                    # New run detected — reset all tracking state
                     _threshold_breach_start.clear()
                     _deviation_tracking.clear()
                     _tc_history.clear()
+
+                    # Force all fans OFF at run start (clean slate)
+                    for z in range(1, 7):
+                        _fan_on[z] = False
+                        _fan_hold_counts[z] = 0
+                        fan_gpio.set_fan(z, False)
+
+                    # Log the current zone config as a run event for traceability
+                    try:
+                        zones_mapped = len(device_id_to_channel)
+                        cfg = _load_zone_config()
+                        label = f"Config: {zones_mapped} TCs mapped, {len(cfg)-1} zone(s) configured"
+                        sakedb.create_run_event(new_id, label, 0.0, event_type='config')
+                        print(f"[sensors] New run {new_id} — zone config logged, fans reset to OFF")
+                    except Exception as e:
+                        print(f"[sensors] Could not log zone config event: {e}")
+
                 _active_run_id = new_id
                 reading = {
                     "recorded_at": timestamp,

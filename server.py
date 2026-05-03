@@ -299,7 +299,21 @@ def api_create_run():
     if not name:
         return jsonify({"error": "name required"}), 400
     run_id = db.create_run(name)
-    return jsonify(db.get_run(run_id)), 201
+
+    # Immediately drive all fan GPIOs OFF for clean start
+    for zone in range(1, 7):
+        fan_gpio.set_fan(zone, False)
+
+    # Return run with current zone map info so dashboard has it
+    run = db.get_run(run_id)
+    try:
+        with open(TC_ZONE_MAP_FILE) as f:
+            tc_map = json.load(f)
+        run["tc_zones_mapped"] = len(tc_map)
+    except Exception:
+        run["tc_zones_mapped"] = 0
+
+    return jsonify(run), 201
 
 
 @app.route("/api/runs/<int:run_id>", methods=["GET"])
