@@ -535,8 +535,9 @@ def api_clear_fan_override(run_id, zone):
     if zone < 1 or zone > 6:
         return jsonify({"error": "zone must be 1-6"}), 400
     db.clear_fan_override(run_id, zone)
-    # Default to off when override is cleared
-    fan_gpio.set_fan(zone, False)
+    # Don't force GPIO off — let the sensor loop's automatic logic decide
+    # on the next iteration (within 10s). This avoids a brief fan-off glitch
+    # when auto mode actually wants the fan ON.
     return jsonify({"ok": True})
 
 
@@ -1014,6 +1015,8 @@ def api_fan_state():
 
     Merges zone_config.json setpoints as fallback when fan_state doesn't have them
     (e.g. no active run, or zone mode is 'none').
+    Also cross-references the override database so mode is accurate even if
+    fan_state.json is stale (e.g. user just cleared an override).
     """
     if not os.path.exists(FAN_STATE_JSON):
         data = {"timestamp": None, "zones": {str(z): {"state": None, "mode": "none",
@@ -1024,6 +1027,26 @@ def api_fan_state():
         data = _read_json_cached(FAN_STATE_JSON)
         if not data:
             return jsonify({"error": "could not read fan_state.json"}), 500
+
+    # Cross-reference override DB to correct stale mode info
+    active_run = db.get_active_run()
+    if active_run:
+        overrides = db.get_all_fan_overrides(active_run["id"])
+        zones = data.get("zones", {})
+        for z in range(1, 7):
+            zd = zones.get(str(z), {})
+            if z in overrides:
+                # DB says override is active — ensure mode shows manual
+                if zd.get("mode") != "manual":
+                    zd["mode"] = "manual"
+                    zd["state"] = overrides[z]["action"]
+                    zones[str(z)] = zd
+            else:
+                # DB says NO override — if stale mode says manual, correct it
+                if zd.get("mode") == "manual":
+                    zd["mode"] = "limit" if zd.get("setpoint") is not None else "none"
+                    zones[str(z)] = zd
+        data["zones"] = zones
 
     # Merge zone_config setpoints as fallback for coloring
     zone_cfg = _read_json_cached(ZONE_CONFIG_FILE)

@@ -946,7 +946,14 @@ def start_sensor_loop():
                     print(f"[sensors] DB write failed: {e}")
             else:
                 _active_run_id = None
-                # No active run — still write fan state so dashboard shows all off
+                # No active run — reset modes so stale "manual" doesn't persist
+                for z in range(1, 7):
+                    _last_fan_mode[z] = "none"
+                    _last_fan_setpoint[z] = None
+                    _last_fan_setpoint_source[z] = None
+                    _last_fan_trigger[z] = None
+                    _last_fan_alarm_level[z] = None
+                    _last_fan_alarm_reason[z] = None
                 _write_fan_state_json({z: "off" for z in range(1, 7)})
 
             # Disk space check every ~4 minutes (24 iterations at 10s)
