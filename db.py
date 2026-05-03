@@ -961,22 +961,28 @@ def parse_curve_csv(csv_text):
                 return norm.index(cand)
         return -1
 
-    elapsed_idx = find_col("elapsed_min", "elapsed_minutes", "elapsed")
+    elapsed_idx = find_col("elapsed_min", "elapsed_minutes", "elapsed", "time_minutes")
     ts_idx      = find_col("timestamp", "recorded_at", "time", "datetime")
 
     tc_idx = [-1] * 6
-    tc_pat = re.compile(r"^tc[_ ]?([1-6])(?:[_ ]?temp(?:_c)?)?$")
+    # Match: tc1, tc_1, tc1_temp_c, temp1, temp1_target, temp_1, zone1, zone_1
+    tc_pat = re.compile(
+        r"^(?:tc[_ ]?([1-6])(?:[_ ]?temp(?:_c)?)?|temp[_ ]?([1-6])(?:[_ ]?target)?|zone[_ ]?([1-6]))$"
+    )
     for i, h in enumerate(norm):
         m = tc_pat.match(h)
         if m:
-            zone = int(m.group(1)) - 1
+            zone = int(next(g for g in m.groups() if g is not None)) - 1
             if tc_idx[zone] == -1:
                 tc_idx[zone] = i
 
     if elapsed_idx == -1 and ts_idx == -1:
-        raise ValueError("CSV has no 'elapsed_min' column and no timestamp column.")
+        raise ValueError("CSV has no 'elapsed_min' or 'time_minutes' column and no timestamp column.")
     if all(idx == -1 for idx in tc_idx):
-        raise ValueError("CSV has no thermocouple columns (expected TC1..TC6).")
+        raise ValueError(
+            "CSV has no temperature columns. "
+            "Expected headers like TC1..TC6, temp1..temp6, or zone1..zone6."
+        )
 
     out = []
     origin = None

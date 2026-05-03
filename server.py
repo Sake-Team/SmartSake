@@ -514,6 +514,8 @@ def api_set_fan_override(run_id, zone):
         except (TypeError, ValueError):
             return jsonify({"error": "duration_minutes must be a positive integer or null"}), 400
     db.set_fan_override(run_id, zone, action, duration)
+    # Drive GPIO immediately — don't wait for sensor loop
+    fan_gpio.set_fan(zone, action == "on")
     override = db.get_fan_override(run_id, zone)
     return jsonify({"ok": True, "override": override})
 
@@ -525,6 +527,8 @@ def api_clear_fan_override(run_id, zone):
     if zone < 1 or zone > 6:
         return jsonify({"error": "zone must be 1-6"}), 400
     db.clear_fan_override(run_id, zone)
+    # Default to off when override is cleared
+    fan_gpio.set_fan(zone, False)
     return jsonify({"ok": True})
 
 
@@ -537,6 +541,22 @@ def api_emergency_stop(run_id):
         db.set_fan_override(run_id, zone, "off", None)
         fan_gpio.set_fan(zone, False)
     return jsonify({"ok": True, "message": "All fans stopped"})
+
+
+@app.route("/api/fans/<int:zone>", methods=["POST"])
+def api_direct_fan(zone):
+    """Direct fan GPIO control — works without an active run.
+
+    POST {"action": "on"} or {"action": "off"}
+    """
+    if zone < 1 or zone > 6:
+        return jsonify({"error": "zone must be 1-6"}), 400
+    body = request.get_json(force=True, silent=True) or {}
+    action = body.get("action")
+    if action not in ("on", "off"):
+        return jsonify({"error": "action must be 'on' or 'off'"}), 400
+    fan_gpio.set_fan(zone, action == "on")
+    return jsonify({"ok": True, "zone": zone, "fan": action})
 
 
 # ── Fan rules ─────────────────────────────────────────────────────────────────
