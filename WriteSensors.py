@@ -809,30 +809,34 @@ def start_sensor_loop():
 
             devices = discover_devices()
 
+            # Build assigned list: mapped probes get their zone, unmapped
+            # probes get auto-assigned to the next free zone slot so they
+            # still produce readings (raw/uncalibrated) on the dashboard.
+            assigned = []
+            used_zones = set(device_id_to_channel.values())
             for d in devices:
                 device_id = format_device_id(d)
-                if device_id not in device_id_to_channel and device_id not in _warned_unknown_ids:
-                    print(f"[sensors] WARN: unknown thermocouple {device_id} present on bus "
-                          f"but not in tc_zone_map.json — ignoring. Run scripts/identify_tcs.py "
-                          f"to remap if a probe was replaced.")
-                    _warned_unknown_ids.add(device_id)
+                if device_id in device_id_to_channel:
+                    assigned.append((device_id_to_channel[device_id], d))
+                else:
+                    # Auto-assign to first unused zone slot (1–6)
+                    for z in range(1, MAX_THERMOCOUPLES + 1):
+                        if z not in used_zones:
+                            used_zones.add(z)
+                            assigned.append((z, d))
+                            if device_id not in _warned_unknown_ids:
+                                print(f"[sensors] Unmapped probe {device_id} auto-assigned "
+                                      f"to zone {z} (raw values, no calibration)")
+                                _warned_unknown_ids.add(device_id)
+                            break
+                    else:
+                        # All 6 zones occupied — truly cannot fit this probe
+                        if device_id not in _warned_unknown_ids:
+                            print(f"[sensors] WARN: probe {device_id} on bus but all "
+                                  f"{MAX_THERMOCOUPLES} zone slots full — ignoring.")
+                            _warned_unknown_ids.add(device_id)
 
-            assigned = sorted(
-                [(device_id_to_channel[format_device_id(d)], d)
-                 for d in devices
-                 if format_device_id(d) in device_id_to_channel],
-                key=lambda x: x[0]
-            )
-
-            seen_zones = {ch for ch, _ in assigned}
-            missing_zones = sorted(set(range(1, MAX_THERMOCOUPLES + 1)) - seen_zones)
-            if missing_zones:
-                # Surface — but don't crash — a probe disconnect mid-run.
-                key = tuple(missing_zones)
-                if key not in _warned_unknown_ids:
-                    print(f"[sensors] WARN: zones {missing_zones} expected but no matching "
-                          f"probe present on the 1-Wire bus — readings will be None.")
-                    _warned_unknown_ids.add(key)
+            assigned.sort(key=lambda x: x[0])
 
             # Read SHT30
             sht_temp, sht_humidity = None, None
