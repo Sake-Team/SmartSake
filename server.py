@@ -28,6 +28,7 @@ FAN_STATE_JSON      = os.path.join(_VOLATILE_DIR, "fan_state.json")
 SENSOR_STATUS_JSON  = os.path.join(_VOLATILE_DIR, "sensor_status.json")
 ZONE_CONFIG_FILE    = os.path.join(BASE_DIR, "zone_config.json")
 SCALE_CONFIG_FILE   = os.path.join(BASE_DIR, "scale_config.json")
+TC_ZONE_MAP_FILE    = os.path.join(BASE_DIR, "tc_zone_map.json")
 
 app = Flask(__name__, static_folder=BASE_DIR, static_url_path="")
 
@@ -50,6 +51,56 @@ def _read_json_cached(path):
         return data
     except Exception:
         return {}
+
+# ── Direct 1-Wire bus reader (fallback when sensor loop hasn't populated TCs) ─
+_W1_BASE = "/sys/bus/w1/devices"
+
+def _read_tc_from_bus():
+    """Read all probes from the 1-Wire bus and return as {"TC1": temp, ...}.
+
+    Uses tc_zone_map.json for zone assignment if available, otherwise
+    auto-assigns probes to zones 1-6 in discovery order.
+    """
+    import glob as _glob
+    result = {}
+    try:
+        with open(TC_ZONE_MAP_FILE) as f:
+            zone_map = {k: int(v) for k, v in json.load(f).items()}
+    except Exception:
+        zone_map = {}
+
+    probes = sorted(_glob.glob(f"{_W1_BASE}/3b-*"))
+    used_zones = set(zone_map.values())
+    next_zone = 1
+
+    for dev_path in probes:
+        device_id = os.path.basename(dev_path)
+        # Determine zone: mapped or auto-assign
+        if device_id in zone_map:
+            zone = zone_map[device_id]
+        else:
+            while next_zone in used_zones and next_zone <= 6:
+                next_zone += 1
+            if next_zone > 6:
+                continue
+            zone = next_zone
+            used_zones.add(zone)
+            next_zone += 1
+
+        # Read temperature
+        try:
+            slave_file = os.path.join(dev_path, "w1_slave")
+            with open(slave_file, "r") as f:
+                lines = f.readlines()
+            if lines[0].strip().endswith("YES"):
+                pos = lines[1].find("t=")
+                if pos != -1:
+                    result[f"TC{zone}"] = int(lines[1][pos + 2:]) / 1000.0
+        except Exception:
+            pass
+
+    return result
+
 
 # ── Database init + crash recovery ───────────────────────────────────────────
 db.init_db()
@@ -113,6 +164,9 @@ def api_latest():
 
     # Thermocouples: {"TC1": 28.4, "TC2": null, ...}
     tcs = raw.get("thermocouples", {})
+    # If sensor loop didn't populate TCs, read probes directly from bus
+    if not any(v is not None for v in tcs.values()):
+        tcs = _read_tc_from_bus()
     for i in range(1, 7):
         val = tcs.get(f"TC{i}")
         result[f"tc{i}"] = round(val, 2) if isinstance(val, (int, float)) else None
@@ -1050,8 +1104,6 @@ def _latest_sensor_value(key):
 
 
 # ── Thermocouple probe discovery and zone mapping ────────────────────────────
-
-TC_ZONE_MAP_FILE = os.path.join(BASE_DIR, "tc_zone_map.json")
 
 
 @app.route("/api/tc-probes", methods=["GET"])
