@@ -27,7 +27,7 @@ from sensors import discover_devices, read_temp_c, format_device_id, MAX_THERMOC
 TC_ZONE_MAP_FILE = os.path.join(_REPO, "tc_zone_map.json")
 RISE_THRESHOLD_C = 2.0       # how much a probe must climb to be "the one being heated"
 SAMPLE_INTERVAL  = 1.0       # seconds between reads in interactive mode
-SETTLE_SECONDS   = 5         # seconds of baseline before user starts heating each zone
+SETTLE_SECONDS   = 15        # seconds of sampling after user heats a probe
 
 
 def _read_all(devices):

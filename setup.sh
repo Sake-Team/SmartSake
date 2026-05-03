@@ -143,7 +143,7 @@ run_mapping() {
     echo "  │  You'll heat each probe one at a time so the system │"
     echo "  │  can identify which physical probe maps to which    │"
     echo "  │  zone (1-6). Grip the probe firmly or use a heat    │"
-    echo "  │  gun on low.                                        │"
+    echo "  │  gun on low. Each sample takes ~15 seconds.         │"
     echo "  └─────────────────────────────────────────────────────┘"
     echo ""
 

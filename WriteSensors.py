@@ -764,9 +764,10 @@ def start_sensor_loop():
         print(f"[sensors] Loaded static TC zone map: "
               f"{', '.join(f'{cid[:8]}…→z{ch}' for cid, ch in sorted(device_id_to_channel.items(), key=lambda x: x[1]))}")
     except TCZoneMapError as e:
-        print(f"[sensors] FATAL: {e}")
-        print("[sensors] Sensor loop will not run until the map is fixed.")
-        return
+        print(f"[sensors] WARNING: {e}")
+        print("[sensors] Running without thermocouple mapping — manual fan overrides still work.")
+        print("[sensors] To fix: python3 scripts/identify_tcs.py")
+        device_id_to_channel = {}
 
     _warned_unknown_ids = set()
     _consecutive_failures = 0

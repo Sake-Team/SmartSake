@@ -179,8 +179,8 @@ for did, ch in sorted(m.items(), key=lambda x: x[1]):
     else
         info "No valid thermocouple map found — starting identification wizard."
         echo ""
-        echo "  This will ask you to heat each probe one at a time so the system"
-        echo "  can identify which physical probe belongs to which zone (1-6)."
+        echo "  This will ask you to heat each probe one at a time (~15 seconds each)"
+        echo "  so the system can identify which physical probe belongs to which zone (1-6)."
         echo ""
         read -rp "  Ready to begin? [Y/n] " BEGIN_ANSWER
         if [[ "${BEGIN_ANSWER,,}" == "n" ]]; then
