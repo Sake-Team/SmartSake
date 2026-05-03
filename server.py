@@ -532,9 +532,11 @@ def api_set_fan_override(run_id, zone):
 @app.route("/api/runs/<int:run_id>/zones/<int:zone>/fan", methods=["DELETE"])
 def api_clear_fan_override(run_id, zone):
     if not db.get_run(run_id):
+        print(f"[fan] DELETE override: run {run_id} not found — 404")
         abort(404)
     if zone < 1 or zone > 6:
         return jsonify({"error": "zone must be 1-6"}), 400
+    print(f"[fan] Clearing override: run={run_id} zone={zone} → returning to auto")
     db.clear_fan_override(run_id, zone)
     # Don't force GPIO off — let the sensor loop's automatic logic decide
     # on the next iteration (within 10s). This avoids a brief fan-off glitch

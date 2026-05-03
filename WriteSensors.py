@@ -346,6 +346,9 @@ def evaluate_fan_state(run, tc_readings):
 
     overrides = sakedb.get_all_fan_overrides(run_id)
     override_zones = set()
+    if overrides:
+        ov_summary = {z: ov["action"] for z, ov in overrides.items()}
+        print(f"[fan] Active overrides for run {run_id}: {ov_summary}")
     for zone, ov in overrides.items():
         result[zone] = ov["action"]
         override_zones.add(zone)
