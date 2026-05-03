@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>SmartSake</title>
 <link rel="stylesheet" href="styles.css">
+<script src="chart.min.js" defer></script>
 <style>
   /* ── Mobile overrides ─────────────────────────────────────────────── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -210,6 +211,37 @@
     font-weight: 500;
   }
 
+  /* ── Charts ──────────────────────────────────────────────────────── */
+  .m-charts {
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .m-charts[hidden] { display: none; }
+
+  .m-chart-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md, 8px);
+    padding: 10px 12px;
+  }
+
+  .m-chart-card__title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-3);
+    margin-bottom: 6px;
+  }
+
+  .m-chart-card canvas {
+    width: 100% !important;
+    height: 150px !important;
+  }
+
   /* ── Idle state ─────────────────────────────────────────────────── */
   .m-idle {
     text-align: center;
@@ -279,8 +311,19 @@
 </header>
 
 <main id="main-content">
-  <!-- Populated by JS -->
+  <!-- Populated by JS on first render -->
 </main>
+
+<section class="m-charts" id="charts-section" hidden>
+  <div class="m-chart-card">
+    <div class="m-chart-card__title">Temperature</div>
+    <canvas id="temp-chart-mobile"></canvas>
+  </div>
+  <div class="m-chart-card">
+    <div class="m-chart-card__title">Fan Activity</div>
+    <canvas id="fans-chart-mobile"></canvas>
+  </div>
+</section>
 
 <footer class="m-footer" id="footer">
   <span id="last-update"></span>
@@ -295,11 +338,24 @@
   var pollFails = 0;
   var MAX_FAILS = 3;
 
-  var mainEl    = document.getElementById('main-content');
-  var runNameEl = document.getElementById('run-name');
-  var elapsedEl = document.getElementById('elapsed');
-  var footerEl  = document.getElementById('last-update');
-  var connEl    = document.getElementById('conn-lost');
+  var mainEl      = document.getElementById('main-content');
+  var runNameEl   = document.getElementById('run-name');
+  var elapsedEl   = document.getElementById('elapsed');
+  var footerEl    = document.getElementById('last-update');
+  var connEl      = document.getElementById('conn-lost');
+  var chartsSec   = document.getElementById('charts-section');
+
+  // ── Chart state ───────────────────────────────────────────────────
+  var tempChart = null;
+  var fansChart = null;
+  var chartsReady = false;
+  var currentRunId = null;
+  var chartLabels = [];
+  var tempSeries = { t1: [], t2: [], t3: [], t4: [], t5: [], t6: [] };
+  var fanSeries  = { f1: [], f2: [], f3: [], f4: [], f5: [], f6: [] };
+  var MAX_POINTS = 360; // ~1 hour at 10s intervals
+
+  var ZONE_COLORS = ['#e05252','#52a0e0','#52e07c','#e0c952','#c052e0','#e09052'];
 
   // ── Helpers ────────────────────────────────────────────────────────
 
@@ -331,6 +387,16 @@
     return h + ':' + m + ':' + s + ' ' + ampm;
   }
 
+  function fmtShortTime(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    var h = d.getHours();
+    var m = String(d.getMinutes()).padStart(2, '0');
+    var ampm = h >= 12 ? 'p' : 'a';
+    h = h % 12 || 12;
+    return h + ':' + m + ampm;
+  }
+
   function fanBadgeHTML(state) {
     if (state === 1 || state === 'on') {
       return '<span class="m-zone__fan m-zone__fan--on">ON</span>';
@@ -345,6 +411,149 @@
     if (level === 'critical') return 'm-zone--crit';
     if (level === 'warning')  return 'm-zone--warn';
     return 'm-zone--ok';
+  }
+
+  // ── Charts ─────────────────────────────────────────────────────────
+
+  function initCharts() {
+    if (chartsReady || !window.Chart) return;
+
+    var tempCanvas = document.getElementById('temp-chart-mobile');
+    var fansCanvas = document.getElementById('fans-chart-mobile');
+    if (!tempCanvas || !fansCanvas) return;
+
+    var chartFont = { family: "'Inter', system-ui, sans-serif", size: 10 };
+    var gridColor = 'rgba(255,255,255,0.06)';
+    var tickColor = '#666672';
+
+    Chart.defaults.color = tickColor;
+    Chart.defaults.borderColor = gridColor;
+
+    tempChart = new Chart(tempCanvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: chartLabels,
+        datasets: [
+          { label: 'Z1', data: tempSeries.t1, borderColor: ZONE_COLORS[0], borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+          { label: 'Z2', data: tempSeries.t2, borderColor: ZONE_COLORS[1], borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+          { label: 'Z3', data: tempSeries.t3, borderColor: ZONE_COLORS[2], borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+          { label: 'Z4', data: tempSeries.t4, borderColor: ZONE_COLORS[3], borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+          { label: 'Z5', data: tempSeries.t5, borderColor: ZONE_COLORS[4], borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+          { label: 'Z6', data: tempSeries.t6, borderColor: ZONE_COLORS[5], borderWidth: 1.5, pointRadius: 0, tension: 0.3 }
+        ]
+      },
+      options: {
+        animation: false,
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            ticks: { autoSkip: true, maxTicksLimit: 5, font: chartFont, color: tickColor },
+            grid: { color: gridColor }
+          },
+          y: {
+            title: { display: true, text: '°C', font: chartFont, color: tickColor },
+            ticks: { font: chartFont, color: tickColor },
+            grid: { color: gridColor }
+          }
+        },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { color: tickColor, usePointStyle: true, boxWidth: 8, font: { size: 9 }, padding: 6 }
+          },
+          tooltip: { enabled: false }
+        }
+      }
+    });
+
+    fansChart = new Chart(fansCanvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: chartLabels,
+        datasets: [
+          { label: 'F1', data: fanSeries.f1, borderColor: ZONE_COLORS[0], borderWidth: 1.5, pointRadius: 0, stepped: true },
+          { label: 'F2', data: fanSeries.f2, borderColor: ZONE_COLORS[1], borderWidth: 1.5, pointRadius: 0, stepped: true },
+          { label: 'F3', data: fanSeries.f3, borderColor: ZONE_COLORS[2], borderWidth: 1.5, pointRadius: 0, stepped: true },
+          { label: 'F4', data: fanSeries.f4, borderColor: ZONE_COLORS[3], borderWidth: 1.5, pointRadius: 0, stepped: true },
+          { label: 'F5', data: fanSeries.f5, borderColor: ZONE_COLORS[4], borderWidth: 1.5, pointRadius: 0, stepped: true },
+          { label: 'F6', data: fanSeries.f6, borderColor: ZONE_COLORS[5], borderWidth: 1.5, pointRadius: 0, stepped: true }
+        ]
+      },
+      options: {
+        animation: false,
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            ticks: { autoSkip: true, maxTicksLimit: 5, font: chartFont, color: tickColor },
+            grid: { color: gridColor }
+          },
+          y: {
+            min: -0.1, max: 1.1,
+            ticks: { stepSize: 1, font: chartFont, color: tickColor, callback: function(v) { return v === 0 ? 'Off' : v === 1 ? 'On' : ''; } },
+            grid: { color: gridColor }
+          }
+        },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { color: tickColor, usePointStyle: true, boxWidth: 8, font: { size: 9 }, padding: 6 }
+          },
+          tooltip: { enabled: false }
+        }
+      }
+    });
+
+    chartsReady = true;
+  }
+
+  function loadHistoricalData(runId) {
+    fetch('/api/runs/' + runId + '/readings?n=360')
+      .then(function (r) { return r.json(); })
+      .then(function (rows) {
+        if (!Array.isArray(rows) || rows.length === 0) return;
+
+        // Clear existing data
+        chartLabels.length = 0;
+        for (var k in tempSeries) tempSeries[k].length = 0;
+        for (var k2 in fanSeries) fanSeries[k2].length = 0;
+
+        rows.forEach(function (row) {
+          chartLabels.push(fmtShortTime(row.timestamp));
+          for (var i = 1; i <= 6; i++) {
+            tempSeries['t' + i].push(row['tc' + i] != null ? Number(row['tc' + i]) : null);
+            fanSeries['f' + i].push(row['fan' + i] != null ? Number(row['fan' + i]) : null);
+          }
+        });
+
+        if (chartsReady) {
+          tempChart.update('none');
+          fansChart.update('none');
+        }
+      })
+      .catch(function () { /* silent — charts just won't have history */ });
+  }
+
+  function appendChartPoint(latest) {
+    if (!chartsReady) return;
+
+    var label = fmtShortTime(latest.timestamp);
+    chartLabels.push(label);
+    for (var i = 1; i <= 6; i++) {
+      tempSeries['t' + i].push(latest['tc' + i] != null ? Number(latest['tc' + i]) : null);
+      fanSeries['f' + i].push(latest['fan' + i] != null ? Number(latest['fan' + i]) : null);
+    }
+
+    // Trim to max points
+    if (chartLabels.length > MAX_POINTS) {
+      chartLabels.shift();
+      for (var k in tempSeries) tempSeries[k].shift();
+      for (var k2 in fanSeries) fanSeries[k2].shift();
+    }
+
+    tempChart.update('none');
+    fansChart.update('none');
   }
 
   // ── Render ─────────────────────────────────────────────────────────
@@ -408,11 +617,30 @@
     }
 
     mainEl.innerHTML = html;
+
+    // Show charts section and initialize if needed
+    chartsSec.hidden = false;
+    if (!chartsReady) {
+      initCharts();
+    }
+
+    // Load history if run changed
+    if (run.id && run.id !== currentRunId) {
+      currentRunId = run.id;
+      loadHistoricalData(run.id);
+    } else {
+      appendChartPoint(latest);
+    }
   }
 
   function renderIdle() {
     runNameEl.textContent = '';
     elapsedEl.textContent = '';
+    chartsReady = false;
+    tempChart = null;
+    fansChart = null;
+    currentRunId = null;
+    chartsSec.hidden = true;
     mainEl.innerHTML = '<div class="m-idle">'
       + '<p class="m-idle__msg">No active run</p>'
       + '<a class="m-idle__link" href="home.html">Open dashboard</a>'
