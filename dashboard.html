@@ -186,7 +186,13 @@
 							<span class="ew-stat-card__value" id="ew-roomtemp-val">—</span>
 							<span class="ew-stat-card__unit">°C</span>
 						</div>
-						<span class="ew-stat-card__sub" id="ew-wetbulb-val" style="color:#40c0d0;">WB —°C</span>
+					</div>
+					<div class="ew-stat-card ew-stat-card--wetbulb">
+						<span class="ew-stat-card__label">Wet Bulb</span>
+						<div class="ew-stat-card__value-row">
+							<span class="ew-stat-card__value" id="ew-wetbulb-val">—</span>
+							<span class="ew-stat-card__unit">°C</span>
+						</div>
 					</div>
 					<div class="ew-stat-card ew-stat-card--humidity">
 						<span class="ew-stat-card__label">Humidity</span>
@@ -2147,7 +2153,7 @@ const tempSeries = {
 							if (hEl) hEl.textContent = (!isNaN(humVal) && humVal != null) ? humVal.toFixed(1) : '—';
 							if (wbEl) {
 								var wb = wetBulbData.length ? wetBulbData[wetBulbData.length - 1] : null;
-								wbEl.textContent = wb != null ? 'WB ' + wb.toFixed(1) + '°C' : 'WB —';
+								wbEl.textContent = wb != null ? wb.toFixed(1) : '—';
 							}
 							if (wtEl) wtEl.textContent = (wRaw != null && !isNaN(wRaw)) ? wRaw.toFixed(2) : '—';
 							if (wlEl) {
@@ -2728,8 +2734,9 @@ const tempSeries = {
 						if (activeLink) activeLink.classList.add('zone-combined--active');
 
 						// Load fan override state (works with or without active run)
-						const runId = getRunId();
-						loadFanState(runId, zone);
+						_getActiveRunId().then(function(rid) {
+							loadFanState(rid, zone);
+						});
 
 						// Load zone note
 						_getActiveRunId().then(function(rid) {
@@ -2979,7 +2986,6 @@ const tempSeries = {
 					// Fan segmented-control click handler
 					fanSegBtns.forEach(function (btn) {
 						btn.addEventListener('click', function () {
-							var runId = getRunId();
 							if (!activeZone || fanRequestPending) return;
 							var mode = btn.dataset.mode;
 							// If already active, do nothing
@@ -2989,56 +2995,58 @@ const tempSeries = {
 							fanSegBtns.forEach(function (b) { b.disabled = true; });
 							fanStatus.textContent = 'Saving…';
 
-							var url, fetchOpts;
+							_getActiveRunId().then(function(runId) {
+								var url, fetchOpts;
 
-							if (!runId) {
-								// No active run — use direct fan endpoint with override system
-								var action;
-								if (mode === 'auto') action = 'auto';
-								else if (mode === 'off-1h' || mode === 'off') action = 'off';
-								else action = 'on';
-								url = '/api/fans/' + activeZone;
-								fetchOpts = {
-									method: 'POST',
-									headers: { 'Content-Type': 'application/json' },
-									body: JSON.stringify({ action: action })
-								};
-							} else {
-								url = '/api/runs/' + runId + '/zones/' + activeZone + '/fan';
-								if (mode === 'auto') {
-									fetchOpts = { method: 'DELETE' };
-								} else {
-									var action = (mode === 'off-1h' || mode === 'off') ? 'off' : 'on';
-									var duration = (mode === 'off-1h' || mode === 'on-1h') ? 60 : null;
+								if (!runId) {
+									// No active run — use direct fan endpoint with override system
+									var action;
+									if (mode === 'auto') action = 'auto';
+									else if (mode === 'off-1h' || mode === 'off') action = 'off';
+									else action = 'on';
+									url = '/api/fans/' + activeZone;
 									fetchOpts = {
 										method: 'POST',
 										headers: { 'Content-Type': 'application/json' },
-										body: JSON.stringify({ action: action, duration_minutes: duration })
+										body: JSON.stringify({ action: action })
 									};
-								}
-							}
-
-							fetch(url, fetchOpts)
-								.then(function (r) {
-									if (!r.ok) return Promise.reject(r.status);
-									return mode === 'auto' ? null : r.json();
-								})
-								.then(function () {
-									loadFanState(runId, activeZone);
-									// Instantly refresh zone card badges + colors
-									if (window.startFanPolling) {
-										fetch('/api/fan-state').then(function(r) { return r.ok ? r.json() : {}; })
-											.then(function(d) {
-												if (window._applyFanBadgesExt) window._applyFanBadgesExt(d);
-												if (window.applyDeviationColors) window.applyDeviationColors();
-											}).catch(function(){});
+								} else {
+									url = '/api/runs/' + runId + '/zones/' + activeZone + '/fan';
+									if (mode === 'auto') {
+										fetchOpts = { method: 'DELETE' };
+									} else {
+										var action = (mode === 'off-1h' || mode === 'off') ? 'off' : 'on';
+										var duration = (mode === 'off-1h' || mode === 'on-1h') ? 60 : null;
+										fetchOpts = {
+											method: 'POST',
+											headers: { 'Content-Type': 'application/json' },
+											body: JSON.stringify({ action: action, duration_minutes: duration })
+										};
 									}
-								})
-								.catch(function () { fanStatus.textContent = 'Error — try again'; })
-								.finally(function () {
-									fanRequestPending = false;
-									fanSegBtns.forEach(function (b) { b.disabled = false; });
-								});
+								}
+
+								return fetch(url, fetchOpts)
+									.then(function (r) {
+										if (!r.ok) return Promise.reject(r.status);
+										return mode === 'auto' ? null : r.json();
+									})
+									.then(function () {
+										loadFanState(runId, activeZone);
+										// Instantly refresh zone card badges + colors
+										if (window.startFanPolling) {
+											fetch('/api/fan-state').then(function(r) { return r.ok ? r.json() : {}; })
+												.then(function(d) {
+													if (window._applyFanBadgesExt) window._applyFanBadgesExt(d);
+													if (window.applyDeviationColors) window.applyDeviationColors();
+												}).catch(function(){});
+										}
+									});
+							})
+							.catch(function () { fanStatus.textContent = 'Error — try again'; })
+							.finally(function () {
+								fanRequestPending = false;
+								fanSegBtns.forEach(function (b) { b.disabled = false; });
+							});
 						});
 					});
 

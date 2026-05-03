@@ -1503,6 +1503,7 @@ body:has(#start-run-btn.end-run-btn-active) .set-temp-btn { display: inline-flex
 .ew-stat-card__label { font-size: 0.68rem; color: #777; font-weight: 600; text-transform: uppercase; }
 .ew-stat-card__value { font-size: 1.45rem; font-weight: 700; line-height: 1; transition: color var(--t); }
 .ew-stat-card--roomtemp .ew-stat-card__value { color: #e8a577; }
+.ew-stat-card--wetbulb  .ew-stat-card__value { color: #40c0d0; }
 .ew-stat-card--humidity .ew-stat-card__value { color: #7ab4f0; }
 .ew-stat-card--weight   .ew-stat-card__value { color: #75c489; }
 
