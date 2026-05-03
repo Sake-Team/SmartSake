@@ -817,12 +817,14 @@ def _watchdog_thread():
 
 
 def _handle_shutdown(signum, frame):
+    """Clean shutdown: release GPIO but do NOT end the active run.
+
+    The run stays active in the DB so that after a restart the sensor loop
+    picks it back up and continues recording without data loss.
+    Runs are only ended explicitly via the dashboard 'End Run' button.
+    """
     if _active_run_id is not None:
-        try:
-            sakedb.end_run(_active_run_id)
-            print(f"Run {_active_run_id} marked as completed.")
-        except Exception as e:
-            print(f"Could not end run cleanly: {e}")
+        print(f"[sensors] Shutting down — run {_active_run_id} stays active (will resume on restart).")
     fan_gpio.cleanup()
     sakedb.close_conn()
     raise SystemExit(0)
@@ -958,26 +960,31 @@ def start_sensor_loop():
             if active:
                 new_id = active["id"]
                 if _active_run_id != new_id:
-                    # New run detected — reset all tracking state
+                    resuming = (_active_run_id is None)  # True on first boot / restart
+                    # Reset threshold/deviation tracking (safe either way)
                     _threshold_breach_start.clear()
                     _deviation_tracking.clear()
                     _tc_history.clear()
 
-                    # Force all fans OFF at run start (clean slate)
-                    for z in range(1, 7):
-                        _fan_on[z] = False
-                        _fan_hold_counts[z] = 0
-                        fan_gpio.set_fan(z, False)
+                    if resuming:
+                        # Reconnecting to existing run after restart — don't force fans off
+                        print(f"[sensors] Resuming run {new_id} after restart — fans follow auto logic")
+                    else:
+                        # Actually a brand-new run — clean slate
+                        for z in range(1, 7):
+                            _fan_on[z] = False
+                            _fan_hold_counts[z] = 0
+                            fan_gpio.set_fan(z, False)
 
-                    # Log the current zone config as a run event for traceability
-                    try:
-                        zones_mapped = len(device_id_to_channel)
-                        cfg = _load_zone_config()
-                        label = f"Config: {zones_mapped} TCs mapped, {len(cfg)-1} zone(s) configured"
-                        sakedb.create_run_event(new_id, label, 0.0, event_type='config')
-                        print(f"[sensors] New run {new_id} — zone config logged, fans reset to OFF")
-                    except Exception as e:
-                        print(f"[sensors] Could not log zone config event: {e}")
+                        # Log the current zone config as a run event for traceability
+                        try:
+                            zones_mapped = len(device_id_to_channel)
+                            cfg = _load_zone_config()
+                            label = f"Config: {zones_mapped} TCs mapped, {len(cfg)-1} zone(s) configured"
+                            sakedb.create_run_event(new_id, label, 0.0, event_type='config')
+                            print(f"[sensors] New run {new_id} — zone config logged, fans reset to OFF")
+                        except Exception as e:
+                            print(f"[sensors] Could not log zone config event: {e}")
 
                 _active_run_id = new_id
                 reading = {
@@ -1085,7 +1092,7 @@ if __name__ == "__main__":
     sakedb.init_db()
     stale = sakedb.get_active_run()
     if stale:
-        sakedb.mark_crashed(stale["id"])
-        print(f"Previous run '{stale['name']}' (id={stale['id']}) marked as crashed.")
+        # Don't mark as crashed — we'll resume recording to this run
+        print(f"[sensors] Active run '{stale['name']}' (id={stale['id']}) found — resuming.")
 
     start_sensor_loop()

@@ -102,12 +102,13 @@ def _read_tc_from_bus():
     return result
 
 
-# ── Database init + crash recovery ───────────────────────────────────────────
+# ── Database init + run resume ────────────────────────────────────────────────
 db.init_db()
 _stale = db.get_active_run()
 if _stale:
-    db.mark_crashed(_stale["id"])
-    print(f"[startup] Previous run '{_stale['name']}' (id={_stale['id']}) marked as crashed.")
+    # Don't mark as crashed — sensor loop will resume recording to this run.
+    # Runs are only ended explicitly via the dashboard 'End Run' button.
+    print(f"[startup] Active run '{_stale['name']}' (id={_stale['id']}) found — will resume recording.")
 
 # Close each request's thread-local DB connection after the response is sent.
 # Flask's dev server creates a new thread per request; without this, stale
