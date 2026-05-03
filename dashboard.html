@@ -15,6 +15,11 @@
 		.replay-export-btn { background:#1a5a1a; border:1px solid #3a9a3a; color:#7fff7f; padding:.25rem .7rem; border-radius:var(--r-sm); cursor:pointer; font-size:.8rem; }
 		.replay-export-btn:hover { background:#2a6a2a; }
 
+		/* Setpoint display on zone cards */
+		.setpoint__row { font-size:0.65rem; color:#888; margin-top:1px; line-height:1.2; }
+		.setpoint__row:empty { display:none; }
+		[data-theme='dark'] .setpoint__row { color:#999; }
+
 		/* Fan state + mode badges on zone cards */
 		.zone-fan-badges { display:flex; align-items:center; gap:3px; margin-top:2px; }
 		.fan-badge { font-size:0.65rem; font-weight:700; padding:1px 5px; border-radius:var(--r-sm);
@@ -86,6 +91,7 @@
 										<span class="temp__num" id="temp-1-dry">--</span>
 										<span class="temp__unit">°C</span>
 									</div>
+									<div class="setpoint__row" id="setpoint-row-1"></div>
 								</div>
 								<div class="zone-fan-badges">
 									<span class="fan-badge" id="fan-badge-1">--</span>
@@ -99,6 +105,7 @@
 										<span class="temp__num" id="temp-2-dry">--</span>
 										<span class="temp__unit">°C</span>
 									</div>
+									<div class="setpoint__row" id="setpoint-row-2"></div>
 								</div>
 								<div class="zone-fan-badges">
 									<span class="fan-badge" id="fan-badge-2">--</span>
@@ -112,6 +119,7 @@
 										<span class="temp__num" id="temp-3-dry">--</span>
 										<span class="temp__unit">°C</span>
 									</div>
+									<div class="setpoint__row" id="setpoint-row-3"></div>
 								</div>
 								<div class="zone-fan-badges">
 									<span class="fan-badge" id="fan-badge-3">--</span>
@@ -125,6 +133,7 @@
 										<span class="temp__num" id="temp-4-dry">--</span>
 										<span class="temp__unit">°C</span>
 									</div>
+									<div class="setpoint__row" id="setpoint-row-4"></div>
 								</div>
 								<div class="zone-fan-badges">
 									<span class="fan-badge" id="fan-badge-4">--</span>
@@ -138,6 +147,7 @@
 										<span class="temp__num" id="temp-5-dry">--</span>
 										<span class="temp__unit">°C</span>
 									</div>
+									<div class="setpoint__row" id="setpoint-row-5"></div>
 								</div>
 								<div class="zone-fan-badges">
 									<span class="fan-badge" id="fan-badge-5">--</span>
@@ -151,6 +161,7 @@
 										<span class="temp__num" id="temp-6-dry">--</span>
 										<span class="temp__unit">°C</span>
 									</div>
+									<div class="setpoint__row" id="setpoint-row-6"></div>
 								</div>
 								<div class="zone-fan-badges">
 									<span class="fan-badge" id="fan-badge-6">--</span>
@@ -1604,6 +1615,16 @@
 							? Number(sp) : null;
 						_zoneTriggers[z]  = (trigger !== null && trigger !== undefined && isFinite(Number(trigger)))
 							? Number(trigger) : null;
+
+						// Update setpoint display on zone card
+						var spRow = document.getElementById('setpoint-row-' + z);
+						if (spRow) {
+							if (_zoneSetpoints[z] !== null) {
+								spRow.textContent = 'SP: ' + _zoneSetpoints[z].toFixed(1) + '°C';
+							} else {
+								spRow.textContent = '';
+							}
+						}
 
 						var fanEl  = document.getElementById('fan-badge-' + z);
 						var modeEl = document.getElementById('mode-badge-' + z);
