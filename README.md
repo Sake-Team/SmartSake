@@ -4,6 +4,15 @@ Temperature monitoring and fan control system for koji fermentation, built on a 
 
 Reads six MAX31850K thermocouples, an SHT30 humidity sensor, and up to four HX711 load cells. Controls six relay-switched fans to hold temperature curves. Serves a real-time web dashboard over the local network.
 
+## About the Project
+
+SmartSake is the controls and instrumentation half of a senior capstone project for the **University of Kentucky Biosystems & Agricultural Engineering** department (BAE 402/403, Fall 2025 – Spring 2026). The mechanical half — the koji table and load cell housings — is documented in `hardware/` and `docs/`.
+
+**Team:** Benjamin Lin, Anastasia Myers, Makenna Hull, Natalie Cupples
+**Advisor:** Dr. Alicia Modenbach
+
+For background on the design — problem definition, constraints, alternatives considered, and economic justification — see [`docs/design-report.pdf`](docs/design-report.pdf).
+
 ---
 
 ## Table of Contents
@@ -12,12 +21,18 @@ Reads six MAX31850K thermocouples, an SHT30 humidity sensor, and up to four HX71
 2. [Software Installation](#2-software-installation)
 3. [Running SmartSake](#3-running-smartsake)
 4. [Using the Dashboard](#4-using-the-dashboard)
+5. [Hardware Files](#5-hardware-files)
+6. [Documentation](#6-documentation)
+7. [Contributing](#7-contributing)
+8. [License](#8-license)
 
 ---
 
 ## 1. Hardware Setup
 
 ### Parts List
+
+Quick reference — for the full Bill of Materials with vendors, part numbers, and costs see [`hardware/bill-of-materials.xlsx`](hardware/bill-of-materials.xlsx).
 
 | Component | Model | Qty |
 |---|---|---|
@@ -393,6 +408,85 @@ SmartSake/
 │   ├── smartsake-backup.service   # DB backup (oneshot)
 │   ├── smartsake-backup.timer     # Backup schedule (every 6h)
 │   └── install.sh                 # Service installer
-└── images/
-    └── VoidSakeLogo.jpg   # Logo
+├── images/
+│   └── VoidSakeLogo.jpg   # Logo
+├── hardware/
+│   ├── bill-of-materials.xlsx
+│   ├── cad/
+│   │   ├── sake-table-drawing.pdf
+│   │   ├── sake-table-exploded.png
+│   │   └── load-cell-housing-drawing.pdf
+│   └── stl/
+│       ├── load-cell-housing.stl
+│       └── load-cell-housing-lid.stl
+└── docs/
+    ├── design-report.pdf
+    ├── standards-memo.pdf
+    ├── brewing-flow-chart.png
+    └── schematics/
+        ├── koji-room-layout.png
+        ├── power-schematic.pdf
+        ├── wiring-schematic.pdf
+        └── signal-schematic.svg
 ```
+
+---
+
+## 5. Hardware Files
+
+### Bill of Materials
+
+[`hardware/bill-of-materials.xlsx`](hardware/bill-of-materials.xlsx) — full parts list with vendors, part numbers, quantities, and unit costs (Spring 2026 revision).
+
+### CAD Drawings
+
+| File | Description |
+|---|---|
+| [`hardware/cad/sake-table-drawing.pdf`](hardware/cad/sake-table-drawing.pdf) | Dimensioned drawing of the koji table (v3) |
+| [`hardware/cad/sake-table-exploded.png`](hardware/cad/sake-table-exploded.png) | Exploded assembly view |
+| [`hardware/cad/load-cell-housing-drawing.pdf`](hardware/cad/load-cell-housing-drawing.pdf) | Load cell housing dimensioned drawing |
+
+### 3D-Printable Parts (STL)
+
+| File | Description | Notes |
+|---|---|---|
+| [`hardware/stl/load-cell-housing.stl`](hardware/stl/load-cell-housing.stl) | Load cell housing body (v3) | PLA or PETG, 0.2mm layer, 30% infill |
+| [`hardware/stl/load-cell-housing-lid.stl`](hardware/stl/load-cell-housing-lid.stl) | Load cell housing lid | Same settings as body |
+
+The native Fusion 360 file (`SakeTableCAD.f3z`) is not included due to size; contact the team if you need the editable source.
+
+---
+
+## 6. Documentation
+
+| File | Description |
+|---|---|
+| [`docs/design-report.pdf`](docs/design-report.pdf) | Full design report — problem, alternatives, final design, economic justification |
+| [`docs/standards-memo.pdf`](docs/standards-memo.pdf) | Applicable engineering standards (food safety, electrical, fabrication) |
+| [`docs/brewing-flow-chart.png`](docs/brewing-flow-chart.png) | Sake brewing process flow chart |
+| [`docs/schematics/koji-room-layout.png`](docs/schematics/koji-room-layout.png) | Koji room physical layout |
+| [`docs/schematics/power-schematic.pdf`](docs/schematics/power-schematic.pdf) | Power distribution schematic |
+| [`docs/schematics/wiring-schematic.pdf`](docs/schematics/wiring-schematic.pdf) | Full wiring schematic (Pi → relays → fans → sensors) |
+| [`docs/schematics/signal-schematic.svg`](docs/schematics/signal-schematic.svg) | Signal-level schematic (1-Wire, I2C, GPIO) |
+
+---
+
+## 7. Contributing
+
+This is an active capstone project. If you are on the team:
+
+1. Work on the `ClaudeAgents` branch — `main` and `zany` are protected
+2. Update [`README.md`](README.md) whenever you change wiring, GPIO assignments, config schemas, scripts, or systemd units (see [`CLAUDE.md`](CLAUDE.md) for the full rule set)
+3. Hardware imports (`RPi.GPIO`, `adafruit_sht31d`, HX711) must degrade gracefully so the code still imports on a dev laptop — wrap in try/except and log a warning
+4. Run the mock server locally before pushing changes that touch the dashboard:
+   ```bash
+   python archive/mock_server.py
+   ```
+
+For external contributors: please open an issue describing the change before submitting a PR.
+
+---
+
+## 8. License
+
+This project is released for academic and educational use. Hardware designs (CAD, STL, schematics) and software are © 2025–2026 the SmartSake team. Reuse for non-commercial purposes is permitted with attribution. Contact the team for commercial licensing.
