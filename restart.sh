@@ -12,6 +12,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVER="$SCRIPT_DIR/server.py"
 LOG="$SCRIPT_DIR/server.log"
 
+# ── Fix line endings (in case pulled from Windows) ──────────────────────────
+fix_line_endings() {
+    find "$SCRIPT_DIR" -maxdepth 1 \( -name "*.sh" -o -name "*.py" -o -name "*.html" \) \
+        -exec sed -i 's/\r$//' {} +
+}
+
 show_url() {
     local ip
     ip=$(hostname -I 2>/dev/null | awk '{print $1}')
@@ -32,6 +38,11 @@ case "${1:-}" in
         exit 0
         ;;
 esac
+
+# ── Fix CRLF line endings on all source files ───────────────────────────────
+
+echo "[restart] Fixing line endings..."
+fix_line_endings
 
 # ── Kill existing server ────────────────────────────────────────────────────
 
