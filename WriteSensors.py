@@ -113,6 +113,9 @@ TC_ZONE_MAP_FILE = os.path.join(_BASE_DIR, "tc_zone_map.json")
 _zone_cfg       = {}
 _zone_cfg_mtime = 0.0
 
+_tc_zone_map       = {}
+_tc_zone_map_mtime = 0.0
+
 _fan_hold_counts = {z: 0     for z in range(1, 7)}
 _fan_on          = {z: False for z in range(1, 7)}
 _last_fan_mode            = {z: "none" for z in range(1, 7)}
@@ -169,6 +172,26 @@ def _load_zone_config():
         if not _zone_cfg:
             _zone_cfg = {"default": {"tolerance_c": DEFAULT_TOLERANCE_C}}
     return _zone_cfg
+
+
+def _hot_reload_tc_zone_map():
+    """Re-read tc_zone_map.json if it changed on disk. Returns the current map dict."""
+    global _tc_zone_map, _tc_zone_map_mtime
+    try:
+        mtime = os.path.getmtime(TC_ZONE_MAP_FILE)
+        if mtime != _tc_zone_map_mtime:
+            with open(TC_ZONE_MAP_FILE) as f:
+                raw = json.load(f)
+            if raw and isinstance(raw, dict):
+                new_map = {k: int(v) for k, v in raw.items()}
+                if new_map != _tc_zone_map:
+                    print(f"[sensors] tc_zone_map.json reloaded: "
+                          f"{', '.join(f'{cid[:8]}…→z{ch}' for cid, ch in sorted(new_map.items(), key=lambda x: x[1]))}")
+                _tc_zone_map = new_map
+            _tc_zone_map_mtime = mtime
+    except (FileNotFoundError, json.JSONDecodeError, ValueError):
+        pass
+    return _tc_zone_map
 
 
 def _zone_tolerance(zone):
@@ -759,15 +782,15 @@ def start_sensor_loop():
     except Exception as e:
         print(f"[sensors] SHT30 init failed: {e} — continuing without humidity sensor")
 
-    try:
-        device_id_to_channel = _load_tc_zone_map()
-        print(f"[sensors] Loaded static TC zone map: "
+    # Initial load of tc_zone_map — hot-reloaded every loop iteration
+    device_id_to_channel = _hot_reload_tc_zone_map()
+    if device_id_to_channel:
+        print(f"[sensors] Loaded TC zone map: "
               f"{', '.join(f'{cid[:8]}…→z{ch}' for cid, ch in sorted(device_id_to_channel.items(), key=lambda x: x[1]))}")
-    except TCZoneMapError as e:
-        print(f"[sensors] WARNING: {e}")
+    else:
+        print("[sensors] WARNING: tc_zone_map.json is empty or missing.")
         print("[sensors] Running without thermocouple mapping — manual fan overrides still work.")
-        print("[sensors] To fix: python3 scripts/identify_tcs.py")
-        device_id_to_channel = {}
+        print("[sensors] Map will auto-reload when saved (no restart needed).")
 
     _warned_unknown_ids = set()
     _consecutive_failures = 0
@@ -780,6 +803,9 @@ def start_sensor_loop():
         try:
             _loop_iteration += 1
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            # Hot-reload tc_zone_map.json (picks up changes without restart)
+            device_id_to_channel = _hot_reload_tc_zone_map()
 
             devices = discover_devices()
 

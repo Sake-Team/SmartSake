@@ -933,7 +933,7 @@
       .then(function (res) {
         if (res.ok) {
           _mapCurrent = res.data.mapping;
-          mapSetStatus('Saved — ' + res.data.zones_assigned + ' zone(s) mapped. Restart service to apply.', true);
+          mapSetStatus('Saved — ' + res.data.zones_assigned + ' zone(s) mapped. Takes effect within 10 seconds.', true);
         } else {
           mapSetStatus(res.data.error || 'Save failed', false);
         }
