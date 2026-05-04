@@ -199,12 +199,12 @@ def api_latest():
     # weight_lbs alias for backwards compat with analytics queries
     result["weight_lbs"] = result["weight_lbs_1"]
 
-    total = sum(
+    weight_vals = [
         result[f"weight_lbs_{i}"]
         for i in range(1, 5)
         if result.get(f"weight_lbs_{i}") is not None
-    )
-    result["weight_total_lbs"] = round(total, 3) if total else None
+    ]
+    result["weight_total_lbs"] = round(sum(weight_vals), 3) if weight_vals else None
 
     return jsonify(result)
 

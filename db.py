@@ -516,8 +516,12 @@ def get_readings_sampled(run_id, n=300):
         stride = max(1, total // n)
         rows = conn.execute("""
             SELECT *,
-                   (COALESCE(weight_lbs_1,0)+COALESCE(weight_lbs_2,0)
-                    +COALESCE(weight_lbs_3,0)+COALESCE(weight_lbs_4,0)) AS weight_total_lbs
+                   CASE WHEN weight_lbs_1 IS NULL AND weight_lbs_2 IS NULL
+                             AND weight_lbs_3 IS NULL AND weight_lbs_4 IS NULL
+                        THEN NULL
+                        ELSE (COALESCE(weight_lbs_1,0)+COALESCE(weight_lbs_2,0)
+                              +COALESCE(weight_lbs_3,0)+COALESCE(weight_lbs_4,0))
+                   END AS weight_total_lbs
             FROM sensor_readings
             WHERE run_id = ? AND (rowid - ?) % ? = 0
             ORDER BY recorded_at ASC

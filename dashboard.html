@@ -4882,7 +4882,10 @@ const tempSeries = {
 							humidity: row.humidity,
 							sht_temp: row.sht_temp != null ? parseFloat(row.sht_temp) : null,
 							fans: { fan1:row.fan1||0, fan2:row.fan2||0, fan3:row.fan3||0, fan4:row.fan4||0, fan5:row.fan5||0, fan6:row.fan6||0 },
-							weight: row.weight_lbs
+							weight: row.weight_total_lbs != null ? row.weight_total_lbs : row.weight_lbs,
+							weight_total_lbs: row.weight_total_lbs,
+							weight_lbs_1: row.weight_lbs_1, weight_lbs_2: row.weight_lbs_2,
+							weight_lbs_3: row.weight_lbs_3, weight_lbs_4: row.weight_lbs_4
 						});
 					});
 					const last = readings[readings.length - 1];
@@ -4937,7 +4940,10 @@ const tempSeries = {
 							humidity: row.humidity,
 							sht_temp: row.sht_temp != null ? parseFloat(row.sht_temp) : null,
 							fans: { fan1:row.fan1||0, fan2:row.fan2||0, fan3:row.fan3||0, fan4:row.fan4||0, fan5:row.fan5||0, fan6:row.fan6||0 },
-							weight: row.weight_lbs
+							weight: row.weight_total_lbs != null ? row.weight_total_lbs : row.weight_lbs,
+							weight_total_lbs: row.weight_total_lbs,
+							weight_lbs_1: row.weight_lbs_1, weight_lbs_2: row.weight_lbs_2,
+							weight_lbs_3: row.weight_lbs_3, weight_lbs_4: row.weight_lbs_4
 						});
 					});
 				}

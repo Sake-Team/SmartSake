@@ -1139,6 +1139,16 @@ def start_sensor_loop():
                     if resuming:
                         # Reconnecting to existing run after restart — don't force fans off
                         print(f"[sensors] Resuming run {new_id} after restart — fans follow auto logic")
+                        # Close any orphaned deviation events left open by the previous crash/restart
+                        try:
+                            orphans = sakedb.get_open_deviation_events(new_id)
+                            if orphans:
+                                now_iso = datetime.now().isoformat()
+                                for ev in orphans:
+                                    sakedb.close_deviation_event(ev["id"], now_iso, ev["max_deviation"])
+                                print(f"[sensors] Closed {len(orphans)} orphaned deviation event(s) from before restart")
+                        except Exception as e:
+                            print(f"[sensors] Could not close orphaned deviations: {e}")
                     else:
                         # Actually a brand-new run — clean slate
                         for z in range(1, 7):
