@@ -329,9 +329,17 @@ git pull
 A mock server is included for UI development without Pi hardware:
 
 ```bash
-python mock_server.py
+pip install flask
+python archive/mock_server.py
 # Opens at http://localhost:8080 with simulated sensor data
 ```
+
+The mock serves the real HTML/CSS/JS from the project root and stubs every API
+endpoint the dashboard, calibration page, curves page, and zone pages call —
+including `/api/sensor-status`, `/api/tc-probes`, `/api/tc-zone-map`,
+`/api/tc-calibration/<zone>/...`, `/api/scale-config[/<id>/...]`,
+`/api/runs/<id>/summary`, `/api/reference-curves/generate[-from-csv]`,
+`/api/runs/<id>/emergency-stop`, `/api/fans/<zone>`, and `/api/prune`.
 
 All hardware imports degrade gracefully — `RPi.GPIO`, `adafruit_sht31d`, and HX711 log warnings and run as no-ops when unavailable.
 
@@ -434,7 +442,6 @@ SmartSake/
 ├── fan_gpio.py            # GPIO relay abstraction
 ├── sensors.py             # 1-Wire and SHT30 helpers
 ├── load_cell_hx711.py     # HX711 ADC driver and calibration CLI
-├── mock_server.py         # Simulated server for UI development
 ├── home.html              # Landing page
 ├── dashboard.html         # Main monitoring dashboard
 ├── dashboard-phase2.js    # Stage markers + weight analytics overlay
@@ -453,6 +460,8 @@ SmartSake/
 ├── scale_config.json      # Load cell config and SHT30 offset
 ├── smartsake.db           # SQLite database (auto-created)
 ├── sensor_data.csv        # Rolling CSV log (~24 hrs)
+├── archive/
+│   └── mock_server.py    # Local UI preview server (no Pi required)
 ├── scripts/
 │   └── identify_tcs.py    # Interactive probe identification
 ├── systemd/
