@@ -813,7 +813,7 @@ SCALE_CONFIG_FILE = os.path.join(_BASE_DIR, "scale_config.json")
 
 
 def _read_scale_cfg(scale_id):
-    """Return (units, tare_offset, calibration_factor) for a scale, or None on error."""
+    """Return (units, tare_offset, calibration_factor, calibration_points) for a scale, or None."""
     try:
         with open(SCALE_CONFIG_FILE) as f:
             sc = json.load(f).get("scales", {}).get(str(scale_id), {})
@@ -821,6 +821,7 @@ def _read_scale_cfg(scale_id):
             sc.get("units", "kg"),
             sc.get("tare_offset"),
             sc.get("calibration_factor"),
+            sc.get("calibration_points"),
         )
     except Exception:
         return None
@@ -830,7 +831,8 @@ _HX711_LOG_EVERY = 1   # write scale JSON every read (reads are every WEIGHT_INT
 
 def run_hx711_thread(scale_id, hx_instance):
     cfg = _read_scale_cfg(scale_id)
-    cfg_units = cfg[0] if cfg else "kg"
+    # Always read in kg internally — HX711.get_weight() now always returns kg.
+    # The "units" config field is kept for display purposes only.
     last_mtime = 0.0
     _iter = 0
     try:
@@ -849,7 +851,6 @@ def run_hx711_thread(scale_id, hx_instance):
                     last_mtime = mtime
                     refreshed = _read_scale_cfg(scale_id)
                     if refreshed:
-                        cfg_units = refreshed[0]
                         if refreshed[1] is not None:
                             hx_instance._offset = float(refreshed[1])
                         if refreshed[2] is not None:
@@ -857,20 +858,28 @@ def run_hx711_thread(scale_id, hx_instance):
                                 hx_instance.set_scale(float(refreshed[2]))
                             except Exception:
                                 hx_instance._scale = float(refreshed[2])
-                        print(f"[scale {scale_id}] reloaded calibration "
-                              f"(tare={refreshed[1]}, factor={refreshed[2]}, units={refreshed[0]})")
+                        # Hot-reload multi-point calibration curve
+                        cal_pts = refreshed[3] if len(refreshed) > 3 else None
+                        if cal_pts and isinstance(cal_pts, list) and len(cal_pts) >= 2:
+                            hx_instance.set_calibration_points(cal_pts)
+                            print(f"[scale {scale_id}] reloaded multi-point calibration "
+                                  f"({len(cal_pts)} points)")
+                        else:
+                            hx_instance._cal_points = []
+                            print(f"[scale {scale_id}] reloaded calibration "
+                                  f"(tare={refreshed[1]}, factor={refreshed[2]})")
             except Exception:
                 pass
 
             try:
-                weight, raw_avg = hx_instance.get_weight(samples=SAMPLES_PER_READ, units=cfg_units)
+                weight, raw_avg = hx_instance.get_weight(samples=SAMPLES_PER_READ)
                 with _weight_lock:
                     weight_state[scale_id]['kg'] = weight
                     weight_state[scale_id]['raw'] = raw_avg
                 # Throttle per-scale JSON writes — weight_state (in-memory) is the
                 # primary data path; these files are a secondary log.
                 if _iter % _HX711_LOG_EVERY == 0:
-                    log_weight(scale_id, weight, cfg_units)
+                    log_weight(scale_id, weight, "kg")
             except Exception as e:
                 print(f"HX711 scale {scale_id} read error: {e}")
             _iter += 1

@@ -1615,6 +1615,104 @@ def api_scale_calibrate(scale_id):
     }), 200
 
 
+# ── Multi-point scale calibration ────────────────────────────────────────────
+
+@app.route("/api/scale-config/<int:scale_id>/calibration-points", methods=["GET"])
+def api_get_cal_points(scale_id):
+    """Return the calibration points for a scale."""
+    if not (1 <= scale_id <= 4):
+        return jsonify({"error": "scale_id must be 1..4"}), 400
+    cfg = _read_scale_cfg_full()
+    sc = cfg["scales"].get(str(scale_id), {})
+    return jsonify({
+        "scale_id": scale_id,
+        "calibration_points": sc.get("calibration_points", []),
+        "has_multipoint": bool(sc.get("calibration_points")),
+    })
+
+
+@app.route("/api/scale-config/<int:scale_id>/calibration-points", methods=["DELETE"])
+def api_clear_cal_points(scale_id):
+    """Clear all calibration points (revert to single-point mode)."""
+    if not (1 <= scale_id <= 4):
+        return jsonify({"error": "scale_id must be 1..4"}), 400
+    cfg = _read_scale_cfg_full()
+    sc = cfg["scales"].get(str(scale_id))
+    if not sc:
+        return jsonify({"error": f"scale {scale_id} not found in config"}), 404
+    sc.pop("calibration_points", None)
+    try:
+        _write_scale_cfg(cfg)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify({"ok": True, "scale_id": scale_id, "message": "calibration points cleared"})
+
+
+@app.route("/api/scale-config/<int:scale_id>/record-cal-point", methods=["POST"])
+def api_record_cal_point_scale(scale_id):
+    """Record one calibration point using the current raw reading.
+
+    Body: {"weight_g": <float>, "label": "<optional string>"}
+    For the zero/empty point, pass weight_g: 0.
+    """
+    if not (1 <= scale_id <= 4):
+        return jsonify({"error": "scale_id must be 1..4"}), 400
+
+    body = request.get_json(force=True, silent=True) or {}
+    weight_g = body.get("weight_g")
+    try:
+        weight_g = float(weight_g)
+    except (TypeError, ValueError):
+        return jsonify({"error": "weight_g must be a number (grams)"}), 400
+    if weight_g < 0:
+        return jsonify({"error": "weight_g must be >= 0"}), 400
+
+    label = body.get("label", f"{weight_g}g")
+
+    raw = _latest_sensor_value(f"weight_raw_{scale_id}")
+    if raw is None:
+        return jsonify({
+            "error": "no current raw reading — is the scale wired and the sensor loop running?"
+        }), 503
+
+    cfg = _read_scale_cfg_full()
+    sc = cfg["scales"].setdefault(str(scale_id), {})
+
+    # Append to existing points (or start fresh)
+    points = sc.get("calibration_points", [])
+    if not isinstance(points, list):
+        points = []
+
+    new_point = {"raw": round(float(raw), 1), "weight_g": weight_g, "label": label}
+    points.append(new_point)
+    sc["calibration_points"] = points
+
+    # Auto-derive legacy offset+factor for backwards compat whenever we have 2+ points
+    if len(points) >= 2:
+        pts_sorted = sorted(points, key=lambda p: p["weight_g"])
+        zero_pt = pts_sorted[0]
+        load_pt = pts_sorted[-1]
+        sc["tare_offset"] = int(round(zero_pt["raw"]))
+        if load_pt["weight_g"] > 0:
+            raw_delta = load_pt["raw"] - zero_pt["raw"]
+            factor = raw_delta / load_pt["weight_g"]
+            if abs(factor) >= 1e-3:
+                sc["calibration_factor"] = round(factor, 4)
+
+    try:
+        _write_scale_cfg(cfg)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({
+        "ok": True,
+        "scale_id": scale_id,
+        "point": new_point,
+        "total_points": len(points),
+        "calibration_points": points,
+    }), 201
+
+
 if __name__ == "__main__":
     # Start sensor loop as a background thread (safe — single process, one loop).
     # Under gunicorn this block never runs, so no duplicate loops.
