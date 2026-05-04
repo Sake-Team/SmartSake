@@ -480,7 +480,8 @@ SmartSake/
         ├── koji-room-layout.png
         ├── power-schematic.pdf
         ├── wiring-schematic.pdf
-        └── signal-schematic.svg
+        ├── signal-schematic.svg
+        └── smartsake-wiring.json   # EasyEDA source (LV signal + 120 V power, 2 sheets)
 ```
 
 ---
@@ -521,6 +522,7 @@ The native Fusion 360 file (`SakeTableCAD.f3z`) is not included due to size; con
 | [`docs/schematics/power-schematic.pdf`](docs/schematics/power-schematic.pdf) | Power distribution schematic |
 | [`docs/schematics/wiring-schematic.pdf`](docs/schematics/wiring-schematic.pdf) | Full wiring schematic (Pi → relays → fans → sensors) |
 | [`docs/schematics/signal-schematic.svg`](docs/schematics/signal-schematic.svg) | Signal-level schematic (1-Wire, I2C, GPIO) |
+| [`docs/schematics/smartsake-wiring.json`](docs/schematics/smartsake-wiring.json) | Editable EasyEDA source — Sheet 1: LV signal wiring (Pi GPIO → MAX31850K × 6, SHT30, HX711 × 4, relay logic). Sheet 2: 120 VAC power wiring (separate Pi-supply outlet, relay-switched fans, always-on dehumidifier). Open in EasyEDA Std Edition via *File → Open → Local*. |
 
 ---
 
