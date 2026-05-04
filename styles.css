@@ -1743,3 +1743,32 @@ main { flex: 1 1 0 !important; overflow: hidden !important; padding: 16px 12px 1
 .legend-item:hover { background: var(--color-bg-tinted); }
 .legend-item--hidden { opacity: 0.35; }
 .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── Keyboard focus rings (UI/UX Pro Max accessibility) ─────────────────── */
+/* Applied only for keyboard navigation (:focus-visible), so mouse clicks
+   don't show an outline. outline-offset paints outside the box, so no
+   adjacent layout shifts. */
+.zone-detail-card__fan-seg:focus-visible,
+.tw-btn:focus-visible,
+.e-stop-btn:focus-visible,
+.set-temp-btn:focus-visible,
+.start-run-btn:focus-visible,
+.elapsed-toggle-btn:focus-visible,
+.settings-btn:focus-visible,
+.zone-detail-card__ctrl-input:focus-visible {
+	outline: 2px solid var(--clr-accent, #4a90e2);
+	outline-offset: 2px;
+}
+
+/* Respect prefers-reduced-motion: drop transitions on interactive controls. */
+@media (prefers-reduced-motion: reduce) {
+	.zone-detail-card__fan-seg,
+	.tw-btn,
+	.e-stop-btn,
+	.set-temp-btn,
+	.start-run-btn,
+	.elapsed-toggle-btn,
+	.settings-btn {
+		transition: none !important;
+	}
+}

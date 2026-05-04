@@ -67,15 +67,15 @@
 						<button class="tw-btn" data-minutes="3240" type="button">54h</button>
 						<button class="tw-btn" data-minutes="3600" type="button">60h</button>
 					</div>
-					<button id="elapsed-toggle-btn" class="elapsed-toggle-btn" type="button" title="Toggle elapsed/clock time axis">Clock</button>
+					<button id="elapsed-toggle-btn" class="elapsed-toggle-btn" type="button" aria-label="Toggle between elapsed and clock time axis" title="Toggle elapsed/clock time axis">Clock</button>
 				</div>
 				<button id="set-temp-btn" class="set-temp-btn" type="button">Set temp</button>
-				<button id="e-stop-btn" class="e-stop-btn" type="button" title="Emergency stop — all fans off">STOP</button>
+				<button id="e-stop-btn" class="e-stop-btn" type="button" aria-label="Emergency stop — turn all fans off" title="Emergency stop — all fans off">STOP</button>
 				<button id="start-run-btn" class="start-run-btn">Start Run</button>
 			</div>
 		</header>
 
-		<div id="conn-lost-banner" style="display:none;background:var(--clr-alarm-high,#b33);color:#fff;text-align:center;padding:6px 12px;font-weight:600;font-size:.95rem;">
+		<div id="conn-lost-banner" role="alert" aria-live="assertive" style="display:none;background:var(--clr-alarm-high,#b33);color:#fff;text-align:center;padding:6px 12px;font-weight:600;font-size:.95rem;">
 			Connection lost — readings may be stale
 		</div>
 
@@ -268,12 +268,12 @@
 
 						<div class="zone-detail-card__fan-section">
 							<span class="zone-detail-card__fan-label">Fan Mode</span>
-							<div class="zone-detail-card__fan-segmented">
-								<button class="zone-detail-card__fan-seg zone-detail-card__fan-seg--auto" data-mode="auto">Auto</button>
-								<button class="zone-detail-card__fan-seg zone-detail-card__fan-seg--off" data-mode="off-1h">Off · 1hr</button>
-								<button class="zone-detail-card__fan-seg zone-detail-card__fan-seg--off" data-mode="off">Off</button>
-								<button class="zone-detail-card__fan-seg zone-detail-card__fan-seg--on" data-mode="on-1h">On · 1hr</button>
-								<button class="zone-detail-card__fan-seg zone-detail-card__fan-seg--on" data-mode="on">On</button>
+							<div class="zone-detail-card__fan-segmented" role="group" aria-label="Fan mode selection">
+								<button class="zone-detail-card__fan-seg zone-detail-card__fan-seg--auto" type="button" data-mode="auto" aria-pressed="false">Auto</button>
+								<button class="zone-detail-card__fan-seg zone-detail-card__fan-seg--off" type="button" data-mode="off-1h" aria-pressed="false">Off · 1hr</button>
+								<button class="zone-detail-card__fan-seg zone-detail-card__fan-seg--off" type="button" data-mode="off" aria-pressed="false">Off</button>
+								<button class="zone-detail-card__fan-seg zone-detail-card__fan-seg--on" type="button" data-mode="on-1h" aria-pressed="false">On · 1hr</button>
+								<button class="zone-detail-card__fan-seg zone-detail-card__fan-seg--on" type="button" data-mode="on" aria-pressed="false">On</button>
 							</div>
 							<span class="zone-detail-card__fan-status" id="zdc-fan-status"></span>
 						</div>
@@ -303,7 +303,7 @@
 								</div>
 								<div id="overlay-chips" class="overlay-chips-row"></div>
 								<div class="temp-chart-live-wrap">
-									<canvas id="temp-chart" class="metric-chart"></canvas>
+									<canvas id="temp-chart" class="metric-chart" role="img" aria-label="Zone temperatures over time"></canvas>
 								</div>
 							</div>
 
@@ -312,14 +312,14 @@
 									<span class="home-humidity-title chart-title--single-line">Environment</span>
 								</div>
 								<div class="env-chart-live-wrap">
-									<canvas id="humidity-chart" class="metric-chart"></canvas>
+									<canvas id="humidity-chart" class="metric-chart" role="img" aria-label="Room humidity over time"></canvas>
 								</div>
 							</div>
 
 							<div class="long long--top-left home-temp-chart-card home-fans-chart-card">
 								<span class="temp-chart-title-left chart-title--single-line">Fans on/off over time</span>
 								<div class="temp-chart-live-wrap">
-									<canvas id="fans-chart" class="metric-chart"></canvas>
+									<canvas id="fans-chart" class="metric-chart" role="img" aria-label="Fan on/off state per zone over time"></canvas>
 								</div>
 							</div>
 
@@ -329,7 +329,7 @@
 								<button type="button" id="wt-zero-btn" class="wt-zero-btn" title="Zero the scale at current reading">Zero</button>
 							</div>
 							<div class="env-chart-live-wrap">
-								<canvas id="weight-chart" class="metric-chart"></canvas>
+								<canvas id="weight-chart" class="metric-chart" role="img" aria-label="Scale weight readings over time"></canvas>
 							</div>
 						</div>
 
@@ -1492,6 +1492,10 @@
 				}
 
 				async function fetchAndApply() {
+					// Reentrancy guard — if a previous poll is still in flight (slow Pi /
+					// slow network), skip this tick instead of stacking parallel requests.
+					if (fetchAndApply._busy) return;
+					fetchAndApply._busy = true;
 					try {
 						const res = await fetch('/api/latest');
 						if (!res.ok) { _pollFails++; _showConnBanner(); return; }
@@ -1561,6 +1565,8 @@
 						_pollFails++;
 						_showConnBanner();
 						console.warn('Sensor poll failed:', err);
+					} finally {
+						fetchAndApply._busy = false;
 					}
 				}
 
@@ -1672,11 +1678,18 @@
 				}
 
 				async function fetchFanState() {
+					// Reentrancy guard — see fetchAndApply.
+					if (fetchFanState._busy) return;
+					fetchFanState._busy = true;
 					try {
 						var res = await fetch('/api/fan-state');
 						if (!res.ok) return;
 						_applyFanBadges(await res.json());
-					} catch (e) { /* silent */ }
+					} catch (e) {
+						console.warn('Fan-state poll failed:', e);
+					} finally {
+						fetchFanState._busy = false;
+					}
 				}
 
 				function startFanPolling() {
@@ -2764,9 +2777,15 @@ const tempSeries = {
 					}
 
 					function loadFanState(runId, zone) {
+						// Bail if the user already switched/closed the modal — prevents a
+						// stale fetch from overwriting the new zone's UI.
+						if (zone !== activeZone) return;
 						fanStatus.textContent = '';
-						fanSegBtns.forEach(function (b) { b.classList.remove('zone-detail-card__fan-seg--active'); });
-						fanSegBtns.forEach(function (b) { b.disabled = false; });
+						fanSegBtns.forEach(function (b) {
+							b.classList.remove('zone-detail-card__fan-seg--active');
+							b.setAttribute('aria-pressed', 'false');
+							b.disabled = false;
+						});
 
 						if (!runId) {
 							// No active run — check fan-state for mode (auto vs manual override)
@@ -2777,21 +2796,36 @@ const tempSeries = {
 									var mode = zd.mode || 'none';
 									var state = zd.state || 'off';
 									if (mode === 'manual') {
-										// Manual override active
-										var activeBtn = (state === 'on') ? 'on' : 'off';
+										// Manual override active — pick timed vs untimed variant
+										var timed = !!zd.override_expires_at;
+										var activeBtn;
+										if (state === 'on')  activeBtn = timed ? 'on-1h'  : 'on';
+										else                 activeBtn = timed ? 'off-1h' : 'off';
 										fanSegBtns.forEach(function (b) {
-											if (b.dataset.mode === activeBtn) b.classList.add('zone-detail-card__fan-seg--active');
+											if (b.dataset.mode === activeBtn) {
+												b.classList.add('zone-detail-card__fan-seg--active');
+												b.setAttribute('aria-pressed', 'true');
+											}
 										});
-										fanStatus.textContent = 'Manual override — ' + state.toUpperCase();
+										var detail = timed
+											? ' (expires ' + new Date(zd.override_expires_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ')'
+											: '';
+										fanStatus.textContent = 'Manual override — ' + state.toUpperCase() + detail;
 									} else if (mode === 'limit') {
 										fanStatus.textContent = 'Automatic — fan ' + state.toUpperCase();
 										fanSegBtns.forEach(function (b) {
-											if (b.dataset.mode === 'auto') b.classList.add('zone-detail-card__fan-seg--active');
+											if (b.dataset.mode === 'auto') {
+												b.classList.add('zone-detail-card__fan-seg--active');
+												b.setAttribute('aria-pressed', 'true');
+											}
 										});
 									} else {
 										fanStatus.textContent = 'No setpoint configured — set one for auto control';
 										fanSegBtns.forEach(function (b) {
-											if (b.dataset.mode === 'auto') b.classList.add('zone-detail-card__fan-seg--active');
+											if (b.dataset.mode === 'auto') {
+												b.classList.add('zone-detail-card__fan-seg--active');
+												b.setAttribute('aria-pressed', 'true');
+											}
 										});
 									}
 								})
@@ -2814,6 +2848,7 @@ const tempSeries = {
 								fanSegBtns.forEach(function (b) {
 									if (b.dataset.mode === activeMode) {
 										b.classList.add('zone-detail-card__fan-seg--active');
+										b.setAttribute('aria-pressed', 'true');
 									}
 								});
 
@@ -2832,12 +2867,17 @@ const tempSeries = {
 					}
 
 					function loadZoneControls(zone) {
+						// Bail if the user already switched/closed the modal — prevents a
+						// stale fetch from overwriting the new zone's UI.
+						if (zone !== activeZone) return;
 						// Fetch fan state, zone config, and latest sensor reading in parallel
 						Promise.all([
 							fetch('/api/fan-state').then(function(r) { return r.ok ? r.json() : {}; }),
 							fetch('/api/zone-config').then(function(r) { return r.ok ? r.json() : {}; }),
 							fetch('/api/latest').then(function(r) { return r.ok ? r.json() : {}; })
 						]).then(function(results) {
+							// The fetch is async — verify the user hasn't switched zones in the meantime.
+							if (zone !== activeZone) return;
 							var fanState = results[0];
 							var zoneCfg  = results[1];
 							var latest   = results[2];
@@ -2995,6 +3035,16 @@ const tempSeries = {
 							fanSegBtns.forEach(function (b) { b.disabled = true; });
 							fanStatus.textContent = 'Saving…';
 
+							// Optimistic UI: highlight the clicked button now so the user's
+							// selection sticks visually even if the follow-up state poll lags
+							// the sensor loop (no-run path) or DB cross-reference.
+							fanSegBtns.forEach(function (b) {
+								b.classList.remove('zone-detail-card__fan-seg--active');
+								b.setAttribute('aria-pressed', 'false');
+							});
+							btn.classList.add('zone-detail-card__fan-seg--active');
+							btn.setAttribute('aria-pressed', 'true');
+
 							_getActiveRunId().then(function(runId) {
 								var url, fetchOpts;
 
@@ -3004,11 +3054,16 @@ const tempSeries = {
 									if (mode === 'auto') action = 'auto';
 									else if (mode === 'off-1h' || mode === 'off') action = 'off';
 									else action = 'on';
+									var noRunDuration = (mode === 'off-1h' || mode === 'on-1h') ? 60 : null;
 									url = '/api/fans/' + activeZone;
 									fetchOpts = {
 										method: 'POST',
 										headers: { 'Content-Type': 'application/json' },
-										body: JSON.stringify({ action: action })
+										body: JSON.stringify(
+											action === 'auto'
+												? { action: action }
+												: { action: action, duration_minutes: noRunDuration }
+										)
 									};
 								} else {
 									url = '/api/runs/' + runId + '/zones/' + activeZone + '/fan';

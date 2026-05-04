@@ -143,26 +143,130 @@ _last_fan_trigger         = {z: None   for z in range(1, 7)}
 _last_fan_alarm_level     = {z: None   for z in range(1, 7)}  # "warning" | "critical" | None
 _last_fan_alarm_reason    = {z: None   for z in range(1, 7)}
 
-# ── No-run manual overrides (volatile, in-memory) ────────────────────────────
+# ── No-run manual overrides ──────────────────────────────────────────────────
 # When no run is active, users can still manually force fans on/off.
 # These overrides are checked by evaluate_fan_state_no_run before auto logic.
+# Persisted to a JSON file in the volatile dir so they survive service
+# restarts (watchdog, deploys, crashes) but are cleared on full reboot.
 # Cleared when a run starts, or when user clicks "Auto".
-_no_run_overrides = {}  # zone_int -> "on" | "off"
+# Schema: {zone_int: {"action": "on"|"off", "expires_at": iso_str|None}}
+_no_run_overrides = {}
+_no_run_overrides_lock = threading.Lock()
 
 
-def set_no_run_override(zone, action):
-    """Set a manual override for a zone when no run is active."""
-    _no_run_overrides[zone] = action
+def _no_run_overrides_path():
+    # Defined lazily — _VOLATILE_DIR is set further down in this module.
+    return os.path.join(_VOLATILE_DIR, "no_run_overrides.json")
+
+
+def _persist_no_run_overrides():
+    try:
+        path = _no_run_overrides_path()
+        tmp = path + ".tmp"
+        # Persist with string keys (JSON requirement).
+        serializable = {str(z): v for z, v in _no_run_overrides.items()}
+        with open(tmp, "w") as f:
+            json.dump(serializable, f)
+        os.replace(tmp, path)
+    except Exception as e:
+        print(f"[fan] Could not persist no_run_overrides: {e}")
+
+
+def _load_no_run_overrides():
+    """Load persisted no-run overrides on module import. Drops expired entries."""
+    path = _no_run_overrides_path()
+    if not os.path.exists(path):
+        return
+    try:
+        with open(path) as f:
+            data = json.load(f) or {}
+    except Exception as e:
+        print(f"[fan] Could not load no_run_overrides ({e}) — ignoring")
+        return
+    now = datetime.now()
+    for k, v in data.items():
+        try:
+            z = int(k)
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(v, dict):
+            continue
+        action = v.get("action")
+        if action not in ("on", "off"):
+            continue
+        expires = v.get("expires_at")
+        if expires:
+            try:
+                if datetime.fromisoformat(expires) <= now:
+                    continue
+            except Exception:
+                expires = None
+        _no_run_overrides[z] = {"action": action, "expires_at": expires}
+    if _no_run_overrides:
+        print(f"[fan] Restored {len(_no_run_overrides)} no-run override(s) from disk")
+
+
+def set_no_run_override(zone, action, duration_minutes=None):
+    """Set a manual override for a zone when no run is active.
+
+    duration_minutes=None means "until cleared". A positive integer sets a
+    timed override that auto-expires after that many minutes.
+    """
+    expires_at = None
+    if duration_minutes is not None:
+        expires_at = (datetime.now() + timedelta(minutes=int(duration_minutes))).isoformat()
+    with _no_run_overrides_lock:
+        _no_run_overrides[zone] = {"action": action, "expires_at": expires_at}
+        _persist_no_run_overrides()
 
 
 def clear_no_run_override(zone):
     """Clear manual override — zone returns to auto control."""
-    _no_run_overrides.pop(zone, None)
+    with _no_run_overrides_lock:
+        if _no_run_overrides.pop(zone, None) is not None:
+            _persist_no_run_overrides()
+
+
+def _purge_expired_no_run_overrides():
+    """Drop any expired entries. Called from the fan loop each tick."""
+    now = datetime.now()
+    expired = []
+    for z, ov in _no_run_overrides.items():
+        exp = ov.get("expires_at")
+        if not exp:
+            continue
+        try:
+            if datetime.fromisoformat(exp) <= now:
+                expired.append(z)
+        except Exception:
+            expired.append(z)
+    if expired:
+        with _no_run_overrides_lock:
+            for z in expired:
+                _no_run_overrides.pop(z, None)
+            _persist_no_run_overrides()
 
 
 def get_no_run_overrides():
-    """Return current no-run overrides dict (for API display)."""
-    return dict(_no_run_overrides)
+    """Return {zone_int: action_str} for active (non-expired) overrides.
+
+    Kept as the legacy shape so existing callers (server.py /api/fan-state)
+    don't need to know about expires_at — that's handled by the fan loop.
+    """
+    _purge_expired_no_run_overrides()
+    return {z: ov["action"] for z, ov in _no_run_overrides.items()}
+
+
+def get_no_run_overrides_full():
+    """Return the full {zone_int: {action, expires_at}} dict."""
+    _purge_expired_no_run_overrides()
+    return {z: dict(ov) for z, ov in _no_run_overrides.items()}
+
+
+# Restore persisted overrides on module import so a service restart doesn't
+# silently drop the user's manual fan command.
+_load_no_run_overrides()
+
 
 # Alarm thresholds — derived from setpoint + tolerance, no separate UI inputs.
 ALARM_WARN_MULT = 1.0   # warning when |actual - setpoint| > tolerance
@@ -176,6 +280,9 @@ def _load_target_profile(run_id):
         return _cached_profile["points"]
     rows = sakedb.get_target_profile(run_id)
     pts = [(r["elapsed_min"], r["temp_target"]) for r in rows if r["temp_target"] is not None]
+    # _interp_target assumes pts are sorted by elapsed_min ascending. Sort
+    # defensively so a curve saved out of order doesn't yield wrong setpoints.
+    pts.sort(key=lambda p: p[0])
     shared = {z: pts for z in range(1, 7)} if pts else {}
     _cached_profile["run_id"] = run_id
     _cached_profile["points"] = shared
@@ -483,10 +590,13 @@ def evaluate_fan_state_no_run(tc_readings):
     result = {z: "off" for z in range(1, 7)}
     tc_map = {ch: temp for ch, temp in tc_readings}
 
+    # Drop any timed overrides whose deadline has passed so auto control resumes.
+    _purge_expired_no_run_overrides()
+
     for zone in range(1, 7):
         # Check no-run manual overrides first
         if zone in _no_run_overrides:
-            action = _no_run_overrides[zone]
+            action = _no_run_overrides[zone]["action"]
             result[zone] = action
             _fan_on[zone] = (action == "on")
             _last_fan_mode[zone]            = "manual"
@@ -1006,7 +1116,9 @@ def start_sensor_loop():
                     _tc_history.clear()
 
                     # Clear no-run overrides (run has its own override system)
-                    _no_run_overrides.clear()
+                    with _no_run_overrides_lock:
+                        _no_run_overrides.clear()
+                        _persist_no_run_overrides()
 
                     if resuming:
                         # Reconnecting to existing run after restart — don't force fans off

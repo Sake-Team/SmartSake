@@ -261,7 +261,7 @@ The main service runs as user `kojitable` with resource limits:
 - **Memory:** 256 MB max
 - **CPU:** 80% quota
 - **Watchdog:** 60s (kills hung process)
-- **tmpfs:** `/run/smartsake/` for volatile JSON files (protects SD card)
+- **tmpfs:** `/run/smartsake/` for volatile JSON files (protects SD card). Holds `sensor_latest.json`, `fan_state.json`, `sensor_status.json`, and `no_run_overrides.json`.
 
 ### Database
 
@@ -386,9 +386,16 @@ The main dashboard is designed for a wall-mounted display. It shows:
 
 | Mode | How it works |
 |---|---|
-| Limit (auto) | Fans turn on when temp exceeds setpoint + tolerance, off when temp drops below setpoint |
-| Manual override | Force a zone's fan ON or OFF regardless of temperature |
+| Auto (limit) | Fans turn on when temp exceeds setpoint + tolerance, off when temp drops below setpoint |
+| On / Off (untimed) | Force a zone's fan ON or OFF until you press Auto. Persists across service restarts (cleared on full reboot). |
+| On · 1hr / Off · 1hr | Same as above but auto-expires after 60 minutes, returning the zone to Auto. |
 | Rules | Time-window or threshold-based triggers (configured per-run) |
+
+**Override persistence:**
+
+- **Active run:** overrides live in the SQLite `fan_overrides` table — survive any restart, expire on `expires_at`.
+- **No active run:** overrides live in `/run/smartsake/no_run_overrides.json` (volatile dir) — survive `smartsake.service` restarts (watchdog, deploys, crashes), but cleared on a full reboot for safety.
+- Starting a new run wipes any no-run overrides (the run owns its own override table).
 
 ### Mobile Dashboard (iPhone / iPad)
 
@@ -421,6 +428,19 @@ To add SmartSake to your iPhone home screen as an app:
 | Fan relay control | 10s | 10s |
 | Weight (HX711) | 30s | 30s |
 | Stage markers | on change | 30s |
+
+Front-end pollers (`fetchAndApply`, `fetchFanState`) carry an in-flight reentrancy guard, so a slow Pi will skip a tick instead of stacking parallel requests.
+
+### Accessibility
+
+The dashboard is the primary operator surface and aims for WCAG 2.1 AA on the controls that matter most for safe operation:
+
+- All icon-only buttons (settings gear, emergency stop, elapsed/clock toggle) have explicit `aria-label`s.
+- The fan-mode segmented control is a `role="group"` with `aria-pressed` mirroring the visual `--active` state, so screen readers announce the current selection.
+- The connection-lost banner is an `role="alert" aria-live="assertive"` region; sensor poll failures are announced.
+- All four metric canvases (temperature, humidity, fans, weight) have descriptive `aria-label`s.
+- Keyboard focus on every primary control surface (fan-mode segments, time-window buttons, STOP, settings) shows a 2 px outline via `:focus-visible` — outlines are painted outside the box, so layout doesn't shift.
+- `prefers-reduced-motion: reduce` disables transitions on interactive controls.
 
 ---
 
@@ -480,7 +500,8 @@ SmartSake/
         ├── koji-room-layout.png
         ├── power-schematic.pdf
         ├── wiring-schematic.pdf
-        └── signal-schematic.svg
+        ├── signal-schematic.svg
+        └── smartsake-wiring.json   # EasyEDA source (LV signal + 120 V power, 2 sheets)
 ```
 
 ---
@@ -521,6 +542,7 @@ The native Fusion 360 file (`SakeTableCAD.f3z`) is not included due to size; con
 | [`docs/schematics/power-schematic.pdf`](docs/schematics/power-schematic.pdf) | Power distribution schematic |
 | [`docs/schematics/wiring-schematic.pdf`](docs/schematics/wiring-schematic.pdf) | Full wiring schematic (Pi → relays → fans → sensors) |
 | [`docs/schematics/signal-schematic.svg`](docs/schematics/signal-schematic.svg) | Signal-level schematic (1-Wire, I2C, GPIO) |
+| [`docs/schematics/smartsake-wiring.json`](docs/schematics/smartsake-wiring.json) | Editable EasyEDA source — Sheet 1: LV signal wiring (Pi GPIO → MAX31850K × 6, SHT30, HX711 × 4, relay logic). Sheet 2: 120 VAC power wiring (separate Pi-supply outlet, relay-switched fans, always-on dehumidifier). Open in EasyEDA Std Edition via *File → Open → Local*. |
 
 ---
 
@@ -608,7 +630,8 @@ All endpoints are JSON unless noted. Base URL is `http://<pi-ip>:8080`.
 | GET | `/api/runs/<id>/zones` | All per-zone notes |
 | GET / PUT | `/api/runs/<id>/zones/<n>` | Get/save zone note |
 | GET | `/api/runs/<id>/fan-overrides` | Active manual overrides |
-| POST / DELETE | `/api/runs/<id>/zones/<n>/fan` | Set/clear manual override on zone N |
+| POST / DELETE | `/api/runs/<id>/zones/<n>/fan` | Set/clear manual override on zone N. POST body: `{"action":"on"\|"off","duration_minutes":<int 1-10080>\|null}` (cap = 7 days). |
+| POST | `/api/fans/<n>` | No-run direct fan control. Body: `{"action":"on"\|"off"\|"auto","duration_minutes":<int 1-10080>\|null}`. Persists in `/run/smartsake/no_run_overrides.json`. |
 | POST | `/api/runs/<id>/emergency-stop` | Force all six zones OFF |
 | GET / POST | `/api/runs/<id>/fan-rules` | List/create rule-based triggers |
 | PATCH / DELETE | `/api/runs/<id>/fan-rules/<rule_id>` | Toggle/delete rule |
