@@ -280,6 +280,9 @@ def _load_target_profile(run_id):
         return _cached_profile["points"]
     rows = sakedb.get_target_profile(run_id)
     pts = [(r["elapsed_min"], r["temp_target"]) for r in rows if r["temp_target"] is not None]
+    # _interp_target assumes pts are sorted by elapsed_min ascending. Sort
+    # defensively so a curve saved out of order doesn't yield wrong setpoints.
+    pts.sort(key=lambda p: p[0])
     shared = {z: pts for z in range(1, 7)} if pts else {}
     _cached_profile["run_id"] = run_id
     _cached_profile["points"] = shared

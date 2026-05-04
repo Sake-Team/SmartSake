@@ -11,6 +11,7 @@ smartsake-sensors.service to avoid duplicate loops across workers.
 
 import json
 import os
+import re
 import time
 from flask import Flask, jsonify, request, send_from_directory, abort
 
@@ -221,7 +222,10 @@ def api_sensor_status():
         last_write_age = round(time.time() - ws._last_db_write_time, 1) if ws._last_db_write_time > 0 else None
         active_run_id  = ws._active_run_id
     except Exception as e:
-        return jsonify({"error": f"Could not read sensor module state: {e}"}), 500
+        # Log details server-side; return a generic message to the client to
+        # avoid leaking internal module structure.
+        print(f"[api_sensor_status] could not read WriteSensors state: {e}")
+        return jsonify({"error": "Sensor state unavailable"}), 500
 
     sensor_age_s = None
     sensor_ts    = None
@@ -518,10 +522,10 @@ def api_set_fan_override(run_id, zone):
     if duration is not None:
         try:
             duration = int(duration)
-            if duration <= 0:
+            if duration <= 0 or duration > 10080:  # cap at 7 days
                 raise ValueError
         except (TypeError, ValueError):
-            return jsonify({"error": "duration_minutes must be a positive integer or null"}), 400
+            return jsonify({"error": "duration_minutes must be a positive integer (1-10080) or null"}), 400
     db.set_fan_override(run_id, zone, action, duration)
     # Drive GPIO immediately — don't wait for sensor loop
     fan_gpio.set_fan(zone, action == "on")
@@ -579,10 +583,10 @@ def api_direct_fan(zone):
     if duration is not None:
         try:
             duration = int(duration)
-            if duration <= 0:
+            if duration <= 0 or duration > 10080:  # cap at 7 days
                 raise ValueError
         except (TypeError, ValueError):
-            return jsonify({"error": "duration_minutes must be a positive integer or null"}), 400
+            return jsonify({"error": "duration_minutes must be a positive integer (1-10080) or null"}), 400
 
     WriteSensors.set_no_run_override(zone, action, duration)
     fan_gpio.set_fan(zone, action == "on")
@@ -1021,7 +1025,11 @@ def api_export_csv(run_id):
             writer.writerow(vals)
             yield buf.getvalue()
 
-    filename = run["name"].replace(" ", "_") + ".csv"
+    # Sanitize filename for Content-Disposition: strip CR/LF/quotes/backslashes
+    # and any non-printable bytes so a malicious run name can't inject headers.
+    raw_name = (run["name"] or "run").replace(" ", "_")
+    safe_name = re.sub(r"[^A-Za-z0-9._-]", "", raw_name)[:80] or "run"
+    filename = f"{safe_name}.csv"
     return Response(
         generate(),
         mimetype="text/csv",

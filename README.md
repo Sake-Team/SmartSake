@@ -429,6 +429,19 @@ To add SmartSake to your iPhone home screen as an app:
 | Weight (HX711) | 30s | 30s |
 | Stage markers | on change | 30s |
 
+Front-end pollers (`fetchAndApply`, `fetchFanState`) carry an in-flight reentrancy guard, so a slow Pi will skip a tick instead of stacking parallel requests.
+
+### Accessibility
+
+The dashboard is the primary operator surface and aims for WCAG 2.1 AA on the controls that matter most for safe operation:
+
+- All icon-only buttons (settings gear, emergency stop, elapsed/clock toggle) have explicit `aria-label`s.
+- The fan-mode segmented control is a `role="group"` with `aria-pressed` mirroring the visual `--active` state, so screen readers announce the current selection.
+- The connection-lost banner is an `role="alert" aria-live="assertive"` region; sensor poll failures are announced.
+- All four metric canvases (temperature, humidity, fans, weight) have descriptive `aria-label`s.
+- Keyboard focus on every primary control surface (fan-mode segments, time-window buttons, STOP, settings) shows a 2 px outline via `:focus-visible` — outlines are painted outside the box, so layout doesn't shift.
+- `prefers-reduced-motion: reduce` disables transitions on interactive controls.
+
 ---
 
 ## File Structure
@@ -617,8 +630,8 @@ All endpoints are JSON unless noted. Base URL is `http://<pi-ip>:8080`.
 | GET | `/api/runs/<id>/zones` | All per-zone notes |
 | GET / PUT | `/api/runs/<id>/zones/<n>` | Get/save zone note |
 | GET | `/api/runs/<id>/fan-overrides` | Active manual overrides |
-| POST / DELETE | `/api/runs/<id>/zones/<n>/fan` | Set/clear manual override on zone N. POST body: `{"action":"on"\|"off","duration_minutes":<int>\|null}`. |
-| POST | `/api/fans/<n>` | No-run direct fan control. Body: `{"action":"on"\|"off"\|"auto","duration_minutes":<int>\|null}`. Persists in `/run/smartsake/no_run_overrides.json`. |
+| POST / DELETE | `/api/runs/<id>/zones/<n>/fan` | Set/clear manual override on zone N. POST body: `{"action":"on"\|"off","duration_minutes":<int 1-10080>\|null}` (cap = 7 days). |
+| POST | `/api/fans/<n>` | No-run direct fan control. Body: `{"action":"on"\|"off"\|"auto","duration_minutes":<int 1-10080>\|null}`. Persists in `/run/smartsake/no_run_overrides.json`. |
 | POST | `/api/runs/<id>/emergency-stop` | Force all six zones OFF |
 | GET / POST | `/api/runs/<id>/fan-rules` | List/create rule-based triggers |
 | PATCH / DELETE | `/api/runs/<id>/fan-rules/<rule_id>` | Toggle/delete rule |
