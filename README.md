@@ -261,7 +261,7 @@ The main service runs as user `kojitable` with resource limits:
 - **Memory:** 256 MB max
 - **CPU:** 80% quota
 - **Watchdog:** 60s (kills hung process)
-- **tmpfs:** `/run/smartsake/` for volatile JSON files (protects SD card)
+- **tmpfs:** `/run/smartsake/` for volatile JSON files (protects SD card). Holds `sensor_latest.json`, `fan_state.json`, `sensor_status.json`, and `no_run_overrides.json`.
 
 ### Database
 
@@ -386,9 +386,16 @@ The main dashboard is designed for a wall-mounted display. It shows:
 
 | Mode | How it works |
 |---|---|
-| Limit (auto) | Fans turn on when temp exceeds setpoint + tolerance, off when temp drops below setpoint |
-| Manual override | Force a zone's fan ON or OFF regardless of temperature |
+| Auto (limit) | Fans turn on when temp exceeds setpoint + tolerance, off when temp drops below setpoint |
+| On / Off (untimed) | Force a zone's fan ON or OFF until you press Auto. Persists across service restarts (cleared on full reboot). |
+| On · 1hr / Off · 1hr | Same as above but auto-expires after 60 minutes, returning the zone to Auto. |
 | Rules | Time-window or threshold-based triggers (configured per-run) |
+
+**Override persistence:**
+
+- **Active run:** overrides live in the SQLite `fan_overrides` table — survive any restart, expire on `expires_at`.
+- **No active run:** overrides live in `/run/smartsake/no_run_overrides.json` (volatile dir) — survive `smartsake.service` restarts (watchdog, deploys, crashes), but cleared on a full reboot for safety.
+- Starting a new run wipes any no-run overrides (the run owns its own override table).
 
 ### Mobile Dashboard (iPhone / iPad)
 
@@ -610,7 +617,8 @@ All endpoints are JSON unless noted. Base URL is `http://<pi-ip>:8080`.
 | GET | `/api/runs/<id>/zones` | All per-zone notes |
 | GET / PUT | `/api/runs/<id>/zones/<n>` | Get/save zone note |
 | GET | `/api/runs/<id>/fan-overrides` | Active manual overrides |
-| POST / DELETE | `/api/runs/<id>/zones/<n>/fan` | Set/clear manual override on zone N |
+| POST / DELETE | `/api/runs/<id>/zones/<n>/fan` | Set/clear manual override on zone N. POST body: `{"action":"on"\|"off","duration_minutes":<int>\|null}`. |
+| POST | `/api/fans/<n>` | No-run direct fan control. Body: `{"action":"on"\|"off"\|"auto","duration_minutes":<int>\|null}`. Persists in `/run/smartsake/no_run_overrides.json`. |
 | POST | `/api/runs/<id>/emergency-stop` | Force all six zones OFF |
 | GET / POST | `/api/runs/<id>/fan-rules` | List/create rule-based triggers |
 | PATCH / DELETE | `/api/runs/<id>/fan-rules/<rule_id>` | Toggle/delete rule |

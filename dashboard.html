@@ -2777,12 +2777,18 @@ const tempSeries = {
 									var mode = zd.mode || 'none';
 									var state = zd.state || 'off';
 									if (mode === 'manual') {
-										// Manual override active
-										var activeBtn = (state === 'on') ? 'on' : 'off';
+										// Manual override active — pick timed vs untimed variant
+										var timed = !!zd.override_expires_at;
+										var activeBtn;
+										if (state === 'on')  activeBtn = timed ? 'on-1h'  : 'on';
+										else                 activeBtn = timed ? 'off-1h' : 'off';
 										fanSegBtns.forEach(function (b) {
 											if (b.dataset.mode === activeBtn) b.classList.add('zone-detail-card__fan-seg--active');
 										});
-										fanStatus.textContent = 'Manual override — ' + state.toUpperCase();
+										var detail = timed
+											? ' (expires ' + new Date(zd.override_expires_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ')'
+											: '';
+										fanStatus.textContent = 'Manual override — ' + state.toUpperCase() + detail;
 									} else if (mode === 'limit') {
 										fanStatus.textContent = 'Automatic — fan ' + state.toUpperCase();
 										fanSegBtns.forEach(function (b) {
@@ -2995,6 +3001,14 @@ const tempSeries = {
 							fanSegBtns.forEach(function (b) { b.disabled = true; });
 							fanStatus.textContent = 'Saving…';
 
+							// Optimistic UI: highlight the clicked button now so the user's
+							// selection sticks visually even if the follow-up state poll lags
+							// the sensor loop (no-run path) or DB cross-reference.
+							fanSegBtns.forEach(function (b) {
+								b.classList.remove('zone-detail-card__fan-seg--active');
+							});
+							btn.classList.add('zone-detail-card__fan-seg--active');
+
 							_getActiveRunId().then(function(runId) {
 								var url, fetchOpts;
 
@@ -3004,11 +3018,16 @@ const tempSeries = {
 									if (mode === 'auto') action = 'auto';
 									else if (mode === 'off-1h' || mode === 'off') action = 'off';
 									else action = 'on';
+									var noRunDuration = (mode === 'off-1h' || mode === 'on-1h') ? 60 : null;
 									url = '/api/fans/' + activeZone;
 									fetchOpts = {
 										method: 'POST',
 										headers: { 'Content-Type': 'application/json' },
-										body: JSON.stringify({ action: action })
+										body: JSON.stringify(
+											action === 'auto'
+												? { action: action }
+												: { action: action, duration_minutes: noRunDuration }
+										)
 									};
 								} else {
 									url = '/api/runs/' + runId + '/zones/' + activeZone + '/fan';

@@ -559,8 +559,9 @@ def api_emergency_stop(run_id):
 def api_direct_fan(zone):
     """Direct fan control — works without an active run.
 
-    POST {"action": "on"|"off"} — sets manual override (persists until "auto")
-    POST {"action": "auto"} — clears override, returns to automatic control
+    POST {"action": "on"|"off", "duration_minutes": <int>|null}
+        Sets manual override. duration_minutes=null persists until cleared.
+    POST {"action": "auto"} — clears override, returns to automatic control.
     """
     import WriteSensors
     if zone < 1 or zone > 6:
@@ -573,10 +574,20 @@ def api_direct_fan(zone):
         WriteSensors.clear_no_run_override(zone)
         # Don't change GPIO — sensor loop's auto logic will set it next cycle
         return jsonify({"ok": True, "zone": zone, "fan": "auto"})
-    else:
-        WriteSensors.set_no_run_override(zone, action)
-        fan_gpio.set_fan(zone, action == "on")
-        return jsonify({"ok": True, "zone": zone, "fan": action})
+
+    duration = body.get("duration_minutes")
+    if duration is not None:
+        try:
+            duration = int(duration)
+            if duration <= 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            return jsonify({"error": "duration_minutes must be a positive integer or null"}), 400
+
+    WriteSensors.set_no_run_override(zone, action, duration)
+    fan_gpio.set_fan(zone, action == "on")
+    override = WriteSensors.get_no_run_overrides_full().get(zone)
+    return jsonify({"ok": True, "zone": zone, "fan": action, "override": override})
 
 
 # ── Fan rules ─────────────────────────────────────────────────────────────────
@@ -1086,19 +1097,21 @@ def api_fan_state():
     else:
         # No active run — cross-reference no-run overrides
         import WriteSensors
-        no_run_ov = WriteSensors.get_no_run_overrides()
+        no_run_ov = WriteSensors.get_no_run_overrides_full()
         zones = data.get("zones", {})
         for z in range(1, 7):
             zd = zones.get(str(z), {})
             if z in no_run_ov:
-                if zd.get("mode") != "manual":
-                    zd["mode"] = "manual"
-                    zd["state"] = no_run_ov[z]
-                    zones[str(z)] = zd
+                ov = no_run_ov[z]
+                zd["mode"] = "manual"
+                zd["state"] = ov["action"]
+                zd["override_expires_at"] = ov.get("expires_at")
+                zones[str(z)] = zd
             else:
                 # No override — if stale mode says manual, correct it
                 if zd.get("mode") == "manual":
                     zd["mode"] = "limit" if zd.get("setpoint") is not None else "none"
+                    zd.pop("override_expires_at", None)
                     zones[str(z)] = zd
         data["zones"] = zones
 
