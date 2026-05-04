@@ -1166,12 +1166,32 @@ def api_save_zone_config():
                 return jsonify({"error": f"offset_c for '{key}' must be a number"}), 400
             if not (-5.0 <= val["offset_c"] <= 5.0):
                 return jsonify({"error": f"offset_c for '{key}' must be between -5 and 5"}), 400
+    # Deep-merge into existing config rather than full-replacing the file.
+    # Defends against a stale/empty client GET clobbering setpoint_c when
+    # the user only meant to update tolerance_c (or vice versa), and against
+    # concurrent saves from multiple tabs racing each other.
+    try:
+        existing = _read_zone_cfg()
+    except Exception:
+        existing = {}
+    merged = dict(existing) if isinstance(existing, dict) else {}
+    for key, val in body.items():
+        if key == "comment":
+            merged[key] = val
+            continue
+        if isinstance(val, dict) and isinstance(merged.get(key), dict):
+            merged_zone = dict(merged[key])
+            merged_zone.update(val)
+            merged[key] = merged_zone
+        else:
+            merged[key] = val
+
     try:
         tmp = ZONE_CONFIG_FILE + ".tmp"
         with open(tmp, "w") as f:
-            json.dump(body, f, indent=2)
+            json.dump(merged, f, indent=2)
         os.replace(tmp, ZONE_CONFIG_FILE)
-        return jsonify(body), 200
+        return jsonify(merged), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

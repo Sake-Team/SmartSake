@@ -895,15 +895,25 @@ def write_csv(timestamp, sht_temp, sht_humidity, tc_readings):
         else:
             _csv_line_count = 0
 
+    # Always emit MAX_THERMOCOUPLES TC columns regardless of how many probes
+    # the bus reports right now. Otherwise a tick where 1-Wire is briefly
+    # empty (typical for the first few seconds after restart) pins a short
+    # header to disk; every later row with more probes silently appends
+    # extra columns past the header — exactly what looks like "TC data
+    # missing on save".
+    tc_by_zone = {ch: temp for ch, temp in tc_readings}
+
     with open(CSV_FILE, "a", newline="") as f:
         writer = csv.writer(f)
         if not file_exists:
             headers = ["timestamp", "sht30_temp_c", "sht30_humidity_rh"]
-            headers += [f"TC{ch}_temp_c" for ch, _ in tc_readings]
+            headers += [f"TC{z}_temp_c" for z in range(1, MAX_THERMOCOUPLES + 1)]
             writer.writerow(headers)
             _csv_line_count += 1
         row = [timestamp, sht_temp, sht_humidity]
-        row += [f"{temp:.2f}" if temp is not None else "ERROR" for _, temp in tc_readings]
+        for z in range(1, MAX_THERMOCOUPLES + 1):
+            t = tc_by_zone.get(z)
+            row.append(f"{t:.2f}" if t is not None else "ERROR")
         writer.writerow(row)
         _csv_line_count += 1
 
@@ -1089,17 +1099,23 @@ def start_sensor_loop():
                 except Exception as e:
                     print(f"[sensors] SHT30 read error: {e}")
 
-            # Read thermocouples: raw → median filter → calibration
-            tc_readings = []
+            # Read thermocouples: raw → median filter → calibration.
+            # We always emit MAX_THERMOCOUPLES entries (1..6) even when the
+            # bus reports fewer probes, so downstream consumers — CSV header,
+            # DB row keys, evaluate_fan_state's tc_map, and the dashboard
+            # JSON snapshot — see a stable shape. Missing probes produce
+            # (zone, None), which all consumers already handle.
+            tc_by_zone = {}
             for ch, d in assigned:
                 try:
                     raw_c    = read_temp_c(d)
                     filtered = _tc_filtered(ch, raw_c)
                     temp_c   = _zone_tc_correct(ch, filtered)
-                    tc_readings.append((ch, temp_c))
+                    tc_by_zone[ch] = temp_c
                 except Exception as e:
-                    tc_readings.append((ch, None))
+                    tc_by_zone[ch] = None
                     print(f"[sensors] TC{ch} read error: {e}")
+            tc_readings = [(z, tc_by_zone.get(z)) for z in range(1, MAX_THERMOCOUPLES + 1)]
 
             write_csv(timestamp, sht_temp, sht_humidity, tc_readings)
             write_json(timestamp, sht_temp, sht_humidity, tc_readings)

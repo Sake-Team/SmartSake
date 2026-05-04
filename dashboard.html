@@ -2945,19 +2945,19 @@ const tempSeries = {
 					if (setpointApply) setpointApply.addEventListener('click', function() {
 						var sp = parseFloat(setpointInput.value);
 						if (isNaN(sp) || sp < 0 || sp > 60) return;
-						fetch('/api/zone-config')
-							.then(function(r) { return r.ok ? r.json() : {}; })
-							.then(function(cfg) {
-								var key = 'zone' + activeZone;
-								cfg[key] = cfg[key] || {};
-								cfg[key].setpoint_c = sp;
-								return fetch('/api/zone-config', {
-									method: 'POST',
-									headers: { 'Content-Type': 'application/json' },
-									body: JSON.stringify(cfg)
-								});
-							})
-							.then(function() {
+						// Send only the changed key — the server deep-merges, so we
+						// don't need to GET-then-POST the whole file (which raced
+						// with concurrent saves and clobbered other zones if the
+						// GET ever returned an empty body).
+						var partial = {};
+						partial['zone' + activeZone] = { setpoint_c: sp };
+						fetch('/api/zone-config', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify(partial)
+						})
+							.then(function(r) {
+								if (!r.ok) throw new Error('zone-config save returned ' + r.status);
 								loadZoneControls(activeZone);
 								// Refresh zone cards after sensor loop picks up new setpoint
 								setTimeout(function() {
@@ -2965,39 +2965,35 @@ const tempSeries = {
 										.then(function(d) {
 											if (window._applyFanBadgesExt) window._applyFanBadgesExt(d);
 											if (window.applyDeviationColors) window.applyDeviationColors();
-										}).catch(function(){});
+										}).catch(function(e) { console.warn('fan-state refresh failed:', e); });
 								}, 1500);
 							})
-							.catch(function() {});
+							.catch(function(e) { console.warn('Setpoint save failed:', e); });
 					});
 
 					// Tolerance apply — PATCH zone_config via /api/zone-config
 					if (toleranceApply) toleranceApply.addEventListener('click', function() {
 						var tol = parseFloat(toleranceInput.value);
 						if (isNaN(tol) || tol < 0 || tol > 10) return;
-						fetch('/api/zone-config')
-							.then(function(r) { return r.ok ? r.json() : {}; })
-							.then(function(cfg) {
-								var key = 'zone' + activeZone;
-								cfg[key] = cfg[key] || {};
-								cfg[key].tolerance_c = tol;
-								return fetch('/api/zone-config', {
-									method: 'POST',
-									headers: { 'Content-Type': 'application/json' },
-									body: JSON.stringify(cfg)
-								});
-							})
-							.then(function() {
+						var partial = {};
+						partial['zone' + activeZone] = { tolerance_c: tol };
+						fetch('/api/zone-config', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify(partial)
+						})
+							.then(function(r) {
+								if (!r.ok) throw new Error('zone-config save returned ' + r.status);
 								loadZoneControls(activeZone);
 								setTimeout(function() {
 									fetch('/api/fan-state').then(function(r) { return r.ok ? r.json() : {}; })
 										.then(function(d) {
 											if (window._applyFanBadgesExt) window._applyFanBadgesExt(d);
 											if (window.applyDeviationColors) window.applyDeviationColors();
-										}).catch(function(){});
+										}).catch(function(e) { console.warn('fan-state refresh failed:', e); });
 								}, 1500);
 							})
-							.catch(function() {});
+							.catch(function(e) { console.warn('Tolerance save failed:', e); });
 					});
 
 					function _getActiveRunId() {
