@@ -389,6 +389,8 @@ def api_end_run(run_id):
     if not run:
         abort(404)
     db.end_run(run_id)
+    for zone in range(1, 7):
+        fan_gpio.set_fan(zone, False)
     return jsonify(db.get_run(run_id))
 
 
@@ -441,7 +443,7 @@ def api_run_latest(run_id):
         abort(404)
     reading = db.get_latest_reading(run_id)
     if not reading:
-        return jsonify({}), 204
+        return '', 204
     return jsonify(reading)
 
 
@@ -638,8 +640,7 @@ def api_create_fan_rule(run_id):
         kwargs = {'threshold_temp_c': float(temp), 'threshold_dir': direction, 'threshold_dur_min': dur}
 
     rule_id = db.create_fan_rule(run_id, zone, rule_type, fan_action, **kwargs)
-    return jsonify(db.get_fan_rules(run_id)[0] if False else
-                   next((r for r in db.get_fan_rules(run_id) if r['id'] == rule_id), {})), 201
+    return jsonify(next((r for r in db.get_fan_rules(run_id) if r['id'] == rule_id), {})), 201
 
 
 @app.route("/api/runs/<int:run_id>/fan-rules/<int:rule_id>", methods=["PATCH"])
@@ -946,6 +947,8 @@ def api_weight_targets(run_id):
         return jsonify({"error": "min and max required"}), 400
     if not (isinstance(t_min, (int, float)) and isinstance(t_max, (int, float))):
         return jsonify({"error": "min and max must be numbers"}), 400
+    if float(t_min) > float(t_max):
+        return jsonify({"error": "min must be <= max"}), 400
     db.update_run_weight_targets(run_id, float(t_min), float(t_max))
     return jsonify({"ok": True})
 
@@ -959,6 +962,10 @@ def api_humidity_targets(run_id):
     t_max = body.get("max", body.get("target_max"))
     if t_min is None or t_max is None:
         return jsonify({"error": "min and max required"}), 400
+    if not (isinstance(t_min, (int, float)) and isinstance(t_max, (int, float))):
+        return jsonify({"error": "min and max must be numbers"}), 400
+    if float(t_min) > float(t_max):
+        return jsonify({"error": "min must be <= max"}), 400
     if not (0 <= float(t_min) <= 100 and 0 <= float(t_max) <= 100):
         return jsonify({"error": "target_min and target_max must be 0-100"}), 400
     db.update_run_humidity_targets(run_id, float(t_min), float(t_max))

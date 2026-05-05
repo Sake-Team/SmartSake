@@ -165,10 +165,11 @@ def init_db():
         except Exception:
             pass  # column already exists
 
-        _seed_reference_curves(conn)
-
         # Fix curves seeded before temp_target column existed (all NULL values)
+        # Must run BEFORE _seed_reference_curves so it can re-seed after cleanup
         _fix_null_temp_target_curves(conn)
+
+        _seed_reference_curves(conn)
 
         # Add multi-scale weight columns if upgrading from older schema
         for col in ("weight_lbs_1", "weight_lbs_2", "weight_lbs_3", "weight_lbs_4"):
@@ -205,17 +206,20 @@ def init_db():
 
 
 def _fix_null_temp_target_curves(conn):
-    """Re-seed curves if they have NULL temp_target (from pre-migration seeding)."""
-    row = conn.execute(
+    # Check if any reference curve points have NULL temp_target (pre-migration data)
+    bad = conn.execute(
         "SELECT COUNT(*) FROM reference_curve_points WHERE temp_target IS NULL"
-    ).fetchone()
-    if not row or row[0] == 0:
+    ).fetchone()[0]
+    if bad == 0:
         return
-    # Delete and re-seed — the _seed_reference_curves function checks count > 0,
-    # so we need to wipe first.
-    print("[db] Fixing reference curves with NULL temp_target — re-seeding...")
-    conn.execute("DELETE FROM reference_curve_points")
-    conn.execute("DELETE FROM reference_curves")
+    # Only delete built-in curves that have NULL data — preserve user-created curves
+    builtin_names = ("Standard Yellow Koji (Ginjo)", "Mugi Koji (Barley)", "Soy Koji (Extended)")
+    for name in builtin_names:
+        row = conn.execute("SELECT id FROM reference_curves WHERE name=?", (name,)).fetchone()
+        if row:
+            conn.execute("DELETE FROM reference_curve_points WHERE curve_id=?", (row[0],))
+            conn.execute("DELETE FROM reference_curves WHERE id=?", (row[0],))
+    print("[db] Cleared corrupted built-in reference curves — will re-seed")
 
 
 def _seed_reference_curves(conn):
@@ -360,21 +364,15 @@ def get_run(run_id):
 
 def delete_run(run_id):
     with get_conn() as conn:
-        conn.execute("BEGIN IMMEDIATE")
-        try:
-            conn.execute("DELETE FROM zone_notes WHERE run_id=?", (run_id,))
-            conn.execute("DELETE FROM target_profiles WHERE run_id=?", (run_id,))
-            conn.execute("DELETE FROM fan_overrides WHERE run_id=?", (run_id,))
-            conn.execute("DELETE FROM fan_rules WHERE run_id=?", (run_id,))
-            conn.execute("DELETE FROM deviation_events WHERE run_id=?", (run_id,))
-            conn.execute("DELETE FROM run_events WHERE run_id=?", (run_id,))
-            conn.execute("DELETE FROM run_metadata WHERE run_id=?", (run_id,))
-            conn.execute("DELETE FROM sensor_readings WHERE run_id=?", (run_id,))
-            conn.execute("DELETE FROM runs WHERE id=?", (run_id,))
-            conn.execute("COMMIT")
-        except Exception:
-            conn.execute("ROLLBACK")
-            raise
+        conn.execute("DELETE FROM zone_notes WHERE run_id=?", (run_id,))
+        conn.execute("DELETE FROM target_profiles WHERE run_id=?", (run_id,))
+        conn.execute("DELETE FROM fan_overrides WHERE run_id=?", (run_id,))
+        conn.execute("DELETE FROM fan_rules WHERE run_id=?", (run_id,))
+        conn.execute("DELETE FROM deviation_events WHERE run_id=?", (run_id,))
+        conn.execute("DELETE FROM run_events WHERE run_id=?", (run_id,))
+        conn.execute("DELETE FROM run_metadata WHERE run_id=?", (run_id,))
+        conn.execute("DELETE FROM sensor_readings WHERE run_id=?", (run_id,))
+        conn.execute("DELETE FROM runs WHERE id=?", (run_id,))
 
 
 def set_run_pinned(run_id, pinned):

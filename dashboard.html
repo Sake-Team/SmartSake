@@ -3023,6 +3023,7 @@ const tempSeries = {
 					fanSegBtns.forEach(function (btn) {
 						btn.addEventListener('click', function () {
 							if (!activeZone || fanRequestPending) return;
+							var targetZone = activeZone;  // Capture — don't let async race change it
 							var mode = btn.dataset.mode;
 							// If already active, do nothing
 							if (btn.classList.contains('zone-detail-card__fan-seg--active')) return;
@@ -3051,7 +3052,7 @@ const tempSeries = {
 									else if (mode === 'off-1h' || mode === 'off') action = 'off';
 									else action = 'on';
 									var noRunDuration = (mode === 'off-1h' || mode === 'on-1h') ? 60 : null;
-									url = '/api/fans/' + activeZone;
+									url = '/api/fans/' + targetZone;
 									fetchOpts = {
 										method: 'POST',
 										headers: { 'Content-Type': 'application/json' },
@@ -3062,7 +3063,7 @@ const tempSeries = {
 										)
 									};
 								} else {
-									url = '/api/runs/' + runId + '/zones/' + activeZone + '/fan';
+									url = '/api/runs/' + runId + '/zones/' + targetZone + '/fan';
 									if (mode === 'auto') {
 										fetchOpts = { method: 'DELETE' };
 									} else {
@@ -3082,7 +3083,7 @@ const tempSeries = {
 										return mode === 'auto' ? null : r.json();
 									})
 									.then(function () {
-										loadFanState(runId, activeZone);
+										loadFanState(runId, targetZone);
 										// Instantly refresh zone card badges + colors
 										if (window.startFanPolling) {
 											fetch('/api/fan-state').then(function(r) { return r.ok ? r.json() : {}; })
@@ -3303,7 +3304,7 @@ const tempSeries = {
 					// Optimised version using cached refs
 					function applyDeviationColorsCached() {
 						const dev = parseFloat(localStorage.getItem('sakeDeviationAllowanceC'));
-						const deviationAllowance = Number.isFinite(dev) ? dev : 2.0;
+						const deviationAllowance = Number.isFinite(dev) ? dev : 5.0;
 						const half = deviationAllowance * 0.5;
 						const currentTargets = getCurrentTargets();
 						const zoneSetpoints = window.getZoneSetpoints ? window.getZoneSetpoints() : {};
@@ -4874,6 +4875,7 @@ const tempSeries = {
 				.then(function (readings) {
 					if (!readings || !readings.length) return;
 					if (window.stopTemperatureReading) window.stopTemperatureReading();
+					window._isReplayMode = true;
 					readings.forEach(function (row) {
 						if (!window.pushSensorSample) return;
 						window.pushSensorSample({
@@ -5157,6 +5159,8 @@ const tempSeries = {
 				if (window.stopTemperatureReading) window.stopTemperatureReading();
 				if (window.stopFanPolling) window.stopFanPolling();
 			} else {
+				// Don't restart live polling during historical replay
+				if (window._isReplayMode) return;
 				if (window.startTemperatureReading) window.startTemperatureReading();
 				if (window.startFanPolling) window.startFanPolling();
 			}

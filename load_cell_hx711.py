@@ -127,6 +127,9 @@ class HX711:
         return self._offset
 
     def set_scale(self, factor):
+        if factor == 0:
+            print("  [WARN] Calibration factor is 0 — using 1.0 to avoid division by zero")
+            factor = 1.0
         self._scale = factor
 
     def set_calibration_points(self, points):
@@ -139,11 +142,18 @@ class HX711:
         if not points or len(points) < 2:
             self._cal_points = []
             return
-        # Sort by raw value for interpolation
-        self._cal_points = sorted(
+        sorted_pts = sorted(
             [(float(p["raw"]), float(p["weight_g"])) for p in points],
             key=lambda x: x[0]
         )
+        # Deduplicate: if multiple points have the same raw value, keep the last one
+        deduped = {}
+        for raw, wg in sorted_pts:
+            deduped[raw] = wg
+        if len(deduped) < len(sorted_pts):
+            print(f"  [WARN] {len(sorted_pts) - len(deduped)} duplicate raw value(s) "
+                  f"removed from calibration points (kept last entry per raw value)")
+        self._cal_points = sorted(deduped.items(), key=lambda x: x[0])
 
     def _interp_weight_g(self, raw_avg):
         """Piecewise-linear interpolation from raw ADC to grams using calibration points."""
@@ -271,6 +281,9 @@ def calibrate_multipoint(hx):
             except ValueError:
                 print("  Invalid number. Try again.")
                 continue
+            if weight_g < 0:
+                print("  Weight must be >= 0. Try again.")
+                continue
             label = input(f"  Label for this point (optional, e.g. '2kg plate'): ").strip() or f"{weight_g}g"
             input("  Press ENTER when weight is placed and stable...")
 
@@ -314,9 +327,14 @@ def load_scale_config(path="scale_config.json"):
             # Load multi-point calibration curve if available
             cal_pts = cfg.get("calibration_points")
             if cal_pts and isinstance(cal_pts, list) and len(cal_pts) >= 2:
-                hx.set_calibration_points(cal_pts)
-                print(f"  Scale {scale_id_str}: multi-point calibration "
-                      f"({len(cal_pts)} points)")
+                try:
+                    hx.set_calibration_points(cal_pts)
+                    print(f"  Scale {scale_id_str}: multi-point calibration "
+                          f"({len(cal_pts)} points)")
+                except Exception as e:
+                    print(f"  [WARN] Scale {scale_id_str}: bad calibration points ({e}) "
+                          f"— falling back to single-point (offset={hx._offset}, factor={hx._scale})")
+                    hx._cal_points = []
             else:
                 print(f"  Scale {scale_id_str}: legacy single-point calibration "
                       f"(offset={hx._offset}, factor={hx._scale})")

@@ -230,20 +230,20 @@ def clear_no_run_override(zone):
 def _purge_expired_no_run_overrides():
     """Drop any expired entries. Called from the fan loop each tick."""
     now = datetime.now()
-    expired = []
-    for z, ov in _no_run_overrides.items():
-        exp = ov.get("expires_at")
-        if not exp:
-            continue
-        try:
-            if datetime.fromisoformat(exp) <= now:
+    with _no_run_overrides_lock:
+        expired = []
+        for z, ov in _no_run_overrides.items():
+            exp = ov.get("expires_at")
+            if not exp:
+                continue
+            try:
+                if datetime.fromisoformat(exp) <= now:
+                    expired.append(z)
+            except Exception:
                 expired.append(z)
-        except Exception:
-            expired.append(z)
-    if expired:
-        with _no_run_overrides_lock:
-            for z in expired:
-                _no_run_overrides.pop(z, None)
+        for z in expired:
+            _no_run_overrides.pop(z, None)
+        if expired:
             _persist_no_run_overrides()
 
 
@@ -254,13 +254,15 @@ def get_no_run_overrides():
     don't need to know about expires_at — that's handled by the fan loop.
     """
     _purge_expired_no_run_overrides()
-    return {z: ov["action"] for z, ov in _no_run_overrides.items()}
+    with _no_run_overrides_lock:
+        return {z: ov["action"] for z, ov in _no_run_overrides.items()}
 
 
 def get_no_run_overrides_full():
     """Return the full {zone_int: {action, expires_at}} dict."""
     _purge_expired_no_run_overrides()
-    return {z: dict(ov) for z, ov in _no_run_overrides.items()}
+    with _no_run_overrides_lock:
+        return {z: dict(ov) for z, ov in _no_run_overrides.items()}
 
 
 # Restore persisted overrides on module import so a service restart doesn't
@@ -859,7 +861,7 @@ def run_hx711_thread(scale_id, hx_instance):
                             except Exception:
                                 hx_instance._scale = float(refreshed[2])
                         # Hot-reload multi-point calibration curve
-                        cal_pts = refreshed[3] if len(refreshed) > 3 else None
+                        cal_pts = refreshed[3]
                         if cal_pts and isinstance(cal_pts, list) and len(cal_pts) >= 2:
                             hx_instance.set_calibration_points(cal_pts)
                             print(f"[scale {scale_id}] reloaded multi-point calibration "
