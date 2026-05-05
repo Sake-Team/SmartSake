@@ -232,7 +232,7 @@
           <div class="cal-step-row">
             <span class="cal-step-label" style="margin:0">Step 2:</span>
             <span style="font-size:.78rem;color:var(--color-text-2)">Total weight:</span>
-            <input type="number" step="0.001" min="0.001" max="800" id="cal-all-total-kg" placeholder="9.0">
+            <input type="number" step="0.001" min="0.001" max="100" id="cal-all-total-kg" placeholder="9.0">
             <span style="font-size:.78rem;color:var(--color-text-2)">kg</span>
             <button type="button" class="btn btn-primary" id="cal-all-calibrate-btn">Calibrate All</button>
             <span class="cal-all-note">(each scale gets total / N kg)</span>
@@ -587,7 +587,7 @@
       var sc = (_scaleCfg.scales || {})[String(s)] || {};
       var kg = _latest['weight_lbs_' + s] != null ? _latest['weight_lbs_' + s] / 2.20462 : null;
       var raw = _latest['weight_raw_' + s];
-      var notWired = sc.dat_pin == null;
+      var notWired = sc.dat_pin == null || sc.clk_pin == null;
 
       row.querySelector('[data-role="kg"]').textContent   = notWired ? '— (not wired)' : fmtNum(kg, 3);
       row.querySelector('[data-role="raw"]').textContent  = fmtNum(raw, 0);
