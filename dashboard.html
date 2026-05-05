@@ -205,7 +205,9 @@
 						<span class="ew-stat-card__label">Weight</span>
 						<div class="ew-stat-card__value-row">
 							<span class="ew-stat-card__value" id="ew-weight-val">—</span>
-							<span class="ew-stat-card__unit">lbs</span>
+							<span class="ew-stat-card__unit ew-weight-unit-toggle" id="ew-weight-unit"
+								  title="Click to switch kg/lbs"
+								  style="cursor:pointer;user-select:none;border-bottom:1px dashed currentColor;">lbs</span>
 						</div>
 						<span class="ew-stat-card__sub" id="ew-weight-loss-val">Loss —%</span>
 						<div id="ew-scale-breakdown" style="font-size:0.7rem;color:var(--color-text-3);margin-top:2px;display:flex;gap:6px;flex-wrap:wrap;">
@@ -325,7 +327,9 @@
 
 						<div class="long long--top-left home-side-title-chart-card home-humidity-chart-card">
 							<div class="weight-chart-header-row">
-								<span class="home-humidity-title chart-title--single-line">Weight over time</span>
+								<span class="home-humidity-title chart-title--single-line">Weight over time
+									<span id="wt-unit-label" style="font-size:0.75em;color:var(--color-text-3);font-weight:400;"></span>
+								</span>
 								<button type="button" id="wt-zero-btn" class="wt-zero-btn" title="Zero the scale at current reading">Zero</button>
 							</div>
 							<div class="env-chart-live-wrap">
@@ -1773,6 +1777,52 @@ const tempSeries = {
 						return isFinite(v) ? v : 0;
 					})();
 
+					// ── Weight unit toggle (kg / lbs) ─────────────────────────────────
+					var weightUnit = localStorage.getItem('sakeWeightUnit') || 'lbs';
+					var LBS_TO_KG = 0.453592;
+
+					function wConv(lbs) {
+						// Convert a value in lbs to the current display unit
+						if (lbs == null || isNaN(lbs)) return null;
+						return weightUnit === 'kg' ? lbs * LBS_TO_KG : lbs;
+					}
+					function wUnitLabel() { return weightUnit === 'kg' ? 'kg' : 'lbs'; }
+					function wDecimals() { return weightUnit === 'kg' ? 3 : 2; }
+
+					function applyWeightUnit() {
+						// Update unit labels in the DOM
+						var unitEl = document.getElementById('ew-weight-unit');
+						if (unitEl) unitEl.textContent = wUnitLabel();
+						var wtLabel = document.getElementById('wt-unit-label');
+						if (wtLabel) wtLabel.textContent = '(' + wUnitLabel() + ')';
+					}
+
+					// Apply initial unit labels
+					applyWeightUnit();
+
+					// Toggle handler — click the unit label to switch
+					(function () {
+						var unitEl = document.getElementById('ew-weight-unit');
+						if (!unitEl) return;
+						unitEl.addEventListener('click', function () {
+							weightUnit = weightUnit === 'lbs' ? 'kg' : 'lbs';
+							try { localStorage.setItem('sakeWeightUnit', weightUnit); } catch (e) {}
+							applyWeightUnit();
+							// Recompute chart data in new unit
+							for (var i = 0; i < rawWeightData.length; i++) {
+								weightData[i] = rawWeightData[i] !== null
+									? wConv(rawWeightData[i] - weightTare)
+									: null;
+							}
+							// Update chart axis label and dataset label
+							if (window._weightChart) {
+								window._weightChart.options.scales.y.title.text = 'Weight (' + wUnitLabel() + ')';
+								window._weightChart.data.datasets[0].label = 'Weight (' + wUnitLabel() + ')';
+								window._weightChart.update('none');
+							}
+						});
+					})();
+
 					// Wet-bulb via psychrometric equation + Newton-Raphson iteration.
 					// More accurate than Stull (2011) at high RH (>85 %) and T > 35 °C (koji conditions).
 					function calcWetBulb(T, RH) {
@@ -2026,7 +2076,7 @@ const tempSeries = {
 						data: {
 							labels,
 							datasets: [
-								{ label: 'Weight (lbs)', data: weightData, borderWidth: 2.5, pointRadius: 2,
+								{ label: 'Weight (' + wUnitLabel() + ')', data: weightData, borderWidth: 2.5, pointRadius: 2,
 								  borderColor: _wc.brand, backgroundColor: _wc.brand + '26',
 								  spanGaps: true }
 							]
@@ -2051,7 +2101,7 @@ const tempSeries = {
 									}
 								},
 								y: {
-									title: { display: true, text: 'Weight (lbs)' }
+									title: { display: true, text: 'Weight (' + wUnitLabel() + ')' }
 								}
 							},
 							plugins: {
@@ -2126,13 +2176,13 @@ const tempSeries = {
 							Object.values(fansSeries).forEach(arr => arr.push(null));
 						}
 
-						// weight (real sensor data)
+						// weight (real sensor data — always stored internally as lbs)
 						const wRaw = sample.weight_total_lbs != null
 							? parseFloat(sample.weight_total_lbs)
 							: (sample.weight != null ? parseFloat(sample.weight) : null);
 						const wRawVal = (wRaw !== null && !isNaN(wRaw)) ? wRaw : null;
 						rawWeightData.push(wRawVal);
-						weightData.push(wRawVal !== null ? wRawVal - weightTare : null);
+						weightData.push(wRawVal !== null ? wConv(wRawVal - weightTare) : null);
 
 						// keep arrays bounded
 						if (labels.length > maxPoints) {
@@ -2168,11 +2218,14 @@ const tempSeries = {
 								var wb = wetBulbData.length ? wetBulbData[wetBulbData.length - 1] : null;
 								wbEl.textContent = wb != null ? wb.toFixed(1) : '—';
 							}
-							if (wtEl) wtEl.textContent = (wRaw != null && !isNaN(wRaw)) ? wRaw.toFixed(2) : '—';
+							if (wtEl) {
+								var wDisplay = wConv(wRaw);
+								wtEl.textContent = (wDisplay != null && !isNaN(wDisplay)) ? wDisplay.toFixed(wDecimals()) : '—';
+							}
 							if (wlEl) {
 								if (weightTare !== 0 && wRaw != null && !isNaN(wRaw)) {
-									var delta = wRaw - weightTare;
-									wlEl.textContent = (delta >= 0 ? '+' : '') + delta.toFixed(2) + ' lbs';
+									var delta = wConv(wRaw - weightTare);
+									wlEl.textContent = (delta >= 0 ? '+' : '') + delta.toFixed(wDecimals()) + ' ' + wUnitLabel();
 								} else {
 									wlEl.textContent = '';
 								}
@@ -2180,7 +2233,10 @@ const tempSeries = {
 							for (var _si = 1; _si <= 4; _si++) {
 								var _sel = document.getElementById('ew-scale-' + _si);
 								var _sv = sample['weight_lbs_' + _si];
-								if (_sel) _sel.textContent = 'S' + _si + ' ' + (_sv != null ? parseFloat(_sv).toFixed(2) : '—');
+								if (_sel) {
+									var _sDisp = _sv != null ? wConv(parseFloat(_sv)) : null;
+									_sel.textContent = 'S' + _si + ' ' + (_sDisp != null ? _sDisp.toFixed(wDecimals()) : '—');
+								}
 							}
 						})();
 
@@ -2231,6 +2287,9 @@ const tempSeries = {
 					window._tempChart        = tempChart;
 					window._envChart         = envChart;
 					window._weightChart      = weightChart;
+					window._wConv            = wConv;
+					window._wUnitLabel       = wUnitLabel;
+					window._wDecimals        = wDecimals;
 					window._fansChart        = fansChart;
 					window._chartLabels      = labels;
 					window._chartElapsedMins  = [];   // parallel numeric elapsed-min per label
@@ -2245,12 +2304,13 @@ const tempSeries = {
 						zeroBtn.addEventListener('click', function () {
 							var current = rawWeightData.length ? rawWeightData[rawWeightData.length - 1] : null;
 							if (current == null) { alert('No weight reading available yet.'); return; }
-							if (!confirm('Zero scale at ' + current.toFixed(2) + ' lbs?\nThe chart will read 0 from this point.')) return;
-							weightTare = current;
+							var dispCurrent = wConv(current);
+							if (!confirm('Zero scale at ' + dispCurrent.toFixed(wDecimals()) + ' ' + wUnitLabel() + '?\nThe chart will read 0 from this point.')) return;
+							weightTare = current;  // tare is always stored in lbs internally
 							try { localStorage.setItem('sakeWeightTare', weightTare); } catch (e) {}
-							// Recompute tared values for all existing points
+							// Recompute tared values for all existing points (in display unit)
 							for (var i = 0; i < rawWeightData.length; i++) {
-								weightData[i] = rawWeightData[i] !== null ? rawWeightData[i] - weightTare : null;
+								weightData[i] = rawWeightData[i] !== null ? wConv(rawWeightData[i] - weightTare) : null;
 							}
 							weightChart.update('none');
 						});
@@ -2538,7 +2598,7 @@ const tempSeries = {
 							];
 						} else if (type === 'weight') {
 							return [{
-								label: 'Weight (lbs)',
+								label: 'Weight (' + wUnitLabel() + ')',
 								borderColor: '#52e0a0',
 								backgroundColor: 'rgba(82,224,160,0.1)',
 								borderWidth: 1.5,
@@ -2589,7 +2649,7 @@ const tempSeries = {
 						else if (type === 'humidity') { chartModalTitle.textContent = 'Humidity over time'; yTitle = 'Humidity (%)'; }
 						else if (type === 'fans') { chartModalTitle.textContent = 'Fans on/off over time'; yTitle = 'Fan state'; }
 						else if (type === 'env') { chartModalTitle.textContent = 'Environment (Dry Bulb / Wet Bulb / Humidity)'; yTitle = ''; }
-						else if (type === 'weight') { chartModalTitle.textContent = 'Weight over time'; yTitle = 'Weight (lbs)'; }
+						else if (type === 'weight') { chartModalTitle.textContent = 'Weight over time'; yTitle = 'Weight (' + wUnitLabel() + ')'; }
 
 						const sliceDisplayLabels = elapsedMode ? elapsedLabels.slice(s, e) : labels.slice(s, e);
 						const _mc = getThemeColors();
