@@ -2854,7 +2854,20 @@ const tempSeries = {
 
 								// Set status text
 								if (!ov) {
-									fanStatus.textContent = 'Automatic';
+									// Override cleared — check fan-state to see if auto logic
+									// will actually do anything (needs a setpoint or curve).
+									fetch('/api/fan-state')
+										.then(function(r) { return r.ok ? r.json() : {}; })
+										.then(function(fs) {
+											if (zone !== activeZone) return; // stale guard
+											var zd = (fs.zones || {})[String(zone)] || {};
+											if (zd.mode === 'limit') {
+												fanStatus.textContent = 'Automatic — fan ' + (zd.state || 'OFF').toUpperCase();
+											} else {
+												fanStatus.textContent = 'No setpoint configured — set one for auto control';
+											}
+										})
+										.catch(function() { fanStatus.textContent = 'Automatic'; });
 								} else {
 									var label = ov.action === 'off' ? 'Fan OFF' : 'Fan ON';
 									var detail = ov.expires_at
@@ -3301,36 +3314,47 @@ const tempSeries = {
 						return cache;
 					}());
 
-					// Optimised version using cached refs
+					// Optimised version using cached refs — trigger-aware (matches applyDeviationColors logic)
 					function applyDeviationColorsCached() {
-						const dev = parseFloat(localStorage.getItem('sakeDeviationAllowanceC'));
-						const deviationAllowance = Number.isFinite(dev) ? dev : 5.0;
-						const half = deviationAllowance * 0.5;
-						const currentTargets = getCurrentTargets();
+						const zoneTriggers  = window.getZoneTriggers  ? window.getZoneTriggers()  : {};
 						const zoneSetpoints = window.getZoneSetpoints ? window.getZoneSetpoints() : {};
-						const latestTemps = window.getLatestDryBulbNumeric
-							? window.getLatestDryBulbNumeric() : null;
+						const latestTemps   = window.getLatestDryBulbNumeric ? window.getLatestDryBulbNumeric() : null;
+						// Keep progression curve fallback for when fan state isn't available yet
+						const currentTargets = getCurrentTargets();
 
 						for (let i = 0; i < 6; i++) {
 							const { zoneBtn, wet } = _zoneElCache[i];
-							const actualTemp = latestTemps ? latestTemps['temp' + (i + 1)] : null;
-							// Priority: progression curve → per-zone PID setpoint → null (absolute fallback)
-							const curveTarget = currentTargets ? currentTargets['temp' + (i + 1)] : null;
-							const pidSetpoint = zoneSetpoints[i + 1] != null ? zoneSetpoints[i + 1] : null;
-							const targetTemp  = Number.isFinite(curveTarget) ? curveTarget
-							                  : Number.isFinite(pidSetpoint)  ? pidSetpoint
+							const zoneNum    = i + 1;
+							const actualTemp = latestTemps ? latestTemps['temp' + zoneNum] : null;
+
+							const trigger   = Number.isFinite(zoneTriggers[zoneNum])  ? zoneTriggers[zoneNum]  : null;
+							const setpoint  = Number.isFinite(zoneSetpoints[zoneNum]) ? zoneSetpoints[zoneNum] : null;
+
+							// Derive tolerance from trigger - setpoint (or fall back to 2°C for coloring)
+							const tolerance = (trigger !== null && setpoint !== null) ? (trigger - setpoint) : 2.0;
+
+							// Best available target (limit switch setpoint > progression curve)
+							const curveTarget = currentTargets ? currentTargets['temp' + zoneNum] : null;
+							const targetTemp  = setpoint !== null ? setpoint
+							                  : Number.isFinite(curveTarget) ? curveTarget
 							                  : null;
 
+							// ── Zone button color ────────────────────────────────
 							if (zoneBtn) {
 								zoneBtn.classList.remove('zone-temp-cold','zone-temp-ok','zone-temp-warm','zone-temp-hot');
 								if (actualTemp !== null) {
-									if (Number.isFinite(targetTemp)) {
-										const diff = actualTemp - targetTemp;
-										if      (diff >  deviationAllowance) zoneBtn.classList.add('zone-temp-hot');
-										else if (diff >  half)               zoneBtn.classList.add('zone-temp-warm');
-										else if (diff >= -half)              zoneBtn.classList.add('zone-temp-ok');
-										else                                 zoneBtn.classList.add('zone-temp-cold');
+									if (targetTemp !== null) {
+										// Limit-switch aware coloring:
+										// hot   = above trigger (fan should be on)
+										// warm  = between setpoint and trigger (tolerance band)
+										// ok    = within tolerance below setpoint
+										// cold  = more than tolerance below setpoint
+										if      (trigger !== null && actualTemp > trigger)  zoneBtn.classList.add('zone-temp-hot');
+										else if (actualTemp > targetTemp)                   zoneBtn.classList.add('zone-temp-warm');
+										else if (actualTemp >= targetTemp - tolerance)       zoneBtn.classList.add('zone-temp-ok');
+										else                                                zoneBtn.classList.add('zone-temp-cold');
 									} else {
+										// Absolute fallback — no setpoint known
 										if      (actualTemp >= 40) zoneBtn.classList.add('zone-temp-hot');
 										else if (actualTemp >= 35) zoneBtn.classList.add('zone-temp-warm');
 										else if (actualTemp >= 25) zoneBtn.classList.add('zone-temp-ok');
@@ -3339,14 +3363,14 @@ const tempSeries = {
 								}
 							}
 
+							// ── Wet-bulb element color ────────────────────────
 							if (wet) {
 								wet.classList.remove('temp-good','temp-warning','temp-danger','temp-too-hot','temp-too-cold');
-								if (actualTemp !== null && Number.isFinite(targetTemp)) {
-									const diff = actualTemp - targetTemp;
-									if      (diff >  deviationAllowance) wet.classList.add('temp-too-hot');
-									else if (diff <= -deviationAllowance) wet.classList.add('temp-too-cold');
-									else if (Math.abs(diff) > half)      wet.classList.add('temp-warning');
-									else                                 wet.classList.add('temp-good');
+								if (actualTemp !== null && targetTemp !== null) {
+									if      (trigger !== null && actualTemp > trigger)  wet.classList.add('temp-too-hot');
+									else if (actualTemp < targetTemp - tolerance)       wet.classList.add('temp-too-cold');
+									else if (actualTemp > targetTemp)                   wet.classList.add('temp-warning');
+									else                                                wet.classList.add('temp-good');
 								}
 							}
 						}

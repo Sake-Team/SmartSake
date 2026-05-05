@@ -61,7 +61,7 @@ except ImportError as _e:
     _SHT_AVAILABLE = False
 
 
-CSV_FILE = "sensor_data.csv"
+CSV_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sensor_data.csv")
 MAX_CSV_ROWS = 8640   # ~24 hrs at 10-second interval
 
 # ── Polling intervals ────────────────────────────────────────────────────────
@@ -95,6 +95,15 @@ _threshold_breach_start = {}
 
 DEVIATION_THRESHOLD_C = 2.0
 DEVIATION_HOLD_MIN    = 10.0
+
+
+def invalidate_profile_cache():
+    """Force the next evaluate_fan_state call to re-read the target profile from DB.
+
+    Call this from the server when a target curve is assigned or changed so the
+    sensor loop picks it up immediately instead of waiting up to 60s.
+    """
+    _cached_profile["loaded_at"] = 0
 
 # ── TC noise filter ──────────────────────────────────────────────────────────
 TC_FILTER_WINDOW = 3          # rolling median over last 3 readings (~30s at 10s cycle)
@@ -595,10 +604,14 @@ def evaluate_fan_state_no_run(tc_readings):
     # Drop any timed overrides whose deadline has passed so auto control resumes.
     _purge_expired_no_run_overrides()
 
+    # Snapshot the override dict under lock so the loop below isn't racing Flask threads.
+    with _no_run_overrides_lock:
+        active_overrides = {z: dict(ov) for z, ov in _no_run_overrides.items()}
+
     for zone in range(1, 7):
         # Check no-run manual overrides first
-        if zone in _no_run_overrides:
-            action = _no_run_overrides[zone]["action"]
+        if zone in active_overrides:
+            action = active_overrides[zone]["action"]
             result[zone] = action
             _fan_on[zone] = (action == "on")
             _last_fan_mode[zone]            = "manual"

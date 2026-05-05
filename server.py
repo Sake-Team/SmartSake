@@ -169,6 +169,19 @@ def api_latest():
     # If sensor loop didn't populate TCs, read probes directly from bus
     if not any(v is not None for v in tcs.values()):
         tcs = _read_tc_from_bus()
+        # Apply calibration offsets — the fallback reads raw uncalibrated values
+        zone_cfg = _read_json_cached(ZONE_CONFIG_FILE) or {}
+        for i in range(1, 7):
+            key = f"TC{i}"
+            val = tcs.get(key)
+            if isinstance(val, (int, float)):
+                zcfg = zone_cfg.get(f"zone{i}", {})
+                offset = zcfg.get("offset_c")
+                if offset is not None:
+                    try:
+                        tcs[key] = val - float(offset)
+                    except (TypeError, ValueError):
+                        pass
     for i in range(1, 7):
         val = tcs.get(f"TC{i}")
         result[f"tc{i}"] = round(val, 2) if isinstance(val, (int, float)) else None
@@ -464,6 +477,8 @@ def api_save_target(run_id):
     if not isinstance(rows, list):
         return jsonify({"error": "expected JSON array"}), 400
     db.save_target_profile(run_id, rows)
+    import WriteSensors
+    WriteSensors.invalidate_profile_cache()
     return jsonify(db.get_target_profile(run_id)), 201
 
 
@@ -472,6 +487,8 @@ def api_clear_target(run_id):
     if not db.get_run(run_id):
         abort(404)
     db.clear_target_profile(run_id)
+    import WriteSensors
+    WriteSensors.invalidate_profile_cache()
     return "", 204
 
 
@@ -884,6 +901,8 @@ def api_load_curve_as_target(run_id, curve_id):
         db.load_curve_as_target(run_id, curve_id)
     except Exception as e:
         return jsonify({"error": f"failed to apply curve: {e}"}), 500
+    import WriteSensors
+    WriteSensors.invalidate_profile_cache()
     return jsonify(db.get_target_profile(run_id)), 201
 
 
