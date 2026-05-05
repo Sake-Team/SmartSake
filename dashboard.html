@@ -205,17 +205,33 @@
 						<span class="ew-stat-card__label">Weight</span>
 						<div class="ew-stat-card__value-row">
 							<span class="ew-stat-card__value" id="ew-weight-val">—</span>
-							<span class="ew-stat-card__unit ew-weight-unit-toggle" id="ew-weight-unit"
-								  title="Click to switch kg/lbs"
-								  style="cursor:pointer;user-select:none;border-bottom:1px dashed currentColor;">lbs</span>
+							<span class="ew-stat-card__unit" id="ew-weight-unit-display">lbs</span>
 						</div>
-						<span class="ew-stat-card__sub" id="ew-weight-loss-val">Loss —%</span>
+						<span class="ew-stat-card__sub" id="ew-weight-loss-val"></span>
 						<div id="ew-scale-breakdown" style="font-size:0.7rem;color:var(--color-text-3);margin-top:2px;display:flex;gap:6px;flex-wrap:wrap;">
 							<span id="ew-scale-1">S1 —</span>
 							<span id="ew-scale-2">S2 —</span>
 							<span id="ew-scale-3">S3 —</span>
 							<span id="ew-scale-4">S4 —</span>
 						</div>
+					</div>
+					<div class="ew-stat-card ew-stat-card--unit-toggle" id="ew-weight-unit"
+						 title="Click to switch between kg and lbs"
+						 style="cursor:pointer;user-select:none;">
+						<span class="ew-stat-card__label">Units</span>
+						<div class="ew-stat-card__value-row">
+							<span class="ew-stat-card__value ew-stat-card__value--action" id="ew-unit-toggle-val">lbs</span>
+						</div>
+						<span class="ew-stat-card__sub" style="font-size:0.65rem;">tap to switch</span>
+					</div>
+					<div class="ew-stat-card ew-stat-card--zero" id="ew-weight-zero-card"
+						 title="Zero the scale at current reading"
+						 style="cursor:pointer;user-select:none;">
+						<span class="ew-stat-card__label">Tare</span>
+						<div class="ew-stat-card__value-row">
+							<span class="ew-stat-card__value ew-stat-card__value--action" id="ew-zero-val">Zero</span>
+						</div>
+						<span class="ew-stat-card__sub" id="ew-zero-sub" style="font-size:0.65rem;">offset: 0</span>
 					</div>
 				</div>
 
@@ -1790,11 +1806,23 @@ const tempSeries = {
 					function wDecimals() { return weightUnit === 'kg' ? 3 : 2; }
 
 					function applyWeightUnit() {
-						// Update unit labels in the DOM
-						var unitEl = document.getElementById('ew-weight-unit');
-						if (unitEl) unitEl.textContent = wUnitLabel();
+						// Update unit labels across all weight displays
+						var unitDisplay = document.getElementById('ew-weight-unit-display');
+						if (unitDisplay) unitDisplay.textContent = wUnitLabel();
+						var toggleVal = document.getElementById('ew-unit-toggle-val');
+						if (toggleVal) toggleVal.textContent = wUnitLabel();
 						var wtLabel = document.getElementById('wt-unit-label');
 						if (wtLabel) wtLabel.textContent = '(' + wUnitLabel() + ')';
+						// Update zero card offset display
+						var zeroSub = document.getElementById('ew-zero-sub');
+						if (zeroSub) {
+							if (weightTare !== 0) {
+								var tarDisp = wConv(weightTare);
+								zeroSub.textContent = 'offset: ' + (tarDisp != null ? tarDisp.toFixed(wDecimals()) : '0');
+							} else {
+								zeroSub.textContent = 'offset: 0';
+							}
+						}
 					}
 
 					// Apply initial unit labels
@@ -2297,23 +2325,30 @@ const tempSeries = {
 					window._dashElapsedLabels = elapsedLabels; // expose for target projection
 					window._elapsedMode       = false;
 
-					// ── Weight Zero / tare button ──────────────────────────────────────────
+					// ── Weight Zero / tare ────────────────────────────────────────────────
+					function doWeightZero() {
+						var current = rawWeightData.length ? rawWeightData[rawWeightData.length - 1] : null;
+						if (current == null) { alert('No weight reading available yet.'); return; }
+						var dispCurrent = wConv(current);
+						if (!confirm('Zero scale at ' + dispCurrent.toFixed(wDecimals()) + ' ' + wUnitLabel() + '?\nThe chart will read 0 from this point.')) return;
+						weightTare = current;  // tare is always stored in lbs internally
+						try { localStorage.setItem('sakeWeightTare', weightTare); } catch (e) {}
+						// Recompute tared values for all existing points (in display unit)
+						for (var i = 0; i < rawWeightData.length; i++) {
+							weightData[i] = rawWeightData[i] !== null ? wConv(rawWeightData[i] - weightTare) : null;
+						}
+						weightChart.update('none');
+						applyWeightUnit(); // refresh the offset display on the card
+					}
+					// Hook: chart header Zero button
 					(function () {
 						var zeroBtn = document.getElementById('wt-zero-btn');
-						if (!zeroBtn) return;
-						zeroBtn.addEventListener('click', function () {
-							var current = rawWeightData.length ? rawWeightData[rawWeightData.length - 1] : null;
-							if (current == null) { alert('No weight reading available yet.'); return; }
-							var dispCurrent = wConv(current);
-							if (!confirm('Zero scale at ' + dispCurrent.toFixed(wDecimals()) + ' ' + wUnitLabel() + '?\nThe chart will read 0 from this point.')) return;
-							weightTare = current;  // tare is always stored in lbs internally
-							try { localStorage.setItem('sakeWeightTare', weightTare); } catch (e) {}
-							// Recompute tared values for all existing points (in display unit)
-							for (var i = 0; i < rawWeightData.length; i++) {
-								weightData[i] = rawWeightData[i] !== null ? wConv(rawWeightData[i] - weightTare) : null;
-							}
-							weightChart.update('none');
-						});
+						if (zeroBtn) zeroBtn.addEventListener('click', doWeightZero);
+					})();
+					// Hook: Zero stat card
+					(function () {
+						var zeroCard = document.getElementById('ew-weight-zero-card');
+						if (zeroCard) zeroCard.addEventListener('click', doWeightZero);
 					})();
 
 					// Called by settings panel when zone colors change (skips target projection datasets)
