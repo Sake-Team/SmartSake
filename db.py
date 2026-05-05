@@ -300,13 +300,10 @@ def create_run(name):
             (name, now)
         )
         run_id = cur.lastrowid
-        # Default every zone to manual "off" so fans don't spin up while the
-        # operator is still loading the table. They can flip to auto/on per-zone.
-        conn.executemany(
-            "INSERT INTO fan_overrides (run_id, zone, action, expires_at, created_at) "
-            "VALUES (?, ?, 'off', NULL, ?)",
-            [(run_id, z, now) for z in range(1, 7)]
-        )
+        # No overrides — all zones start in auto mode.  Fans won't spin
+        # immediately because _fan_on starts False and the deadband hold
+        # requires one extra tick (~10 s) before switching.  Users can
+        # manually override any zone to On/Off from the dashboard.
         return run_id
 
 

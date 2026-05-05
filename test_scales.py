@@ -98,6 +98,8 @@ def parse_args():
                    help="Samples per reading (default: 10, or 3 with --fast)")
     p.add_argument("--interval", type=float, default=1.0,
                    help="Seconds between readings (default: 1.0)")
+    p.add_argument("--calibrate", action="store_true",
+                   help="Two-point calibration: zero + one known weight. Requires --scale N")
     return p.parse_args()
 
 
@@ -345,6 +347,107 @@ def run_single_reading(scales, samples):
     print()
 
 
+def run_two_point_calibration(scales, config):
+    """Two-point calibration: zero (empty) + one known weight.
+
+    Saves calibration_points to scale_config.json and also derives
+    legacy tare_offset + calibration_factor for backwards compat.
+    """
+    config_path = os.path.join(SCRIPT_DIR, "scale_config.json")
+
+    for sid, (hx, cfg) in sorted(scales.items()):
+        label = cfg.get("label", f"Scale {sid}")
+        print(f"\n{'='*55}")
+        print(f"  TWO-POINT CALIBRATION — {label} (Scale {sid})")
+        print(f"  DAT={cfg['dat_pin']}  CLK={cfg['clk_pin']}")
+        print(f"{'='*55}")
+
+        # ── Point 1: Empty (zero) ────────────────────────────
+        input(f"\n  Step 1: Remove ALL weight from scale {sid}.\n"
+              f"  Press ENTER when empty and stable...")
+        print(f"  Reading 30 samples...", end=" ", flush=True)
+        try:
+            zero_raw = hx.read_average(30)
+        except Exception as e:
+            print(f"\n  {RED}FAILED — {e}{RESET}")
+            continue
+        print(f"{GREEN}OK{RESET}  (raw = {zero_raw:.0f})")
+
+        # ── Point 2: Known weight ────────────────────────────
+        while True:
+            weight_input = input(f"\n  Step 2: Enter the known weight in GRAMS: ").strip()
+            try:
+                known_g = float(weight_input)
+                if known_g <= 0:
+                    print(f"  {YELLOW}Weight must be > 0.{RESET}")
+                    continue
+                break
+            except ValueError:
+                print(f"  {YELLOW}Invalid number.{RESET}")
+
+        input(f"  Place {known_g}g on scale {sid} and press ENTER when stable...")
+        print(f"  Reading 30 samples...", end=" ", flush=True)
+        try:
+            load_raw = hx.read_average(30)
+        except Exception as e:
+            print(f"\n  {RED}FAILED — {e}{RESET}")
+            continue
+        print(f"{GREEN}OK{RESET}  (raw = {load_raw:.0f})")
+
+        # ── Validate ─────────────────────────────────────────
+        raw_delta = load_raw - zero_raw
+        if abs(raw_delta) < 100:
+            print(f"\n  {RED}WARNING: Raw delta is only {raw_delta:.0f} — "
+                  f"the load cell may not be responding. Check wiring.{RESET}")
+            cont = input("  Continue anyway? (y/n): ").strip().lower()
+            if cont != 'y':
+                continue
+
+        # ── Build calibration ────────────────────────────────
+        points = [
+            {"raw": round(zero_raw, 1), "weight_g": 0.0, "label": "empty"},
+            {"raw": round(load_raw, 1), "weight_g": known_g, "label": f"{known_g}g"},
+        ]
+
+        # Legacy offset + factor for backwards compat
+        offset = int(round(zero_raw))
+        factor = round(raw_delta / known_g, 4)
+
+        # Apply to the live instance
+        hx._offset = offset
+        hx.set_scale(factor)
+        hx.set_calibration_points(points)
+
+        # Save to config
+        config["scales"][str(sid)]["tare_offset"] = offset
+        config["scales"][str(sid)]["calibration_factor"] = factor
+        config["scales"][str(sid)]["calibration_points"] = points
+
+        # Verify — read weight with new calibration
+        print(f"\n  {BOLD}Calibration Results:{RESET}")
+        print(f"    Zero raw:    {zero_raw:.0f}")
+        print(f"    Load raw:    {load_raw:.0f}  ({known_g}g)")
+        print(f"    Raw delta:   {raw_delta:.0f}")
+        print(f"    Offset:      {offset}")
+        print(f"    Factor:      {factor}")
+        print(f"\n  Verifying...", end=" ", flush=True)
+        try:
+            verify_kg, verify_raw = hx.get_weight(samples=10)
+            verify_g = verify_kg * 1000
+            error_g = verify_g - known_g
+            print(f"reads {verify_g:.1f}g (expected {known_g}g, error {error_g:+.1f}g)")
+        except Exception as e:
+            print(f"verify failed: {e}")
+
+    # Write config
+    tmp = config_path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(config, f, indent=2)
+    os.replace(tmp, config_path)
+    print(f"\n  {GREEN}Calibration saved to scale_config.json{RESET}")
+    print(f"{'='*55}\n")
+
+
 # ── Entry point ─────────────────────────────────────────────────────────────
 
 def main():
@@ -376,6 +479,14 @@ def main():
         sys.exit(1)
 
     try:
+        if args.calibrate:
+            if not args.scale:
+                print(f"{RED}--calibrate requires --scale N (e.g., --calibrate --scale 1){RESET}")
+                GPIO.cleanup()
+                sys.exit(1)
+            run_two_point_calibration(scales, config)
+            return
+
         # Optional tare
         if args.tare:
             run_tare(scales)

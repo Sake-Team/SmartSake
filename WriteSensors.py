@@ -585,6 +585,30 @@ def evaluate_fan_state(run, tc_readings):
         result[zone] = "on" if fan_on else "off"
         _last_fan_mode[zone] = "limit"
 
+    # Diagnostic: log auto decisions every ~60s (6 ticks at 10s)
+    _diag = getattr(evaluate_fan_state, '_diag_ctr', 0) + 1
+    evaluate_fan_state._diag_ctr = _diag
+    if _diag % 6 == 1:
+        parts = []
+        for z in range(1, 7):
+            mode = _last_fan_mode.get(z, "?")
+            if mode == "limit":
+                sp = _last_fan_setpoint.get(z)
+                tr = _last_fan_trigger.get(z)
+                act = tc_map.get(z)
+                fan = result.get(z, "?")
+                if act is not None:
+                    parts.append(f"z{z}:{act:.1f}→{'ON' if fan == 'on' else 'OFF'}"
+                                 f"(sp={sp},tr={tr})")
+                else:
+                    parts.append(f"z{z}:noTC")
+            elif mode == "manual":
+                parts.append(f"z{z}:MAN-{result.get(z, '?')}")
+            elif mode == "none":
+                parts.append(f"z{z}:no-sp")
+        if parts:
+            print(f"[fan-auto] {' | '.join(parts)}")
+
     return result
 
 
