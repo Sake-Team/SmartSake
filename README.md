@@ -99,7 +99,7 @@ Pin  4 ── 1-Wire data bus (all six MAX31850K)
 Pin  5 ── HX711 Scale 1 DAT
 Pin  6 ── HX711 Scale 1 CLK
 Pin 12 ── HX711 Scale 2 DAT
-Pin 13 ── HX711 Scale 2 CLK
+Pin 15 ── HX711 Scale 2 CLK   (UART RXD0 — disable serial console if used)
 Pin 16 ── HX711 Scale 3 DAT
 Pin 17 ── Relay CH5 → Fan Zone 5
 Pin 19 ── HX711 Scale 3 CLK
@@ -112,7 +112,7 @@ Pin 25 ── Relay CH1 → Fan Zone 1
 Pin 27 ── Relay CH6 → Fan Zone 6
 ```
 
-> **Reserved pins:** 2/3 (I2C), 4 (1-Wire), 5/6/12/13/16/19/20/21 (HX711). Do not use these for relays.
+> **Reserved pins:** 2/3 (I2C), 4 (1-Wire), 5/6/12/15/16/19/20/21 (HX711). Do not use these for relays.
 
 ### Relay Wiring (Active-LOW)
 
