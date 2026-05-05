@@ -87,6 +87,37 @@
     .quick-cal-presets { display: flex; gap: .25rem; align-items: center; margin-top: .4rem; }
     .quick-cal-presets span { font-size: .72rem; color: var(--color-text-3); }
 
+    /* Multi-point scale cal inline */
+    .scale-cal-inline { background: var(--color-bg-subtle); border: 1px solid var(--color-border);
+                        border-radius: var(--r-sm); padding: .75rem 1rem; margin: .35rem 0; }
+    .scale-cal-inline td { border-bottom: none; }
+    .scale-cal-charts { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem;
+                        margin-top: .65rem; }
+    .scale-cal-chart-wrap { background: var(--color-surface); border: 1px solid var(--color-border);
+                            border-radius: var(--r-sm); padding: .55rem .65rem; }
+    .scale-cal-chart-wrap .chart-title { font-size: .72rem; color: var(--color-text-3);
+                                         text-transform: uppercase; letter-spacing: .04em;
+                                         margin-bottom: .35rem; font-weight: 600; }
+    .scale-cal-chart-wrap canvas { width: 100% !important; height: 200px !important; display: block; }
+    .cal-points-table { width: 100%; border-collapse: collapse; font-size: .8rem; margin-top: .5rem; }
+    .cal-points-table th, .cal-points-table td { padding: .35rem .5rem;
+                        border-bottom: 1px solid var(--color-border); text-align: left;
+                        vertical-align: middle; }
+    .cal-points-table th { background: var(--color-bg-subtle); color: var(--color-text-2);
+                           text-transform: uppercase; font-size: .68rem; letter-spacing: .04em;
+                           font-weight: 600; }
+    .cal-points-table td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .cal-points-table .point-remove-btn { padding: .25rem .55rem; font-size: .72rem;
+                            min-height: 44px; min-width: 44px; background: var(--color-bg-tinted);
+                            color: var(--color-text-2); border: 1px solid var(--color-border);
+                            border-radius: var(--r-sm); cursor: pointer; }
+    .cal-points-table .point-remove-btn:hover { background: var(--color-bg-subtle);
+                            color: var(--color-critical); }
+    .cal-residuals { font-size: .76rem; color: var(--color-text-2); margin-top: .45rem;
+                     padding: .45rem .6rem; background: var(--color-surface);
+                     border: 1px solid var(--color-border); border-radius: var(--r-sm); }
+    .cal-residuals-line { margin: .15rem 0; font-variant-numeric: tabular-nums; }
+
     html, body { overflow: auto !important; }
     .page-wrapper { height: auto !important; }
     main { overflow: visible !important; }
@@ -94,8 +125,10 @@
     @media (max-width: 720px) {
       .cal-table th, .cal-table td { padding: .4rem .35rem; font-size: .8rem; }
       .cal-table input[type=number] { width: 60px; }
+      .scale-cal-charts { grid-template-columns: 1fr; }
     }
   </style>
+  <script src="chart.min.js" defer></script>
   <script src="customize.js" defer></script>
 </head>
 <body>
@@ -219,6 +252,12 @@
     if (opts.cls)    e.className = opts.cls;
     if (opts.attrs)  Object.keys(opts.attrs).forEach(function (k) { e.setAttribute(k, opts.attrs[k]); });
     return e;
+  }
+
+  function escHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   function setStatus(id, msg, ok) {
@@ -468,9 +507,19 @@
         attrs: { type: 'button', 'data-role': 'tare' } }));
       actDiv.appendChild(el('button', { cls: 'btn btn-primary', text: 'Calibrate',
         attrs: { type: 'button', 'data-role': 'calibrate' } }));
+      actDiv.appendChild(el('button', { cls: 'btn btn-brand', text: 'Multi-Point Cal',
+        attrs: { type: 'button', 'data-role': 'open-multi' } }));
       tdAct.appendChild(actDiv); tr.appendChild(tdAct);
 
       tbody.appendChild(tr);
+
+      // Inline workflow row (hidden by default)
+      var inlineTr = el('tr', { attrs: { 'data-scale-inline': String(s) } });
+      inlineTr.style.display = 'none';
+      var inlineTd = el('td', { attrs: { colspan: '7' } });
+      inlineTd.appendChild(el('div', { attrs: { id: 'scale-inline-' + s } }));
+      inlineTr.appendChild(inlineTd);
+      tbody.appendChild(inlineTr);
     }
     tbody.addEventListener('click', onScaleClick);
   }
@@ -738,12 +787,14 @@
     }
   }
 
-  // ── Scale actions (unchanged) ────────────────────────────────────────────
+  // ── Scale actions ────────────────────────────────────────────────────────
   function onScaleClick(ev) {
     var btn = ev.target.closest('button');
     if (!btn) return;
     var row = btn.closest('tr');
-    var sid = parseInt(row.getAttribute('data-scale'), 10);
+    var sid = parseInt(row.getAttribute('data-scale')
+                       || row.getAttribute('data-scale-inline'), 10);
+    if (!sid) return;
     var role = btn.getAttribute('data-role');
 
     if (role === 'tare') {
@@ -756,9 +807,10 @@
           setStatus('scale-status', 'S' + sid + ' tared (offset = ' + res.body.tare_offset + ')', true);
           refresh();
         }).catch(function () { btn.disabled = false; setStatus('scale-status', 'S' + sid + ': network error', false); });
+      return;
     }
 
-    else if (role === 'calibrate') {
+    if (role === 'calibrate') {
       var inp = row.querySelector('input[data-role="known"]');
       var kw = parseFloat(inp.value);
       if (!isFinite(kw) || kw <= 0) { setStatus('scale-status', 'S' + sid + ': enter known weight first', false); return; }
@@ -777,8 +829,414 @@
             true);
           refresh();
         }).catch(function () { btn.disabled = false; setStatus('scale-status', 'S' + sid + ': network error', false); });
+      return;
+    }
+
+    if (role === 'open-multi') { toggleScaleInline(sid); return; }
+    if (role === 'close-multi') { closeScaleInline(sid); return; }
+
+    if (role === 'fill-grams') {
+      var target = document.getElementById('multi-grams-' + sid);
+      if (target) target.value = btn.getAttribute('data-grams');
+      return;
+    }
+
+    if (role === 'record-zero') {
+      btn.disabled = true;
+      fetch('/api/scale-config/' + sid + '/record-cal-point', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ weight_g: 0, label: 'zero' })
+      }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, body: d }; }); })
+        .then(function (res) {
+          btn.disabled = false;
+          if (!res.ok) { setStatus('scale-status', 'S' + sid + ': ' + (res.body.error || 'failed'), false); return; }
+          _scalePoints[sid] = res.body.calibration_points || [];
+          setStatus('scale-status', 'S' + sid + ' zero recorded (raw ' + res.body.point.raw + ')', true);
+          renderMultiPointInline(sid);
+          refresh();
+        }).catch(function () { btn.disabled = false; setStatus('scale-status', 'S' + sid + ': network error', false); });
+      return;
+    }
+
+    if (role === 'record-point') {
+      var gInp = document.getElementById('multi-grams-' + sid);
+      var lInp = document.getElementById('multi-label-' + sid);
+      var grams = gInp ? parseFloat(gInp.value) : NaN;
+      var label = lInp ? (lInp.value || '').trim() : '';
+      if (!isFinite(grams) || grams <= 0) {
+        setStatus('scale-status', 'S' + sid + ': enter a weight in grams', false); return;
+      }
+      btn.disabled = true;
+      fetch('/api/scale-config/' + sid + '/record-cal-point', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ weight_g: grams, label: label || (grams + 'g') })
+      }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, body: d }; }); })
+        .then(function (res) {
+          btn.disabled = false;
+          if (!res.ok) { setStatus('scale-status', 'S' + sid + ': ' + (res.body.error || 'failed'), false); return; }
+          _scalePoints[sid] = res.body.calibration_points || [];
+          if (lInp) lInp.value = '';
+          setStatus('scale-status', 'S' + sid + ' point recorded: ' + grams + 'g (raw ' + res.body.point.raw + ')', true);
+          renderMultiPointInline(sid);
+          refresh();
+        }).catch(function () { btn.disabled = false; setStatus('scale-status', 'S' + sid + ': network error', false); });
+      return;
+    }
+
+    if (role === 'remove-point') {
+      var idx = parseInt(btn.getAttribute('data-idx'), 10);
+      var pts = (_scalePoints[sid] || []).slice();
+      if (isNaN(idx) || idx < 0 || idx >= pts.length) return;
+      var keep = pts.slice(0, idx).concat(pts.slice(idx + 1));
+      btn.disabled = true;
+      fetch('/api/scale-config/' + sid + '/calibration-points', { method: 'DELETE' })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, body: d }; }); })
+        .then(function (res) {
+          if (!res.ok) throw new Error(res.body.error || 'clear failed');
+          return keep.reduce(function (chain, pt) {
+            return chain.then(function () {
+              return fetch('/api/scale-config/' + sid + '/record-cal-point', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ weight_g: pt.weight_g, label: pt.label || '' })
+              }).then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'repost failed'); return d; }); });
+            });
+          }, Promise.resolve());
+        })
+        .then(function () {
+          return fetch('/api/scale-config/' + sid + '/calibration-points').then(function (r) { return r.json(); });
+        })
+        .then(function (data) {
+          _scalePoints[sid] = data.calibration_points || [];
+          setStatus('scale-status', 'S' + sid + ' point removed', true);
+          renderMultiPointInline(sid);
+          refresh();
+        })
+        .catch(function (e) {
+          setStatus('scale-status', 'S' + sid + ': ' + e.message, false);
+        });
+      return;
+    }
+
+    if (role === 'clear-all-points') {
+      if (!confirm('Clear ALL calibration points for scale ' + sid + '?')) return;
+      btn.disabled = true;
+      fetch('/api/scale-config/' + sid + '/calibration-points', { method: 'DELETE' })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, body: d }; }); })
+        .then(function (res) {
+          btn.disabled = false;
+          if (!res.ok) { setStatus('scale-status', 'S' + sid + ': ' + (res.body.error || 'failed'), false); return; }
+          _scalePoints[sid] = [];
+          setStatus('scale-status', 'S' + sid + ' calibration points cleared', true);
+          renderMultiPointInline(sid);
+          refresh();
+        }).catch(function () { btn.disabled = false; setStatus('scale-status', 'S' + sid + ': network error', false); });
+      return;
     }
   }
+
+  // ══════════════════════════════════════════════════════════════════════
+  // ── Multi-Point Scale Calibration ────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
+
+  var _scalePoints      = {};
+  var _openScale        = null;
+  var _scaleFastTimer   = null;
+  var SCALE_FAST_MS     = 1000;
+  var SCALE_WINDOW      = 60;
+  var _scaleCharts      = { raw: null, kg: null };
+  var _scaleSeriesRaw   = [];
+  var _scaleSeriesKg    = [];
+  var _scaleClock0      = 0;
+
+  function getScaleThemeColors() {
+    var s = getComputedStyle(document.documentElement);
+    var g = function (v) { return s.getPropertyValue(v).trim(); };
+    return {
+      surface: g('--color-surface') || '#1e1e1e',
+      border:  g('--color-border')  || 'rgba(255,255,255,0.09)',
+      text1:   g('--color-text-1')  || '#f0f0f0',
+      text2:   g('--color-text-2')  || '#a0a0a8',
+      tick:    g('--color-text-3')  || '#666672',
+      grid:    g('--color-border')  || 'rgba(255,255,255,0.08)',
+      brand:   g('--color-brand')   || '#4da6ff',
+      target:  g('--color-text-3')  || '#888'
+    };
+  }
+
+  function toggleScaleInline(sid) {
+    if (_openScale && _openScale !== sid) closeScaleInline(_openScale);
+    if (_openScale === sid) { closeScaleInline(sid); return; }
+    var inlineRow = document.querySelector('tr[data-scale-inline="' + sid + '"]');
+    if (!inlineRow) return;
+    inlineRow.style.display = '';
+    _openScale = sid;
+    loadScalePointsThenRender(sid);
+    startScaleFastLoop(sid);
+  }
+
+  function closeScaleInline(sid) {
+    var inlineRow = document.querySelector('tr[data-scale-inline="' + sid + '"]');
+    if (inlineRow) inlineRow.style.display = 'none';
+    if (_openScale === sid) _openScale = null;
+    stopScaleFastLoop();
+    destroyScaleCharts();
+  }
+
+  function loadScalePointsThenRender(sid) {
+    fetch('/api/scale-config/' + sid + '/calibration-points')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        _scalePoints[sid] = data.calibration_points || [];
+        renderMultiPointInline(sid);
+      })
+      .catch(function () {
+        _scalePoints[sid] = _scalePoints[sid] || [];
+        renderMultiPointInline(sid);
+      });
+  }
+
+  function renderMultiPointInline(sid) {
+    var container = document.getElementById('scale-inline-' + sid);
+    if (!container) return;
+    var pts = _scalePoints[sid] || [];
+
+    var html = '<div class="scale-cal-inline">';
+
+    html += '<div class="cal-step">';
+    html += '<div class="cal-step-label">Step 1: Record Zero</div>';
+    html += '<div class="cal-step-row">';
+    html += '<button type="button" class="btn btn-primary" data-role="record-zero">Record Zero (with table loaded)</button>';
+    html += '</div>';
+    html += '<div class="panel-help" style="margin-top:.35rem">Place the table and any fixed load you want zeroed. We don\'t need to know its mass &mdash; clicking Record Zero declares this raw reading as 0 g.</div>';
+    html += '</div>';
+
+    html += '<div class="cal-step">';
+    html += '<div class="cal-step-label">Step 2+: Add Known Weight</div>';
+    html += '<div class="cal-step-row">';
+    html += '<input type="number" step="1" min="1" id="multi-grams-' + sid + '" placeholder="2000" style="width:90px">';
+    html += '<span style="font-size:.75rem;color:var(--color-text-3)">g</span>';
+    html += '<input type="text" id="multi-label-' + sid + '" placeholder="label (optional)" style="width:160px;padding:.25rem .35rem;background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--r-sm);color:var(--color-text-1);font-size:.82rem;min-height:44px">';
+    html += '<button type="button" class="btn btn-secondary" data-role="record-point">Record Point</button>';
+    html += '</div>';
+    html += '<div class="cal-presets" style="margin-top:.4rem"><span>Rice bag presets:</span>';
+    html += '<button type="button" class="preset-btn" data-role="fill-grams" data-grams="2000">2000g</button>';
+    html += '<button type="button" class="preset-btn" data-role="fill-grams" data-grams="4000">4000g</button>';
+    html += '<button type="button" class="preset-btn" data-role="fill-grams" data-grams="5000">5000g</button>';
+    html += '<button type="button" class="preset-btn" data-role="fill-grams" data-grams="9000">9000g</button>';
+    html += '</div>';
+    html += '</div>';
+
+    html += '<div class="cal-step">';
+    html += '<div class="cal-step-label">Recorded Points (' + pts.length + ')</div>';
+    if (pts.length === 0) {
+      html += '<div class="panel-help">No points recorded yet.</div>';
+    } else {
+      html += '<table class="cal-points-table"><thead><tr>';
+      html += '<th>Label</th><th>Weight (g)</th><th>Raw</th><th>&Delta; from prev</th><th></th>';
+      html += '</tr></thead><tbody>';
+      for (var i = 0; i < pts.length; i++) {
+        var p = pts[i];
+        var prev = i > 0 ? pts[i - 1] : null;
+        var delta = prev ? (p.raw - prev.raw) : null;
+        html += '<tr>';
+        html += '<td>' + (p.label ? escHtml(p.label) : '&mdash;') + '</td>';
+        html += '<td class="num">' + p.weight_g + '</td>';
+        html += '<td class="num">' + p.raw + '</td>';
+        html += '<td class="num">' + (delta == null ? '&mdash;' : (delta >= 0 ? '+' : '') + delta.toFixed(0)) + '</td>';
+        html += '<td><button type="button" class="point-remove-btn" data-role="remove-point" data-idx="' + i + '">Remove</button></td>';
+        html += '</tr>';
+      }
+      html += '</tbody></table>';
+    }
+    html += '</div>';
+
+    html += '<div class="scale-cal-charts">';
+    html += '<div class="scale-cal-chart-wrap"><div class="chart-title">Raw ADC (last ' + SCALE_WINDOW + ' samples)</div>';
+    html += '<canvas id="scale-chart-raw-' + sid + '"></canvas></div>';
+    html += '<div class="scale-cal-chart-wrap"><div class="chart-title">Computed weight (kg) &mdash; current saved cal</div>';
+    html += '<canvas id="scale-chart-kg-' + sid + '"></canvas></div>';
+    html += '</div>';
+
+    html += '<div class="cal-residuals" id="scale-residuals-' + sid + '">';
+    if (pts.length === 0) {
+      html += '<div class="cal-residuals-line" style="color:var(--color-text-3)">Record points to see residuals.</div>';
+    } else {
+      for (var ri = 0; ri < pts.length; ri++) {
+        var rp = pts[ri];
+        var rLabel = rp.label ? escHtml(rp.label) : (rp.weight_g + 'g');
+        html += '<div class="cal-residuals-line" data-pidx="' + ri + '">' +
+                rLabel + ' point: live reads <span data-residual-live>&mdash;</span> g, ' +
+                'error <span data-residual-err>&mdash;</span> g</div>';
+      }
+    }
+    html += '</div>';
+
+    html += '<div class="cal-preview-actions" style="margin-top:.65rem">';
+    html += '<button type="button" class="btn btn-secondary" data-role="clear-all-points">Clear All Points</button>';
+    html += '<button type="button" class="btn btn-secondary" data-role="close-multi">Done</button>';
+    html += '</div>';
+
+    html += '</div>';
+    container.innerHTML = html;
+
+    destroyScaleCharts();
+    initScaleCharts(sid);
+  }
+
+  function initScaleCharts(sid) {
+    if (typeof Chart === 'undefined') return;
+    var rawCtx = document.getElementById('scale-chart-raw-' + sid);
+    var kgCtx  = document.getElementById('scale-chart-kg-' + sid);
+    if (!rawCtx || !kgCtx) return;
+    var c = getScaleThemeColors();
+    _scaleSeriesRaw = [];
+    _scaleSeriesKg  = [];
+    _scaleClock0 = Date.now();
+
+    var commonOpts = function (yTitle) {
+      return {
+        animation: false,
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            type: 'linear',
+            ticks: { color: c.tick, autoSkip: true, maxTicksLimit: 6,
+                     callback: function (v) { return v.toFixed(0) + 's'; } },
+            title: { display: true, text: 'Elapsed (s)', color: c.tick, font: { size: 10 } },
+            grid:  { color: c.grid }
+          },
+          y: {
+            ticks: { color: c.tick },
+            title: { display: true, text: yTitle, color: c.tick, font: { size: 10 } },
+            grid:  { color: c.grid }
+          }
+        },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              color: c.text2, usePointStyle: true, boxWidth: 10,
+              font: { size: 10 }, padding: 6,
+              filter: function (item, data) { return !data.datasets[item.datasetIndex]._isTarget; }
+            }
+          },
+          tooltip: {
+            backgroundColor: c.surface, borderColor: c.border, borderWidth: 1,
+            titleColor: c.text1, bodyColor: c.text2, padding: 8, cornerRadius: 6
+          }
+        }
+      };
+    };
+
+    _scaleCharts.raw = new Chart(rawCtx, {
+      type: 'line',
+      data: { datasets: [{
+        label: 'Raw ADC', data: _scaleSeriesRaw,
+        borderColor: c.brand, borderWidth: 2, pointRadius: 0, tension: 0.25
+      }]},
+      options: commonOpts('Raw counts')
+    });
+
+    var kgDatasets = [{
+      label: 'Live weight (kg)', data: _scaleSeriesKg,
+      borderColor: c.brand, borderWidth: 2, pointRadius: 0, tension: 0.25
+    }];
+    var pts = _scalePoints[sid] || [];
+    pts.forEach(function (p) {
+      var kg = (p.weight_g || 0) / 1000;
+      kgDatasets.push({
+        label: (p.label || (p.weight_g + 'g')) + ' target',
+        data: [{ x: 0, y: kg }, { x: SCALE_WINDOW, y: kg }],
+        borderColor: c.target, borderWidth: 1, borderDash: [6, 4],
+        pointRadius: 0, tension: 0, _isTarget: true
+      });
+    });
+
+    _scaleCharts.kg = new Chart(kgCtx, {
+      type: 'line',
+      data: { datasets: kgDatasets },
+      options: commonOpts('Weight (kg)')
+    });
+  }
+
+  function destroyScaleCharts() {
+    if (_scaleCharts.raw) { try { _scaleCharts.raw.destroy(); } catch (e) {} _scaleCharts.raw = null; }
+    if (_scaleCharts.kg)  { try { _scaleCharts.kg.destroy();  } catch (e) {} _scaleCharts.kg  = null; }
+  }
+
+  function updateScaleCharts(sid, raw, kg) {
+    var t = (Date.now() - _scaleClock0) / 1000;
+    _scaleSeriesRaw.push({ x: t, y: raw });
+    _scaleSeriesKg.push({ x: t, y: kg });
+    while (_scaleSeriesRaw.length > SCALE_WINDOW) _scaleSeriesRaw.shift();
+    while (_scaleSeriesKg.length  > SCALE_WINDOW) _scaleSeriesKg.shift();
+
+    if (_scaleCharts.raw) {
+      _scaleCharts.raw.update('none');
+    }
+    if (_scaleCharts.kg) {
+      var xMin = _scaleSeriesKg.length ? _scaleSeriesKg[0].x : 0;
+      var xMax = _scaleSeriesKg.length ? _scaleSeriesKg[_scaleSeriesKg.length - 1].x : SCALE_WINDOW;
+      _scaleCharts.kg.data.datasets.forEach(function (ds) {
+        if (ds._isTarget && ds.data.length === 2) {
+          ds.data[0].x = xMin;
+          ds.data[1].x = xMax;
+        }
+      });
+      _scaleCharts.kg.update('none');
+    }
+
+    var resEl = document.getElementById('scale-residuals-' + sid);
+    if (resEl) {
+      var pts = _scalePoints[sid] || [];
+      if (pts.length > 0 && kg != null) {
+        var liveG = kg * 1000;
+        var lines = resEl.querySelectorAll('.cal-residuals-line[data-pidx]');
+        for (var li = 0; li < lines.length && li < pts.length; li++) {
+          var lp = pts[li];
+          var err = liveG - lp.weight_g;
+          var liveSpan = lines[li].querySelector('[data-residual-live]');
+          var errSpan  = lines[li].querySelector('[data-residual-err]');
+          if (liveSpan) liveSpan.textContent = liveG.toFixed(1);
+          if (errSpan)  errSpan.textContent  = (err >= 0 ? '+' : '') + err.toFixed(1);
+        }
+      }
+    }
+  }
+
+  function startScaleFastLoop(sid) {
+    stopScaleFastLoop();
+    var tick = function () {
+      fetch('/api/latest?_=' + Date.now())
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var raw = data['weight_raw_' + sid];
+          var lbs = data['weight_lbs_' + sid];
+          if (raw == null) return;
+          var kg = lbs != null ? lbs / 2.20462 : null;
+          updateScaleCharts(sid, Number(raw), kg != null ? Number(kg) : 0);
+        })
+        .catch(function () {});
+    };
+    tick();
+    _scaleFastTimer = setInterval(tick, SCALE_FAST_MS);
+  }
+
+  function stopScaleFastLoop() {
+    if (_scaleFastTimer) { clearInterval(_scaleFastTimer); _scaleFastTimer = null; }
+  }
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) {
+      stopScaleFastLoop();
+    } else if (_openScale) {
+      startScaleFastLoop(_openScale);
+    }
+  });
 
   // ── Init ────────────────────────────────────────────────────────────────
   buildTcRows();

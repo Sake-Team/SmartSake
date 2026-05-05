@@ -427,6 +427,27 @@ To add SmartSake to your iPhone home screen as an app:
 2. Tap the Share button → "Add to Home Screen"
 3. It will launch full-screen without Safari's address bar
 
+### Calibration Page
+
+`/calibration.html` (linked from the home page) covers thermocouple offsets, probe-to-zone mapping, and load cell calibration. The thermocouple workflows (`2-Point Cal`, `Quick Cal`) and the probe mapping panel are documented inline on the page.
+
+#### Multi-Point Cal (Load Cells)
+
+For higher accuracy across a wide load range (e.g. 0–9 kg of rice), use the **Multi-Point Cal** workflow on the calibration page:
+
+1. Open `/calibration.html` and find the scale row in the **Load Cells** panel.
+2. Click **Multi-Point Cal** — an inline panel expands below the row.
+3. **Step 1 — Record Zero**: place the table and any fixed load you want zeroed (housings, lids, empty trays). Click **Record Zero (with table loaded)**. The current raw reading is declared as `0 g`. You don't need to know the mass of the fixture.
+4. **Step 2+ — Add Known Weight**: place a known mass on the scale, type its weight in grams (or click a rice-bag preset: 2000 g / 4000 g / 5000 g / 9000 g), optionally add a label, then click **Record Point**. Repeat for as many reference weights as you want — the more spread, the better the fit.
+5. The recorded points table shows each point's label, weight, raw ADC reading, and delta from the previous raw. Use **Remove** to drop a single point, or **Clear All Points** to start over.
+6. Two side-by-side live charts update once a second while the panel is open:
+   - **Left (Raw ADC)**: rolling 60-sample window of the raw integer reading. Useful for spotting noise, drift, or wiring issues.
+   - **Right (Computed weight, kg)**: the same window converted to kg using the **currently saved** calibration. Horizontal dashed reference lines mark each recorded `weight_g / 1000`, so you can see how close the live reading lands to each known point.
+7. Below the right chart, a **residuals readout** shows, for each recorded point, the live error in grams (`live reads X g, error ±Y g`).
+8. Click **Done** to close the panel — the fast 1 s polling loop is torn down automatically (and also pauses when the browser tab is hidden).
+
+The backend auto-derives `tare_offset` and `calibration_factor` from the min-weight and max-weight points whenever 2 or more points are present, so the running scale picks up the multi-point cal immediately — no service restart needed. The single-point **Tare** and **Calibrate** buttons remain available as a quick-cal alternative.
+
 ### Polling Intervals
 
 | Data | Backend interval | Frontend poll |
@@ -661,6 +682,9 @@ All endpoints are JSON unless noted. Base URL is `http://<pi-ip>:8080`.
 | GET / POST | `/api/zone-config` | Read/write `zone_config.json` |
 | GET | `/api/scale-config` | Read `scale_config.json` |
 | POST | `/api/tc-calibration/<zone>` | Set per-zone TC offset directly |
+| GET | `/api/scale-config/<id>/calibration-points` | List multi-point calibration points for a scale |
+| POST | `/api/scale-config/<id>/record-cal-point` | Record one calibration point (`{weight_g, label?}`) at the current raw reading; auto-derives tare + factor from min/max-weight points |
+| DELETE | `/api/scale-config/<id>/calibration-points` | Clear all multi-point calibration points for a scale |
 
 Most write endpoints validate input (range checks on `tolerance_c`, `setpoint_c`, `offset_c`) and return `400` with an `error` key on failure. See `server.py` for exact validation rules.
 
