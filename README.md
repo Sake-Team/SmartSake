@@ -431,6 +431,10 @@ To add SmartSake to your iPhone home screen as an app:
 
 `/calibration.html` (linked from the home page) covers thermocouple offsets, probe-to-zone mapping, and load cell calibration. The thermocouple workflows (`2-Point Cal`, `Quick Cal`) and the probe mapping panel are documented inline on the page.
 
+#### Calibrate All (Centered Load)
+
+Above the per-scale table, a **Calibrate All (centered load)** panel handles all 4 cells in two clicks. Step 1: empty the table and click **Tare All** — every wired scale tares in parallel. Step 2: place a known weight at the **center** of the table, enter the **total mass in kg**, and click **Calibrate All**. The total is divided equally across the wired cells (`total / 4`, or `total / N` if fewer than 4 are wired) and pushed to each scale's `known_weight_kg`. Unwired scales are skipped automatically. The per-scale Tare / Calibrate / Multi-Point Cal buttons in the table below remain available for individual cells.
+
 #### Multi-Point Cal (Load Cells)
 
 For higher accuracy across a wide load range (e.g. 0–9 kg of rice), use the **Multi-Point Cal** workflow on the calibration page:

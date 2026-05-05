@@ -91,6 +91,18 @@
     .scale-cal-inline { background: var(--color-bg-subtle); border: 1px solid var(--color-border);
                         border-radius: var(--r-sm); padding: .75rem 1rem; margin: .35rem 0; }
     .scale-cal-inline td { border-bottom: none; }
+
+    /* Calibrate All (centered load) panel */
+    .cal-all-inline { background: var(--color-bg-subtle); border: 1px solid var(--color-border);
+                      border-radius: var(--r-sm); padding: .75rem 1rem; margin: 0 0 .9rem; }
+    .cal-all-inline .cal-step { margin-bottom: .55rem; }
+    .cal-all-inline .cal-step:last-child { margin-bottom: 0; }
+    .cal-all-inline input[type=number] { width: 90px; padding: .25rem .35rem;
+                            background: var(--color-bg); border: 1px solid var(--color-border);
+                            border-radius: var(--r-sm); color: var(--color-text-1);
+                            font-size: .82rem; text-align: right; min-height: 44px; }
+    .cal-all-inline input[type=number]:focus { outline: none; border-color: var(--color-brand); }
+    .cal-all-note { font-size: .72rem; color: var(--color-text-3); margin-left: .25rem; }
     .scale-cal-charts { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem;
                         margin-top: .65rem; }
     .scale-cal-chart-wrap { background: var(--color-surface); border: 1px solid var(--color-border);
@@ -203,6 +215,33 @@
         <b>Tare</b>: clear the scale, click Tare. <b>Calibrate</b>: place a known weight, type its mass in kg, click Calibrate.
         The running scale picks up the new tare/factor automatically — no service restart needed.
       </p>
+
+      <div class="cal-all-inline" id="cal-all-panel">
+        <div class="cal-step-label">Calibrate All (centered load)</div>
+        <p class="panel-help" style="margin:.25rem 0 .55rem">
+          Empty the table, click <b>Tare All</b>. Then place a known total weight at the <b>center</b> of the table and enter its mass — we split equally across the 4 corner cells.
+        </p>
+        <div class="cal-step">
+          <div class="cal-step-row">
+            <span class="cal-step-label" style="margin:0">Step 1:</span>
+            <button type="button" class="btn btn-secondary" id="cal-all-tare-btn">Tare All (table empty)</button>
+            <span class="status-msg" id="cal-all-tare-status"></span>
+          </div>
+        </div>
+        <div class="cal-step">
+          <div class="cal-step-row">
+            <span class="cal-step-label" style="margin:0">Step 2:</span>
+            <span style="font-size:.78rem;color:var(--color-text-2)">Total weight:</span>
+            <input type="number" step="0.001" min="0.001" max="800" id="cal-all-total-kg" placeholder="9.0">
+            <span style="font-size:.78rem;color:var(--color-text-2)">kg</span>
+            <button type="button" class="btn btn-primary" id="cal-all-calibrate-btn">Calibrate All</button>
+            <span class="cal-all-note">(each scale gets total / N kg)</span>
+            <span class="status-msg" id="cal-all-calibrate-status"></span>
+          </div>
+        </div>
+        <div class="status-msg" id="cal-all-status" style="margin-top:.4rem"></div>
+      </div>
+
       <table class="cal-table" id="scale-table">
         <thead>
           <tr>
@@ -938,6 +977,145 @@
   }
 
   // ══════════════════════════════════════════════════════════════════════
+  // ── Calibrate All (centered load) ────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
+
+  function wiredScaleIds() {
+    var ids = [];
+    var scales = (_scaleCfg && _scaleCfg.scales) || {};
+    for (var s = 1; s <= 4; s++) {
+      var sc = scales[String(s)] || {};
+      var notWired = (sc.dat_pin == null) || (sc.clk_pin == null);
+      if (!notWired) ids.push(s);
+    }
+    return ids;
+  }
+
+  function summarizePerScale(results) {
+    // results: [{sid, ok, body|err}]
+    return results.map(function (r) {
+      if (r.skipped)  return 'S' + r.sid + ' not wired';
+      if (r.ok)       return 'S' + r.sid + ' ok';
+      var msg = (r.body && r.body.error) ? r.body.error : (r.err || 'failed');
+      return 'S' + r.sid + ' err (' + msg + ')';
+    }).join(' | ');
+  }
+
+  function postScale(sid, path, payload) {
+    return fetch('/api/scale-config/' + sid + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload != null ? JSON.stringify(payload) : '{}'
+    }).then(function (r) {
+      return r.json().then(function (d) { return { sid: sid, ok: r.ok, body: d }; });
+    }).catch(function (e) {
+      return { sid: sid, ok: false, err: (e && e.message) || 'network error' };
+    });
+  }
+
+  function tareAll() {
+    var tareBtn = document.getElementById('cal-all-tare-btn');
+    var calBtn  = document.getElementById('cal-all-calibrate-btn');
+    var ids = wiredScaleIds();
+    if (ids.length === 0) {
+      setStatus('cal-all-tare-status', 'No wired scales found.', false);
+      setStatus('cal-all-status', '', null);
+      return;
+    }
+    tareBtn.disabled = true;
+    setStatus('cal-all-tare-status', 'Taring ' + ids.length + ' scale' + (ids.length === 1 ? '' : 's') + '…', null);
+    setStatus('cal-all-status', '', null);
+
+    var jobs = [];
+    var allIds = [1, 2, 3, 4];
+    allIds.forEach(function (sid) {
+      if (ids.indexOf(sid) === -1) {
+        jobs.push(Promise.resolve({ sid: sid, skipped: true }));
+      } else {
+        jobs.push(postScale(sid, '/tare', {}));
+      }
+    });
+
+    Promise.all(jobs).then(function (results) {
+      tareBtn.disabled = false;
+      var anyFail = results.some(function (r) { return !r.skipped && !r.ok; });
+      var line = summarizePerScale(results);
+      setStatus('cal-all-tare-status', line, !anyFail);
+      var skipped = results.filter(function (r) { return r.skipped; }).length;
+      if (skipped > 0) {
+        setStatus('cal-all-status', 'Skipped ' + skipped + ' unwired scale' + (skipped === 1 ? '' : 's') + '.', null);
+      }
+      refresh();
+    });
+  }
+
+  function calibrateAll() {
+    var tareBtn = document.getElementById('cal-all-tare-btn');
+    var calBtn  = document.getElementById('cal-all-calibrate-btn');
+    var inp     = document.getElementById('cal-all-total-kg');
+    var totalKg = parseFloat(inp.value);
+    if (!isFinite(totalKg) || totalKg <= 0) {
+      setStatus('cal-all-calibrate-status', 'Enter a positive total weight in kg.', false);
+      return;
+    }
+    var ids = wiredScaleIds();
+    if (ids.length === 0) {
+      setStatus('cal-all-calibrate-status', 'No wired scales found.', false);
+      return;
+    }
+    var divisor = (ids.length >= 4) ? 4 : ids.length;
+    var perKg = totalKg / divisor;
+
+    calBtn.disabled = true;
+    var preface = (divisor === 4)
+      ? ('Calibrating ' + ids.length + ' cells with ' + perKg.toFixed(3) + ' kg each…')
+      : ('Applying ' + totalKg.toFixed(3) + ' kg / ' + divisor + ' = ' + perKg.toFixed(3) + ' kg per cell…');
+    setStatus('cal-all-calibrate-status', preface, null);
+    setStatus('cal-all-status', '', null);
+
+    var jobs = [];
+    var allIds = [1, 2, 3, 4];
+    allIds.forEach(function (sid) {
+      if (ids.indexOf(sid) === -1) {
+        jobs.push(Promise.resolve({ sid: sid, skipped: true }));
+      } else {
+        jobs.push(postScale(sid, '/calibrate', { known_weight_kg: perKg }));
+      }
+    });
+
+    Promise.all(jobs).then(function (results) {
+      calBtn.disabled = false;
+      var anyFail = results.some(function (r) { return !r.skipped && !r.ok; });
+      var line = summarizePerScale(results);
+      setStatus('cal-all-calibrate-status', line, !anyFail);
+
+      if (!anyFail) {
+        inp.value = '';
+        var nDone = results.filter(function (r) { return !r.skipped && r.ok; }).length;
+        var summary = 'Calibrated ' + nDone + ' cell' + (nDone === 1 ? '' : 's') +
+                      ' with ' + perKg.toFixed(3) + ' kg each (total ' + totalKg.toFixed(3) + ' kg).';
+        if (divisor !== 4) {
+          summary += ' Divided by ' + divisor + ' (only ' + ids.length + ' wired).';
+        }
+        setStatus('cal-all-status', summary, true);
+      } else {
+        var skipped = results.filter(function (r) { return r.skipped; }).length;
+        if (skipped > 0) {
+          setStatus('cal-all-status', 'Skipped ' + skipped + ' unwired scale' + (skipped === 1 ? '' : 's') + '.', null);
+        }
+      }
+      refresh();
+    });
+  }
+
+  function wireCalAll() {
+    var tareBtn = document.getElementById('cal-all-tare-btn');
+    var calBtn  = document.getElementById('cal-all-calibrate-btn');
+    if (tareBtn) tareBtn.addEventListener('click', tareAll);
+    if (calBtn)  calBtn.addEventListener('click', calibrateAll);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
   // ── Multi-Point Scale Calibration ────────────────────────────────────
   // ══════════════════════════════════════════════════════════════════════
 
@@ -1241,6 +1419,7 @@
   // ── Init ────────────────────────────────────────────────────────────────
   buildTcRows();
   buildScaleRows();
+  wireCalAll();
   refresh();
 
   // Visibility-aware polling — pause when tab is hidden
