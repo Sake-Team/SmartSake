@@ -27,8 +27,84 @@ This system controls mains-voltage equipment near food-contact surfaces. Before 
 - **Electrical:** All 120 VAC wiring (relay → fan power) must be enclosed and follow [`docs/schematics/power-schematic.pdf`](docs/schematics/power-schematic.pdf). Do not energize with the relay board exposed. The Pi must be on a separate 5V supply, never tapped from the fan rail.
 - **Thermal:** Fans run hot under sustained load. The auto fan-control loop has no upper bound — a misconfigured `tolerance_c` of 0 will keep fans on indefinitely. Always set a sane tolerance (1–2 °C) and check the dashboard during the first hour of every new run.
 - **Food contact:** Only the load cell housing surface and the koji table top are food-contact. Use food-safe PETG or food-safe-coated PLA for the [STL parts](hardware/stl/), and sanitize between runs.
-- **Watchdog:** The systemd watchdog (60 s) will restart the server if it hangs, but it does **not** force fans off. The fans hold their last commanded state during a server crash. If you need a hard cutoff, kill power at the relay board.
+- **Crash recovery:** systemd `Restart=on-failure` brings the server back if it dies; the SIGTERM handler drives every fan relay HIGH (= OFF on active-LOW) before exit, so a clean restart leaves no fan stranded on. A hard kill (`SIGKILL`, power loss) bypasses the handler — relays hold their last state.
 - **Hard cutoff:** The dashboard no longer ships an in-page emergency-stop button. To force all fans OFF, kill power at the relay board, or POST to `/api/runs/<id>/emergency-stop` directly (the route still exists server-side).
+
+---
+
+## Daily Operations
+
+The cheat sheet for running SmartSake day-to-day. Detailed background lives in sections 3–4.
+
+### Service control
+
+| Command | Effect |
+|---|---|
+| `./restart.sh` | Restart the server (works with or without systemd) |
+| `./restart.sh --status` | Show whether the server is running |
+| `./restart.sh --logs` | Tail the live server log |
+| `./restart.sh --ap` | Bring up Pi WiFi access point, then restart the server (sudo) |
+| `./restart.sh --no-ap` | Tear down AP, return to home WiFi (sudo) |
+| `./scripts/ap-mode.sh status` | Report current AP mode without changing anything |
+| `sudo systemctl restart smartsake` | Same as `./restart.sh` under systemd |
+| `journalctl -u smartsake -f` | Live service journal |
+
+### Where to point the browser
+
+| Mode | URL |
+|---|---|
+| Home WiFi (normal) | `http://<pi-ip>:8080` — find with `hostname -I` on the Pi |
+| AP mode | `http://192.168.50.1:8080` after joining SSID `SmartSake` (default password `kojitable`) |
+| Mobile dashboard (any mode) | `<base>/mobile.html` |
+
+### Web pages
+
+| Page | Purpose |
+|---|---|
+| `/home.html` (default) | New Run, active run resume, previous-runs list, **System Health** card |
+| `/dashboard.html?run=<id>&mode=live` | Live monitoring + zone control + bulk setpoint editor |
+| `/dashboard.html?run=<id>&mode=replay` | Historical chart playback |
+| `/calibration.html` | Probe→zone mapping, TC 2-point cal, load-cell cal (Tare / Calibrate / Calibrate All / Multi-Point / **Apply Manual**) |
+| `/curves.html` | Reference temperature curve builder |
+| `/mobile.html` | Compact view for phones/tablets |
+| `/room-history.html` | Long-window environmental history (lives across runs) |
+| `/summary.html?run=<id>` | Per-run digest |
+| `/history.html?run=<id>` | Run metadata + tabular detail |
+
+### Starting / running / ending a run
+
+1. **Start** — Home page → enter a run name → optionally pick a reference curve → **Start**. Lands on the live dashboard.
+2. **Set targets** — Click **Setpoints / Update** on the dashboard → enter setpoint + tolerance per zone → **Apply All**. Or click any zone to edit one zone's setpoint inline.
+3. **Manual fan override** — Open a zone's detail card → segmented pill: `Auto | Off · 1hr | Off | On · 1hr | On`. The 1-hour options auto-revert to Auto.
+4. **Notes** — type into the dashboard notes box; saved to localStorage and appended to every CSV row.
+5. **End run** — Dashboard **End Run** button. CSV downloads automatically. localStorage cleared (no phantom run on next visit).
+6. **Crash recovery** — if the dashboard tab dies mid-run, reopening it silently auto-exports the recovered samples to CSV.
+
+### Calibration (load cells)
+
+1. **Calibrate All (centered load)** — empty the table → **Tare All**. Place a known total weight at the center → enter total kg → **Calibrate All** (splits weight evenly across the 4 cells).
+2. **Single cell** — per-row **Tare** (with that cell empty) then **Calibrate** with a known weight on just that cell.
+3. **Multi-Point Cal** — open the inline panel for one cell → record zero, then add successive known weights → live raw + computed-kg charts show the fit.
+4. **Apply Manual** — type new values directly into the per-row Tare or Factor cells → click **Apply Manual** for that row to nudge without re-loading weights.
+
+### Settings (gear icon, top-right of any page)
+
+- Theme presets (dark, ocean, forest, sakura, etc.)
+- **Display Units** — kg/lbs and °C/°F. Flips the dashboard, mobile, room-history, summary, and calibration screens in real time.
+- Run Settings (dashboard only) — temperature-deviation thresholds, alert behavior.
+
+### Diagnostics
+
+| Check | How |
+|---|---|
+| Service alive? | `./restart.sh --status` or look at home page **System Health** card |
+| Fan acting weird? | `journalctl -u smartsake -f \| grep '\[fan'` — auto loop logs every transition |
+| Sensor errors? | Home page **System Health** → Sensor loop status. Or `cat /run/smartsake/sensor_status.json` |
+| Disk getting tight? | Home page **System Health** → Disk free. Threshold warnings start at 100 MB. |
+| Multiple "active" runs? | Home page **System Health** → Active runs (should be 0 or 1). The DB now auto-supersedes leftovers on next run start. |
+| Smoke-test the fan logic | `python3 test_fan_state.py` — exercises the override / hysteresis / shutdown paths |
+
+---
 
 ## Quickstart
 
@@ -60,6 +136,7 @@ For manual setup or troubleshooting individual steps, see the full instructions 
 
 ## Table of Contents
 
+0. [Daily Operations (cheat sheet)](#daily-operations)
 1. [Hardware Setup](#1-hardware-setup)
 2. [Software Installation](#2-software-installation)
 3. [Running SmartSake](#3-running-smartsake)
