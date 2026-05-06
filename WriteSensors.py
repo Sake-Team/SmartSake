@@ -401,8 +401,17 @@ def _hot_reload_tc_zone_map():
 
 def _zone_tolerance(zone):
     cfg = _load_zone_config()
-    default = cfg.get("default", {"tolerance_c": DEFAULT_TOLERANCE_C})
-    return cfg.get(f"zone{zone}", default).get("tolerance_c", DEFAULT_TOLERANCE_C)
+    default = cfg.get("default", {})
+    # Resolve in order: zone-specific tolerance → default block tolerance →
+    # module constant. Previously a partial zone entry (e.g. setpoint only)
+    # silently shadowed the user-defined default block tolerance because the
+    # zone dict won out wholesale.
+    zone_cfg = cfg.get(f"zone{zone}", {}) or {}
+    val = zone_cfg.get("tolerance_c", default.get("tolerance_c", DEFAULT_TOLERANCE_C))
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return DEFAULT_TOLERANCE_C
 
 
 def _zone_setpoint_override(zone):
@@ -410,7 +419,16 @@ def _zone_setpoint_override(zone):
     v = cfg.get(f"zone{zone}", {}).get("setpoint_c")
     if v is None:
         v = cfg.get("default", {}).get("setpoint_c")
-    return float(v) if v is not None else None
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        # Typo'd setpoint (e.g. "thirty") used to crash the fan loop on
+        # every tick. Silently treat as "no setpoint" so the zone falls
+        # back to no-action — operator notices via the dashboard's
+        # "No setpoint configured" badge.
+        return None
 
 
 # Two-point calibration sanity limits.

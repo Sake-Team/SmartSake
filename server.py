@@ -478,7 +478,9 @@ def api_active_run():
 @app.route("/api/runs", methods=["POST"])
 def api_create_run():
     body = request.get_json(force=True, silent=True) or {}
-    name = (body.get("name") or "").strip()
+    # Coerce to str — clients sometimes send numbers / null. Avoids 500 on
+    # AttributeError when calling .strip() on a non-string.
+    name = str(body.get("name") or "").strip()
     if not name:
         return jsonify({"error": "name required"}), 400
     run_id = db.create_run(name)
