@@ -324,6 +324,37 @@ git pull
 ./restart.sh
 ```
 
+### Standalone WiFi Access Point Mode
+
+For mobile use in a brewing space without WiFi, the Pi can broadcast its own
+access point. Mobile devices connect to the SSID and reach the dashboard at
+the AP's static IP.
+
+```bash
+# Bring up the AP, then start the server (needs sudo for hostapd/dnsmasq)
+sudo ./restart.sh --ap
+
+# Tear down the AP, return to home WiFi, restart the server
+sudo ./restart.sh --no-ap
+
+# Or call the helper directly
+sudo ./scripts/ap-mode.sh start
+sudo ./scripts/ap-mode.sh stop
+./scripts/ap-mode.sh status
+```
+
+Defaults: SSID `SmartSake`, password `kojitable`, gateway `192.168.50.1`,
+DHCP pool `192.168.50.50`–`.150`. Edit `scripts/ap-config.env` to change.
+
+**Prerequisites:** `sudo apt install hostapd dnsmasq`.
+
+**Reversibility:** `--no-ap` removes the AP configs (`/etc/hostapd/smartsake.conf`,
+`/etc/dnsmasq.d/smartsake-ap.conf`), restarts NetworkManager / wpa_supplicant,
+and the Pi reconnects to home WiFi.
+
+**Recommendation for first try:** keep a wired ethernet cable connected so SSH
+remains reachable if anything goes sideways.
+
 ### Development Mode (Windows/Mac)
 
 A mock server is included for UI development without Pi hardware:
