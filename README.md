@@ -377,6 +377,7 @@ The landing page shows:
 - **Active run** — if a batch is in progress, with a "Resume" button to jump to the live dashboard
 - **New Run** — name a batch and optionally attach a reference temperature curve
 - **Tools** — links to Curve Builder, Calibration, Room History, and Mobile View
+- **System Health** — at-a-glance Pi status: active-runs count (should be 0–1; >1 surfaces a leak), sensor-loop status, last sample age, free disk, and any active fan overrides (in-run + no-run with mode and time-to-expiry). Polls `/api/system-health` every 15 s while the tab is visible; pauses when hidden.
 - **Previous Runs** — all completed/crashed batches with View, Summary, Details, Lock, and Delete actions
 
 ### Dashboard (TV / Desktop)
@@ -390,7 +391,7 @@ The main dashboard is designed for a wall-mounted display. It shows:
 - **Humidity/ambient** — SHT30 environment readings
 - **Zone controls** — click any zone card to open fan overrides, rules, notes, and calibration
 - **Update Setpoints card** — opens a six-row modal for bulk-editing all zone setpoints and tolerances at once (parallel POSTs to `/api/zone-config`); replaces the old per-card unit toggle slot
-- **Display units** — open the gear (Settings) modal to switch weight between **lbs / kg** and temperature between **°C / °F**. Both preferences persist in `localStorage` (`sakeWeightUnit`, `sakeTempUnit`); changes apply live to every dashboard chart, stat card, zone card, and zone-detail modal. Internally the backend always stores Celsius — `°F` inputs are converted on send (and tolerance, being a delta, is divided by `9/5`).
+- **Display units** — open the gear (Settings) modal to switch weight between **lbs / kg** and temperature between **°C / °F**. Both preferences persist in `localStorage` (`sakeWeightUnit`, `sakeTempUnit`); changes apply live to every dashboard chart, stat card, zone card, and zone-detail modal — and propagate (via the `sake-units-changed` event plus a cross-tab `storage` listener) to **`mobile.html`**, **`room-history.html`**, and **`summary.html`**. Internally the backend always stores Celsius — `°F` inputs are converted on send (and tolerance, being a delta, is divided by `9/5`).
 
 **Fan control modes:**
 
@@ -584,6 +585,9 @@ The native Fusion 360 file (`SakeTableCAD.f3z`) is not included due to size; con
 
 ## 7. Troubleshooting
 
+### Smoke tests
+- Fan state machine — `python3 test_fan_state.py` (standalone, no pytest, no hardware required; mocks `db` + `fan_gpio` and exercises override/hysteresis/run-transition paths).
+
 ### Dashboard won't load / can't reach Pi
 - `ping <pi-ip>` — confirm the Pi is on the network
 - On the Pi: `sudo ss -tlnp | grep 8080` — confirm something is listening
@@ -639,6 +643,7 @@ All endpoints are JSON unless noted. Base URL is `http://<pi-ip>:8080`.
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/health` | Overall system health (sensor loop, DB, GPIO) |
+| GET | `/api/system-health` | Aggregator for the home-page System Health card. Returns `{active_runs, sensor_status, last_sample_age_s, disk_free_mb, overrides[]}`. 5 s server-side cache. |
 | GET | `/api/sensor-status` | Sensor loop diagnostics, library availability, last-write age |
 | GET | `/api/latest` | Latest TC + SHT30 + weight reading |
 | GET | `/api/fan-state` | Latest fan state per zone (mode, setpoint, alarm) |
