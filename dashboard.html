@@ -517,29 +517,6 @@
 				</div>
 			</div>
 
-			<!-- Recovery popup for crashed / unfinished runs -->
-			<div id="recovery-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Recovery">
-				<div class="modal-popup">
-					<div class="modal-header">
-						<h3 class="modal-title">Recovered Run Detected</h3>
-						<button type="button" class="modal-close" id="recovery-close-btn"
-							aria-label="Close recovery popup">&times;</button>
-					</div>
-					<div class="modal-content">
-						<p>We detected autosaved data from a previous session that didn't end
-							cleanly.</p>
-						<p>You can export the recovered run as a CSV or discard it and start
-							fresh.</p>
-
-						<div class="modal-button-section">
-							<button type="button" class="modal-cancel-btn" id="recovery-discard-btn">Discard</button>
-							<button type="button" class="modal-confirm-btn" id="recovery-export-btn">Export recovered
-								CSV</button>
-						</div>
-					</div>
-				</div>
-			</div>
-
 			<!-- Void Sake Co. Arcade -->
 			<div id="arcade-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Arcade">
 				<div class="modal-popup arcade-modal-popup">
@@ -846,11 +823,6 @@
 					const cancelEndBtn = document.getElementById('cancel-end-btn');
 					const confirmEndBtn = document.getElementById('confirm-end-btn');
 
-					const recoveryModal = document.getElementById('recovery-modal');
-					const recoveryExport = document.getElementById('recovery-export-btn');
-					const recoveryDiscard = document.getElementById('recovery-discard-btn');
-					const recoveryClose = document.getElementById('recovery-close-btn');
-
 					let collectedData = [];
 					let dataCollectionInterval = null;
 					let runStartTime = null;
@@ -1020,10 +992,6 @@
 					window.sakeExportRecoveredRun = function () {
 						const currentRunName = localStorage.getItem('currentRunName') || 'RecoveredRun';
 
-						if (recoveryModal) {
-							recoveryModal.classList.remove('is-open');
-						}
-
 						stopDataCollectionAndExport(currentRunName);
 
 						if (window.stopTemperatureReading) {
@@ -1101,49 +1069,6 @@
 							if (runNameDisplay) runNameDisplay.textContent = '';
 						}
 
-						if (recoveryModal) {
-							recoveryModal.classList.remove('is-open');
-						}
-
-						if (recoveryExport) {
-							recoveryExport.addEventListener('click', function () {
-								if (window.sakeExportRecoveredRun) {
-									window.sakeExportRecoveredRun();
-								}
-								localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
-								if (recoveryModal) recoveryModal.classList.remove('is-open');
-							});
-						}
-
-						if (recoveryDiscard) {
-							recoveryDiscard.addEventListener('click', function () {
-								localStorage.removeItem(RUN_STATE_KEY);
-								localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
-								localStorage.removeItem('currentRunName');
-								if (runNameDisplay) runNameDisplay.textContent = '';
-								if (recoveryModal) recoveryModal.classList.remove('is-open');
-							});
-						}
-
-						if (recoveryClose) {
-							recoveryClose.addEventListener('click', function () {
-								localStorage.removeItem(RUN_STATE_KEY);
-								localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
-								localStorage.removeItem('currentRunName');
-								if (runNameDisplay) runNameDisplay.textContent = '';
-								if (recoveryModal) recoveryModal.classList.remove('is-open');
-							});
-						}
-
-						document.addEventListener('keydown', function (e) {
-							if (e.key === 'Escape' && recoveryModal && recoveryModal.classList.contains('is-open')) {
-								localStorage.removeItem(RUN_STATE_KEY);
-								localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
-								localStorage.removeItem('currentRunName');
-								if (runNameDisplay) runNameDisplay.textContent = '';
-								recoveryModal.classList.remove('is-open');
-							}
-						});
 					}
 
 					// ---------- Guard: if core elements are missing, stop here ----------

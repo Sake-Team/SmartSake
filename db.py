@@ -337,19 +337,6 @@ def end_run(run_id):
         )
 
 
-def mark_crashed(run_id):
-    now = datetime.now().isoformat()
-    with get_conn() as conn:
-        conn.execute(
-            "UPDATE runs SET status='crashed' WHERE id=? AND ended_at IS NULL",
-            (run_id,)
-        )
-        conn.execute(
-            "UPDATE deviation_events SET ended_at=? WHERE run_id=? AND ended_at IS NULL",
-            (now, run_id)
-        )
-
-
 def get_active_run():
     with get_conn() as conn:
         row = conn.execute(
