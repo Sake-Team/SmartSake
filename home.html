@@ -164,6 +164,62 @@
       margin: 0;
       padding: 0.25rem 0.4rem;
     }
+
+    /* ── system health: definition-list rows ── */
+    .sys-health-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+    .sys-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+    }
+    .sys-row-label {
+      color: var(--color-text-2);
+    }
+    .sys-row-value {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: var(--color-text-1);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .sys-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--color-text-3);
+      flex-shrink: 0;
+    }
+    .sys-dot-ok    { background: var(--color-success); }
+    .sys-dot-warn  { background: var(--color-warning); }
+    .sys-dot-error { background: #ff7070; }
+    .sys-overrides-empty {
+      color: var(--color-text-3);
+      font-style: italic;
+      font-weight: 400;
+      font-size: 0.8rem;
+    }
+    .sys-override-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+      color: var(--color-text-2);
+      padding-left: 0.4rem;
+    }
+    .sys-override-zone {
+      color: var(--color-text-1);
+      font-weight: 600;
+    }
+    .sys-override-meta { color: var(--color-text-3); }
   </style>
   <script src="customize.js" defer></script>
 </head>
@@ -216,6 +272,14 @@
           <a href="calibration.html" class="btn btn-secondary">Calibration</a>
           <a href="room-history.html" class="btn btn-secondary">Room History</a>
           <a href="mobile.html" class="btn btn-secondary">Mobile View</a>
+        </div>
+      </div>
+
+      <!-- System Health -->
+      <div class="hcard" id="sys-health-card">
+        <p class="hcard-label">System Health</p>
+        <div class="sys-health-list" id="sys-health-list">
+          <p class="empty-msg">Loading…</p>
         </div>
       </div>
 
@@ -423,6 +487,132 @@
       return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
+    // ── system health panel ──────────────────────────────────────────────────
+    function dotClassForAge(ageS) {
+      if (ageS == null) return 'sys-dot-error';
+      if (ageS < 30)    return 'sys-dot-ok';
+      if (ageS < 120)   return 'sys-dot-warn';
+      return 'sys-dot-error';
+    }
+    function dotClassForActiveRuns(n) {
+      if (n === 0 || n === 1) return 'sys-dot-ok';
+      return 'sys-dot-error';
+    }
+    function dotClassForDisk(mb) {
+      if (mb == null) return 'sys-dot-error';
+      if (mb < 100)   return 'sys-dot-error';
+      if (mb < 500)   return 'sys-dot-warn';
+      return 'sys-dot-ok';
+    }
+    function sensorStatusDisplay(ss) {
+      if (!ss || !ss.status || ss.status === 'ok') {
+        return { dot: 'sys-dot-ok', text: 'OK' };
+      }
+      if (ss.status === 'warning') {
+        return { dot: 'sys-dot-warn', text: 'WARNING: ' + (ss.message || ss.reason || '—') };
+      }
+      return { dot: 'sys-dot-error', text: 'ERROR: ' + (ss.message || ss.reason || '—') };
+    }
+    function fmtDiskFree(mb) {
+      if (mb == null) return '—';
+      if (mb >= 1024) return (mb / 1024).toFixed(2) + ' GB';
+      return mb + ' MB';
+    }
+    function fmtAge(s) {
+      if (s == null) return '—';
+      if (s < 60) return Math.round(s) + 's';
+      return Math.round(s / 60) + ' min';
+    }
+    function fmtExpires(s) {
+      if (s == null) return 'no expiry';
+      if (s <= 0) return 'expiring';
+      if (s < 60) return 'in ' + s + ' s';
+      if (s < 3600) return 'in ' + Math.round(s / 60) + ' min';
+      return 'in ' + (s / 3600).toFixed(1) + ' h';
+    }
+
+    async function loadSystemHealth() {
+      const container = document.getElementById('sys-health-list');
+      try {
+        const res = await fetch('/api/system-health');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const h = await res.json();
+
+        const ss = sensorStatusDisplay(h.sensor_status);
+        const recovered = h.sensor_status && h.sensor_status.last_recovered_at
+          ? ' <span class="sys-override-meta">(recovered ' + fmtDate(h.sensor_status.last_recovered_at) + ')</span>'
+          : '';
+
+        let html = '';
+        html += '<div class="sys-row">' +
+                  '<span class="sys-row-label">Active runs</span>' +
+                  '<span class="sys-row-value"><span class="sys-dot ' + dotClassForActiveRuns(h.active_runs) + '"></span>' +
+                    h.active_runs + '</span>' +
+                '</div>';
+        html += '<div class="sys-row">' +
+                  '<span class="sys-row-label">Sensor loop</span>' +
+                  '<span class="sys-row-value"><span class="sys-dot ' + ss.dot + '"></span>' +
+                    escHtml(ss.text) + recovered + '</span>' +
+                '</div>';
+        html += '<div class="sys-row">' +
+                  '<span class="sys-row-label">Last sample</span>' +
+                  '<span class="sys-row-value"><span class="sys-dot ' + dotClassForAge(h.last_sample_age_s) + '"></span>' +
+                    fmtAge(h.last_sample_age_s) + ' ago</span>' +
+                '</div>';
+        html += '<div class="sys-row">' +
+                  '<span class="sys-row-label">Disk free</span>' +
+                  '<span class="sys-row-value"><span class="sys-dot ' + dotClassForDisk(h.disk_free_mb) + '"></span>' +
+                    fmtDiskFree(h.disk_free_mb) + '</span>' +
+                '</div>';
+
+        // Active fan overrides
+        const ovs = Array.isArray(h.overrides) ? h.overrides : [];
+        html += '<div class="sys-row">' +
+                  '<span class="sys-row-label">Fan overrides</span>' +
+                  '<span class="sys-row-value">' +
+                    (ovs.length === 0
+                      ? '<span class="sys-overrides-empty">none</span>'
+                      : ovs.length + ' active') +
+                  '</span>' +
+                '</div>';
+        if (ovs.length > 0) {
+          ovs.forEach(function (ov) {
+            const mode = (ov.mode || '?').toString().toUpperCase();
+            const scope = ov.scope === 'in-run' ? 'in-run' : 'no-run';
+            html += '<div class="sys-override-row">' +
+                      '<span><span class="sys-override-zone">Zone ' + ov.zone + '</span> · ' + mode + '</span>' +
+                      '<span class="sys-override-meta">' + scope + ' · ' + fmtExpires(ov.expires_in_s) + '</span>' +
+                    '</div>';
+          });
+        }
+
+        container.innerHTML = html;
+      } catch (err) {
+        container.innerHTML = '<p class="empty-msg">Could not load system health.</p>';
+      }
+    }
+
+    // Polling: refresh every 15s while the tab is visible. Pause on hidden.
+    var sysHealthTimer = null;
+    function startSysHealthPolling() {
+      if (sysHealthTimer != null) return;
+      sysHealthTimer = setInterval(loadSystemHealth, 15000);
+    }
+    function stopSysHealthPolling() {
+      if (sysHealthTimer != null) {
+        clearInterval(sysHealthTimer);
+        sysHealthTimer = null;
+      }
+    }
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) {
+        stopSysHealthPolling();
+      } else {
+        loadSystemHealth();
+        startSysHealthPolling();
+      }
+    });
+
     // ── reference curves ─────────────────────────────────────────────────────
     async function loadReferenceCurves() {
       try {
@@ -441,6 +631,8 @@
     loadActiveRun();
     loadRunsList();
     loadReferenceCurves();
+    loadSystemHealth();
+    startSysHealthPolling();
   })();
   </script>
 </body>

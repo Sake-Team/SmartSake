@@ -12,6 +12,7 @@ smartsake-sensors.service to avoid duplicate loops across workers.
 import json
 import os
 import re
+import shutil
 import time
 from flask import Flask, jsonify, request, send_from_directory, abort
 
@@ -349,6 +350,111 @@ def api_health():
         "ready": ready,
         "sensor_age_s": sensor_age_s,
     })
+
+
+# ── Aggregated system health (home page panel) ───────────────────────────────
+#
+# Single endpoint feeding the home-page "System Health" card so the panel
+# doesn't fan out to 4+ separate fetches every poll. Response is cached
+# for 5s server-side because every consumer (kiosk + phone) is happy with
+# 15s freshness, and the underlying disk_usage / DB count calls are cheap
+# but non-zero.
+_SYSTEM_HEALTH_CACHE = {"ts": 0.0, "data": None}
+_SYSTEM_HEALTH_TTL_S = 5.0
+
+@app.route("/api/system-health")
+def api_system_health():
+    now = time.time()
+    cached = _SYSTEM_HEALTH_CACHE
+    if cached["data"] is not None and (now - cached["ts"]) < _SYSTEM_HEALTH_TTL_S:
+        return jsonify(cached["data"])
+
+    # Active runs count (rows with ended_at IS NULL).
+    # Should normally be 0 or 1; >1 is a leak symptom worth surfacing.
+    active_runs = 0
+    active_run = None
+    try:
+        active_run = db.get_active_run()
+        with db.get_conn() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) AS c FROM runs WHERE ended_at IS NULL"
+            ).fetchone()
+            active_runs = int(row["c"]) if row else 0
+    except Exception as e:
+        print(f"[api_system_health] active runs query failed: {e}")
+
+    # Sensor loop status (mirrors /api/sensor-status logic for the loop_status block).
+    sensor_status = _read_json_cached(SENSOR_STATUS_JSON) or {"status": "ok"}
+
+    # Last sensor sample age (seconds) — server-computed from sensor_latest.json mtime.
+    last_sample_age_s = None
+    if os.path.exists(SENSOR_JSON):
+        try:
+            last_sample_age_s = round(now - os.path.getmtime(SENSOR_JSON), 1)
+        except Exception:
+            pass
+
+    # Disk free (MB) on the volume backing the DB / project dir.
+    disk_free_mb = None
+    try:
+        usage = shutil.disk_usage(BASE_DIR)
+        disk_free_mb = usage.free // (1024 * 1024)
+    except Exception as e:
+        print(f"[api_system_health] disk_usage failed: {e}")
+
+    # Active fan overrides — combine in-run (DB) + no-run (volatile JSON).
+    overrides = []
+    try:
+        if active_run:
+            in_run = db.get_all_fan_overrides(active_run["id"]) or {}
+            for zone, ov in in_run.items():
+                overrides.append({
+                    "zone": int(zone),
+                    "mode": ov.get("action"),
+                    "expires_at": ov.get("expires_at"),
+                    "scope": "in-run",
+                })
+    except Exception as e:
+        print(f"[api_system_health] in-run overrides failed: {e}")
+
+    try:
+        import WriteSensors as _ws
+        no_run = _ws.get_no_run_overrides_full() or {}
+        for zone, ov in no_run.items():
+            overrides.append({
+                "zone": int(zone),
+                "mode": ov.get("action"),
+                "expires_at": ov.get("expires_at"),
+                "scope": "no-run",
+            })
+    except Exception as e:
+        print(f"[api_system_health] no-run overrides failed: {e}")
+
+    # Compute expires_in_s for each override (clients render relative time).
+    from datetime import datetime as _dt
+    for ov in overrides:
+        exp = ov.get("expires_at")
+        if exp:
+            try:
+                delta = (_dt.fromisoformat(exp) - _dt.now()).total_seconds()
+                ov["expires_in_s"] = int(delta) if delta > 0 else 0
+            except Exception:
+                ov["expires_in_s"] = None
+        else:
+            ov["expires_in_s"] = None
+
+    overrides.sort(key=lambda o: (o.get("scope", ""), o.get("zone", 0)))
+
+    payload = {
+        "active_runs": active_runs,
+        "sensor_status": sensor_status,
+        "last_sample_age_s": last_sample_age_s,
+        "disk_free_mb": disk_free_mb,
+        "overrides": overrides,
+    }
+    _SYSTEM_HEALTH_CACHE["data"] = payload
+    _SYSTEM_HEALTH_CACHE["ts"] = now
+    return jsonify(payload)
 
 
 # ── Runs ──────────────────────────────────────────────────────────────────────
