@@ -70,7 +70,6 @@
 					<button id="elapsed-toggle-btn" class="elapsed-toggle-btn" type="button" aria-label="Toggle between elapsed and clock time axis" title="Toggle elapsed/clock time axis">Clock</button>
 				</div>
 				<button id="set-temp-btn" class="set-temp-btn" type="button">Set temp</button>
-				<button id="e-stop-btn" class="e-stop-btn" type="button" aria-label="Emergency stop — turn all fans off" title="Emergency stop — all fans off">STOP</button>
 				<button id="start-run-btn" class="start-run-btn">Start Run</button>
 			</div>
 		</header>
@@ -215,14 +214,15 @@
 							<span id="ew-scale-4">S4 —</span>
 						</div>
 					</div>
-					<div class="ew-stat-card ew-stat-card--unit-toggle" id="ew-weight-unit"
-						 title="Click to switch between kg and lbs"
-						 style="cursor:pointer;user-select:none;">
-						<span class="ew-stat-card__label">Units</span>
+					<div class="ew-stat-card ew-stat-card--unit-toggle" id="ew-update-setpoints-card"
+						 title="Update setpoints and tolerances for all six zones"
+						 style="cursor:pointer;user-select:none;"
+						 role="button" tabindex="0" aria-label="Open bulk setpoint editor">
+						<span class="ew-stat-card__label">Setpoints</span>
 						<div class="ew-stat-card__value-row">
-							<span class="ew-stat-card__value ew-stat-card__value--action" id="ew-unit-toggle-val">lbs</span>
+							<span class="ew-stat-card__value ew-stat-card__value--action">Update</span>
 						</div>
-						<span class="ew-stat-card__sub" style="font-size:0.65rem;">tap to switch</span>
+						<span class="ew-stat-card__sub">All zones</span>
 					</div>
 					<div class="ew-stat-card ew-stat-card--zero" id="ew-weight-zero-card"
 						 title="Zero the scale at current reading"
@@ -280,7 +280,7 @@
 								<span id="zdc-relay-label">Fan --</span>
 							</span>
 							<span class="zone-detail-card__status-chip">
-								Trigger: <span id="zdc-trigger-val">--</span>&deg;C
+								Trigger: <span id="zdc-trigger-val">--</span><span id="zdc-trigger-unit">&deg;C</span>
 							</span>
 						</div>
 
@@ -550,6 +550,30 @@
 					</div>
 					<div class="modal-content" style="padding:0;overflow:hidden;border-radius:0 0 var(--r-lg) var(--r-lg);">
 						<canvas id="arcade-canvas" width="560" height="380" aria-label="Void Sake Co. Arcade"></canvas>
+					</div>
+				</div>
+			</div>
+
+			<!-- Bulk Setpoints Modal — opened from the "Update" stat card -->
+			<div id="update-setpoints-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Update setpoints">
+				<div class="modal-popup">
+					<div class="modal-header">
+						<h3 class="modal-title">Update Setpoints</h3>
+						<button type="button" class="modal-close" id="update-setpoints-close" aria-label="Close update setpoints">&times;</button>
+					</div>
+					<div class="modal-content">
+						<p style="margin:0 0 10px 0;color:var(--color-text-2);font-size:0.85rem;">
+							Adjust setpoint and tolerance for any zone, then Apply All.
+							Values use your current temperature unit; the backend stores Celsius.
+						</p>
+						<div class="set-temp-zones-grid" id="usp-zones-grid">
+							<!-- Six rows populated by IIFE on open -->
+						</div>
+						<div class="modal-button-section">
+							<button type="button" class="modal-cancel-btn" id="usp-cancel-btn">Cancel</button>
+							<button type="button" class="modal-confirm-btn" id="usp-apply-all-btn">Apply All</button>
+						</div>
+						<p id="usp-status" style="margin-top:10px;font-size:0.8rem;color:var(--color-text-2);"></p>
 					</div>
 				</div>
 			</div>
@@ -1498,12 +1522,13 @@
 					? new BroadcastChannel('sake-sensor') : null;
 
 				function updateTemperatureDisplay() {
+					var conv = (typeof window.tConv === 'function') ? window.tConv : function (v) { return v; };
 					for (let i = 1; i <= 6; i++) {
 						const dryEl = document.getElementById(`temp-${i}-dry`);
 						const val   = currentDryBulb[`temp${i}`];
 						if (dryEl) {
 							dryEl.textContent = (val !== null && !Number.isNaN(val))
-								? val.toFixed(1) : '--';
+								? conv(val).toFixed(1) : '--';
 						}
 					}
 					// Delegate all zone-button coloring to applyDeviationColors so there
@@ -1621,6 +1646,8 @@
 				window.stopTemperatureReading   = stopTemperatureReading;
 				window.getCurrentTemperatures   = getCurrentTemperatures;
 				window.getLatestDryBulbNumeric  = getLatestDryBulbNumeric;
+				// Expose so applyTempUnit can re-render zone temp values after a unit change
+				window.updateTemperatureDisplay = updateTemperatureDisplay;
 				// NOTE: auto-start removed — the mode controller calls startTemperatureReading()
 				// after pre-populating historical data so charts don't get out-of-order points.
 			})();
@@ -1634,15 +1661,22 @@
 				var _zoneTriggers  = {}; // z → trigger_c  (number) | null  (setpoint + tolerance)
 
 				function _applyFanBadges(data) {
+					// Cache the latest fan-state so applyTempUnit can re-render the badges
+					// + setpoint rows after a unit change without a fresh /api/fan-state.
+					window._lastFanState = data;
 					var zones = (data && data.zones) ? data.zones : {};
+					var tConv  = (typeof window.tConv  === 'function') ? window.tConv  : function (v) { return v; };
+					var tConvD = (typeof window.tConvDelta === 'function') ? window.tConvDelta : function (v) { return v; };
+					var unitLbl = (typeof window.tUnitLabel === 'function') ? window.tUnitLabel() : '°C';
 					for (var z = 1; z <= 6; z++) {
 						var zd   = zones[String(z)] || {};
 						var state   = zd.state;   // 'on' | 'off' | null
 						var mode    = zd.mode;    // 'limit' | 'manual' | 'rule' | 'none'
-						var sp      = zd.setpoint; // number | null
-						var trigger = zd.trigger;  // number | null  (setpoint + tolerance)
+						var sp      = zd.setpoint; // number | null  (Celsius from backend)
+						var trigger = zd.trigger;  // number | null  (Celsius — setpoint + tolerance)
 
-						// Store setpoint and trigger for applyDeviationColors
+						// Store setpoint and trigger for applyDeviationColors (always Celsius —
+						// applyDeviationColors compares against tc readings which are also Celsius)
 						_zoneSetpoints[z] = (sp !== null && sp !== undefined && isFinite(Number(sp)))
 							? Number(sp) : null;
 						_zoneTriggers[z]  = (trigger !== null && trigger !== undefined && isFinite(Number(trigger)))
@@ -1653,9 +1687,9 @@
 						if (spRow) {
 							if (_zoneSetpoints[z] !== null) {
 								var tolVal = zd.tolerance;
-								var spText = 'SP: ' + _zoneSetpoints[z].toFixed(1) + '°C';
+								var spText = 'SP: ' + tConv(_zoneSetpoints[z]).toFixed(1) + unitLbl;
 								if (tolVal !== null && tolVal !== undefined && isFinite(Number(tolVal))) {
-									spText += ' ±' + Number(tolVal).toFixed(1);
+									spText += ' ±' + tConvD(Number(tolVal)).toFixed(1);
 								}
 								spRow.textContent = spText;
 							} else {
@@ -1684,7 +1718,7 @@
 						modeEl.textContent = '';
 						if (mode === 'limit') {
 							modeEl.textContent = trigger !== null && trigger !== undefined
-								? 'AUTO ' + Number(trigger).toFixed(1) + '°'
+								? 'AUTO ' + tConv(Number(trigger)).toFixed(1) + '°'
 								: 'AUTO';
 							modeEl.classList.add('mode-badge--pid');
 						} else if (mode === 'manual') {
@@ -1825,31 +1859,160 @@ const tempSeries = {
 						}
 					}
 
+					// ── Temperature unit (°C / °F) ──────────────────────────────────
+					// All internal math stays in Celsius; we only convert at display
+					// time and convert back to Celsius before sending to the backend.
+					window._tempUnit = (localStorage.getItem('sakeTempUnit') === 'F') ? 'F' : 'C';
+					window.tUnitLabel  = function () { return window._tempUnit === 'F' ? '°F' : '°C'; };
+					window.tConv       = function (c) { // °C → display
+						if (c == null || isNaN(c)) return c;
+						return window._tempUnit === 'F' ? (c * 9/5 + 32) : c;
+					};
+					window.tConvFrom   = function (v) { // display → °C
+						if (v == null || isNaN(v)) return v;
+						return window._tempUnit === 'F' ? ((v - 32) * 5/9) : v;
+					};
+					window.tConvDelta  = function (c) { // °C delta → display delta
+						if (c == null || isNaN(c)) return c;
+						return window._tempUnit === 'F' ? c * 9/5 : c;
+					};
+					window.tConvDeltaFrom = function (v) { // display delta → °C delta
+						if (v == null || isNaN(v)) return v;
+						return window._tempUnit === 'F' ? v / (9/5) : v;
+					};
+
 					// Apply initial unit labels
 					applyWeightUnit();
 
-					// Toggle handler — click the unit label to switch
-					(function () {
-						var unitEl = document.getElementById('ew-weight-unit');
-						if (!unitEl) return;
-						unitEl.addEventListener('click', function () {
-							weightUnit = weightUnit === 'lbs' ? 'kg' : 'lbs';
-							try { localStorage.setItem('sakeWeightUnit', weightUnit); } catch (e) {}
-							applyWeightUnit();
-							// Recompute chart data in new unit
-							for (var i = 0; i < rawWeightData.length; i++) {
-								weightData[i] = rawWeightData[i] !== null
-									? wConv(rawWeightData[i] - weightTare)
-									: null;
-							}
-							// Update chart axis label and dataset label
-							if (window._weightChart) {
-								window._weightChart.options.scales.y.title.text = 'Weight (' + wUnitLabel() + ')';
-								window._weightChart.data.datasets[0].label = 'Weight (' + wUnitLabel() + ')';
-								window._weightChart.update('none');
-							}
+					// Re-bind onto window so the settings modal (customize.js) can drive
+					// weight unit changes in real time. The settings handler writes
+					// `sakeWeightUnit` to localStorage before invoking this; we just
+					// re-read, refresh labels, and recompute the chart series.
+					window.applyWeightUnit = function () {
+						var stored = localStorage.getItem('sakeWeightUnit') || 'lbs';
+						weightUnit = (stored === 'kg') ? 'kg' : 'lbs';
+						applyWeightUnit();
+						// Recompute chart data in new unit
+						for (var i = 0; i < rawWeightData.length; i++) {
+							weightData[i] = rawWeightData[i] !== null
+								? wConv(rawWeightData[i] - weightTare)
+								: null;
+						}
+						if (window._weightChart) {
+							window._weightChart.options.scales.y.title.text = 'Weight (' + wUnitLabel() + ')';
+							window._weightChart.data.datasets[0].label    = 'Weight (' + wUnitLabel() + ')';
+							window._weightChart.update('none');
+						}
+					};
+
+					// Refresh every temperature display on the dashboard.
+					// Reads `sakeTempUnit` from localStorage, updates the in-memory
+					// `window._tempUnit`, then re-renders zone temp cards, setpoint rows,
+					// env stat cards, the temp chart Y-axis, the open zone-detail modal,
+					// and the chart modal if it's currently showing temp/env.
+					window.applyTempUnit = function () {
+						var stored = localStorage.getItem('sakeTempUnit');
+						window._tempUnit = (stored === 'F') ? 'F' : 'C';
+						var unitLbl = window.tUnitLabel();
+
+						// Static unit labels next to zone temp values
+						document.querySelectorAll('.zone-combined .temp__unit').forEach(function (el) {
+							el.textContent = unitLbl;
 						});
-					})();
+						// Env quick-view stat cards (Room Temp, Wet Bulb)
+						var rtUnit = document.querySelector('.ew-stat-card--roomtemp .ew-stat-card__unit');
+						if (rtUnit) rtUnit.textContent = unitLbl;
+						var wbUnit = document.querySelector('.ew-stat-card--wetbulb .ew-stat-card__unit');
+						if (wbUnit) wbUnit.textContent = unitLbl;
+						// Zone detail modal labels
+						var zdcUnit = document.querySelector('#zone-detail-card .zone-detail-card__temp-unit');
+						if (zdcUnit) zdcUnit.innerHTML = unitLbl;
+						var zdcWetWrap = document.querySelector('#zone-detail-card .zone-detail-card__temp-label');
+						if (zdcWetWrap) {
+							// Rebuild "wet-bulb: <span> °C" while preserving the live span
+							var wetSpan = document.getElementById('zdc-wet-temp');
+							zdcWetWrap.innerHTML = 'wet-bulb: <span id="zdc-wet-temp">' + (wetSpan ? wetSpan.textContent : '--') + '</span> ' + unitLbl;
+						}
+						var zdcSpLbl = document.querySelector('label[for="zdc-setpoint"]');
+						if (zdcSpLbl) zdcSpLbl.innerHTML = 'Setpoint (' + unitLbl + ')';
+						var zdcTolLbl = document.querySelector('label[for="zdc-tolerance"]');
+						if (zdcTolLbl) zdcTolLbl.innerHTML = 'Tolerance (' + unitLbl + ')';
+						var zdcTrigUnit = document.getElementById('zdc-trigger-unit');
+						if (zdcTrigUnit) zdcTrigUnit.innerHTML = unitLbl;
+
+						// Re-render zone temp numbers (uses current cached values)
+						if (typeof window.updateTemperatureDisplay === 'function') {
+							try { window.updateTemperatureDisplay(); } catch (e) {}
+						}
+						// Re-render env stat card values from latest sample
+						var lastSht = (typeof shtTempData !== 'undefined' && shtTempData.length) ? shtTempData[shtTempData.length - 1] : null;
+						var rtVal = document.getElementById('ew-roomtemp-val');
+						if (rtVal) rtVal.textContent = (lastSht != null && !isNaN(lastSht)) ? window.tConv(lastSht).toFixed(1) : '—';
+						var lastWb = (typeof wetBulbData !== 'undefined' && wetBulbData.length) ? wetBulbData[wetBulbData.length - 1] : null;
+						var wbVal = document.getElementById('ew-wetbulb-val');
+						if (wbVal) wbVal.textContent = (lastWb != null) ? window.tConv(lastWb).toFixed(1) : '—';
+
+						// Re-render fan badge AUTO trigger text + setpoint rows
+						if (window._lastFanState && window._applyFanBadgesExt) {
+							window._applyFanBadgesExt(window._lastFanState);
+						}
+
+						// tempChart Y-axis title + recompute XY series from °C source so the
+						// chart axis re-scales into the new unit.
+						if (window._tempChart) {
+							window._tempChart.options.scales.y.title.text = 'Temperature (' + unitLbl + ')';
+							if (window._dashTempSeries && window._tempChart.data && window._tempChart.data.datasets) {
+								window._tempChart.data.datasets.forEach(function (ds) {
+									if (ds._isTarget) {
+										// Target dataset y-values are also stored in display unit;
+										// recompute by re-running addTargetDatasets if available.
+										if (window._refreshProjection) {
+											try { window._refreshProjection(); } catch (e) {}
+										}
+										return;
+									}
+									var key = (ds.label || '').toLowerCase().replace(' ', ''); // "Zone 1" -> "zone1"
+									// Datasets are in zone order — derive index from position
+								});
+								// Simpler: walk datasets[0..5] which correspond to temp1..temp6
+								for (var di = 0; di < 6; di++) {
+									var ds = window._tempChart.data.datasets[di];
+									if (!ds || ds._isTarget) continue;
+									var srcKey = 'temp' + (di + 1);
+									var srcArr = window._dashTempSeries[srcKey] || [];
+									var dstArr = ds.data;
+									for (var j = 0; j < dstArr.length && j < srcArr.length; j++) {
+										if (dstArr[j] && typeof dstArr[j] === 'object') {
+											var rawC = srcArr[j];
+											dstArr[j].y = (rawC != null && !isNaN(rawC)) ? window.tConv(rawC) : null;
+										}
+									}
+								}
+							}
+							window._tempChart.update('none');
+						}
+						// chart modal Y-axis (if currently open with temp/env)
+						if (window._refreshChartModal) window._refreshChartModal();
+
+						// If the zone-detail modal is open, refresh its inputs / live temp
+						if (window._getActiveZone && window._getActiveZone() != null) {
+							var az = window._getActiveZone();
+							var dryEl = document.getElementById('temp-' + az + '-dry');
+							var zdcTemp = document.getElementById('zdc-temp');
+							if (dryEl && zdcTemp) zdcTemp.textContent = dryEl.textContent;
+							if (window._reloadZoneControls) window._reloadZoneControls(az);
+						}
+					};
+
+					// Listen for unit changes broadcast from the settings modal
+					window.addEventListener('sake-units-changed', function () {
+						if (typeof window.applyWeightUnit === 'function') window.applyWeightUnit();
+						if (typeof window.applyTempUnit   === 'function') window.applyTempUnit();
+					});
+
+					// Apply persisted temperature unit on initial load (after layout settles
+					// so all label sites are present in the DOM)
+					setTimeout(function () { try { window.applyTempUnit(); } catch (e) {} }, 0);
 
 					// Wet-bulb via psychrometric equation + Newton-Raphson iteration.
 					// More accurate than Stull (2011) at high RH (>85 %) and T > 35 °C (koji conditions).
@@ -1947,7 +2110,7 @@ const tempSeries = {
 									grid: { color: getThemeColors().grid }
 								},
 								y: {
-									title: { display: true, text: 'Temperature (°C)', color: getThemeColors().tick },
+									title: { display: true, text: 'Temperature (' + (typeof window.tUnitLabel === 'function' ? window.tUnitLabel() : '°C') + ')', color: getThemeColors().tick },
 									ticks: { color: getThemeColors().tick },
 									grid: { color: getThemeColors().grid }
 								}
@@ -2186,11 +2349,15 @@ const tempSeries = {
 						window._sampleElapsedMin = _elapsedMinNum;
 						if (window._chartElapsedMins) window._chartElapsedMins.push(_elapsedMinNum);
 
-						// Push {x, y} to tempSeriesXY for the linear-axis tempChart
+						// Push {x, y} to tempSeriesXY for the linear-axis tempChart.
+						// XY y-values are stored in the *display* unit so the chart's Y-axis
+						// scale matches the unit-toggle. tempSeries (above) stays in °C —
+						// it's the source of truth used by the modal, zone cards, etc.
+						var _xyConv = (typeof window.tConv === 'function') ? window.tConv : function (v) { return v; };
 						for (let i = 1; i <= 6; i++) {
 							const key = `temp${i}`;
 							const raw = tempSeries[key][tempSeries[key].length - 1]; // already pushed above
-							tempSeriesXY[key].push({ x: _elapsedMinNum, y: raw });
+							tempSeriesXY[key].push({ x: _elapsedMinNum, y: (raw != null ? _xyConv(raw) : null) });
 						}
 
 						// fans (optional)
@@ -2240,11 +2407,12 @@ const tempSeries = {
 							var wbEl = document.getElementById('ew-wetbulb-val');
 							var wtEl = document.getElementById('ew-weight-val');
 							var wlEl = document.getElementById('ew-weight-loss-val');
-							if (rtEl) rtEl.textContent = (shtVal != null && !isNaN(shtVal)) ? shtVal.toFixed(1) : '—';
+							var _tConv = (typeof window.tConv === 'function') ? window.tConv : function (v) { return v; };
+							if (rtEl) rtEl.textContent = (shtVal != null && !isNaN(shtVal)) ? _tConv(shtVal).toFixed(1) : '—';
 							if (hEl) hEl.textContent = (!isNaN(humVal) && humVal != null) ? humVal.toFixed(1) : '—';
 							if (wbEl) {
 								var wb = wetBulbData.length ? wetBulbData[wetBulbData.length - 1] : null;
-								wbEl.textContent = wb != null ? wb.toFixed(1) : '—';
+								wbEl.textContent = wb != null ? _tConv(wb).toFixed(1) : '—';
 							}
 							if (wtEl) {
 								var wDisplay = wConv(wRaw);
@@ -2527,10 +2695,11 @@ const tempSeries = {
 					function computeAutoYRange(type, s, e) {
 						if (type === 'fans') return { min: -0.1, max: 1.1 };
 						if (type === 'env') return { min: 0, max: 100 }; // humidity axis; temp axis is auto
+						var _tConv = (typeof window.tConv === 'function') ? window.tConv : function (v) { return v; };
 						let vals = [];
 						if (type === 'temp') {
 							Object.values(tempSeries).forEach(arr => {
-								vals = vals.concat(arr.slice(s, e).filter(v => v != null));
+								vals = vals.concat(arr.slice(s, e).filter(v => v != null).map(_tConv));
 							});
 						} else if (type === 'humidity') {
 							vals = humidityData.slice(s, e).filter(v => v != null);
@@ -2553,8 +2722,12 @@ const tempSeries = {
 					}
 
 					function buildDatasets(type, s, e) {
+						var _conv = (typeof window.tConv === 'function') ? window.tConv : function (v) { return v; };
+						var _convArr = function (arr) {
+							return arr.map(function (v) { return (v != null && !isNaN(v)) ? _conv(v) : v; });
+						};
 						if (type === 'temp') {
-							// Actual zone datasets
+							// Actual zone datasets — convert to current temp unit
 							const zoneDs = Object.keys(tempSeries).map((key, idx) => ({
 								label: tempChart.data.datasets[idx] ? tempChart.data.datasets[idx].label : ('Zone ' + (idx+1)),
 								borderColor: getDatasetColors('temp', idx),
@@ -2562,7 +2735,7 @@ const tempSeries = {
 								borderWidth: 1.5,
 								pointRadius: 0,
 								tension: 0.3,
-								data: tempSeries[key].slice(s, e)
+								data: _convArr(tempSeries[key].slice(s, e))
 							}));
 
 							// Single shared target line
@@ -2594,7 +2767,9 @@ const tempSeries = {
 									pointRadius: 0,
 									tension: 0.3,
 									order: -1,
-									data: sliceElMins.map(interpTarget)
+									data: sliceElMins.map(interpTarget).map(function (v) {
+										return (v != null && !isNaN(v)) ? _conv(v) : v;
+									})
 								});
 							}
 
@@ -2620,11 +2795,12 @@ const tempSeries = {
 								data: fansSeries[key].slice(s, e)
 							}));
 						} else if (type === 'env') {
+							var _envUnit = (typeof window.tUnitLabel === 'function') ? window.tUnitLabel() : '°C';
 							return [
-								{ label: 'Dry Bulb (°C)', data: shtTempData.slice(s, e), yAxisID: 'yTemp',
+								{ label: 'Dry Bulb (' + _envUnit + ')', data: _convArr(shtTempData.slice(s, e)), yAxisID: 'yTemp',
 								  borderColor: '#f0a040', backgroundColor: 'transparent',
 								  borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
-								{ label: 'Wet Bulb (°C)', data: wetBulbData.slice(s, e), yAxisID: 'yTemp',
+								{ label: 'Wet Bulb (' + _envUnit + ')', data: _convArr(wetBulbData.slice(s, e)), yAxisID: 'yTemp',
 								  borderColor: '#40c0d0', backgroundColor: 'transparent',
 								  borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
 								{ label: 'Humidity (%)', data: humidityData.slice(s, e), yAxisID: 'yHum',
@@ -2666,8 +2842,20 @@ const tempSeries = {
 							modalChart.options.scales.y.min = modalChartType === 'fans' ? -0.1 : min;
 							modalChart.options.scales.y.max = modalChartType === 'fans' ? 1.1 : max;
 						}
+						// Refresh Y-axis title for temp/env so it tracks the current temp unit
+						var _tu = (typeof window.tUnitLabel === 'function') ? window.tUnitLabel() : '°C';
+						if (modalChartType === 'temp' && modalChart.options.scales.y && modalChart.options.scales.y.title) {
+							modalChart.options.scales.y.title.text = 'Temp (' + _tu + ')';
+						}
+						if (modalChartType === 'env' && modalChart.options.scales.yTemp && modalChart.options.scales.yTemp.title) {
+							modalChart.options.scales.yTemp.title.text = 'Temp (' + _tu + ')';
+						}
 						modalChart.update('none');
 					}
+					// Expose so applyTempUnit can refresh datasets when units change while open
+					window._refreshChartModal = function () {
+						if (chartModal && chartModal.classList.contains('is-open')) refreshModalChart();
+					};
 
 					function openChartModal(type) {
 						if (!chartModal || !chartModalCanvas) return;
@@ -2680,7 +2868,8 @@ const tempSeries = {
 						const { min: autoMin, max: autoMax } = computeAutoYRange(type, s, e);
 
 						let yTitle = '';
-						if (type === 'temp') { chartModalTitle.textContent = 'Temperature over time'; yTitle = 'Temp (°C)'; }
+						var _tUnit = (typeof window.tUnitLabel === 'function') ? window.tUnitLabel() : '°C';
+						if (type === 'temp') { chartModalTitle.textContent = 'Temperature over time'; yTitle = 'Temp (' + _tUnit + ')'; }
 						else if (type === 'humidity') { chartModalTitle.textContent = 'Humidity over time'; yTitle = 'Humidity (%)'; }
 						else if (type === 'fans') { chartModalTitle.textContent = 'Fans on/off over time'; yTitle = 'Fan state'; }
 						else if (type === 'env') { chartModalTitle.textContent = 'Environment (Dry Bulb / Wet Bulb / Humidity)'; yTitle = ''; }
@@ -2691,7 +2880,7 @@ const tempSeries = {
 						const envScales = type === 'env' ? {
 							x: { ticks: { color: _mc.tick, autoSkip: true, maxTicksLimit: 12 }, grid: { color: _mc.grid } },
 							yTemp: { type: 'linear', position: 'left', ticks: { color: _mc.tick }, grid: { color: _mc.grid },
-								title: { display: true, text: 'Temp (°C)', color: _mc.tick } },
+								title: { display: true, text: 'Temp (' + _tUnit + ')', color: _mc.tick } },
 							yHum: { type: 'linear', position: 'right', min: 0, max: 100,
 								ticks: { color: '#7070e0' }, grid: { drawOnChartArea: false },
 								title: { display: true, text: 'Humidity (%)', color: '#7070e0' } }
@@ -2978,6 +3167,9 @@ const tempSeries = {
 						// Bail if the user already switched/closed the modal — prevents a
 						// stale fetch from overwriting the new zone's UI.
 						if (zone !== activeZone) return;
+						var tConv  = (typeof window.tConv  === 'function') ? window.tConv  : function (v) { return v; };
+						var tConvD = (typeof window.tConvDelta === 'function') ? window.tConvDelta : function (v) { return v; };
+						var inF = (window._tempUnit === 'F');
 						// Fetch fan state, zone config, and latest sensor reading in parallel
 						Promise.all([
 							fetch('/api/fan-state').then(function(r) { return r.ok ? r.json() : {}; }),
@@ -2995,34 +3187,44 @@ const tempSeries = {
 
 							// Setpoint — read-only ONLY when a curve is actively driving it,
 							// editable when source is config (or no source yet).
+							// Backend value is °C; convert to current display unit for the input.
 							var curveDriven = zd.setpoint_source === 'curve';
 							if (setpointInput) {
-								setpointInput.value = curveDriven
-									? (zd.setpoint != null ? Number(zd.setpoint).toFixed(1) : '')
-									: (zcfg.setpoint_c != null
-										? Number(zcfg.setpoint_c).toFixed(1)
-										: (zd.setpoint != null ? Number(zd.setpoint).toFixed(1) : ''));
+								var spC = curveDriven
+									? (zd.setpoint != null ? Number(zd.setpoint) : null)
+									: (zcfg.setpoint_c != null ? Number(zcfg.setpoint_c)
+										: (zd.setpoint != null ? Number(zd.setpoint) : null));
+								setpointInput.value = (spC != null) ? tConv(spC).toFixed(1) : '';
+								// Adjust min/max/step to match display unit
+								setpointInput.min  = inF ? '32'  : '0';
+								setpointInput.max  = inF ? '140' : '60';
+								setpointInput.step = '0.5';
 								setpointInput.readOnly = curveDriven;
 								setpointInput.disabled = curveDriven;
 								setpointInput.style.opacity = curveDriven ? '0.55' : '1';
-								setpointInput.placeholder = curveDriven ? 'From curve' : 'e.g. 38.0';
+								setpointInput.placeholder = curveDriven ? 'From curve' : (inF ? 'e.g. 100.4' : 'e.g. 38.0');
 							}
 							if (setpointApply) setpointApply.disabled = curveDriven;
 
-							// Tolerance — editable per zone
-							if (toleranceInput && zcfg.tolerance_c != null) toleranceInput.value = zcfg.tolerance_c;
+							// Tolerance — editable per zone (delta in °C; show as display delta)
+							if (toleranceInput && zcfg.tolerance_c != null) {
+								toleranceInput.value = tConvD(Number(zcfg.tolerance_c)).toFixed(2);
+								toleranceInput.min  = '0';
+								toleranceInput.max  = inF ? '18' : '10';
+								toleranceInput.step = '0.1';
+							}
 
-							// Trigger = setpoint + tolerance
-							if (triggerVal) triggerVal.textContent = zd.trigger != null ? Number(zd.trigger).toFixed(1) : '--';
+							// Trigger = setpoint + tolerance (°C from backend → display)
+							if (triggerVal) triggerVal.textContent = zd.trigger != null ? tConv(Number(zd.trigger)).toFixed(1) : '--';
 
-							// Wet-bulb (from live sensor reading)
+							// Wet-bulb (from live sensor reading) — display in current temp unit
 							var wetEl = document.getElementById('zdc-wet-temp');
 							if (wetEl) {
 								var tcVal = latest['tc' + zone] != null ? parseFloat(latest['tc' + zone]) : null;
 								var rhVal = latest.humidity     != null ? parseFloat(latest.humidity)     : null;
 								var wb = (window._calcWetBulb && tcVal != null && rhVal != null)
 									? window._calcWetBulb(tcVal, rhVal) : null;
-								wetEl.textContent = wb != null ? wb.toFixed(1) : '--';
+								wetEl.textContent = wb != null ? tConv(wb).toFixed(1) : '--';
 							}
 
 							// Alarm banner — driven by zd.alarm_level / zd.alarm_reason from fan_state.json.
@@ -3049,16 +3251,20 @@ const tempSeries = {
 						}).catch(function() {});
 					}
 
-					// Setpoint apply — save manual setpoint to zone_config (used when no curve is active)
+					// Setpoint apply — save manual setpoint to zone_config (used when no curve is active).
+					// Input is in the displayed unit; convert back to °C before sending —
+					// the backend always stores Celsius.
 					if (setpointApply) setpointApply.addEventListener('click', function() {
-						var sp = parseFloat(setpointInput.value);
-						if (isNaN(sp) || sp < 0 || sp > 60) return;
+						var raw = parseFloat(setpointInput.value);
+						if (isNaN(raw)) return;
+						var spC = (typeof window.tConvFrom === 'function') ? window.tConvFrom(raw) : raw;
+						if (isNaN(spC) || spC < 0 || spC > 60) return;
 						// Send only the changed key — the server deep-merges, so we
 						// don't need to GET-then-POST the whole file (which raced
 						// with concurrent saves and clobbered other zones if the
 						// GET ever returned an empty body).
 						var partial = {};
-						partial['zone' + activeZone] = { setpoint_c: sp };
+						partial['zone' + activeZone] = { setpoint_c: Number(spC.toFixed(2)) };
 						fetch('/api/zone-config', {
 							method: 'POST',
 							headers: { 'Content-Type': 'application/json' },
@@ -3079,12 +3285,16 @@ const tempSeries = {
 							.catch(function(e) { console.warn('Setpoint save failed:', e); });
 					});
 
-					// Tolerance apply — PATCH zone_config via /api/zone-config
+					// Tolerance apply — PATCH zone_config via /api/zone-config.
+					// Input is a delta in the displayed unit; convert back to °C delta
+					// (divide by 9/5 when in °F) before sending — backend stores °C.
 					if (toleranceApply) toleranceApply.addEventListener('click', function() {
-						var tol = parseFloat(toleranceInput.value);
-						if (isNaN(tol) || tol < 0 || tol > 10) return;
+						var rawTol = parseFloat(toleranceInput.value);
+						if (isNaN(rawTol) || rawTol < 0) return;
+						var tolC = (typeof window.tConvDeltaFrom === 'function') ? window.tConvDeltaFrom(rawTol) : rawTol;
+						if (isNaN(tolC) || tolC < 0 || tolC > 10) return;
 						var partial = {};
-						partial['zone' + activeZone] = { tolerance_c: tol };
+						partial['zone' + activeZone] = { tolerance_c: Number(tolC.toFixed(3)) };
 						fetch('/api/zone-config', {
 							method: 'POST',
 							headers: { 'Content-Type': 'application/json' },
@@ -3237,8 +3447,9 @@ const tempSeries = {
 					};
 
 					// Expose for elapsed toggle and time-window callbacks in other IIFEs
-					window._openZdcCard    = openCard;
-					window._getActiveZone  = function () { return activeZone; };
+					window._openZdcCard       = openCard;
+					window._getActiveZone     = function () { return activeZone; };
+					window._reloadZoneControls = loadZoneControls;
 				})();
 
 
@@ -5254,18 +5465,157 @@ const tempSeries = {
 	</script>
 
 	<script>
+	// ── Bulk Setpoints modal ────────────────────────────────────────────────
+	// Card click → fetch /api/zone-config → render six rows (per-zone setpoint + tolerance)
+	// → Apply All fires six parallel POSTs to /api/zone-config (same partial-merge contract
+	//   as the per-zone Apply button in the zone-detail modal). Inputs use the displayed
+	//   temperature unit; the handler converts back to °C before sending so the backend
+	//   always receives Celsius (setpoint absolute, tolerance as °C delta).
 	(function () {
-		var btn = document.getElementById('e-stop-btn');
-		if (!btn) return;
-		btn.addEventListener('click', function () {
-			if (!confirm('EMERGENCY STOP — turn off ALL fans?')) return;
-			var runId = window._runId || localStorage.getItem('currentRunId');
-			if (!runId) { alert('No active run'); return; }
-			btn.disabled = true;
-			fetch('/api/runs/' + runId + '/emergency-stop', { method: 'POST' })
-				.then(function (r) { return r.json(); })
-				.then(function () { btn.disabled = false; })
-				.catch(function () { btn.disabled = false; alert('Stop failed — check server'); });
+		var card    = document.getElementById('ew-update-setpoints-card');
+		var modal   = document.getElementById('update-setpoints-modal');
+		var grid    = document.getElementById('usp-zones-grid');
+		var closeBtn = document.getElementById('update-setpoints-close');
+		var cancelBtn = document.getElementById('usp-cancel-btn');
+		var applyBtn = document.getElementById('usp-apply-all-btn');
+		var statusEl = document.getElementById('usp-status');
+		if (!card || !modal || !grid) return;
+
+		function unitLbl()    { return (typeof window.tUnitLabel === 'function') ? window.tUnitLabel() : '°C'; }
+		function convDisp(c)  { return (typeof window.tConv === 'function') ? window.tConv(c) : c; }
+		function convFromDisp(v)      { return (typeof window.tConvFrom === 'function') ? window.tConvFrom(v) : v; }
+		function convDeltaFromDisp(v) { return (typeof window.tConvDeltaFrom === 'function') ? window.tConvDeltaFrom(v) : v; }
+		function convDelta(c)         { return (typeof window.tConvDelta === 'function') ? window.tConvDelta(c) : c; }
+
+		function buildRows(currentCfg) {
+			var inF = (window._tempUnit === 'F');
+			var spMin = inF ? '32'  : '0';
+			var spMax = inF ? '140' : '60';
+			var tolMax = inF ? '18' : '10';
+			var u = unitLbl();
+			var html = '';
+			for (var z = 1; z <= 6; z++) {
+				var cfg = currentCfg['zone' + z] || {};
+				var spC  = (cfg.setpoint_c  != null) ? Number(cfg.setpoint_c)  : null;
+				var tolC = (cfg.tolerance_c != null) ? Number(cfg.tolerance_c) : null;
+				var spDisp  = (spC  != null) ? convDisp(spC).toFixed(1)  : '';
+				var tolDisp = (tolC != null) ? convDelta(tolC).toFixed(2) : '';
+				var hint = '';
+				if (spC != null) {
+					hint = 'Current: ' + convDisp(spC).toFixed(1) + u +
+						(tolC != null ? ' ±' + convDelta(tolC).toFixed(2) : '');
+				} else {
+					hint = 'No setpoint configured';
+				}
+				html +=
+					'<div class="set-temp-zone-row" data-zone="' + z + '" style="display:grid;grid-template-columns:auto 1fr 1fr;gap:8px;align-items:center;padding:6px 0;">' +
+						'<span class="set-temp-zone-label" style="min-width:60px;">Zone ' + z + '</span>' +
+						'<label style="display:flex;flex-direction:column;gap:2px;font-size:0.72rem;color:var(--color-text-2);">' +
+							'Setpoint (' + u + ')' +
+							'<input type="number" class="usp-sp set-temp-zone-input" data-zone="' + z + '" min="' + spMin + '" max="' + spMax + '" step="0.5" value="' + spDisp + '" placeholder="' + (inF ? '100.4' : '38.0') + '" />' +
+						'</label>' +
+						'<label style="display:flex;flex-direction:column;gap:2px;font-size:0.72rem;color:var(--color-text-2);">' +
+							'Tolerance (' + u + ')' +
+							'<input type="number" class="usp-tol set-temp-zone-input" data-zone="' + z + '" min="0" max="' + tolMax + '" step="0.1" value="' + tolDisp + '" placeholder="' + (inF ? '1.8' : '1.0') + '" />' +
+						'</label>' +
+						'<span class="usp-hint" data-zone="' + z + '" style="grid-column:1 / -1;font-size:0.7rem;color:var(--color-text-3);">' + hint + '</span>' +
+						'<span class="usp-result" data-zone="' + z + '" style="grid-column:1 / -1;font-size:0.7rem;"></span>' +
+					'</div>';
+			}
+			grid.innerHTML = html;
+		}
+
+		function openModal() {
+			if (statusEl) statusEl.textContent = 'Loading current setpoints…';
+			grid.innerHTML = '';
+			fetch('/api/zone-config')
+				.then(function (r) { return r.ok ? r.json() : {}; })
+				.then(function (cfg) {
+					buildRows(cfg || {});
+					if (statusEl) statusEl.textContent = '';
+				})
+				.catch(function () {
+					buildRows({});
+					if (statusEl) statusEl.textContent = 'Could not load current setpoints — values blank.';
+				});
+			modal.classList.add('is-open');
+		}
+
+		function closeModal() { modal.classList.remove('is-open'); }
+
+		function applyAll() {
+			var rows = grid.querySelectorAll('[data-zone]');
+			if (!rows.length) return;
+			applyBtn.disabled = true;
+			statusEl.textContent = 'Saving…';
+			grid.querySelectorAll('.usp-result').forEach(function (el) { el.textContent = ''; });
+			var jobs = [];
+			for (var z = 1; z <= 6; z++) {
+				(function (zone) {
+					var spInp  = grid.querySelector('.usp-sp[data-zone="'  + zone + '"]');
+					var tolInp = grid.querySelector('.usp-tol[data-zone="' + zone + '"]');
+					var resEl  = grid.querySelector('.usp-result[data-zone="' + zone + '"]');
+					var partial = {};
+					var changes = {};
+					if (spInp && spInp.value !== '') {
+						var spRaw = parseFloat(spInp.value);
+						if (!isNaN(spRaw)) {
+							var spC = convFromDisp(spRaw);
+							if (!isNaN(spC) && spC >= 0 && spC <= 60) changes.setpoint_c = Number(spC.toFixed(2));
+						}
+					}
+					if (tolInp && tolInp.value !== '') {
+						var tolRaw = parseFloat(tolInp.value);
+						if (!isNaN(tolRaw) && tolRaw >= 0) {
+							var tolC = convDeltaFromDisp(tolRaw);
+							if (!isNaN(tolC) && tolC >= 0 && tolC <= 10) changes.tolerance_c = Number(tolC.toFixed(3));
+						}
+					}
+					if (!Object.keys(changes).length) {
+						if (resEl) { resEl.textContent = 'No changes.'; resEl.style.color = 'var(--color-text-3)'; }
+						return;
+					}
+					partial['zone' + zone] = changes;
+					jobs.push(
+						fetch('/api/zone-config', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify(partial)
+						})
+						.then(function (r) {
+							if (!r.ok) throw new Error(r.status);
+							if (resEl) { resEl.textContent = 'Saved.'; resEl.style.color = 'var(--color-success-hover, #2a8)'; }
+						})
+						.catch(function (err) {
+							if (resEl) { resEl.textContent = 'Failed (' + err.message + ').'; resEl.style.color = 'var(--color-critical, #c33)'; }
+						})
+					);
+				})(z);
+			}
+			Promise.allSettled(jobs).then(function () {
+				applyBtn.disabled = false;
+				statusEl.textContent = 'Done. Fan-state will reflect changes within ~10 s.';
+				// Refresh fan-state badges + zone card setpoint rows now
+				setTimeout(function () {
+					fetch('/api/fan-state').then(function (r) { return r.ok ? r.json() : {}; })
+						.then(function (d) {
+							if (window._applyFanBadgesExt) window._applyFanBadgesExt(d);
+							if (window.applyDeviationColors) window.applyDeviationColors();
+						}).catch(function () {});
+				}, 1500);
+			});
+		}
+
+		card.addEventListener('click', openModal);
+		card.addEventListener('keydown', function (e) {
+			if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal(); }
+		});
+		if (closeBtn)  closeBtn.addEventListener('click', closeModal);
+		if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+		if (applyBtn)  applyBtn.addEventListener('click', applyAll);
+		modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+		document.addEventListener('keydown', function (e) {
+			if (e.key === 'Escape' && modal.classList.contains('is-open')) closeModal();
 		});
 	})();
 	</script>

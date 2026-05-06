@@ -214,6 +214,10 @@
   let customBrand  = localStorage.getItem('ss-custom-brand')  || '#d40000';
   let customAccent = localStorage.getItem('ss-custom-accent') || '#157efb';
 
+  // Display unit prefs — drive dashboard converters via window.applyWeightUnit / window.applyTempUnit
+  let weightUnit = (localStorage.getItem('sakeWeightUnit') === 'kg') ? 'kg' : 'lbs';
+  let tempUnit   = (localStorage.getItem('sakeTempUnit')   === 'F')  ? 'F'  : 'C';
+
   // Temp-state color vars for dark-background themes.
   // The CSS sheet only overrides these for [data-theme='dark']; all other dark
   // themes would fall back to the light :root defaults without this.
@@ -332,6 +336,26 @@
             '</div>' +
           '</div>' +
 
+          '<div class="settings-section">' +
+            '<div class="settings-section__label">Display Units</div>' +
+            '<div class="settings-units-row">' +
+              '<div class="settings-units-group">' +
+                '<span class="settings-units-group__label">Weight</span>' +
+                '<div class="settings-units-segmented" role="group" aria-label="Weight unit">' +
+                  '<button type="button" class="settings-units-seg' + (weightUnit === 'lbs' ? ' settings-units-seg--active' : '') + '" data-weight="lbs" aria-pressed="' + (weightUnit === 'lbs') + '">lbs</button>' +
+                  '<button type="button" class="settings-units-seg' + (weightUnit === 'kg'  ? ' settings-units-seg--active' : '') + '" data-weight="kg"  aria-pressed="' + (weightUnit === 'kg')  + '">kg</button>' +
+                '</div>' +
+              '</div>' +
+              '<div class="settings-units-group">' +
+                '<span class="settings-units-group__label">Temperature</span>' +
+                '<div class="settings-units-segmented" role="group" aria-label="Temperature unit">' +
+                  '<button type="button" class="settings-units-seg' + (tempUnit === 'C' ? ' settings-units-seg--active' : '') + '" data-temp="C" aria-pressed="' + (tempUnit === 'C') + '">&deg;C</button>' +
+                  '<button type="button" class="settings-units-seg' + (tempUnit === 'F' ? ' settings-units-seg--active' : '') + '" data-temp="F" aria-pressed="' + (tempUnit === 'F') + '">&deg;F</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+
           (hasDashboardSettings
             ? '<div class="settings-section">' +
                 '<div class="settings-section__label">Run</div>' +
@@ -384,6 +408,40 @@
       });
     }
 
+    // Display unit segmented controls
+    overlay.querySelectorAll('.settings-units-seg[data-weight]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var v = b.dataset.weight;
+        if (v !== 'lbs' && v !== 'kg') return;
+        if (v === weightUnit) return;
+        weightUnit = v;
+        try { localStorage.setItem('sakeWeightUnit', v); } catch (e) {}
+        overlay.querySelectorAll('.settings-units-seg[data-weight]').forEach(function (s) {
+          var on = s.dataset.weight === v;
+          s.classList.toggle('settings-units-seg--active', on);
+          s.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        if (typeof window.applyWeightUnit === 'function') window.applyWeightUnit();
+        window.dispatchEvent(new CustomEvent('sake-units-changed', { detail: { weightUnit: weightUnit, tempUnit: tempUnit } }));
+      });
+    });
+    overlay.querySelectorAll('.settings-units-seg[data-temp]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var v = b.dataset.temp;
+        if (v !== 'C' && v !== 'F') return;
+        if (v === tempUnit) return;
+        tempUnit = v;
+        try { localStorage.setItem('sakeTempUnit', v); } catch (e) {}
+        overlay.querySelectorAll('.settings-units-seg[data-temp]').forEach(function (s) {
+          var on = s.dataset.temp === v;
+          s.classList.toggle('settings-units-seg--active', on);
+          s.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        if (typeof window.applyTempUnit === 'function') window.applyTempUnit();
+        window.dispatchEvent(new CustomEvent('sake-units-changed', { detail: { weightUnit: weightUnit, tempUnit: tempUnit } }));
+      });
+    });
+
     // Run Settings button — delegates to dashboard's openSettings() if available
     var runSettingsBtn = overlay.querySelector('#run-settings-btn');
     if (runSettingsBtn) {
@@ -410,7 +468,24 @@
 
   // ---- Init ----
 
+  function injectUnitStyles() {
+    if (document.getElementById('settings-units-style')) return;
+    var style = document.createElement('style');
+    style.id = 'settings-units-style';
+    style.textContent =
+      '.settings-units-row{display:flex;flex-direction:column;gap:12px;}' +
+      '.settings-units-group{display:flex;flex-direction:column;gap:6px;}' +
+      '.settings-units-group__label{font-size:0.78rem;font-weight:600;color:var(--color-text-2);}' +
+      '.settings-units-segmented{display:flex;border:1.5px solid var(--color-border-strong);border-radius:var(--r-pill);overflow:hidden;background:var(--color-surface);}' +
+      '.settings-units-seg{flex:1;min-height:44px;padding:8px 12px;font-size:0.85rem;font-weight:600;color:var(--color-text-2);background:var(--color-surface);border:none;border-right:1px solid var(--color-border);cursor:pointer;font-family:inherit;transition:background var(--t),color var(--t);}' +
+      '.settings-units-seg:last-child{border-right:none;}' +
+      '.settings-units-seg:hover{background:var(--color-bg-subtle);}' +
+      '.settings-units-seg--active{background:var(--color-accent);color:var(--color-text-light,#fff);font-weight:700;}';
+    document.head.appendChild(style);
+  }
+
   function init() {
+    injectUnitStyles();
     applyTheme(currentTheme);
     buildModal();
     wireSettingsBtn();

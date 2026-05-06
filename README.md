@@ -28,7 +28,7 @@ This system controls mains-voltage equipment near food-contact surfaces. Before 
 - **Thermal:** Fans run hot under sustained load. The auto fan-control loop has no upper bound — a misconfigured `tolerance_c` of 0 will keep fans on indefinitely. Always set a sane tolerance (1–2 °C) and check the dashboard during the first hour of every new run.
 - **Food contact:** Only the load cell housing surface and the koji table top are food-contact. Use food-safe PETG or food-safe-coated PLA for the [STL parts](hardware/stl/), and sanitize between runs.
 - **Watchdog:** The systemd watchdog (60 s) will restart the server if it hangs, but it does **not** force fans off. The fans hold their last commanded state during a server crash. If you need a hard cutoff, kill power at the relay board.
-- **Emergency stop:** The dashboard's emergency-stop overrides all six zones to OFF until cleared. Use it before opening the table.
+- **Hard cutoff:** The dashboard no longer ships an in-page emergency-stop button. To force all fans OFF, kill power at the relay board, or POST to `/api/runs/<id>/emergency-stop` directly (the route still exists server-side).
 
 ## Quickstart
 
@@ -389,6 +389,8 @@ The main dashboard is designed for a wall-mounted display. It shows:
 - **Weight chart** — load cell readings updated every 30 seconds
 - **Humidity/ambient** — SHT30 environment readings
 - **Zone controls** — click any zone card to open fan overrides, rules, notes, and calibration
+- **Update Setpoints card** — opens a six-row modal for bulk-editing all zone setpoints and tolerances at once (parallel POSTs to `/api/zone-config`); replaces the old per-card unit toggle slot
+- **Display units** — open the gear (Settings) modal to switch weight between **lbs / kg** and temperature between **°C / °F**. Both preferences persist in `localStorage` (`sakeWeightUnit`, `sakeTempUnit`); changes apply live to every dashboard chart, stat card, zone card, and zone-detail modal. Internally the backend always stores Celsius — `°F` inputs are converted on send (and tolerance, being a delta, is divided by `9/5`).
 
 **Fan control modes:**
 
@@ -468,11 +470,11 @@ Front-end pollers (`fetchAndApply`, `fetchFanState`) carry an in-flight reentran
 
 The dashboard is the primary operator surface and aims for WCAG 2.1 AA on the controls that matter most for safe operation:
 
-- All icon-only buttons (settings gear, emergency stop, elapsed/clock toggle) have explicit `aria-label`s.
+- All icon-only buttons (settings gear, elapsed/clock toggle) have explicit `aria-label`s.
 - The fan-mode segmented control is a `role="group"` with `aria-pressed` mirroring the visual `--active` state, so screen readers announce the current selection.
 - The connection-lost banner is an `role="alert" aria-live="assertive"` region; sensor poll failures are announced.
 - All four metric canvases (temperature, humidity, fans, weight) have descriptive `aria-label`s.
-- Keyboard focus on every primary control surface (fan-mode segments, time-window buttons, STOP, settings) shows a 2 px outline via `:focus-visible` — outlines are painted outside the box, so layout doesn't shift.
+- Keyboard focus on every primary control surface (fan-mode segments, time-window buttons, settings) shows a 2 px outline via `:focus-visible` — outlines are painted outside the box, so layout doesn't shift.
 - `prefers-reduced-motion: reduce` disables transitions on interactive controls.
 
 ---
@@ -605,7 +607,7 @@ sudo systemctl restart smartsake
 1. Check the dashboard zone card for an active manual override or rule — clear it
 2. Verify relay logic is active-LOW (GPIO LOW = fan ON) — see `fan_gpio.py`
 3. If a relay is mechanically stuck, hard-cycle the relay board's 5V supply
-4. Use the dashboard's **emergency stop** to force all fans OFF, then diagnose
+4. Hit `POST /api/runs/<id>/emergency-stop` (e.g. `curl -X POST http://<pi>:8080/api/runs/$RUN/emergency-stop`) — or pull power at the relay board — to force all fans OFF, then diagnose
 
 ### Scale reads zero or drifts
 - Re-tare without recalibrating: `python3 load_cell_hx711.py --tare --scale N`
