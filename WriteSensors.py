@@ -6,6 +6,7 @@ import os
 import shutil
 import signal
 import statistics
+import sys
 import threading
 from collections import deque
 from datetime import datetime, timedelta
@@ -86,6 +87,11 @@ weight_state = {
 }
 _active_run_id = None
 _last_db_write_time: float = 0.0
+# Tracks the run_id we serviced on the previous loop iteration. Used to
+# distinguish "brand-new run" from "resuming the same run after restart"
+# even when there was a no-run gap in between (which would otherwise leave
+# _active_run_id == None and trick the legacy resuming heuristic).
+_last_serviced_run_id = None
 
 # ── Deviation detection state ─────────────────────────────────────────────────
 _deviation_tracking = {}
@@ -138,10 +144,10 @@ ZONE_CONFIG_FILE = os.path.join(_BASE_DIR, "zone_config.json")
 TC_ZONE_MAP_FILE = os.path.join(_BASE_DIR, "tc_zone_map.json")
 
 _zone_cfg       = {}
-_zone_cfg_mtime = 0.0
+_zone_cfg_mtime = 0  # ns precision via os.stat().st_mtime_ns
 
 _tc_zone_map       = {}
-_tc_zone_map_mtime = 0.0
+_tc_zone_map_mtime = 0
 
 _fan_hold_counts = {z: 0     for z in range(1, 7)}
 _fan_on          = {z: False for z in range(1, 7)}
@@ -151,6 +157,13 @@ _last_fan_setpoint_source = {z: None   for z in range(1, 7)}  # "curve" | "confi
 _last_fan_trigger         = {z: None   for z in range(1, 7)}
 _last_fan_alarm_level     = {z: None   for z in range(1, 7)}  # "warning" | "critical" | None
 _last_fan_alarm_reason    = {z: None   for z in range(1, 7)}
+
+# Tracks zones that had an active in-run (DB-backed) fan override on the
+# previous tick. When an override expires between ticks it disappears from
+# get_all_fan_overrides, so we use the diff (last - current) to know which
+# zones just transitioned back to auto and need their hysteresis cleared —
+# mirrors the no-run path in _purge_expired_no_run_overrides.
+_last_run_override_zones = set()
 
 # ── No-run manual overrides ──────────────────────────────────────────────────
 # When no run is active, users can still manually force fans on/off.
@@ -352,7 +365,7 @@ def _interp_target(profile_pts, elapsed_min):
 def _load_zone_config():
     global _zone_cfg, _zone_cfg_mtime
     try:
-        mtime = os.path.getmtime(ZONE_CONFIG_FILE)
+        mtime = os.stat(ZONE_CONFIG_FILE).st_mtime_ns
         if mtime != _zone_cfg_mtime:
             with open(ZONE_CONFIG_FILE) as f:
                 _zone_cfg = json.load(f)
@@ -367,7 +380,7 @@ def _hot_reload_tc_zone_map():
     """Re-read tc_zone_map.json if it changed on disk. Returns the current map dict."""
     global _tc_zone_map, _tc_zone_map_mtime
     try:
-        mtime = os.path.getmtime(TC_ZONE_MAP_FILE)
+        mtime = os.stat(TC_ZONE_MAP_FILE).st_mtime_ns
         if mtime != _tc_zone_map_mtime:
             with open(TC_ZONE_MAP_FILE) as f:
                 raw = json.load(f)
@@ -484,6 +497,7 @@ def evaluate_fan_state(run, tc_readings):
     global _fan_hold_counts, _fan_on
     global _last_fan_mode, _last_fan_setpoint, _last_fan_setpoint_source, _last_fan_trigger
     global _last_fan_alarm_level, _last_fan_alarm_reason
+    global _last_run_override_zones
 
     run_id = run["id"]
     now = datetime.now()
@@ -504,6 +518,16 @@ def evaluate_fan_state(run, tc_readings):
         override_zones.add(zone)
         # Keep _fan_on in sync so transition back to auto has correct hysteresis
         _fan_on[zone] = (ov["action"] == "on")
+
+    # Detect timed in-run overrides that just expired (present last tick,
+    # absent this tick). Reset hysteresis BEFORE evaluating the auto branch
+    # so a zone whose ON-override just expired doesn't inherit _fan_on=True
+    # and stay running through the deadband indefinitely. Mirrors the no-run
+    # path in _purge_expired_no_run_overrides.
+    expired_run_overrides = _last_run_override_zones - override_zones
+    for z in expired_run_overrides:
+        reset_auto_hysteresis(z)
+    _last_run_override_zones = override_zones
 
     rules = sakedb.get_fan_rules(run_id)
     rule_zones = set()
@@ -904,10 +928,10 @@ def run_hx711_thread(scale_id, hx_instance):
     cfg = _read_scale_cfg(scale_id)
     # Always read in kg internally — HX711.get_weight() now always returns kg.
     # The "units" config field is kept for display purposes only.
-    last_mtime = 0.0
+    last_mtime = 0
     _iter = 0
     try:
-        last_mtime = os.path.getmtime(SCALE_CONFIG_FILE)
+        last_mtime = os.stat(SCALE_CONFIG_FILE).st_mtime_ns
     except Exception:
         pass
 
@@ -917,7 +941,7 @@ def run_hx711_thread(scale_id, hx_instance):
             # Hot-reload tare/factor when scale_config.json changes on disk —
             # lets the calibration page update a running scale without a restart.
             try:
-                mtime = os.path.getmtime(SCALE_CONFIG_FILE)
+                mtime = os.stat(SCALE_CONFIG_FILE).st_mtime_ns
                 if mtime != last_mtime:
                     last_mtime = mtime
                     refreshed = _read_scale_cfg(scale_id)
@@ -1056,17 +1080,59 @@ def _watchdog_thread():
 
 
 def _handle_shutdown(signum, frame):
-    """Clean shutdown: release GPIO but do NOT end the active run.
+    """Clean shutdown: drive every relay OFF and release GPIO.
 
-    The run stays active in the DB so that after a restart the sensor loop
-    picks it back up and continues recording without data loss.
-    Runs are only ended explicitly via the dashboard 'End Run' button.
+    Without this, a SIGTERM (e.g. systemctl restart) would let the daemon
+    thread die with whatever relay was last energised still energised,
+    leaking the fan ON until the next boot. Active-LOW relays mean
+    HIGH = OFF, which is what fan_gpio.set_fan(z, False) drives.
+
+    The active run is NOT ended here — it stays active in the DB so the
+    sensor loop picks it back up on restart and continues recording
+    without data loss. Runs are only ended via the dashboard 'End Run'.
     """
     if _active_run_id is not None:
         print(f"[sensors] Shutting down — run {_active_run_id} stays active (will resume on restart).")
+    # Drive every fan pin OFF (HIGH on active-LOW) before releasing GPIO,
+    # so cleanup() doesn't leave a coil energised mid-cycle.
+    try:
+        for _z in fan_gpio.FAN_PINS:
+            fan_gpio.set_fan(_z, False)
+    except Exception as _e:
+        print(f"[sensors] Could not drive fans OFF on shutdown: {_e}")
     fan_gpio.cleanup()
-    sakedb.close_conn()
-    raise SystemExit(0)
+    try:
+        sakedb.close_conn()
+    except Exception:
+        pass
+    sys.exit(0)
+
+
+# Guard so install_shutdown_handlers is safe to call multiple times
+# (e.g. once from server.py __main__ and once from WriteSensors.py
+# __main__ during dev) without piling up duplicate registrations.
+_shutdown_handlers_installed = False
+
+
+def install_shutdown_handlers():
+    """Register SIGTERM/SIGINT handlers that drive relays OFF before exit.
+
+    MUST be called from the main thread — Python's signal.signal() is
+    main-thread-only. server.py's __main__ block calls this BEFORE
+    spawning the sensor-loop thread; WriteSensors.py's __main__ block
+    also calls it for the standalone path.
+    """
+    global _shutdown_handlers_installed
+    if _shutdown_handlers_installed:
+        return
+    try:
+        signal.signal(signal.SIGTERM, _handle_shutdown)
+        signal.signal(signal.SIGINT, _handle_shutdown)
+        _shutdown_handlers_installed = True
+    except ValueError as e:
+        # signal.signal raises ValueError when called from a non-main thread.
+        # Surface the misuse loudly rather than silently leaking GPIO.
+        print(f"[sensors] WARNING: install_shutdown_handlers must run on main thread ({e})")
 
 
 def start_sensor_loop():
@@ -1076,7 +1142,8 @@ def start_sensor_loop():
     when WriteSensors.py is run standalone.  Does NOT call db.init_db()
     (server.py already does that before starting this thread).
     """
-    global SHT30_TEMP_OFFSET_C, _active_run_id
+    global SHT30_TEMP_OFFSET_C, _active_run_id, _last_serviced_run_id, _last_run_override_zones
+    global _deviation_tracking, _threshold_breach_start
 
     print("[sensors] Sensor loop starting...")
     fan_gpio.init_fans()
@@ -1205,7 +1272,23 @@ def start_sensor_loop():
             if active:
                 new_id = active["id"]
                 if _active_run_id != new_id:
-                    resuming = (_active_run_id is None)  # True on first boot / restart
+                    # Distinguish "brand new run" from "resuming the same run
+                    # after a restart". The legacy heuristic `_active_run_id is
+                    # None` misclassified end-run-then-new-run within one
+                    # process as "resuming" (because _active_run_id gets
+                    # cleared to None on run end). _last_serviced_run_id is
+                    # set after the first successful service of any run id
+                    # within this process, so:
+                    #   - None → first servicing in this process: could be a
+                    #     fresh boot resume of an existing run, treat as
+                    #     resuming (matches legacy boot behavior).
+                    #   - same as new_id → resuming same run (no-op transition)
+                    #   - different non-None → user ended a run and started
+                    #     another. Brand-new run.
+                    if _last_serviced_run_id is None:
+                        resuming = True
+                    else:
+                        resuming = (_last_serviced_run_id == new_id)
                     # Reset threshold/deviation tracking (safe either way)
                     _threshold_breach_start.clear()
                     _deviation_tracking.clear()
@@ -1230,11 +1313,16 @@ def start_sensor_loop():
                         except Exception as e:
                             print(f"[sensors] Could not close orphaned deviations: {e}")
                     else:
-                        # Actually a brand-new run — clean slate
+                        # Actually a brand-new run — clean slate. Drive every
+                        # relay to OFF (HIGH on active-LOW) and clear all
+                        # in-memory hysteresis / deviation state so leftover
+                        # _fan_on=True from the prior run doesn't leak in.
                         for z in range(1, 7):
                             _fan_on[z] = False
                             _fan_hold_counts[z] = 0
                             fan_gpio.set_fan(z, False)
+                        # Drop in-run override zone tracking from the prior run.
+                        _last_run_override_zones = set()
 
                         # Log the current zone config as a run event for traceability
                         try:
@@ -1247,6 +1335,7 @@ def start_sensor_loop():
                             print(f"[sensors] Could not log zone config event: {e}")
 
                 _active_run_id = new_id
+                _last_serviced_run_id = new_id
                 reading = {
                     "recorded_at": timestamp,
                     "sht_temp":  round(sht_temp,    2) if sht_temp    is not None else None,
@@ -1283,6 +1372,18 @@ def start_sensor_loop():
                 except Exception as e:
                     print(f"[sensors] DB write failed: {e}")
             else:
+                # Run just ended (or none active). Drop deviation/threshold
+                # state keyed by the run that just ended so the dicts don't
+                # accumulate dead entries forever — symmetric with the
+                # brand-new-run cleanup branch above.
+                if _active_run_id is not None:
+                    ended_id = _active_run_id
+                    _deviation_tracking = {
+                        k: v for k, v in _deviation_tracking.items() if k[0] != ended_id
+                    }
+                    _threshold_breach_start = {
+                        k: v for k, v in _threshold_breach_start.items() if k[0] != ended_id
+                    }
                 _active_run_id = None
                 # No active run — still do auto fan control if setpoints are configured
                 try:
@@ -1318,9 +1419,46 @@ def start_sensor_loop():
                         with open(tmp, "w") as sf:
                             _json.dump(status, sf)
                         os.replace(tmp, _SENSOR_STATUS_FILE)
+                    else:
+                        # Disk space recovered — clear any stale low-disk warning
+                        # file so the dashboard banner can drop.
+                        if os.path.exists(_SENSOR_STATUS_FILE):
+                            try:
+                                import json as _json
+                                with open(_SENSOR_STATUS_FILE) as _sf:
+                                    _existing = _json.load(_sf)
+                                if (_existing or {}).get("status") == "warning":
+                                    _ok = {
+                                        "status": "ok",
+                                        "last_recovered_at": datetime.now().isoformat(),
+                                    }
+                                    _tmp_ok = _SENSOR_STATUS_FILE + ".tmp"
+                                    with open(_tmp_ok, "w") as _sf:
+                                        _json.dump(_ok, _sf)
+                                    os.replace(_tmp_ok, _SENSOR_STATUS_FILE)
+                            except Exception:
+                                pass
                 except Exception:
                     pass
 
+            # Recovery from an error streak — clear the failure-alert file so
+            # the dashboard banner drops once we're healthy again.
+            if _consecutive_failures > 0 and os.path.exists(_SENSOR_STATUS_FILE):
+                try:
+                    import json as _json
+                    with open(_SENSOR_STATUS_FILE) as _sf:
+                        _existing = _json.load(_sf)
+                    if (_existing or {}).get("status") == "error":
+                        _ok = {
+                            "status": "ok",
+                            "last_recovered_at": datetime.now().isoformat(),
+                        }
+                        _tmp_ok = _SENSOR_STATUS_FILE + ".tmp"
+                        with open(_tmp_ok, "w") as _sf:
+                            _json.dump(_ok, _sf)
+                        os.replace(_tmp_ok, _SENSOR_STATUS_FILE)
+                except Exception:
+                    pass
             _consecutive_failures = 0
 
         except Exception as e:
@@ -1346,8 +1484,7 @@ def start_sensor_loop():
 
 
 if __name__ == "__main__":
-    signal.signal(signal.SIGTERM, _handle_shutdown)
-    signal.signal(signal.SIGINT, _handle_shutdown)
+    install_shutdown_handlers()
 
     sakedb.init_db()
     stale = sakedb.get_active_run()

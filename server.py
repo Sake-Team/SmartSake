@@ -37,9 +37,14 @@ app = Flask(__name__, static_folder=BASE_DIR, static_url_path="")
 _json_cache = {}  # path -> (mtime, data)
 
 def _read_json_cached(path):
-    """Read a JSON file, returning cached data if the file hasn't changed."""
+    """Read a JSON file, returning cached data if the file hasn't changed.
+
+    Uses st_mtime_ns (nanosecond precision) to avoid the 1s-resolution
+    blind spot on ext4 — back-to-back writes within the same second
+    would otherwise look unchanged and serve stale data.
+    """
     try:
-        mtime = os.path.getmtime(path)
+        mtime = os.stat(path).st_mtime_ns
     except OSError:
         return {}
     cached = _json_cache.get(path)
@@ -1751,6 +1756,12 @@ if __name__ == "__main__":
     # Under gunicorn this block never runs, so no duplicate loops.
     import threading
     import WriteSensors
+    # Install SIGTERM/SIGINT handlers on the MAIN thread BEFORE spawning the
+    # sensor-loop thread. signal.signal() is main-thread-only, so it can't be
+    # registered from inside start_sensor_loop (which runs in the new thread).
+    # Without this, systemctl restart would let the daemon thread die with
+    # whatever relay was last energised still energised — fan stays ON.
+    WriteSensors.install_shutdown_handlers()
     _sensor_thread = threading.Thread(target=WriteSensors.start_sensor_loop, daemon=True)
     _sensor_thread.start()
     print("[startup] Sensor loop started as background thread.")

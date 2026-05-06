@@ -1078,9 +1078,27 @@
 							window.setRunStartTime(resumeFrom);
 						}
 					} else {
-						if (!savedRunName) {
+						// Crash recovery: if loadRunState restored data but the in-progress
+						// flag is stale (process died before the next saveRunState tick),
+						// silently auto-export and clear. No modal — user wanted no prompt.
+						if (collectedData && collectedData.length > 0 && !inProgress) {
+							if (window.sakeExportRecoveredRun) {
+								try { window.sakeExportRecoveredRun(); } catch (e) { console.warn('Auto-export failed:', e); }
+							}
+						} else if (!savedRunName) {
 							localStorage.removeItem(RUN_STATE_KEY);
 							localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+						} else if (savedRunName && !inProgress) {
+							// Orphaned run name from a previous URL-mode End Run
+							// that didn't clear localStorage. Drop it so the next
+							// load doesn't show phantom End-Run state. (The
+							// URL-mode end handler at ~5313 now clears these
+							// directly, but this guards historical leftovers.)
+							localStorage.removeItem('currentRunName');
+							localStorage.removeItem('currentNotes');
+							localStorage.removeItem(RUN_STATE_KEY);
+							localStorage.setItem(RUN_IN_PROGRESS_KEY, 'false');
+							if (runNameDisplay) runNameDisplay.textContent = '';
 						}
 
 						if (recoveryModal) {
@@ -5172,8 +5190,12 @@ const tempSeries = {
 
 			// Chain readings after run fetch so _runStartMs is set before elapsed labels
 			fetch('/api/runs/' + runId)
-				.then(r => r.json())
+				.then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
 				.then(function (run) {
+					// Guard against future custom 404 handlers that return JSON
+					// like {error:'...'} — without this, run.name is undefined
+					// and we'd render literal 'undefined' into the UI.
+					if (!run || !run.name) return;
 					const el = document.getElementById('replay-run-name');
 					if (el) el.textContent = run.name;
 					const disp = document.getElementById('run-name-display');
@@ -5244,8 +5266,12 @@ const tempSeries = {
 		// ── LIVE mode ─────────────────────────────────────────────────────────
 		// Chain readings after run fetch so _runStartMs is set before elapsed labels
 		fetch('/api/runs/' + runId)
-			.then(r => r.json())
+			.then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
 			.then(function (run) {
+				// Guard: if a future 404 handler returns JSON like {error:'...'},
+				// run.name is undefined and the localStorage write below would
+				// persist the literal string 'undefined' as the run name.
+				if (!run || !run.name) return;
 				localStorage.setItem('currentRunName', run.name);
 				const disp = document.getElementById('run-name-display');
 				if (disp && run.started_at) {
@@ -5313,6 +5339,20 @@ const tempSeries = {
 			confirmEnd.addEventListener('click', function () {
 				fetch('/api/runs/' + runId + '/end', { method: 'POST' })
 					.finally(function () {
+						// Clear all localStorage keys tied to the just-ended run.
+						// Without this, the URL-mode End Run path leaves
+						// currentRunName / currentNotes / sakeRunState behind
+						// and the next dashboard load shows phantom End-Run
+						// state (legacy path at ~1300 already does this).
+						// Literal keys used here because the constants are
+						// defined inside an IIFE in the loader script and
+						// not in scope from this file-level script block.
+						try {
+							localStorage.removeItem('currentRunName');
+							localStorage.removeItem('currentNotes');
+							localStorage.removeItem('sakeRunState');
+							localStorage.setItem('sakeRunInProgress', 'false');
+						} catch (_) { /* private mode / quota — best-effort */ }
 						// Trigger server-side CSV download (includes real readings + notes)
 						const dl = document.createElement('a');
 						dl.href = '/api/runs/' + runId + '/export.csv';
