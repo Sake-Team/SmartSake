@@ -177,8 +177,11 @@ _no_run_overrides_lock = threading.Lock()
 
 
 def _no_run_overrides_path():
-    # Defined lazily — _VOLATILE_DIR is set further down in this module.
-    return os.path.join(_VOLATILE_DIR, "no_run_overrides.json")
+    # Persisted to project root (not tmpfs) so a power loss / reboot
+    # doesn't silently drop the user's manual fan command. Override
+    # toggles are infrequent (clicks, not loop ticks), so SD-card wear
+    # is negligible.
+    return os.path.join(_BASE_DIR, "no_run_overrides.json")
 
 
 def _persist_no_run_overrides():
@@ -1147,6 +1150,21 @@ def start_sensor_loop():
 
     print("[sensors] Sensor loop starting...")
     fan_gpio.init_fans()
+
+    # Boot placeholders — without these, the dashboard shows "no data"
+    # for the first ~10s after boot because the tmpfs JSON files don't
+    # exist yet. Overwritten by the first real write_json/write_fan_state.
+    try:
+        boot_ts = datetime.now().isoformat()
+        for _path in (JSON_FILE, FAN_STATE_JSON):
+            try:
+                with open(_path, "w") as _f:
+                    json.dump({"timestamp": boot_ts, "status": "booting"}, _f)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
     threading.Thread(target=_watchdog_thread, daemon=True).start()
 
     # Start one HX711 thread per configured scale
@@ -1312,6 +1330,19 @@ def start_sensor_loop():
                                 print(f"[sensors] Closed {len(orphans)} orphaned deviation event(s) from before restart")
                         except Exception as e:
                             print(f"[sensors] Could not close orphaned deviations: {e}")
+                        # Mark the restart in the run timeline so the chart / summary
+                        # can label the data gap as a service restart rather than a
+                        # sensor failure.
+                        try:
+                            started_iso = active.get("started_at")
+                            if started_iso:
+                                started = datetime.fromisoformat(started_iso)
+                                elapsed_min = (datetime.now() - started).total_seconds() / 60.0
+                                sakedb.create_run_event(new_id, "Service restart",
+                                                        int(round(elapsed_min)),
+                                                        event_type='restart')
+                        except Exception as e:
+                            print(f"[sensors] Could not log restart event: {e}")
                     else:
                         # Actually a brand-new run — clean slate. Drive every
                         # relay to OFF (HIGH on active-LOW) and clear all

@@ -34,6 +34,23 @@ def close_conn():
 def init_db():
     with get_conn() as conn:
         conn.execute("PRAGMA journal_mode=WAL")
+
+        # Crash-safety check: a power loss mid-write under WAL mode is
+        # almost always recoverable on its own, but very rarely the DB
+        # ends up in a state that needs operator attention. Bail loudly
+        # rather than silently corrupting future writes.
+        try:
+            row = conn.execute("PRAGMA integrity_check").fetchone()
+            if row and row[0] != "ok":
+                msg = f"SQLite integrity_check failed: {row[0]}"
+                print(f"[db] CRITICAL: {msg}")
+                raise sqlite3.DatabaseError(msg)
+        except sqlite3.DatabaseError:
+            raise
+        except Exception as e:
+            # Don't block boot on a transient error reading the pragma —
+            # log and continue. Real corruption will surface on next write.
+            print(f"[db] integrity_check skipped ({e})")
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS runs (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
