@@ -693,8 +693,13 @@ The native Fusion 360 file (`SakeTableCAD.f3z`) is not included due to size; con
 
 ## 7. Troubleshooting
 
-### Smoke tests
-- Fan state machine — `python3 test_fan_state.py` (standalone, no pytest, no hardware required; mocks `db` + `fan_gpio` and exercises override/hysteresis/run-transition paths).
+### Stability tests
+All standalone — no pytest, no hardware required. Each prints PASS/FAIL with a coloured summary and exits non-zero if anything fails. Run individually:
+
+- `python3 test_fan_state.py` — fan state machine: mocks `db` + `fan_gpio`, exercises override/hysteresis/run-transition paths.
+- `python3 test_config_robustness.py` — JSON config loaders (`zone_config.json`, `scale_config.json`, `tc_zone_map.json`, `no_run_overrides.json`, and `server._read_json_cached`) under empty/truncated/trailing-comma/non-UTF8/wrong-type/extreme-value inputs. Verifies graceful degradation.
+- `python3 test_db_safety.py` — SQLite layer: fresh init, idempotent re-init, `PRAGMA integrity_check` on corruption, `create_run` superseding leftover active runs, `end_run` closing open deviation events, schema migration paths, and threadlocal connection isolation. Uses temp DBs via `tempfile.NamedTemporaryFile` — never touches `smartsake.db`.
+- `python3 test_input_fuzz.py` — Flask API endpoints (test_client, no port binding): empty bodies, malformed JSON, wrong types, extreme numerics (Infinity / NaN / 1e300), unicode, oversize strings, bogus path params. Verifies 4xx not 5xx.
 
 ### Dashboard won't load / can't reach Pi
 - `ping <pi-ip>` — confirm the Pi is on the network
