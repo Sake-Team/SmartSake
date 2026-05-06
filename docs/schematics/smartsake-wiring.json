@@ -31,7 +31,7 @@
           "R~10~-990~~~1480~980~#880000~1~0~none~ggeFRMIN1~0~",
           "R~1100~-90~~~390~80~#880000~1~0~none~ggeTBLK1~0~",
           "T~L~1115~-65~0~#0000FF~Arial~11pt~~~~comment~SmartSake - Low Voltage Signal Wiring~1~start~ggeTITLE1~0~pinpart",
-          "T~L~1115~-45~0~#880000~Arial~7pt~~~~comment~Sheet 1 of 2 | Rev 1.1 | 2026-05-04 | BAE 402 Sake Team~1~start~ggeSUB1~0~pinpart",
+          "T~L~1115~-45~0~#880000~Arial~7pt~~~~comment~Sheet 1 of 2 | Rev 1.2 | 2026-05-06 | BAE 402 Sake Team~1~start~ggeSUB1~0~pinpart",
           "T~L~1115~-30~0~#880000~Arial~7pt~~~~comment~Drawn by Ben Lin | All GPIO numbering BCM~1~start~ggeSUB1b~0~pinpart",
 
           "R~50~-800~~~400~700~#005C29~1~0~#0E8C4E~ggePI_BODY~0~",
@@ -247,6 +247,8 @@
           "W~772 -678 772 -150~#000000~1~0~none~ggeHX2_wG~0",
           "W~786 -678 786 -820 430 -820 430 -680 450 -680~#FFCC00~1~0~none~ggeHX2_wD~0",
           "W~800 -678 800 -840 420 -840 420 -700 450 -700~#0066CC~1~0~none~ggeHX2_wC~0",
+          "T~L~792~-695~0~#660000~Arial~6pt~~~~comment~DAT (GP12)~1~start~ggeHX2_DAT_L~0~pinpart",
+          "T~L~806~-705~0~#660000~Arial~6pt~~~~comment~CLK (GP15)~1~start~ggeHX2_CLK_L~0~pinpart",
 
           "R~750~-590~~~120~30~#996600~1~0~#FFF8E0~ggeLC2_BODY~0~",
           "T~L~780~-572~0~#996600~Arial~7pt~~~~comment~FX29 Load Cell #2~1~start~ggeLC2_T~0~pinpart",
@@ -271,6 +273,8 @@
           "W~942 -678 942 -150~#000000~1~0~none~ggeHX3_wG~0",
           "W~956 -678 956 -860 410 -860 410 -880 450 -880~#FFCC00~1~0~none~ggeHX3_wD~0",
           "W~970 -678 970 -870 400 -870 400 -890 450 -890~#0066CC~1~0~none~ggeHX3_wC~0",
+          "T~L~962~-695~0~#660000~Arial~6pt~~~~comment~DAT (GP16)~1~start~ggeHX3_DAT_L~0~pinpart",
+          "T~L~976~-705~0~#660000~Arial~6pt~~~~comment~CLK (GP19)~1~start~ggeHX3_CLK_L~0~pinpart",
 
           "R~920~-590~~~120~30~#996600~1~0~#FFF8E0~ggeLC3_BODY~0~",
           "T~L~950~-572~0~#996600~Arial~7pt~~~~comment~FX29 Load Cell #3~1~start~ggeLC3_T~0~pinpart",
@@ -295,6 +299,8 @@
           "W~1140 -678 1140 -910 380 -910 380 -930 450 -930~#0066CC~1~0~none~ggeHX4_wC~0",
           "W~1098 -678 1098 -120~#FF0000~1~0~none~ggeHX4_wV~0",
           "W~1112 -678 1112 -150~#000000~1~0~none~ggeHX4_wG~0",
+          "T~L~1132~-695~0~#660000~Arial~6pt~~~~comment~DAT (GP20)~1~start~ggeHX4_DAT_L~0~pinpart",
+          "T~L~1146~-705~0~#660000~Arial~6pt~~~~comment~CLK (GP21)~1~start~ggeHX4_CLK_L~0~pinpart",
 
           "R~1090~-590~~~120~30~#996600~1~0~#FFF8E0~ggeLC4_BODY~0~",
           "T~L~1120~-572~0~#996600~Arial~7pt~~~~comment~FX29 Load Cell #4~1~start~ggeLC4_T~0~pinpart",
@@ -378,7 +384,7 @@
           "T~L~110~-848~0~#000000~Arial~7pt~~~~comment~Relay control GPIO -> IN~1~start~ggeLG_t6~0~pinpart",
           "T~L~280~-918~0~#990000~Arial~6.5pt~~~~comment~Reserved pins:~1~start~ggeNOTE2a~0~pinpart",
           "T~L~280~-905~0~#000000~Arial~6.5pt~~~~comment~2/3 (I2C), 4 (1-Wire),~1~start~ggeNOTE2b~0~pinpart",
-          "T~L~280~-892~0~#000000~Arial~6.5pt~~~~comment~5/6/12/13/16/19/20/21 (HX711)~1~start~ggeNOTE2c~0~pinpart",
+          "T~L~280~-892~0~#000000~Arial~6.5pt~~~~comment~5/6/12/15/16/19/20/21 (HX711)~1~start~ggeNOTE2c~0~pinpart",
           "T~L~280~-872~0~#990000~Arial~6.5pt~~~~comment~Single-point GND~1~start~ggeNOTE3a~0~pinpart",
           "T~L~280~-859~0~#000000~Arial~6.5pt~~~~comment~All sensor grounds tie to Pi GND~1~start~ggeNOTE3b~0~pinpart"
         ],
@@ -412,7 +418,7 @@
           "R~10~-990~~~1480~980~#880000~1~0~none~ggeFRMIN2~0~",
           "R~1100~-90~~~390~80~#880000~1~0~none~ggeTBLK2~0~",
           "T~L~1115~-65~0~#0000FF~Arial~11pt~~~~comment~SmartSake - 120 VAC Power Wiring~1~start~ggeTITLE2~0~pinpart",
-          "T~L~1115~-45~0~#880000~Arial~7pt~~~~comment~Sheet 2 of 2 | Rev 1.1 | 2026-05-04 | BAE 402 Sake Team~1~start~ggeSUB2~0~pinpart",
+          "T~L~1115~-45~0~#880000~Arial~7pt~~~~comment~Sheet 2 of 2 | Rev 1.2 | 2026-05-06 | BAE 402 Sake Team~1~start~ggeSUB2~0~pinpart",
           "T~L~1115~-30~0~#990000~Arial~7pt~~~~comment~** ENCLOSE ALL 120 VAC WIRING BEFORE ENERGIZING **~1~start~ggeSUB2b~0~pinpart",
 
           "R~50~-200~~~180~120~#000000~1~0~#FAFAFA~ggeOA_BODY~0~",
