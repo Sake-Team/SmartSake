@@ -351,17 +351,49 @@
   var chartsReady = false;
   var currentRunId = null;
   var chartLabels = [];
+  // Display-unit series (what the chart consumes). Re-derived from rawTempSeries on unit change.
   var tempSeries = { t1: [], t2: [], t3: [], t4: [], t5: [], t6: [] };
+  // Raw °C cache so we can re-convert when the unit toggle flips.
+  var rawTempSeries = { t1: [], t2: [], t3: [], t4: [], t5: [], t6: [] };
   var fanSeries  = { f1: [], f2: [], f3: [], f4: [], f5: [], f6: [] };
   var MAX_POINTS = 360; // ~1 hour at 10s intervals
 
   var ZONE_COLORS = ['#e05252','#52a0e0','#52e07c','#e0c952','#c052e0','#e09052'];
 
+  // ── Unit preferences (display-only; backend stays in °C / lbs) ────
+  var LBS_TO_KG = 0.453592;
+  function getUnits() {
+    var w = 'lbs', t = 'C';
+    try {
+      w = (localStorage.getItem('sakeWeightUnit') === 'kg') ? 'kg' : 'lbs';
+      t = (localStorage.getItem('sakeTempUnit')   === 'F')  ? 'F'  : 'C';
+    } catch (e) {}
+    return { weight: w, temp: t };
+  }
+  var _units = getUnits();
+  function wConv(lbs) {
+    if (lbs == null || isNaN(lbs)) return null;
+    return _units.weight === 'kg' ? lbs * LBS_TO_KG : lbs;
+  }
+  function wUnitLabel() { return _units.weight === 'kg' ? 'kg' : 'lbs'; }
+  function wDecimals()  { return _units.weight === 'kg' ? 2 : 1; }
+  function tConv(c) {
+    if (c == null || isNaN(c)) return null;
+    return _units.temp === 'F' ? (c * 9/5 + 32) : c;
+  }
+  function tConvDelta(c) {
+    if (c == null || isNaN(c)) return null;
+    return _units.temp === 'F' ? c * 9/5 : c;
+  }
+  function tUnitLabel() { return _units.temp === 'F' ? '°F' : '°C'; }
+
   // ── Helpers ────────────────────────────────────────────────────────
 
   function fmtTemp(v) {
+    // Accepts a raw °C value, returns the converted display string.
     if (v === null || v === undefined || isNaN(v)) return '--';
-    return Number(v).toFixed(1);
+    var conv = tConv(Number(v));
+    return Number(conv).toFixed(1);
   }
 
   function fmtElapsed(startISO) {
@@ -452,7 +484,7 @@
             grid: { color: gridColor }
           },
           y: {
-            title: { display: true, text: '°C', font: chartFont, color: tickColor },
+            title: { display: true, text: tUnitLabel(), font: chartFont, color: tickColor },
             ticks: { font: chartFont, color: tickColor },
             grid: { color: gridColor }
           }
@@ -517,12 +549,15 @@
         // Clear existing data
         chartLabels.length = 0;
         for (var k in tempSeries) tempSeries[k].length = 0;
+        for (var kr in rawTempSeries) rawTempSeries[kr].length = 0;
         for (var k2 in fanSeries) fanSeries[k2].length = 0;
 
         rows.forEach(function (row) {
           chartLabels.push(fmtShortTime(row.timestamp));
           for (var i = 1; i <= 6; i++) {
-            tempSeries['t' + i].push(row['tc' + i] != null ? Number(row['tc' + i]) : null);
+            var rawC = row['tc' + i] != null ? Number(row['tc' + i]) : null;
+            rawTempSeries['t' + i].push(rawC);
+            tempSeries['t' + i].push(rawC != null ? tConv(rawC) : null);
             fanSeries['f' + i].push(row['fan' + i] != null ? Number(row['fan' + i]) : null);
           }
         });
@@ -541,7 +576,9 @@
     var label = fmtShortTime(latest.timestamp);
     chartLabels.push(label);
     for (var i = 1; i <= 6; i++) {
-      tempSeries['t' + i].push(latest['tc' + i] != null ? Number(latest['tc' + i]) : null);
+      var rawC = latest['tc' + i] != null ? Number(latest['tc' + i]) : null;
+      rawTempSeries['t' + i].push(rawC);
+      tempSeries['t' + i].push(rawC != null ? tConv(rawC) : null);
       fanSeries['f' + i].push(latest['fan' + i] != null ? Number(latest['fan' + i]) : null);
     }
 
@@ -549,6 +586,7 @@
     if (chartLabels.length > MAX_POINTS) {
       chartLabels.shift();
       for (var k in tempSeries) tempSeries[k].shift();
+      for (var kr in rawTempSeries) rawTempSeries[kr].shift();
       for (var k2 in fanSeries) fanSeries[k2].shift();
     }
 
@@ -576,7 +614,8 @@
 
       var spText = '';
       if (sp !== null && sp !== undefined && isFinite(Number(sp))) {
-        spText = 'SP ' + Number(sp).toFixed(1) + '°C';
+        // Setpoint comes from server in °C; convert for display.
+        spText = 'SP ' + Number(tConv(Number(sp))).toFixed(1) + tUnitLabel();
       }
 
       html += '<div class="m-zone ' + cls + '">'
@@ -586,7 +625,7 @@
             +   '</div>'
             +   '<div class="m-zone__temp">'
             +     fmtTemp(temp)
-            +     '<span class="m-zone__unit">°C</span>'
+            +     '<span class="m-zone__unit">' + tUnitLabel() + '</span>'
             +   '</div>'
             +   (spText ? '<span class="m-zone__setpoint">' + spText + '</span>' : '')
             + '</div>';
@@ -602,7 +641,7 @@
           +   '<span class="m-env__label">Humidity</span>'
           + '</div>';
     html += '<div class="m-env__item">'
-          +   '<span class="m-env__value">' + fmtTemp(shtTemp) + '°</span>'
+          +   '<span class="m-env__value">' + fmtTemp(shtTemp) + tUnitLabel() + '</span>'
           +   '<span class="m-env__label">Ambient</span>'
           + '</div>';
     html += '</div>';
@@ -610,8 +649,9 @@
     // Weight summary
     var wTotal = latest.weight_total_lbs;
     if (wTotal !== null && wTotal !== undefined && wTotal > 0) {
+      var wDisp = wConv(Number(wTotal));
       html += '<div class="m-weight">'
-            +   '<span class="m-weight__value">' + Number(wTotal).toFixed(1) + ' lbs</span>'
+            +   '<span class="m-weight__value">' + Number(wDisp).toFixed(wDecimals()) + ' ' + wUnitLabel() + '</span>'
             +   '<span class="m-weight__label">Total weight</span>'
             + '</div>';
     }
@@ -711,6 +751,34 @@
     } else {
       startPolling();
     }
+  });
+
+  // ── Unit-change listener ──────────────────────────────────────────
+  // Settings modal (customize.js) writes localStorage then dispatches this.
+  // Re-read units, recompute display series from raw °C cache, refresh chart
+  // axis title, and trigger a fresh render of the latest data.
+  function onUnitsChanged() {
+    _units = getUnits();
+    // Re-derive display-unit temp series from raw °C cache
+    for (var i = 1; i <= 6; i++) {
+      var raw = rawTempSeries['t' + i];
+      var disp = tempSeries['t' + i];
+      disp.length = 0;
+      for (var j = 0; j < raw.length; j++) {
+        disp.push(raw[j] != null ? tConv(raw[j]) : null);
+      }
+    }
+    if (tempChart) {
+      tempChart.options.scales.y.title.text = tUnitLabel();
+      tempChart.update('none');
+    }
+    // Trigger a re-fetch so all live text values redraw with the new unit
+    fetchAll();
+  }
+  window.addEventListener('sake-units-changed', onUnitsChanged);
+  // Also catch unit toggles flipped in another tab (cross-tab localStorage event)
+  window.addEventListener('storage', function (e) {
+    if (e.key === 'sakeWeightUnit' || e.key === 'sakeTempUnit') onUnitsChanged();
   });
 
   // ── Init ───────────────────────────────────────────────────────────

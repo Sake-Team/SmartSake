@@ -307,12 +307,12 @@
     <div class="rh-env-block">
       <span class="rh-live-lbl">Humidity</span>
       <span class="rh-env-block__val" id="lv-hum">--%</span>
-      <span class="rh-env-block__sub" id="lv-wb">WB —°C</span>
+      <span class="rh-env-block__sub" id="lv-wb">WB —</span>
     </div>
     <div class="rh-strip-div"></div>
     <div class="rh-wt-block">
       <span class="rh-live-lbl">Weight</span>
-      <span class="rh-wt-block__val" id="lv-wt">-- lbs</span>
+      <span class="rh-wt-block__val" id="lv-wt">--</span>
       <span class="rh-wt-block__sub" id="lv-wt-sub">&nbsp;</span>
     </div>
   </div>
@@ -339,8 +339,8 @@
       <div class="rh-card-hdr">
         <span class="rh-card-title">Environment</span>
         <div class="rh-legend">
-          <span class="rh-legend-item"><span class="rh-legend-line" style="background:#f0a040"></span>Dry Bulb °C</span>
-          <span class="rh-legend-item"><span class="rh-legend-line" style="background:#40c0d0"></span>Wet Bulb °C</span>
+          <span class="rh-legend-item"><span class="rh-legend-line" style="background:#f0a040"></span><span data-temp-legend>Dry Bulb °C</span></span>
+          <span class="rh-legend-item"><span class="rh-legend-line" style="background:#40c0d0"></span><span data-temp-legend>Wet Bulb °C</span></span>
           <span class="rh-legend-item"><span class="rh-legend-line" style="background:#7070e0;height:1px;border-top:2px dashed #7070e0"></span>Humidity %</span>
         </div>
       </div>
@@ -383,6 +383,33 @@
     var LIVE_POLL_MS   = 10 * 1000;        // update the live strip every 10 s
     var MAX_READINGS   = 7 * 24 * 60;      // 7 days at 1/min = 10 080 entries
     var ZONE_COLORS    = ['#e05252','#52a0e0','#52e07c','#e0c952','#c052e0','#e09052'];
+
+    // ── Unit preferences (display-only; log stays in °C / lbs) ──────────────
+    var LBS_TO_KG = 0.453592;
+    function getUnits() {
+      var w = 'lbs', t = 'C';
+      try {
+        w = (localStorage.getItem('sakeWeightUnit') === 'kg') ? 'kg' : 'lbs';
+        t = (localStorage.getItem('sakeTempUnit')   === 'F')  ? 'F'  : 'C';
+      } catch (e) {}
+      return { weight: w, temp: t };
+    }
+    var _units = getUnits();
+    function wConv(lbs) {
+      if (lbs == null || isNaN(lbs)) return null;
+      return _units.weight === 'kg' ? lbs * LBS_TO_KG : lbs;
+    }
+    function wUnitLabel() { return _units.weight === 'kg' ? 'kg' : 'lbs'; }
+    function wDecimals()  { return _units.weight === 'kg' ? 3 : 2; }
+    function tConv(c) {
+      if (c == null || isNaN(c)) return null;
+      return _units.temp === 'F' ? (c * 9/5 + 32) : c;
+    }
+    function tConvDelta(c) {
+      if (c == null || isNaN(c)) return null;
+      return _units.temp === 'F' ? c * 9/5 : c;
+    }
+    function tUnitLabel() { return _units.temp === 'F' ? '°F' : '°C'; }
 
     // ── State ──────────────────────────────────────────────────────────────────
     var log         = [];   // [{t, v:[tc1..tc6, hum, sht, wt]}]
@@ -617,7 +644,7 @@
           plugins: buildBasePlugins(),
           scales: Object.assign(buildBaseScales(), {
             y: Object.assign(buildBaseScales().y, {
-              title: { display: true, text: '°C', color: getThemeColors().tick, font: { size: 10 } }
+              title: { display: true, text: tUnitLabel(), color: getThemeColors().tick, font: { size: 10 } }
             })
           })
         }
@@ -629,10 +656,10 @@
         data: {
           labels: [],
           datasets: [
-            { label: 'Dry Bulb (°C)', data: [], yAxisID: 'yT',
+            { label: 'Dry Bulb (' + tUnitLabel() + ')', data: [], yAxisID: 'yT',
               borderColor: '#f0a040', backgroundColor: 'transparent',
               borderWidth: 2.5, pointRadius: 0, tension: 0.3 },
-            { label: 'Wet Bulb (°C)', data: [], yAxisID: 'yT',
+            { label: 'Wet Bulb (' + tUnitLabel() + ')', data: [], yAxisID: 'yT',
               borderColor: '#40c0d0', backgroundColor: 'transparent',
               borderWidth: 2.5, pointRadius: 0, tension: 0.3 },
             { label: 'Humidity (%)', data: [], yAxisID: 'yH',
@@ -648,7 +675,7 @@
             x: buildBaseScales().x,
             yT: Object.assign({}, buildBaseScales().y, {
               position: 'left',
-              title: { display: true, text: '°C', color: getThemeColors().tick, font: { size: 10 } }
+              title: { display: true, text: tUnitLabel(), color: getThemeColors().tick, font: { size: 10 } }
             }),
             yH: {
               type: 'linear', position: 'right', min: 0, max: 100,
@@ -666,7 +693,7 @@
         data: {
           labels: [],
           datasets: [{
-            label: 'Weight (lbs)', data: [],
+            label: 'Weight (' + wUnitLabel() + ')', data: [],
             borderColor: '#52e0a0', backgroundColor: '#52e0a018',
             borderWidth: 2.5, pointRadius: 0, tension: 0.3, fill: true
           }]
@@ -677,7 +704,7 @@
           plugins: buildBasePlugins(),
           scales: Object.assign(buildBaseScales(), {
             y: Object.assign(buildBaseScales().y, {
-              title: { display: true, text: 'lbs', color: getThemeColors().tick, font: { size: 10 } }
+              title: { display: true, text: wUnitLabel(), color: getThemeColors().tick, font: { size: 10 } }
             })
           })
         }
@@ -694,11 +721,17 @@
       setEmpty('wt-empty',   isEmpty);
 
       var labels   = rows.map(function (r) { return fmtLabel(r.t, activeMinutes); });
-      var zones    = [0,1,2,3,4,5].map(function (z) { return rows.map(function (r) { return r.v[z]; }); });
+      // r.v[0..5]=tc°C, r.v[6]=hum%, r.v[7]=sht°C, r.v[8]=wt lbs — convert at display.
+      var zones    = [0,1,2,3,4,5].map(function (z) {
+        return rows.map(function (r) { return r.v[z] != null ? tConv(r.v[z]) : null; });
+      });
       var humArr   = rows.map(function (r) { return r.v[6]; });
-      var shtArr   = rows.map(function (r) { return r.v[7]; });
-      var wbArr    = rows.map(function (r) { return calcWetBulb(r.v[7], r.v[6]); });
-      var wtArr    = rows.map(function (r) { return r.v[8]; });
+      var shtArr   = rows.map(function (r) { return r.v[7] != null ? tConv(r.v[7]) : null; });
+      var wbArr    = rows.map(function (r) {
+        var wb = calcWetBulb(r.v[7], r.v[6]);
+        return wb != null ? tConv(wb) : null;
+      });
+      var wtArr    = rows.map(function (r) { return r.v[8] != null ? wConv(r.v[8]) : null; });
 
       // Temp chart — update datasets in place
       tempChart.data.labels = labels;
@@ -744,7 +777,7 @@
         // Update live strip
         for (var z = 1; z <= 6; z++) {
           var el = document.getElementById('lv-z' + z);
-          if (el) el.textContent = tc[z-1] != null ? tc[z-1].toFixed(1) + '°' : '--';
+          if (el) el.textContent = tc[z-1] != null ? tConv(tc[z-1]).toFixed(1) + '°' : '--';
         }
         var humEl = document.getElementById('lv-hum');
         var wbEl  = document.getElementById('lv-wb');
@@ -752,8 +785,8 @@
         var wSubEl = document.getElementById('lv-wt-sub');
         if (humEl) humEl.textContent = (hum != null && !isNaN(hum)) ? hum.toFixed(1) + '%' : '--%';
         var wb = calcWetBulb(sht, hum);
-        if (wbEl) wbEl.textContent = wb != null ? 'WB ' + wb.toFixed(1) + '°C' : 'WB —°C';
-        if (wtEl) wtEl.textContent = (wt != null && !isNaN(wt)) ? wt.toFixed(2) + ' lbs' : '-- lbs';
+        if (wbEl) wbEl.textContent = wb != null ? 'WB ' + tConv(wb).toFixed(1) + tUnitLabel() : 'WB —';
+        if (wtEl) wtEl.textContent = (wt != null && !isNaN(wt)) ? wConv(wt).toFixed(wDecimals()) + ' ' + wUnitLabel() : '-- ' + wUnitLabel();
 
         // Weight sub: show change vs first reading in current window
         if (wSubEl) {
@@ -763,8 +796,9 @@
             if (rows[i].v[8] != null) { firstWt = rows[i].v[8]; break; }
           }
           if (firstWt != null && wt != null && !isNaN(wt) && firstWt > 0) {
-            var delta = wt - firstWt;
-            wSubEl.textContent = (delta >= 0 ? '+' : '') + delta.toFixed(2) + ' lbs this window';
+            var deltaLbs = wt - firstWt;
+            var deltaDisp = wConv(deltaLbs);
+            wSubEl.textContent = (deltaDisp >= 0 ? '+' : '') + deltaDisp.toFixed(wDecimals()) + ' ' + wUnitLabel() + ' this window';
           } else {
             wSubEl.textContent = '';
           }
@@ -821,6 +855,39 @@
     updateStatusBar();
     renderCharts();
 
+    // ── Unit-change listener ───────────────────────────────────────────────────
+    // Settings modal (customize.js) writes localStorage then dispatches
+    // 'sake-units-changed'. Re-read units, refresh chart axis titles, dataset
+    // labels, and re-render — all data is stored raw (°C / lbs) so we only
+    // need to re-derive the display.
+    function onUnitsChanged() {
+      _units = getUnits();
+      // Update temp legend literal labels (Dry/Wet Bulb °C → °F)
+      document.querySelectorAll('[data-temp-legend]').forEach(function (el) {
+        var txt = el.textContent;
+        // Replace any trailing °C/°F with the current unit
+        el.textContent = txt.replace(/°[CF]/g, tUnitLabel());
+      });
+      if (tempChart) {
+        tempChart.options.scales.y.title.text = tUnitLabel();
+      }
+      if (envChart) {
+        envChart.options.scales.yT.title.text = tUnitLabel();
+        envChart.data.datasets[0].label = 'Dry Bulb (' + tUnitLabel() + ')';
+        envChart.data.datasets[1].label = 'Wet Bulb (' + tUnitLabel() + ')';
+      }
+      if (wtChart) {
+        wtChart.options.scales.y.title.text = wUnitLabel();
+        wtChart.data.datasets[0].label = 'Weight (' + wUnitLabel() + ')';
+      }
+      renderCharts();
+    }
+    window.addEventListener('sake-units-changed', onUnitsChanged);
+    // Also catch unit toggles flipped in another tab (cross-tab localStorage)
+    window.addEventListener('storage', function (e) {
+      if (e.key === 'sakeWeightUnit' || e.key === 'sakeTempUnit') onUnitsChanged();
+    });
+
     // ── Visibility-aware polling — pause when tab is hidden ────���─────────────
     var _pollTimer = null, _liveTimer = null, _runTimer = null;
 
@@ -832,7 +899,7 @@
             for (var z = 1; z <= 6; z++) {
               var el = document.getElementById('lv-z' + z);
               var v  = data['tc' + z];
-              if (el) el.textContent = (v != null && !isNaN(v)) ? parseFloat(v).toFixed(1) + '°' : '--';
+              if (el) el.textContent = (v != null && !isNaN(v)) ? tConv(parseFloat(v)).toFixed(1) + '°' : '--';
             }
             var hum = data.humidity  != null ? parseFloat(data.humidity)  : null;
             var sht = data.sht_temp  != null ? parseFloat(data.sht_temp)  : null;
@@ -842,8 +909,8 @@
             var wtEl  = document.getElementById('lv-wt');
             if (humEl) humEl.textContent = (hum != null && !isNaN(hum)) ? hum.toFixed(1) + '%' : '--%';
             var wb = calcWetBulb(sht, hum);
-            if (wbEl) wbEl.textContent = wb != null ? 'WB ' + wb.toFixed(1) + '°C' : 'WB —°C';
-            if (wtEl) wtEl.textContent = (wt != null && !isNaN(wt)) ? wt.toFixed(2) + ' lbs' : '-- lbs';
+            if (wbEl) wbEl.textContent = wb != null ? 'WB ' + tConv(wb).toFixed(1) + tUnitLabel() : 'WB —';
+            if (wtEl) wtEl.textContent = (wt != null && !isNaN(wt)) ? wConv(wt).toFixed(wDecimals()) + ' ' + wUnitLabel() : '-- ' + wUnitLabel();
           }).catch(function () {});
         }, LIVE_POLL_MS);
       }

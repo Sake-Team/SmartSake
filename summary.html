@@ -76,11 +76,73 @@
 (function () {
 	'use strict';
 
+	// ── Unit preferences (display-only; API returns °C) ─────────────
+	function getUnits() {
+		var t = 'C';
+		try { t = (localStorage.getItem('sakeTempUnit') === 'F') ? 'F' : 'C'; } catch (e) {}
+		return { temp: t };
+	}
+	var _units = getUnits();
+	function tConv(c) {
+		if (c == null || isNaN(c)) return null;
+		return _units.temp === 'F' ? (c * 9/5 + 32) : c;
+	}
+	function tUnitLabel() { return _units.temp === 'F' ? '°F' : '°C'; }
+
 	var params = new URLSearchParams(location.search);
 	var runId = params.get('run');
 	if (!runId) {
 		document.getElementById('table-wrap').innerHTML = '<p class="empty-msg">No run specified. Use ?run=ID</p>';
 		return;
+	}
+
+	// Cache the loaded summary so we can re-render on unit change without refetching
+	var _cachedRun = null;
+	var _cachedSummary = null;
+
+	function renderTable() {
+		if (!_cachedSummary || !_cachedSummary.length) return;
+
+		// Figure out which zones have data
+		var activeZones = [];
+		for (var z = 1; z <= 6; z++) {
+			var hasData = _cachedSummary.some(function (row) { return row.zones[z]; });
+			if (hasData) activeZones.push(z);
+		}
+
+		var unit = tUnitLabel();
+
+		// Build table
+		var html = '<table class="summary-table">';
+
+		// Zone group headers — embed unit in each zone header
+		html += '<thead><tr class="zone-group"><th class="hour-col" rowspan="2">Hour</th>';
+		activeZones.forEach(function (z) {
+			html += '<th colspan="3">Zone ' + z + ' (' + unit + ')</th>';
+		});
+		html += '</tr><tr class="sub-header">';
+		activeZones.forEach(function () {
+			html += '<th>Min</th><th>Avg</th><th>Max</th>';
+		});
+		html += '</tr></thead><tbody>';
+
+		_cachedSummary.forEach(function (row) {
+			html += '<tr><td class="hour-cell">' + row.hour + '</td>';
+			activeZones.forEach(function (z) {
+				var d = row.zones[z];
+				if (d) {
+					html += '<td class="val-min">' + tConv(d.min).toFixed(1) + '</td>';
+					html += '<td class="val-avg">' + tConv(d.avg).toFixed(1) + '</td>';
+					html += '<td class="val-max">' + tConv(d.max).toFixed(1) + '</td>';
+				} else {
+					html += '<td>—</td><td>—</td><td>—</td>';
+				}
+			});
+			html += '</tr>';
+		});
+
+		html += '</tbody></table>';
+		document.getElementById('table-wrap').innerHTML = html;
 	}
 
 	// Fetch run info + summary in parallel
@@ -114,46 +176,24 @@
 			return;
 		}
 
-		// Figure out which zones have data
-		var activeZones = [];
-		for (var z = 1; z <= 6; z++) {
-			var hasData = summary.some(function (row) { return row.zones[z]; });
-			if (hasData) activeZones.push(z);
-		}
-
-		// Build table
-		var html = '<table class="summary-table">';
-
-		// Zone group headers
-		html += '<thead><tr class="zone-group"><th class="hour-col" rowspan="2">Hour</th>';
-		activeZones.forEach(function (z) {
-			html += '<th colspan="3">Zone ' + z + '</th>';
-		});
-		html += '</tr><tr class="sub-header">';
-		activeZones.forEach(function () {
-			html += '<th>Min</th><th>Avg</th><th>Max</th>';
-		});
-		html += '</tr></thead><tbody>';
-
-		summary.forEach(function (row) {
-			html += '<tr><td class="hour-cell">' + row.hour + '</td>';
-			activeZones.forEach(function (z) {
-				var d = row.zones[z];
-				if (d) {
-					html += '<td class="val-min">' + d.min.toFixed(1) + '</td>';
-					html += '<td class="val-avg">' + d.avg.toFixed(1) + '</td>';
-					html += '<td class="val-max">' + d.max.toFixed(1) + '</td>';
-				} else {
-					html += '<td>—</td><td>—</td><td>—</td>';
-				}
-			});
-			html += '</tr>';
-		});
-
-		html += '</tbody></table>';
-		document.getElementById('table-wrap').innerHTML = html;
+		_cachedRun = run;
+		_cachedSummary = summary;
+		renderTable();
 	}).catch(function () {
 		document.getElementById('table-wrap').innerHTML = '<p class="empty-msg">Error loading summary.</p>';
+	});
+
+	// ── Unit-change listener ────────────────────────────────────────
+	// Settings modal (customize.js) writes localStorage then dispatches
+	// 'sake-units-changed'. Re-read units and re-render the table — raw
+	// data is cached so we don't refetch.
+	function onUnitsChanged() {
+		_units = getUnits();
+		renderTable();
+	}
+	window.addEventListener('sake-units-changed', onUnitsChanged);
+	window.addEventListener('storage', function (e) {
+		if (e.key === 'sakeTempUnit') onUnitsChanged();
 	});
 })();
 </script>
