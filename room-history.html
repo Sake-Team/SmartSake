@@ -436,9 +436,25 @@
         var raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) return;
         var obj = JSON.parse(raw);
-        if (Array.isArray(obj.log)) {
-          log = obj.log;
-          if (log.length) logStartTime = log[0].t;
+        if (!Array.isArray(obj.log)) return;
+        // Filter out malformed entries — without this, a single bad row
+        // (corrupt write, schema drift, manual edit) would crash chart
+        // rendering downstream. Keep only entries with the expected shape:
+        //   { t: number, v: array of length >= 8 }
+        var clean = obj.log.filter(function (e) {
+          return e
+            && typeof e.t === 'number'
+            && Array.isArray(e.v)
+            && e.v.length >= 8;
+        });
+        log = clean;
+        if (log.length) logStartTime = log[0].t;
+        // If we dropped anything, write back the cleaned version so the next
+        // load is fast and the bad rows can't reappear.
+        if (clean.length !== obj.log.length) {
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ log: clean }));
+          } catch (_) {}
         }
       } catch (_) {
         log = [];

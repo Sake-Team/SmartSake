@@ -373,10 +373,31 @@ def _load_zone_config():
             with open(ZONE_CONFIG_FILE) as f:
                 _zone_cfg = json.load(f)
             _zone_cfg_mtime = mtime
+            _warn_zone_cfg_outliers(_zone_cfg)
     except Exception:
         if not _zone_cfg:
             _zone_cfg = {"default": {"tolerance_c": DEFAULT_TOLERANCE_C}}
     return _zone_cfg
+
+
+def _warn_zone_cfg_outliers(cfg):
+    """Log warnings when zone config holds out-of-range values.
+    Fires once per disk change (driven by the mtime cache above) so it
+    won't spam. Doesn't reject — downstream still uses the value, but
+    the operator gets a heads-up via the journal."""
+    if not isinstance(cfg, dict):
+        return
+    for key, entry in cfg.items():
+        if not isinstance(entry, dict):
+            continue
+        sp = entry.get("setpoint_c")
+        if isinstance(sp, (int, float)) and not (0 <= sp <= 60):
+            print(f"[zone-cfg] WARN: {key} setpoint_c={sp} outside 0-60 °C "
+                  f"(koji typically 25-40); using as-is")
+        tol = entry.get("tolerance_c")
+        if isinstance(tol, (int, float)) and tol <= 0:
+            print(f"[zone-cfg] WARN: {key} tolerance_c={tol} <= 0 — auto loop "
+                  f"will treat zone as always-in-band; alarms disabled")
 
 
 def _hot_reload_tc_zone_map():
@@ -551,6 +572,15 @@ def evaluate_fan_state(run, tc_readings):
     _last_run_override_zones = override_zones
 
     rules = sakedb.get_fan_rules(run_id)
+    # Drop any _threshold_breach_start entries whose rule no longer exists
+    # (user deleted a fan_rule mid-breach). Without this, the key would
+    # stick until run end since the in-loop cleanup at "not exceeds" is
+    # only reached if the rule is still iterable.
+    live_rule_ids = {rule["id"] for rule in rules}
+    stale_keys = [k for k in _threshold_breach_start
+                  if k[0] == run_id and k[2] not in live_rule_ids]
+    for k in stale_keys:
+        _threshold_breach_start.pop(k, None)
     rule_zones = set()
     for rule in rules:
         if not rule["enabled"]:
@@ -928,15 +958,39 @@ def read_sht30(sensor):
 SCALE_CONFIG_FILE = os.path.join(_BASE_DIR, "scale_config.json")
 
 
+_HX711_RAW_24BIT_RANGE = (-8388608, 8388607)
+_warned_scale_outliers = set()
+
+
+def _warn_scale_cfg_outliers(scale_id, tare, factor):
+    """Log once per (scale, field, value) when scale config holds suspect numerics."""
+    rmin, rmax = _HX711_RAW_24BIT_RANGE
+    if isinstance(tare, (int, float)) and not (rmin <= tare <= rmax):
+        key = (scale_id, "tare_offset", tare)
+        if key not in _warned_scale_outliers:
+            _warned_scale_outliers.add(key)
+            print(f"[scale-cfg] WARN: scale {scale_id} tare_offset={tare} outside "
+                  f"24-bit HX711 range [{rmin}, {rmax}]")
+    if isinstance(factor, (int, float)) and 0 < abs(factor) < 1:
+        key = (scale_id, "calibration_factor", factor)
+        if key not in _warned_scale_outliers:
+            _warned_scale_outliers.add(key)
+            print(f"[scale-cfg] WARN: scale {scale_id} calibration_factor={factor} "
+                  f"with |f|<1 — likely uncalibrated or wrong order of magnitude")
+
+
 def _read_scale_cfg(scale_id):
     """Return (units, tare_offset, calibration_factor, calibration_points) for a scale, or None."""
     try:
         with open(SCALE_CONFIG_FILE) as f:
             sc = json.load(f).get("scales", {}).get(str(scale_id), {})
+        tare = sc.get("tare_offset")
+        factor = sc.get("calibration_factor")
+        _warn_scale_cfg_outliers(scale_id, tare, factor)
         return (
             sc.get("units", "kg"),
-            sc.get("tare_offset"),
-            sc.get("calibration_factor"),
+            tare,
+            factor,
             sc.get("calibration_points"),
         )
     except Exception:

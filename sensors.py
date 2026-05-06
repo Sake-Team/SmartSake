@@ -50,23 +50,34 @@ def discover_devices():
 def read_temp_c(device_folder, timeout_s=3):
     """Read temperature in Celsius from a MAX31850K device.
 
-    Uses a timeout to prevent the sensor loop from hanging if the 1-Wire bus locks up.
+    Uses a SIGALRM timeout to prevent the sensor loop from hanging if the
+    1-Wire bus locks up. signal.signal() can only be called from the main
+    thread; if we're running in a background thread (e.g. dev mode under
+    `python server.py` where the sensor loop is a daemon thread), fall
+    back to a plain read with no timeout. Production systemd path runs
+    smartsake-sensors as the main thread, so the timeout is active.
     """
     import signal
+    import threading
 
     device_file = f"{device_folder}/w1_slave"
 
-    def _alarm_handler(signum, frame):
-        raise TimeoutError(f"1-Wire read timed out ({device_file})")
-
-    old_handler = signal.signal(signal.SIGALRM, _alarm_handler)
-    signal.alarm(timeout_s)
-    try:
+    if threading.current_thread() is not threading.main_thread():
+        # Background thread — can't install SIGALRM. Read without timeout.
         with open(device_file, "r") as f:
             lines = f.readlines()
-    finally:
-        signal.alarm(0)
-        signal.signal(signal.SIGALRM, old_handler)
+    else:
+        def _alarm_handler(signum, frame):
+            raise TimeoutError(f"1-Wire read timed out ({device_file})")
+
+        old_handler = signal.signal(signal.SIGALRM, _alarm_handler)
+        signal.alarm(timeout_s)
+        try:
+            with open(device_file, "r") as f:
+                lines = f.readlines()
+        finally:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old_handler)
 
     if not lines[0].strip().endswith("YES"):
         raise RuntimeError("CRC check failed")

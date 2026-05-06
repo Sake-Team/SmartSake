@@ -18,6 +18,18 @@ SERVER="$SCRIPT_DIR/server.py"
 LOG="$SCRIPT_DIR/server.log"
 AP_HELPER="$SCRIPT_DIR/scripts/ap-mode.sh"
 
+# ── Log rotation (non-systemd path only) ───────────────────────────────────
+# Under systemd everything goes to journal which rotates itself. Here we
+# guard against a forever-growing server.log on dev / no-systemd boxes:
+# rotate when >50 MB, prune backups older than 7 days.
+rotate_log() {
+    if [ -f "$LOG" ] && [ "$(stat -c%s "$LOG" 2>/dev/null || stat -f%z "$LOG" 2>/dev/null || echo 0)" -gt 52428800 ]; then
+        mv "$LOG" "$LOG.$(date +%Y%m%d-%H%M%S)"
+    fi
+    # Prune old rotated logs
+    find "$SCRIPT_DIR" -maxdepth 1 -name 'server.log.*' -mtime +7 -delete 2>/dev/null || true
+}
+
 # ── Fix line endings (in case pulled from Windows) ──────────────────────────
 fix_line_endings() {
     find "$SCRIPT_DIR" -maxdepth 1 \( -name "*.sh" -o -name "*.py" -o -name "*.html" \) \
@@ -74,6 +86,9 @@ esac
 
 echo "[restart] Fixing line endings..."
 fix_line_endings
+
+# ── Rotate server.log if it has grown unbounded ─────────────────────────────
+rotate_log
 
 # ── Kill existing server ────────────────────────────────────────────────────
 
