@@ -1713,6 +1713,63 @@ def api_scale_tare(scale_id):
     return jsonify({"scale_id": scale_id, "tare_offset": sc["tare_offset"]}), 200
 
 
+@app.route("/api/scale-config/<int:scale_id>/manual-set", methods=["POST"])
+def api_scale_manual_set(scale_id):
+    """Manually set tare_offset and/or calibration_factor for a scale.
+
+    Body: {tare_offset?: int, calibration_factor?: float}
+    Both fields optional; only the provided ones are written. Use this
+    to nudge calibration values when Calibrate / Calibrate All gets
+    close but not exact. Also clears any multi-point calibration_points
+    so the legacy single-point math takes over (otherwise the points
+    would keep overriding the factor).
+    """
+    if not (1 <= scale_id <= 4):
+        return jsonify({"error": "scale_id must be 1..4"}), 400
+    body = request.get_json(force=True, silent=True) or {}
+
+    cfg = _read_scale_cfg_full()
+    sc = cfg["scales"].setdefault(str(scale_id), {})
+
+    changed = []
+    if "tare_offset" in body and body["tare_offset"] is not None:
+        try:
+            t = int(round(float(body["tare_offset"])))
+        except (TypeError, ValueError):
+            return jsonify({"error": "tare_offset must be a number"}), 400
+        sc["tare_offset"] = t
+        changed.append("tare_offset")
+
+    if "calibration_factor" in body and body["calibration_factor"] is not None:
+        try:
+            f = float(body["calibration_factor"])
+        except (TypeError, ValueError):
+            return jsonify({"error": "calibration_factor must be a number"}), 400
+        if abs(f) < 1e-3:
+            return jsonify({"error": "calibration_factor cannot be ~0 (would cause divide-by-zero)"}), 400
+        sc["calibration_factor"] = round(f, 4)
+        changed.append("calibration_factor")
+
+    if not changed:
+        return jsonify({"error": "supply at least one of tare_offset or calibration_factor"}), 400
+
+    # Drop multi-point curve so the manual single-point values aren't shadowed.
+    if sc.pop("calibration_points", None) is not None:
+        changed.append("calibration_points (cleared)")
+
+    try:
+        _write_scale_cfg(cfg)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({
+        "scale_id": scale_id,
+        "tare_offset": sc.get("tare_offset"),
+        "calibration_factor": sc.get("calibration_factor"),
+        "changed": changed,
+    }), 200
+
+
 @app.route("/api/scale-config/<int:scale_id>/calibrate", methods=["POST"])
 def api_scale_calibrate(scale_id):
     """Compute calibration_factor from a known weight currently on the scale.

@@ -532,8 +532,20 @@
       tr.appendChild(el('td', { cls: 'num', text: 'S' + s }));
       tr.appendChild(el('td', { cls: 'num', attrs: { 'data-role': 'kg'   }, text: '—' }));
       tr.appendChild(el('td', { cls: 'num', attrs: { 'data-role': 'raw'  }, text: '—' }));
-      tr.appendChild(el('td', { cls: 'num', attrs: { 'data-role': 'tare' }, text: '—' }));
-      tr.appendChild(el('td', { cls: 'num', attrs: { 'data-role': 'fact' }, text: '—' }));
+
+      // Editable Tare cell
+      var tdTare = el('td');
+      var tareInp = el('input', { attrs: { type: 'number', step: '1',
+                                           'data-role': 'tare-input',
+                                           title: 'Tare offset (raw counts) — editable' } });
+      tdTare.appendChild(tareInp); tr.appendChild(tdTare);
+
+      // Editable Factor cell
+      var tdFact = el('td');
+      var factInp = el('input', { attrs: { type: 'number', step: '0.0001',
+                                           'data-role': 'fact-input',
+                                           title: 'Calibration factor (raw counts per gram) — editable' } });
+      tdFact.appendChild(factInp); tr.appendChild(tdFact);
 
       var tdInp = el('td');
       var inp = el('input', { attrs: { type: 'number', step: '0.001', min: '0.001', max: '200',
@@ -546,6 +558,9 @@
         attrs: { type: 'button', 'data-role': 'tare' } }));
       actDiv.appendChild(el('button', { cls: 'btn btn-primary', text: 'Calibrate',
         attrs: { type: 'button', 'data-role': 'calibrate' } }));
+      actDiv.appendChild(el('button', { cls: 'btn btn-secondary', text: 'Apply Manual',
+        attrs: { type: 'button', 'data-role': 'manual-set',
+                 title: 'Save the Tare and Factor values as edited above' } }));
       actDiv.appendChild(el('button', { cls: 'btn btn-brand', text: 'Multi-Point Cal',
         attrs: { type: 'button', 'data-role': 'open-multi' } }));
       tdAct.appendChild(actDiv); tr.appendChild(tdAct);
@@ -591,11 +606,20 @@
 
       row.querySelector('[data-role="kg"]').textContent   = notWired ? '— (not wired)' : fmtNum(kg, 3);
       row.querySelector('[data-role="raw"]').textContent  = fmtNum(raw, 0);
-      row.querySelector('[data-role="tare"]').textContent = fmtNum(sc.tare_offset, 0);
-      row.querySelector('[data-role="fact"]').textContent = fmtNum(sc.calibration_factor, 2);
+
+      // Tare and Factor are editable inputs — only sync from saved config when
+      // the field is NOT focused, so we don't clobber a value the user is typing.
+      var tareEl = row.querySelector('input[data-role="tare-input"]');
+      var factEl = row.querySelector('input[data-role="fact-input"]');
+      if (tareEl && document.activeElement !== tareEl) {
+        tareEl.value = sc.tare_offset != null ? Math.round(Number(sc.tare_offset)) : '';
+      }
+      if (factEl && document.activeElement !== factEl) {
+        factEl.value = sc.calibration_factor != null ? Number(sc.calibration_factor) : '';
+      }
 
       Array.prototype.forEach.call(row.querySelectorAll('button'), function (b) { b.disabled = notWired; });
-      var inp = row.querySelector('input[data-role="known"]'); if (inp) inp.disabled = notWired;
+      Array.prototype.forEach.call(row.querySelectorAll('input'),  function (i) { i.disabled = notWired; });
     }
   }
 
@@ -865,6 +889,39 @@
           inp.value = '';
           setStatus('scale-status',
             'S' + sid + ' calibrated: ' + kw.toFixed(3) + ' kg → factor ' + res.body.calibration_factor.toFixed(2),
+            true);
+          refresh();
+        }).catch(function () { btn.disabled = false; setStatus('scale-status', 'S' + sid + ': network error', false); });
+      return;
+    }
+
+    if (role === 'manual-set') {
+      var tareEl = row.querySelector('input[data-role="tare-input"]');
+      var factEl = row.querySelector('input[data-role="fact-input"]');
+      var tareVal = tareEl && tareEl.value !== '' ? parseFloat(tareEl.value) : null;
+      var factVal = factEl && factEl.value !== '' ? parseFloat(factEl.value) : null;
+      if (tareVal == null && factVal == null) {
+        setStatus('scale-status', 'S' + sid + ': enter a Tare or Factor value first', false);
+        return;
+      }
+      if (factVal != null && Math.abs(factVal) < 1e-3) {
+        setStatus('scale-status', 'S' + sid + ': factor cannot be ~0', false);
+        return;
+      }
+      btn.disabled = true;
+      var payload = {};
+      if (tareVal != null) payload.tare_offset = tareVal;
+      if (factVal != null) payload.calibration_factor = factVal;
+      fetch('/api/scale-config/' + sid + '/manual-set', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, body: d }; }); })
+        .then(function (res) {
+          btn.disabled = false;
+          if (!res.ok) { setStatus('scale-status', 'S' + sid + ': ' + (res.body.error || 'failed'), false); return; }
+          setStatus('scale-status',
+            'S' + sid + ' manual values applied (' + (res.body.changed || []).join(', ') + ')',
             true);
           refresh();
         }).catch(function () { btn.disabled = false; setStatus('scale-status', 'S' + sid + ': network error', false); });
