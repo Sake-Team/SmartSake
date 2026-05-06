@@ -609,6 +609,9 @@ sudo systemctl restart smartsake
 3. If a relay is mechanically stuck, hard-cycle the relay board's 5V supply
 4. Hit `POST /api/runs/<id>/emergency-stop` (e.g. `curl -X POST http://<pi>:8080/api/runs/$RUN/emergency-stop`) — or pull power at the relay board — to force all fans OFF, then diagnose
 
+### Fan stays ON after clicking Auto
+Clearing a manual ON override now also resets the auto-loop hysteresis (`_fan_on=False`, `_fan_hold_counts=0`) so the next auto evaluation starts from a fresh "fan off" baseline. Previously the fan could stay on indefinitely if the actual temp was inside the deadband (setpoint < actual ≤ trigger) because hysteresis preserved the manual ON state. Auto now re-evaluates fresh and only turns the fan back on when actual truly exceeds the trigger. Same behavior applies when a timed override expires naturally.
+
 ### Scale reads zero or drifts
 - Re-tare without recalibrating: `python3 load_cell_hx711.py --tare --scale N`
 - Full calibration with a known weight: `python3 load_cell_hx711.py --calibrate --scale N`

@@ -230,10 +230,36 @@ def set_no_run_override(zone, action, duration_minutes=None):
 
 
 def clear_no_run_override(zone):
-    """Clear manual override — zone returns to auto control."""
+    """Clear manual override — zone returns to auto control.
+
+    Also resets the auto hysteresis state for the zone so the auto loop
+    re-evaluates from a fresh "fan off" baseline rather than inheriting
+    the manual choice. Without this, clicking Auto from a manual ON state
+    while the actual temp is in the deadband (between setpoint and trigger)
+    would leave the fan running indefinitely because hysteresis preserves
+    `_fan_on=True` from the override.
+    """
     with _no_run_overrides_lock:
-        if _no_run_overrides.pop(zone, None) is not None:
+        popped = _no_run_overrides.pop(zone, None) is not None
+        if popped:
             _persist_no_run_overrides()
+    if popped:
+        reset_auto_hysteresis(zone)
+
+
+def reset_auto_hysteresis(zone):
+    """Reset the auto-loop hysteresis state for a zone.
+
+    Called when transitioning from manual override back to auto control
+    so the auto loop starts from a fresh "fan off" baseline. The next
+    auto evaluation will turn the fan on iff actual temp truly exceeds
+    the trigger — matching the user's expectation that "Auto" means
+    "let the system decide" rather than "keep doing what I last said".
+    """
+    if zone in _fan_on:
+        _fan_on[zone] = False
+    if zone in _fan_hold_counts:
+        _fan_hold_counts[zone] = 0
 
 
 def _purge_expired_no_run_overrides():
@@ -254,6 +280,12 @@ def _purge_expired_no_run_overrides():
             _no_run_overrides.pop(z, None)
         if expired:
             _persist_no_run_overrides()
+    # Reset hysteresis outside the lock so the auto loop re-evaluates from
+    # a fresh "fan off" baseline (matches manual-clear behavior). Without
+    # this, an expired ON override would leave _fan_on=True and the fan
+    # could stay on through the deadband band.
+    for z in expired:
+        reset_auto_hysteresis(z)
 
 
 def get_no_run_overrides():

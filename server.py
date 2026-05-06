@@ -561,6 +561,13 @@ def api_clear_fan_override(run_id, zone):
         return jsonify({"error": "zone must be 1-6"}), 400
     print(f"[fan] Clearing override: run={run_id} zone={zone} → returning to auto")
     db.clear_fan_override(run_id, zone)
+    # Reset auto hysteresis so the loop re-evaluates from a fresh "fan off"
+    # baseline. Without this, _fan_on stays True (synced from the manual ON
+    # override every cycle) and the deadband band (setpoint < actual <= trigger)
+    # would keep the fan running indefinitely — looks like the Auto button
+    # didn't work.
+    import WriteSensors
+    WriteSensors.reset_auto_hysteresis(zone)
     # Don't force GPIO off — let the sensor loop's automatic logic decide
     # on the next iteration (within 10s). This avoids a brief fan-off glitch
     # when auto mode actually wants the fan ON.
