@@ -492,7 +492,7 @@
         d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
     }
     tickClock();
-    setInterval(tickClock, 10000);
+    var _clockTimer = null;
 
     // ── Status bar ─────────────────────────────────────────────────────────────
     var dotEl      = document.getElementById('rh-dot');
@@ -848,12 +848,14 @@
         }, LIVE_POLL_MS);
       }
       if (!_runTimer) { pollRun(); _runTimer = setInterval(pollRun, 30000); }
+      if (!_clockTimer) { tickClock(); _clockTimer = setInterval(tickClock, 10000); }
     }
 
     function stopPolling() {
       if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
       if (_liveTimer) { clearInterval(_liveTimer); _liveTimer = null; }
       if (_runTimer)  { clearInterval(_runTimer);  _runTimer = null; }
+      if (_clockTimer){ clearInterval(_clockTimer);_clockTimer = null; }
     }
 
     document.addEventListener('visibilitychange', function () {

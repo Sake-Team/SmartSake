@@ -1621,7 +1621,7 @@
 							weight_lbs_1: d.weight_lbs_1, weight_lbs_2: d.weight_lbs_2,
 							weight_lbs_3: d.weight_lbs_3, weight_lbs_4: d.weight_lbs_4
 						};
-						try { localStorage.setItem('sakeLatestSample', JSON.stringify(sample)); } catch(e) {}
+						// sakeLatestSample localStorage mirror removed — never read; BroadcastChannel is the consumer.
 						if (bc) { try { bc.postMessage(sample); } catch(e) {} }
 
 					} catch (err) {
@@ -2466,7 +2466,7 @@ const tempSeries = {
 								latest[fanKey] = sample.fans ? sample.fans[fanKey] : null;
 							}
 							latest.humidity = sample.humidity ?? null;
-							localStorage.setItem('sakeLatestSample', JSON.stringify(latest));
+							/* sakeLatestSample localStorage mirror removed — never read. */
 						} catch (e) {
 							// ignore storage errors
 						}

@@ -20,8 +20,9 @@ RuntimeDirectory=smartsake
 MemoryMax=256M
 MemoryHigh=200M
 CPUQuota=80%
-# Watchdog — systemd restarts the service if it stops responding
-WatchdogSec=60
+# Restart=on-failure above handles process death. A real liveness watchdog
+# (WatchdogSec=) requires Type=notify + sd_notify("WATCHDOG=1") pings, which
+# we don't have. Removed to avoid the false sense of liveness.
 # OOM priority — prefer killing this over system services
 OOMScoreAdjust=200
 

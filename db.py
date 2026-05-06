@@ -295,15 +295,31 @@ def _seed_reference_curves(conn):
 def create_run(name):
     now = datetime.now().isoformat()
     with get_conn() as conn:
+        # Auto-end any existing active runs (ended_at IS NULL) as 'superseded'
+        # before starting a new one. Prevents the multiple-active-runs leak
+        # where two near-simultaneous starts (or start without prior end)
+        # create orphan rows that block prune_for_space and disagree on which
+        # is current. get_active_run returns most-recent only, so older
+        # actives would otherwise sit forever.
+        conn.execute(
+            "UPDATE runs SET ended_at=?, status='superseded' "
+            "WHERE ended_at IS NULL",
+            (now,)
+        )
+        conn.execute(
+            "UPDATE deviation_events SET ended_at=? "
+            "WHERE ended_at IS NULL AND run_id IN "
+            "(SELECT id FROM runs WHERE status='superseded' AND ended_at=?)",
+            (now, now)
+        )
         cur = conn.execute(
             "INSERT INTO runs (name, started_at, status) VALUES (?, ?, 'active')",
             (name, now)
         )
         run_id = cur.lastrowid
-        # No overrides — all zones start in auto mode.  Fans won't spin
+        # No overrides — all zones start in auto mode. Fans won't spin
         # immediately because _fan_on starts False and the deadband hold
-        # requires one extra tick (~10 s) before switching.  Users can
-        # manually override any zone to On/Off from the dashboard.
+        # requires one extra tick (~10 s) before switching.
         return run_id
 
 
