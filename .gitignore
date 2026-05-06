@@ -5,3 +5,12 @@ backups/*.db
 .graphify_uncached.txt
 *.pyc
 .venv/
+
+# Runtime state — rewritten by the running service / smoke tests
+no_run_overrides.json
+sensor_status.json
+sensor_latest.json
+fan_state.json
+smartsake.db
+smartsake.db-wal
+smartsake.db-shm
