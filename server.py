@@ -13,6 +13,7 @@ import json
 import os
 import re
 import shutil
+import threading
 import time
 from flask import Flask, jsonify, request, send_from_directory, abort
 
@@ -478,11 +479,18 @@ def api_active_run():
 @app.route("/api/runs", methods=["POST"])
 def api_create_run():
     body = request.get_json(force=True, silent=True) or {}
-    # Coerce to str — clients sometimes send numbers / null. Avoids 500 on
-    # AttributeError when calling .strip() on a non-string.
+    # Coerce to str — clients sometimes send numbers / null.
     name = str(body.get("name") or "").strip()
     if not name:
         return jsonify({"error": "name required"}), 400
+    # Defense-in-depth against stored XSS: cap length and reject HTML-meta
+    # characters before persisting. Several legacy render sites
+    # (history.html, dashboard-phase2.js) interpolate run names into
+    # innerHTML; rejecting at insert time blocks the whole class.
+    if len(name) > 80:
+        return jsonify({"error": "name too long (max 80 chars)"}), 400
+    if any(c in name for c in "<>\"'`&"):
+        return jsonify({"error": "name cannot contain HTML metacharacters (< > \" ' ` &)"}), 400
     run_id = db.create_run(name)
 
     # Immediately drive all fan GPIOs OFF for clean start
@@ -832,10 +840,16 @@ def api_create_run_event(run_id):
     if not run:
         abort(404)
     body = request.get_json(force=True, silent=True) or {}
-    label = (body.get('label') or '').strip()
+    label = str(body.get('label') or '').strip()
     elapsed_min = body.get('elapsed_min')
     if not label:
         return jsonify({"error": "label required"}), 400
+    # Same defense-in-depth as run names — labels render into innerHTML
+    # in dashboard-phase2.js. Cap length, block HTML-meta chars.
+    if len(label) > 80:
+        return jsonify({"error": "label too long (max 80 chars)"}), 400
+    if any(c in label for c in "<>\"'`&"):
+        return jsonify({"error": "label cannot contain HTML metacharacters (< > \" ' ` &)"}), 400
     if elapsed_min is None:
         # Auto-calculate from run start if not provided
         from datetime import datetime as _dt
@@ -1389,6 +1403,57 @@ def _write_scale_cfg(cfg):
     os.replace(tmp, SCALE_CONFIG_FILE)
 
 
+# Locks for read-modify-write of the JSON config files. Without these, two
+# concurrent endpoint calls (e.g. the "Calibrate All" flow firing 4 parallel
+# POSTs) race on the shared cfg dict and the .tmp file path — last writer
+# wins and the other scale's update vanishes. RLock so a future helper that
+# reentrantly locks is safe.
+_scale_cfg_lock = threading.RLock()
+_zone_cfg_lock = threading.RLock()
+
+
+class _AtomicCfgSection:
+    """Context manager that atomically read-modify-writes a JSON config.
+
+    Usage:
+        with _scale_cfg_section() as cfg:
+            cfg["scales"]["1"]["tare_offset"] = 12345
+
+    Holds the lock from before-read through after-write so concurrent
+    callers can't interleave and clobber each other's changes.
+    """
+    def __init__(self, lock, reader, writer):
+        self._lock = lock
+        self._reader = reader
+        self._writer = writer
+        self.cfg = None
+
+    def __enter__(self):
+        self._lock.acquire()
+        try:
+            self.cfg = self._reader()
+        except Exception:
+            self._lock.release()
+            raise
+        return self.cfg
+
+    def __exit__(self, exc_type, exc, tb):
+        try:
+            if exc_type is None:
+                self._writer(self.cfg)
+        finally:
+            self._lock.release()
+        return False
+
+
+def _scale_cfg_section():
+    return _AtomicCfgSection(_scale_cfg_lock, _read_scale_cfg_full, _write_scale_cfg)
+
+
+def _zone_cfg_section():
+    return _AtomicCfgSection(_zone_cfg_lock, _read_zone_cfg, _write_zone_cfg)
+
+
 def _latest_sensor_value(key):
     """Pull a single key from sensor_latest.json, or None."""
     if not os.path.exists(SENSOR_JSON):
@@ -1502,21 +1567,21 @@ def api_set_tc_offset(zone):
     if abs(offset) > TC_OFFSET_MAX_ABS_C:
         return jsonify({"error": f"|offset_c| must be ≤ {TC_OFFSET_MAX_ABS_C}"}), 400
 
-    cfg = _read_zone_cfg()
-    key = f"zone{zone}"
-    cfg.setdefault(key, {})
-    cfg[key]["offset_c"] = round(offset, 3)
-    # When clearing (offset=0), also remove two-point and pending fields
-    if offset == 0:
-        cfg[key].pop("cal_slope", None)
-        cfg[key].pop("cal_intercept", None)
-        cfg[key].pop("cal_pending_low", None)
-        cfg[key].pop("cal_pending_high", None)
     try:
-        _write_zone_cfg(cfg)
+        with _zone_cfg_section() as cfg:
+            key = f"zone{zone}"
+            cfg.setdefault(key, {})
+            cfg[key]["offset_c"] = round(offset, 3)
+            # When clearing (offset=0), also remove two-point and pending fields
+            if offset == 0:
+                cfg[key].pop("cal_slope", None)
+                cfg[key].pop("cal_intercept", None)
+                cfg[key].pop("cal_pending_low", None)
+                cfg[key].pop("cal_pending_high", None)
+            saved_offset = cfg[key]["offset_c"]
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    return jsonify({"zone": zone, "offset_c": cfg[key]["offset_c"]}), 200
+    return jsonify({"zone": zone, "offset_c": saved_offset}), 200
 
 
 @app.route("/api/tc-calibration/<int:zone>/from-reference", methods=["POST"])
@@ -1543,29 +1608,32 @@ def api_calibrate_tc_from_reference(zone):
     if current is None:
         return jsonify({"error": "no current TC reading available — is the sensor loop running?"}), 503
 
-    cfg = _read_zone_cfg()
-    key = f"zone{zone}"
-    existing_offset = float(cfg.get(key, {}).get("offset_c") or 0.0)
-    raw_value = float(current) + existing_offset   # undo current offset to get the raw reading
-    new_offset = raw_value - float(ref)
-
-    if abs(new_offset) > TC_OFFSET_MAX_ABS_C:
-        return jsonify({
-            "error": f"|computed offset| ({new_offset:+.2f}°C) exceeds ±{TC_OFFSET_MAX_ABS_C}°C — "
-                     f"reference temp probably wrong, or probe is bad"
-        }), 400
-
-    cfg.setdefault(key, {})
-    cfg[key]["offset_c"] = round(new_offset, 3)
     try:
-        _write_zone_cfg(cfg)
+        with _zone_cfg_section() as cfg:
+            key = f"zone{zone}"
+            existing_offset = float(cfg.get(key, {}).get("offset_c") or 0.0)
+            raw_value = float(current) + existing_offset   # undo current offset to get the raw reading
+            new_offset = raw_value - float(ref)
+
+            if abs(new_offset) > TC_OFFSET_MAX_ABS_C:
+                # Bail out of the with-block without writing
+                raise ValueError(
+                    f"|computed offset| ({new_offset:+.2f}°C) exceeds ±{TC_OFFSET_MAX_ABS_C}°C — "
+                    f"reference temp probably wrong, or probe is bad"
+                )
+
+            cfg.setdefault(key, {})
+            cfg[key]["offset_c"] = round(new_offset, 3)
+            saved_offset = cfg[key]["offset_c"]
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     return jsonify({
         "zone":         zone,
         "reference_c":  ref,
         "raw_c":        round(raw_value, 2),
-        "offset_c":     cfg[key]["offset_c"],
+        "offset_c":     saved_offset,
     }), 200
 
 
@@ -1607,24 +1675,25 @@ def api_calibrate_tc_two_point(zone):
                      f"check your reference temperatures or probe"
         }), 400
 
-    cfg = _read_zone_cfg()
-    key = f"zone{zone}"
-    cfg.setdefault(key, {})
-    cfg[key]["cal_slope"]     = round(slope, 6)
-    cfg[key]["cal_intercept"] = round(intercept, 4)
-    # Clear legacy offset and pending points
-    cfg[key].pop("offset_c", None)
-    cfg[key].pop("cal_pending_low", None)
-    cfg[key].pop("cal_pending_high", None)
     try:
-        _write_zone_cfg(cfg)
+        with _zone_cfg_section() as cfg:
+            key = f"zone{zone}"
+            cfg.setdefault(key, {})
+            cfg[key]["cal_slope"]     = round(slope, 6)
+            cfg[key]["cal_intercept"] = round(intercept, 4)
+            # Clear legacy offset and pending points
+            cfg[key].pop("offset_c", None)
+            cfg[key].pop("cal_pending_low", None)
+            cfg[key].pop("cal_pending_high", None)
+            saved_slope = cfg[key]["cal_slope"]
+            saved_intercept = cfg[key]["cal_intercept"]
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
     return jsonify({
         "zone":          zone,
-        "cal_slope":     cfg[key]["cal_slope"],
-        "cal_intercept": cfg[key]["cal_intercept"],
+        "cal_slope":     saved_slope,
+        "cal_intercept": saved_intercept,
         "low_ref_c":     low_ref,
         "low_raw_c":     low_raw,
         "high_ref_c":    high_ref,
@@ -1656,35 +1725,34 @@ def api_record_cal_point(zone):
     if current is None:
         return jsonify({"error": "no current TC reading — is the sensor loop running?"}), 503
 
-    cfg = _read_zone_cfg()
-    key = f"zone{zone}"
-    zcfg = cfg.get(key, {})
-
-    # Undo existing calibration to recover raw value
-    cal_slope     = zcfg.get("cal_slope")
-    cal_intercept = zcfg.get("cal_intercept")
-    corrected = float(current)
-    if cal_slope is not None and cal_intercept is not None:
-        try:
-            s = float(cal_slope)
-            i = float(cal_intercept)
-            if s != 0:
-                raw_c = (corrected - i) / s
-            else:
-                raw_c = corrected
-        except (TypeError, ValueError):
-            raw_c = corrected
-    else:
-        existing_offset = float(zcfg.get("offset_c") or 0.0)
-        raw_c = corrected + existing_offset
-
-    cfg.setdefault(key, {})
-    cfg[key][f"cal_pending_{label}"] = {
-        "raw_c": round(raw_c, 4),
-        "ref_c": round(ref, 2),
-    }
     try:
-        _write_zone_cfg(cfg)
+        with _zone_cfg_section() as cfg:
+            key = f"zone{zone}"
+            zcfg = cfg.get(key, {})
+
+            # Undo existing calibration to recover raw value
+            cal_slope     = zcfg.get("cal_slope")
+            cal_intercept = zcfg.get("cal_intercept")
+            corrected = float(current)
+            if cal_slope is not None and cal_intercept is not None:
+                try:
+                    s = float(cal_slope)
+                    i = float(cal_intercept)
+                    if s != 0:
+                        raw_c = (corrected - i) / s
+                    else:
+                        raw_c = corrected
+                except (TypeError, ValueError):
+                    raw_c = corrected
+            else:
+                existing_offset = float(zcfg.get("offset_c") or 0.0)
+                raw_c = corrected + existing_offset
+
+            cfg.setdefault(key, {})
+            cfg[key][f"cal_pending_{label}"] = {
+                "raw_c": round(raw_c, 4),
+                "ref_c": round(ref, 2),
+            }
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -1705,14 +1773,14 @@ def api_scale_tare(scale_id):
     if raw is None:
         return jsonify({"error": "no current raw reading — is the scale wired and the sensor loop running?"}), 503
 
-    cfg = _read_scale_cfg_full()
-    sc = cfg["scales"].setdefault(str(scale_id), {})
-    sc["tare_offset"] = int(round(float(raw)))
     try:
-        _write_scale_cfg(cfg)
+        with _scale_cfg_section() as cfg:
+            sc = cfg["scales"].setdefault(str(scale_id), {})
+            sc["tare_offset"] = int(round(float(raw)))
+            saved_tare = sc["tare_offset"]
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    return jsonify({"scale_id": scale_id, "tare_offset": sc["tare_offset"]}), 200
+    return jsonify({"scale_id": scale_id, "tare_offset": saved_tare}), 200
 
 
 @app.route("/api/scale-config/<int:scale_id>/manual-set", methods=["POST"])
@@ -1730,44 +1798,46 @@ def api_scale_manual_set(scale_id):
         return jsonify({"error": "scale_id must be 1..4"}), 400
     body = request.get_json(force=True, silent=True) or {}
 
-    cfg = _read_scale_cfg_full()
-    sc = cfg["scales"].setdefault(str(scale_id), {})
-
-    changed = []
+    # Pre-validate fields outside the lock to keep critical section short.
+    new_tare = None
+    new_factor = None
     if "tare_offset" in body and body["tare_offset"] is not None:
         try:
-            t = int(round(float(body["tare_offset"])))
+            new_tare = int(round(float(body["tare_offset"])))
         except (TypeError, ValueError):
             return jsonify({"error": "tare_offset must be a number"}), 400
-        sc["tare_offset"] = t
-        changed.append("tare_offset")
-
     if "calibration_factor" in body and body["calibration_factor"] is not None:
         try:
-            f = float(body["calibration_factor"])
+            new_factor = float(body["calibration_factor"])
         except (TypeError, ValueError):
             return jsonify({"error": "calibration_factor must be a number"}), 400
-        if abs(f) < 1e-3:
+        if abs(new_factor) < 1e-3:
             return jsonify({"error": "calibration_factor cannot be ~0 (would cause divide-by-zero)"}), 400
-        sc["calibration_factor"] = round(f, 4)
-        changed.append("calibration_factor")
-
-    if not changed:
+    if new_tare is None and new_factor is None:
         return jsonify({"error": "supply at least one of tare_offset or calibration_factor"}), 400
 
-    # Drop multi-point curve so the manual single-point values aren't shadowed.
-    if sc.pop("calibration_points", None) is not None:
-        changed.append("calibration_points (cleared)")
-
+    changed = []
     try:
-        _write_scale_cfg(cfg)
+        with _scale_cfg_section() as cfg:
+            sc = cfg["scales"].setdefault(str(scale_id), {})
+            if new_tare is not None:
+                sc["tare_offset"] = new_tare
+                changed.append("tare_offset")
+            if new_factor is not None:
+                sc["calibration_factor"] = round(new_factor, 4)
+                changed.append("calibration_factor")
+            # Drop multi-point curve so the manual single-point values aren't shadowed.
+            if sc.pop("calibration_points", None) is not None:
+                changed.append("calibration_points (cleared)")
+            saved_tare = sc.get("tare_offset")
+            saved_factor = sc.get("calibration_factor")
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
     return jsonify({
         "scale_id": scale_id,
-        "tare_offset": sc.get("tare_offset"),
-        "calibration_factor": sc.get("calibration_factor"),
+        "tare_offset": saved_tare,
+        "calibration_factor": saved_factor,
         "changed": changed,
     }), 200
 
@@ -1794,27 +1864,28 @@ def api_scale_calibrate(scale_id):
     if raw is None:
         return jsonify({"error": "no current raw reading — is the scale wired and the sensor loop running?"}), 503
 
-    cfg = _read_scale_cfg_full()
-    sc = cfg["scales"].setdefault(str(scale_id), {})
-    tare = float(sc.get("tare_offset") or 0)
-    known_weight_g = kw * 1000.0
-    factor = (float(raw) - tare) / known_weight_g
-    if abs(factor) < 1e-3:
-        return jsonify({
-            "error": "computed factor near zero — is the known weight actually on the scale?"
-        }), 400
-
-    sc["calibration_factor"] = round(factor, 4)
     try:
-        _write_scale_cfg(cfg)
+        with _scale_cfg_section() as cfg:
+            sc = cfg["scales"].setdefault(str(scale_id), {})
+            tare = float(sc.get("tare_offset") or 0)
+            known_weight_g = kw * 1000.0
+            factor = (float(raw) - tare) / known_weight_g
+            if abs(factor) < 1e-3:
+                # Bail out of the with-block without writing.
+                raise ValueError("computed factor near zero — is the known weight actually on the scale?")
+            sc["calibration_factor"] = round(factor, 4)
+            saved_tare = sc.get("tare_offset")
+            saved_factor = sc["calibration_factor"]
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     return jsonify({
         "scale_id":           scale_id,
         "known_weight_kg":    kw,
         "raw":                round(float(raw), 1),
-        "tare_offset":        sc.get("tare_offset"),
-        "calibration_factor": sc["calibration_factor"],
+        "tare_offset":        saved_tare,
+        "calibration_factor": saved_factor,
     }), 200
 
 
@@ -1839,13 +1910,14 @@ def api_clear_cal_points(scale_id):
     """Clear all calibration points (revert to single-point mode)."""
     if not (1 <= scale_id <= 4):
         return jsonify({"error": "scale_id must be 1..4"}), 400
-    cfg = _read_scale_cfg_full()
-    sc = cfg["scales"].get(str(scale_id))
-    if not sc:
-        return jsonify({"error": f"scale {scale_id} not found in config"}), 404
-    sc.pop("calibration_points", None)
     try:
-        _write_scale_cfg(cfg)
+        with _scale_cfg_section() as cfg:
+            sc = cfg["scales"].get(str(scale_id))
+            if not sc:
+                raise LookupError(f"scale {scale_id} not found in config")
+            sc.pop("calibration_points", None)
+    except LookupError as e:
+        return jsonify({"error": str(e)}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     return jsonify({"ok": True, "scale_id": scale_id, "message": "calibration points cleared"})
@@ -1878,32 +1950,31 @@ def api_record_cal_point_scale(scale_id):
             "error": "no current raw reading — is the scale wired and the sensor loop running?"
         }), 503
 
-    cfg = _read_scale_cfg_full()
-    sc = cfg["scales"].setdefault(str(scale_id), {})
-
-    # Append to existing points (or start fresh)
-    points = sc.get("calibration_points", [])
-    if not isinstance(points, list):
-        points = []
-
     new_point = {"raw": round(float(raw), 1), "weight_g": weight_g, "label": label}
-    points.append(new_point)
-    sc["calibration_points"] = points
-
-    # Auto-derive legacy offset+factor for backwards compat whenever we have 2+ points
-    if len(points) >= 2:
-        pts_sorted = sorted(points, key=lambda p: p["weight_g"])
-        zero_pt = pts_sorted[0]
-        load_pt = pts_sorted[-1]
-        sc["tare_offset"] = int(round(zero_pt["raw"]))
-        if load_pt["weight_g"] > 0:
-            raw_delta = load_pt["raw"] - zero_pt["raw"]
-            factor = raw_delta / load_pt["weight_g"]
-            if abs(factor) >= 1e-3:
-                sc["calibration_factor"] = round(factor, 4)
-
     try:
-        _write_scale_cfg(cfg)
+        with _scale_cfg_section() as cfg:
+            sc = cfg["scales"].setdefault(str(scale_id), {})
+
+            # Append to existing points (or start fresh)
+            points = sc.get("calibration_points", [])
+            if not isinstance(points, list):
+                points = []
+            points.append(new_point)
+            sc["calibration_points"] = points
+
+            # Auto-derive legacy offset+factor for backwards compat whenever we have 2+ points
+            if len(points) >= 2:
+                pts_sorted = sorted(points, key=lambda p: p["weight_g"])
+                zero_pt = pts_sorted[0]
+                load_pt = pts_sorted[-1]
+                sc["tare_offset"] = int(round(zero_pt["raw"]))
+                if load_pt["weight_g"] > 0:
+                    raw_delta = load_pt["raw"] - zero_pt["raw"]
+                    factor = raw_delta / load_pt["weight_g"]
+                    if abs(factor) >= 1e-3:
+                        sc["calibration_factor"] = round(factor, 4)
+            saved_points = list(points)
+            saved_total = len(points)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -1911,8 +1982,8 @@ def api_record_cal_point_scale(scale_id):
         "ok": True,
         "scale_id": scale_id,
         "point": new_point,
-        "total_points": len(points),
-        "calibration_points": points,
+        "total_points": saved_total,
+        "calibration_points": saved_points,
     }), 201
 
 

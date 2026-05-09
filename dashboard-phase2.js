@@ -12,6 +12,15 @@
  */
 
 /* ── 1. Stage Marker IIFE ───────────────────────────────────────────────────── */
+// Shared HTML-escape helper used across the IIFE modules below.
+// Server-side input validation (server.py) already rejects HTML metachars in
+// run names + event labels, but we escape on render too as defense in depth.
+function escHtmlPhase2(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 (function stageMarkerModule() {
   "use strict";
 
@@ -136,7 +145,7 @@
       const timeStr = `${h}h ${min}m`;
       return `<span class="marker-chip" style="border-color:${color}">
         <span class="marker-chip__dot" style="background:${color}"></span>
-        ${m.label} &middot; ${timeStr}
+        ${escHtmlPhase2(m.label)} &middot; ${timeStr}
         <button class="marker-chip__del" data-id="${m.id}" title="Remove">&times;</button>
       </span>`;
     }).join("");
@@ -291,7 +300,7 @@
       const color = GHOST_COLORS[i % GHOST_COLORS.length];
       return `<span class="overlay-chip" style="border-color:${color}">
         <span class="overlay-chip__dot" style="background:${color}"></span>
-        ${ov.run_name}
+        ${escHtmlPhase2(ov.run_name)}
         <button class="overlay-chip__del" data-id="${ov.run_id}" title="Remove">&times;</button>
       </span>`;
     }).join("");
@@ -308,7 +317,7 @@
       .then(runs => {
         sel.innerHTML = '<option value="">— Add past run overlay —</option>' +
           runs.map(r =>
-            `<option value="${r.id}">${r.name}</option>`
+            `<option value="${r.id}">${escHtmlPhase2(r.name)}</option>`
           ).join("");
         sel.addEventListener("change", () => {
           const val = Number(sel.value);

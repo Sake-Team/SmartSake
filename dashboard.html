@@ -1461,8 +1461,10 @@
 					if (el) el.style.display = _pollFails >= 2 ? '' : 'none';
 				}
 
-				const bc = (typeof BroadcastChannel !== 'undefined')
-					? new BroadcastChannel('sake-sensor') : null;
+				// (BroadcastChannel('sake-sensor') publisher removed — no consumer
+				// in the codebase; was wasted work on every poll. Cross-tab sync
+				// now relies on the storage event for the small set of keys that
+				// actually need it.)
 
 				function updateTemperatureDisplay() {
 					var conv = (typeof window.tConv === 'function') ? window.tConv : function (v) { return v; };
@@ -1546,8 +1548,9 @@
 							weight_lbs_1: d.weight_lbs_1, weight_lbs_2: d.weight_lbs_2,
 							weight_lbs_3: d.weight_lbs_3, weight_lbs_4: d.weight_lbs_4
 						};
-						// sakeLatestSample localStorage mirror removed — never read; BroadcastChannel is the consumer.
-						if (bc) { try { bc.postMessage(sample); } catch(e) {} }
+						// sakeLatestSample localStorage mirror + BroadcastChannel publish
+						// both removed — no consumers. `sample` is built but not exported.
+						void sample;
 
 					} catch (err) {
 						_pollFails++;
@@ -1562,6 +1565,37 @@
 					if (pollIntervalId) return;
 					fetchAndApply();
 					pollIntervalId = setInterval(fetchAndApply, 10000);
+
+					// URL-mode revalidation: when this dashboard was opened with
+					// ?run=<id>&mode=live, periodically check the run is still active.
+					// Without this, the dashboard keeps polling readings and rendering
+					// the live UI forever even after the run was ended from another
+					// device or marked crashed by the server. Every 30s, fetch the
+					// run; if it now has ended_at set (or the row is gone), surface
+					// a banner pointing the user at the summary.
+					if (window._runId && !window._runRevalIntervalId) {
+						const _checkRunActive = function () {
+							if (document.hidden) return;
+							fetch('/api/runs/' + window._runId).then(function (r) {
+								if (r.status === 404) return { ended_at: 'deleted' };
+								if (!r.ok) throw new Error(r.status);
+								return r.json();
+							}).then(function (run) {
+								if (run && run.ended_at) {
+									var banner = document.getElementById('conn-lost-banner');
+									if (banner) {
+										banner.textContent = 'This run has ended. ' +
+											'Open the summary or start a new run.';
+										banner.style.background = 'var(--clr-alarm-mid, #b80)';
+										banner.style.display = '';
+									}
+									clearInterval(window._runRevalIntervalId);
+									window._runRevalIntervalId = null;
+								}
+							}).catch(function () { /* network blip — try again next tick */ });
+						};
+						window._runRevalIntervalId = setInterval(_checkRunActive, 30000);
+					}
 				}
 
 				function stopTemperatureReading() {
@@ -1951,6 +1985,18 @@ const tempSeries = {
 					window.addEventListener('sake-units-changed', function () {
 						if (typeof window.applyWeightUnit === 'function') window.applyWeightUnit();
 						if (typeof window.applyTempUnit   === 'function') window.applyTempUnit();
+					});
+					// Cross-tab: when sakeWeightUnit / sakeTempUnit is changed in a sibling
+					// tab, the storage event fires here. Mirrors the same handler that
+					// mobile.html / room-history.html / summary.html already register so
+					// two open dashboards don't disagree on units silently.
+					window.addEventListener('storage', function (ev) {
+						if (ev.key === 'sakeWeightUnit' && typeof window.applyWeightUnit === 'function') {
+							window.applyWeightUnit();
+						}
+						if (ev.key === 'sakeTempUnit' && typeof window.applyTempUnit === 'function') {
+							window.applyTempUnit();
+						}
 					});
 
 					// Apply persisted temperature unit on initial load (after layout settles

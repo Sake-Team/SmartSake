@@ -421,7 +421,13 @@ def _hot_reload_tc_zone_map():
 
 
 def _zone_tolerance(zone):
-    cfg = _load_zone_config()
+    # Defense in depth: _load_zone_config has its own try/except + cached
+    # fallback, so it shouldn't raise. If a future regression breaks that
+    # contract, swallow here so the auto loop keeps running on defaults.
+    try:
+        cfg = _load_zone_config()
+    except Exception:
+        cfg = {}
     default = cfg.get("default", {})
     # Resolve in order: zone-specific tolerance → default block tolerance →
     # module constant. Previously a partial zone entry (e.g. setpoint only)
@@ -436,7 +442,10 @@ def _zone_tolerance(zone):
 
 
 def _zone_setpoint_override(zone):
-    cfg = _load_zone_config()
+    try:
+        cfg = _load_zone_config()
+    except Exception:
+        cfg = {}
     v = cfg.get(f"zone{zone}", {}).get("setpoint_c")
     if v is None:
         v = cfg.get("default", {}).get("setpoint_c")

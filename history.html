@@ -125,6 +125,12 @@
 	"use strict";
 
 	/* ── Utility ───────────────────────────────────────────────── */
+	function escHtml(s) {
+		if (s == null) return '';
+		return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+		                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+	}
+
 	function fmtDate(iso) {
 		if (!iso) return '—';
 		const d = new Date(iso);
@@ -183,12 +189,12 @@
 			const lockCls = r.pinned ? 'lock-on' : '';
 			return `<tr data-id="${r.id}" class="${_selectedRunId === r.id ? 'is-selected' : ''}">
 				<td><button class="lock-btn ${lockCls}" data-pin="${r.id}" title="${r.pinned ? 'Unlock — data can be auto-deleted when disk space is low' : 'Lock — keeps raw data forever'}">${r.pinned ? 'Locked' : 'Lock'}</button></td>
-				<td>${r.name}</td>
+				<td>${escHtml(r.name)}</td>
 				<td>${fmtDate(r.started_at)}</td>
 				<td>${r.ended_at ? fmtDate(r.ended_at) : '—'}</td>
 				<td>${durDisplay}</td>
-				<td><span class="badge ${statusCls}">${r.status}</span></td>
-				<td>${r.koji_variety || '—'}</td>
+				<td><span class="badge ${statusCls}">${escHtml(r.status)}</span></td>
+				<td>${escHtml(r.koji_variety || '—')}</td>
 				<td><button class="btn btn-secondary btn-sm" data-select="${r.id}">Edit</button></td>
 			</tr>`;
 		}).join('');

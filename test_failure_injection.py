@@ -521,21 +521,18 @@ def test_load_zone_config_raises_uses_defaults():
         raise IOError("zone_config.json gone")
     ws._load_zone_config = _boom_load
 
-    # _zone_tolerance calls _load_zone_config; an unhandled raise here would
-    # crash the auto branch. Verify it raises (documenting current behaviour)
-    # — but the OUTER evaluate_fan_state try/except in start_sensor_loop
-    # should still catch it. We also check the in-process fallback at
-    # _load_zone_config level by restoring the original and forcing a missing
-    # file scenario.
-    raised = False
-    try:
-        ws._zone_tolerance(1)
-    except Exception:
-        raised = True
-    assert raised is True, (
-        "documenting current behaviour: _zone_tolerance does NOT swallow "
-        "_load_zone_config exceptions — fan-eval try/except is the only "
-        "safety net; if that ever moves, this assert flips and signals a regression"
+    # Defense-in-depth (added after this test was first written): both
+    # _zone_tolerance and _zone_setpoint_override now wrap the
+    # _load_zone_config() call in try/except so a future regression in the
+    # loader can't kill the fan-eval branch. Verify both swallow and return
+    # sensible fallbacks rather than re-raising.
+    tol = ws._zone_tolerance(1)
+    assert tol == ws.DEFAULT_TOLERANCE_C, (
+        f"expected fallback to DEFAULT_TOLERANCE_C ({ws.DEFAULT_TOLERANCE_C}), got {tol}"
+    )
+    sp = ws._zone_setpoint_override(1)
+    assert sp is None, (
+        f"expected None when no setpoint resolvable, got {sp!r}"
     )
 
     # Now restore _load_zone_config and confirm it returns the default block
