@@ -2320,7 +2320,7 @@ const tempSeries = {
 					// This gets called from the simulator
 					window.pushSensorSample = function (sample) {
 						const t = sample.time instanceof Date ? sample.time : new Date(sample.time);
-						const label = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+						const label = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 						labels.push(label);
 						sampleTimestamps.push(t.getTime());
