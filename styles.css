@@ -1542,11 +1542,10 @@ header.header {
 .theme-card { display: flex; flex-direction: column; align-items: center; padding: 0.55rem 0.4rem; background: #1e1e1e; border: 2px solid #333; border-radius: var(--r-lg); cursor: pointer; }
 .theme-card--active { border-color: #52a0e0; background: #1a2a3a; }
 
-/* Full-viewport adjustment — dashboard/page-wrapper pages only */
-html:has(body .page-wrapper) { overflow: hidden; }
-body:has(.page-wrapper) { overflow: hidden; }
-.page-wrapper { display: flex !important; flex-direction: column !important; height: 100% !important; }
-main { flex: 1 1 0 !important; overflow: hidden !important; padding: 16px 12px 12px !important; }
+/* Full-viewport adjustment — page-wrapper pages fill the viewport when
+   content fits, and scroll naturally when it doesn't. */
+.page-wrapper { display: flex !important; flex-direction: column !important; min-height: 100vh !important; }
+main { flex: 1 1 auto !important; padding: 16px 12px 12px !important; }
 
 /* ----- Global scrollbar ----- */
 * { scrollbar-width: thin; scrollbar-color: var(--scrollbar-color) var(--scrollbar-track); }
