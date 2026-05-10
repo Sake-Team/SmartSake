@@ -1543,7 +1543,7 @@ header.header {
 .theme-card--active { border-color: #52a0e0; background: #1a2a3a; }
 
 /* Full-viewport adjustment — dashboard/page-wrapper pages only */
-html { overflow: hidden; }
+html:has(body .page-wrapper) { overflow: hidden; }
 body:has(.page-wrapper) { overflow: hidden; }
 .page-wrapper { display: flex !important; flex-direction: column !important; height: 100% !important; }
 main { flex: 1 1 0 !important; overflow: hidden !important; padding: 16px 12px 12px !important; }

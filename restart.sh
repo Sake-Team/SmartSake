@@ -1,15 +1,21 @@
 #!/usr/bin/env bash
 # restart.sh — Kill SmartSake server and restart it.
 #
+# Default behavior: bring up the SmartSake WiFi AP on wlan0 with the static
+# IP defined in scripts/ap-config.env (192.168.50.1 by default), then start
+# the server. Mobile devices join SSID `SmartSake` and reach the dashboard at
+# http://192.168.50.1:8080.
+#
 # Run from the SmartSake directory: ./restart.sh
 # Optional flags:
-#   --status   Show running process and exit
-#   --logs     Tail server.log and exit
-#   --ap       Bring up Pi WiFi access-point first (sudo), then restart server
-#   --no-ap    Tear down AP, return to home WiFi (sudo), then restart server
+#   --status     Show running process and exit
+#   --logs       Tail server.log and exit
+#   --ap         (compatibility) Same as default — explicitly bring AP up
+#   --no-ap      Tear down AP, return to home WiFi (sudo), then restart server
+#   --skip-ap    Restart server without touching network state at all
 #
 # AP mode broadcasts the SSID + password defined in scripts/ap-config.env.
-# Mobile devices connect to that SSID and reach http://<gateway-ip>:8080.
+# Mobile devices connect to that SSID and reach http://<AP_GATEWAY>:8080.
 
 set -euo pipefail
 
@@ -17,6 +23,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVER="$SCRIPT_DIR/server.py"
 LOG="$SCRIPT_DIR/server.log"
 AP_HELPER="$SCRIPT_DIR/scripts/ap-mode.sh"
+
+# Default action for the AP helper. Overridden by flags.
+AP_ACTION="start"
 
 # ── Log rotation (non-systemd path only) ───────────────────────────────────
 # Under systemd everything goes to journal which rotates itself. Here we
@@ -44,6 +53,46 @@ show_url() {
     echo ""
 }
 
+# Ensure Tailscale is connected. Idempotent: no-op if already up. Best-effort:
+# a missing binary or auth failure is warned and does not abort restart.sh.
+ensure_tailscale_up() {
+    if ! command -v tailscale >/dev/null 2>&1; then
+        echo "[restart] tailscale not installed — skipping."
+        return 0
+    fi
+    if tailscale ip -4 >/dev/null 2>&1; then
+        echo "[restart] Tailscale already up ($(tailscale ip -4))."
+        return 0
+    fi
+    echo "[restart] Bringing up Tailscale…"
+    if [ "$(id -u)" -ne 0 ]; then
+        sudo tailscale up || echo "[restart] WARNING: tailscale up failed — continuing."
+    else
+        tailscale up || echo "[restart] WARNING: tailscale up failed — continuing."
+    fi
+}
+
+# Run scripts/ap-mode.sh with the requested action. Best-effort: a missing
+# helper, no wlan0, missing sudo, or hostapd/dnsmasq failures are warned and
+# do not abort restart.sh — the server still comes up so dev boxes work.
+run_ap_helper() {
+    local action="$1"
+    if [ ! -x "$AP_HELPER" ]; then
+        echo "[restart] AP helper not found or not executable ($AP_HELPER) — skipping AP $action."
+        echo "[restart] Try: chmod +x $AP_HELPER"
+        return 0
+    fi
+    if [ "$(id -u)" -ne 0 ]; then
+        if ! sudo "$AP_HELPER" "$action"; then
+            echo "[restart] WARNING: ap-mode.sh $action failed — continuing without AP changes."
+        fi
+    else
+        if ! "$AP_HELPER" "$action"; then
+            echo "[restart] WARNING: ap-mode.sh $action failed — continuing without AP changes."
+        fi
+    fi
+}
+
 # ── Flag handling ────────────────────────────────────────────────────────────
 
 case "${1:-}" in
@@ -56,31 +105,43 @@ case "${1:-}" in
         exit 0
         ;;
     --ap)
-        if [ ! -x "$AP_HELPER" ]; then
-            echo "[restart] AP helper not found or not executable: $AP_HELPER"
-            echo "[restart] Try: chmod +x $AP_HELPER"
-            exit 1
-        fi
-        echo "[restart] Bringing up SmartSake WiFi AP…"
-        if [ "$(id -u)" -ne 0 ]; then
-            sudo "$AP_HELPER" start
-        else
-            "$AP_HELPER" start
-        fi
+        AP_ACTION="start"
         ;;
-    --no-ap)
-        if [ ! -x "$AP_HELPER" ]; then
-            echo "[restart] AP helper not found: $AP_HELPER"
-            exit 1
-        fi
-        echo "[restart] Tearing down AP, restoring home WiFi…"
-        if [ "$(id -u)" -ne 0 ]; then
-            sudo "$AP_HELPER" stop
-        else
-            "$AP_HELPER" stop
-        fi
+    --no-ap|--client)
+        AP_ACTION="stop"
+        ;;
+    --skip-ap|--no-network)
+        AP_ACTION="skip"
+        ;;
+    "")
+        # No flag — default to bringing the SmartSake AP up.
+        AP_ACTION="start"
+        ;;
+    *)
+        echo "[restart] Unknown flag: $1"
+        echo "Usage: $0 [--status|--logs|--ap|--no-ap|--skip-ap]"
+        exit 1
         ;;
 esac
+
+# ── AP action (default: start, with static IP from ap-config.env) ───────────
+
+case "$AP_ACTION" in
+    start)
+        echo "[restart] Bringing up SmartSake WiFi AP (static IP from scripts/ap-config.env)…"
+        run_ap_helper start
+        ;;
+    stop)
+        echo "[restart] Tearing down AP, restoring home WiFi…"
+        run_ap_helper stop
+        ;;
+    skip)
+        echo "[restart] Skipping AP setup (--skip-ap)."
+        ;;
+esac
+
+# ── Ensure Tailscale is up (for off-site access) ────────────────────────────
+ensure_tailscale_up
 
 # ── Fix CRLF line endings on all source files ───────────────────────────────
 
