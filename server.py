@@ -385,7 +385,13 @@ def api_system_health():
         print(f"[api_system_health] active runs query failed: {e}")
 
     # Sensor loop status (mirrors /api/sensor-status logic for the loop_status block).
-    sensor_status = _read_json_cached(SENSOR_STATUS_JSON) or {"status": "ok"}
+    # Distinguish "file present and says ok" from "file missing" — the latter
+    # is "unknown" (loop may not have run yet, or wrote nothing because no
+    # failure has occurred). Reporting "ok" for missing masks a dead loop.
+    if os.path.exists(SENSOR_STATUS_JSON):
+        sensor_status = _read_json_cached(SENSOR_STATUS_JSON) or {"status": "unknown"}
+    else:
+        sensor_status = {"status": "unknown", "message": "sensor_status.json not yet written"}
 
     # Last sensor sample age (seconds) — server-computed from sensor_latest.json mtime.
     last_sample_age_s = None
@@ -1326,34 +1332,89 @@ def api_save_zone_config():
                 return jsonify({"error": f"offset_c for '{key}' must be a number"}), 400
             if not (-5.0 <= val["offset_c"] <= 5.0):
                 return jsonify({"error": f"offset_c for '{key}' must be between -5 and 5"}), 400
-    # Deep-merge into existing config rather than full-replacing the file.
-    # Defends against a stale/empty client GET clobbering setpoint_c when
-    # the user only meant to update tolerance_c (or vice versa), and against
-    # concurrent saves from multiple tabs racing each other.
+    # Deep-merge under the zone-config RLock so concurrent POSTs (e.g. the
+    # bulk-setpoints modal firing 6 in parallel) can't clobber each other's
+    # writes. _zone_cfg_section reads, yields the dict for in-place edit,
+    # then atomic-replaces on context exit.
     try:
-        existing = _read_zone_cfg()
-    except Exception:
-        existing = {}
-    merged = dict(existing) if isinstance(existing, dict) else {}
-    for key, val in body.items():
-        if key == "comment":
-            merged[key] = val
-            continue
-        if isinstance(val, dict) and isinstance(merged.get(key), dict):
-            merged_zone = dict(merged[key])
-            merged_zone.update(val)
-            merged[key] = merged_zone
-        else:
-            merged[key] = val
-
-    try:
-        tmp = ZONE_CONFIG_FILE + ".tmp"
-        with open(tmp, "w") as f:
-            json.dump(merged, f, indent=2)
-        os.replace(tmp, ZONE_CONFIG_FILE)
+        with _zone_cfg_section() as cfg:
+            for key, val in body.items():
+                if key == "comment":
+                    cfg[key] = val
+                    continue
+                if isinstance(val, dict) and isinstance(cfg.get(key), dict):
+                    cfg[key].update(val)
+                else:
+                    cfg[key] = val
+            merged = dict(cfg)
         return jsonify(merged), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/zone-config/all", methods=["POST"])
+def api_save_all_zone_config():
+    """Blanket update — apply one setpoint_c and/or tolerance_c to every zone 1..6.
+
+    Body: {"setpoint_c": <float?>, "tolerance_c": <float?>}
+      - At least one of the two must be provided.
+      - setpoint_c: 0-60 (or null to clear).
+      - tolerance_c: 0-10.
+
+    Wraps all 6 zone updates in a single _zone_cfg_section so the file is
+    written exactly once. Replaces the previous frontend pattern of firing
+    6 parallel POSTs to /api/zone-config (which was racy).
+    """
+    body = request.get_json(force=True, silent=True)
+    if not isinstance(body, dict):
+        return jsonify({"error": "expected JSON object"}), 400
+
+    has_setpoint = "setpoint_c" in body
+    has_tolerance = "tolerance_c" in body
+    if not (has_setpoint or has_tolerance):
+        return jsonify({"error": "supply at least one of setpoint_c or tolerance_c"}), 400
+
+    sp = body.get("setpoint_c") if has_setpoint else None
+    tol = body.get("tolerance_c") if has_tolerance else None
+
+    # Validate setpoint_c (allow null/None to clear)
+    if has_setpoint and sp is not None:
+        if not isinstance(sp, (int, float)) or isinstance(sp, bool):
+            return jsonify({"error": "setpoint_c must be a number or null"}), 400
+        if not (0 <= sp <= 60):
+            return jsonify({"error": "setpoint_c must be between 0 and 60"}), 400
+
+    # Validate tolerance_c
+    if has_tolerance:
+        if not isinstance(tol, (int, float)) or isinstance(tol, bool):
+            return jsonify({"error": "tolerance_c must be a number"}), 400
+        if not (0 <= tol <= 10):
+            return jsonify({"error": "tolerance_c must be between 0 and 10"}), 400
+
+    try:
+        with _zone_cfg_section() as cfg:
+            for z in range(1, 7):
+                key = f"zone{z}"
+                zone_cfg = cfg.get(key) if isinstance(cfg.get(key), dict) else {}
+                cfg[key] = zone_cfg
+                if has_setpoint:
+                    if sp is None:
+                        zone_cfg.pop("setpoint_c", None)
+                    else:
+                        zone_cfg["setpoint_c"] = sp
+                if has_tolerance:
+                    zone_cfg["tolerance_c"] = tol
+            merged = dict(cfg)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({
+        "ok": True,
+        "applied_to": [f"zone{z}" for z in range(1, 7)],
+        "setpoint_c": sp if has_setpoint else None,
+        "tolerance_c": tol if has_tolerance else None,
+        "config": merged,
+    }), 200
 
 
 # ── Calibration ───────────────────────────────────────────────────────────────

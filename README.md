@@ -28,6 +28,7 @@ This system controls mains-voltage equipment near food-contact surfaces. Before 
 - **Thermal:** Fans run hot under sustained load. The auto fan-control loop has no upper bound — a misconfigured `tolerance_c` of 0 will keep fans on indefinitely. Always set a sane tolerance (1–2 °C) and check the dashboard during the first hour of every new run.
 - **Food contact:** Only the load cell housing surface and the koji table top are food-contact. Use food-safe PETG or food-safe-coated PLA for the [STL parts](hardware/stl/), and sanitize between runs.
 - **Crash recovery:** systemd `Restart=on-failure` brings the server back if it dies; the SIGTERM handler drives every fan relay HIGH (= OFF on active-LOW) before exit, so a clean restart leaves no fan stranded on. A hard kill (`SIGKILL`, power loss) bypasses the handler — relays hold their last state.
+- **systemd watchdog:** the unit ships with `WatchdogSec=60`; `WriteSensors.py` calls `sd_notify("WATCHDOG=1")` once per sensor tick (~10 s) so a frozen loop is caught and restarted. To temporarily disable the watchdog, drop in `/etc/systemd/system/smartsake.service.d/no-watchdog.conf` with `[Service]\nWatchdogSec=0`, then `systemctl daemon-reload && systemctl restart smartsake`.
 - **Hard cutoff:** The dashboard no longer ships an in-page emergency-stop button. To force all fans OFF, kill power at the relay board, or POST to `/api/runs/<id>/emergency-stop` directly (the route still exists server-side).
 
 ---
@@ -499,7 +500,7 @@ The main dashboard is designed for a wall-mounted display. It shows:
 - **Weight chart** — load cell readings updated every 30 seconds
 - **Humidity/ambient** — SHT30 environment readings
 - **Zone controls** — click any zone card to open fan overrides, rules, notes, and calibration
-- **Update Setpoints card** — opens a six-row modal for bulk-editing all zone setpoints and tolerances at once (parallel POSTs to `/api/zone-config`); replaces the old per-card unit toggle slot
+- **Update Setpoints card** — opens a blanket-only modal: enter one setpoint and/or one tolerance, click Apply, and the values are written to every zone in a single atomic POST to `/api/zone-config/all` (RLock-guarded on the server). Per-zone edits live on each zone card's existing detail modal
 - **Display units** — open the gear (Settings) modal to switch weight between **lbs / kg** and temperature between **°C / °F**. Both preferences persist in `localStorage` (`sakeWeightUnit`, `sakeTempUnit`); changes apply live to every dashboard chart, stat card, zone card, and zone-detail modal — and propagate (via the `sake-units-changed` event plus a cross-tab `storage` listener) to **`mobile.html`**, **`room-history.html`**, and **`summary.html`**. Internally the backend always stores Celsius — `°F` inputs are converted on send (and tolerance, being a delta, is divided by `9/5`).
 
 **Fan control modes:**
@@ -759,7 +760,7 @@ All endpoints are JSON unless noted. Base URL is `http://<pi-ip>:8080`.
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/health` | Overall system health (sensor loop, DB, GPIO) |
-| GET | `/api/system-health` | Aggregator for the home-page System Health card. Returns `{active_runs, sensor_status, last_sample_age_s, disk_free_mb, overrides[]}`. 5 s server-side cache. |
+| GET | `/api/system-health` | Aggregator for the home-page System Health card. Returns `{active_runs, sensor_status, last_sample_age_s, disk_free_mb, overrides[]}`. 5 s server-side cache. `sensor_status.status` is `"unknown"` when `/run/smartsake/sensor_status.json` does not yet exist (e.g. fresh boot before the sensor loop has written status), so callers can distinguish "loop never reported" from "loop says ok". |
 | GET | `/api/sensor-status` | Sensor loop diagnostics, library availability, last-write age |
 | GET | `/api/latest` | Latest TC + SHT30 + weight reading |
 | GET | `/api/fan-state` | Latest fan state per zone (mode, setpoint, alarm) |
@@ -809,7 +810,8 @@ All endpoints are JSON unless noted. Base URL is `http://<pi-ip>:8080`.
 ### Calibration & config
 | Method | Path | Purpose |
 |---|---|---|
-| GET / POST | `/api/zone-config` | Read/write `zone_config.json` |
+| GET / POST | `/api/zone-config` | Read/write `zone_config.json` (per-zone deep merge, RLock-guarded) |
+| POST | `/api/zone-config/all` | Blanket update — one `{setpoint_c, tolerance_c}` written to every zone 1–6 in a single atomic file write |
 | GET | `/api/scale-config` | Read `scale_config.json` |
 | POST | `/api/tc-calibration/<zone>` | Set per-zone TC offset directly |
 | GET | `/api/scale-config/<id>/calibration-points` | List multi-point calibration points for a scale |

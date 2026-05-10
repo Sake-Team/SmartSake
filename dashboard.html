@@ -539,16 +539,28 @@
 						<button type="button" class="modal-close" id="update-setpoints-close" aria-label="Close update setpoints">&times;</button>
 					</div>
 					<div class="modal-content">
-						<p style="margin:0 0 10px 0;color:var(--color-text-2);font-size:0.85rem;">
-							Adjust setpoint and tolerance for any zone, then Apply All.
+						<p style="margin:0 0 12px 0;color:var(--color-text-2);font-size:0.85rem;">
+							Apply one setpoint and one tolerance to every zone in a single atomic write.
+							Leave a field blank to skip it. Per-zone edits live on each zone card.
 							Values use your current temperature unit; the backend stores Celsius.
 						</p>
-						<div class="set-temp-zones-grid" id="usp-zones-grid">
-							<!-- Six rows populated by IIFE on open -->
+						<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+							<label style="display:flex;flex-direction:column;gap:4px;font-size:0.72rem;color:var(--color-text-2);">
+								Setpoint (<span class="usp-blanket-unit">°C</span>)
+								<input type="number" id="usp-blanket-sp" step="0.5" placeholder="e.g. 32.0"
+									style="padding:6px 8px;font-size:0.95rem;" />
+							</label>
+							<label style="display:flex;flex-direction:column;gap:4px;font-size:0.72rem;color:var(--color-text-2);">
+								Tolerance (<span class="usp-blanket-unit">°C</span>)
+								<input type="number" id="usp-blanket-tol" step="0.1" min="0" placeholder="e.g. 1.0"
+									style="padding:6px 8px;font-size:0.95rem;" />
+							</label>
 						</div>
+						<p id="usp-blanket-result" style="margin-top:10px;font-size:0.75rem;color:var(--color-text-3);min-height:1em;"></p>
+
 						<div class="modal-button-section">
 							<button type="button" class="modal-cancel-btn" id="usp-cancel-btn">Cancel</button>
-							<button type="button" class="modal-confirm-btn" id="usp-apply-all-btn">Apply All</button>
+							<button type="button" class="modal-confirm-btn" id="usp-apply-all-btn">Apply to All Zones</button>
 						</div>
 						<p id="usp-status" style="margin-top:10px;font-size:0.8rem;color:var(--color-text-2);"></p>
 					</div>
@@ -5476,137 +5488,102 @@ const tempSeries = {
 	</script>
 
 	<script>
-	// ── Bulk Setpoints modal ────────────────────────────────────────────────
-	// Card click → fetch /api/zone-config → render six rows (per-zone setpoint + tolerance)
-	// → Apply All fires six parallel POSTs to /api/zone-config (same partial-merge contract
-	//   as the per-zone Apply button in the zone-detail modal). Inputs use the displayed
-	//   temperature unit; the handler converts back to °C before sending so the backend
-	//   always receives Celsius (setpoint absolute, tolerance as °C delta).
+	// ── Update Setpoints modal (blanket only) ────────────────────────────────
+	// Card click → fetch current zone_config so the unit labels are right →
+	// user types one setpoint and/or one tolerance → Apply fires a single POST
+	// to /api/zone-config/all (atomic, RLock-guarded on the server). Per-zone
+	// edits live on each zone card's existing detail modal.
 	(function () {
 		var card    = document.getElementById('ew-update-setpoints-card');
 		var modal   = document.getElementById('update-setpoints-modal');
-		var grid    = document.getElementById('usp-zones-grid');
 		var closeBtn = document.getElementById('update-setpoints-close');
 		var cancelBtn = document.getElementById('usp-cancel-btn');
 		var applyBtn = document.getElementById('usp-apply-all-btn');
 		var statusEl = document.getElementById('usp-status');
-		if (!card || !modal || !grid) return;
+		var blanketSpInp  = document.getElementById('usp-blanket-sp');
+		var blanketTolInp = document.getElementById('usp-blanket-tol');
+		var blanketResult = document.getElementById('usp-blanket-result');
+		if (!card || !modal || !blanketSpInp || !blanketTolInp) return;
 
-		function unitLbl()    { return (typeof window.tUnitLabel === 'function') ? window.tUnitLabel() : '°C'; }
-		function convDisp(c)  { return (typeof window.tConv === 'function') ? window.tConv(c) : c; }
+		function unitLbl()            { return (typeof window.tUnitLabel === 'function') ? window.tUnitLabel() : '°C'; }
 		function convFromDisp(v)      { return (typeof window.tConvFrom === 'function') ? window.tConvFrom(v) : v; }
 		function convDeltaFromDisp(v) { return (typeof window.tConvDeltaFrom === 'function') ? window.tConvDeltaFrom(v) : v; }
-		function convDelta(c)         { return (typeof window.tConvDelta === 'function') ? window.tConvDelta(c) : c; }
 
-		function buildRows(currentCfg) {
-			var inF = (window._tempUnit === 'F');
-			var spMin = inF ? '32'  : '0';
-			var spMax = inF ? '140' : '60';
-			var tolMax = inF ? '18' : '10';
+		function refreshUnitLabels() {
 			var u = unitLbl();
-			var html = '';
-			for (var z = 1; z <= 6; z++) {
-				var cfg = currentCfg['zone' + z] || {};
-				var spC  = (cfg.setpoint_c  != null) ? Number(cfg.setpoint_c)  : null;
-				var tolC = (cfg.tolerance_c != null) ? Number(cfg.tolerance_c) : null;
-				var spDisp  = (spC  != null) ? convDisp(spC).toFixed(1)  : '';
-				var tolDisp = (tolC != null) ? convDelta(tolC).toFixed(2) : '';
-				var hint = '';
-				if (spC != null) {
-					hint = 'Current: ' + convDisp(spC).toFixed(1) + u +
-						(tolC != null ? ' ±' + convDelta(tolC).toFixed(2) : '');
-				} else {
-					hint = 'No setpoint configured';
-				}
-				html +=
-					'<div class="set-temp-zone-row" data-zone="' + z + '" style="display:grid;grid-template-columns:auto 1fr 1fr;gap:8px;align-items:center;padding:6px 0;">' +
-						'<span class="set-temp-zone-label" style="min-width:60px;">Zone ' + z + '</span>' +
-						'<label style="display:flex;flex-direction:column;gap:2px;font-size:0.72rem;color:var(--color-text-2);">' +
-							'Setpoint (' + u + ')' +
-							'<input type="number" class="usp-sp set-temp-zone-input" data-zone="' + z + '" min="' + spMin + '" max="' + spMax + '" step="0.5" value="' + spDisp + '" placeholder="' + (inF ? '100.4' : '38.0') + '" />' +
-						'</label>' +
-						'<label style="display:flex;flex-direction:column;gap:2px;font-size:0.72rem;color:var(--color-text-2);">' +
-							'Tolerance (' + u + ')' +
-							'<input type="number" class="usp-tol set-temp-zone-input" data-zone="' + z + '" min="0" max="' + tolMax + '" step="0.1" value="' + tolDisp + '" placeholder="' + (inF ? '1.8' : '1.0') + '" />' +
-						'</label>' +
-						'<span class="usp-hint" data-zone="' + z + '" style="grid-column:1 / -1;font-size:0.7rem;color:var(--color-text-3);">' + hint + '</span>' +
-						'<span class="usp-result" data-zone="' + z + '" style="grid-column:1 / -1;font-size:0.7rem;"></span>' +
-					'</div>';
-			}
-			grid.innerHTML = html;
+			document.querySelectorAll('.usp-blanket-unit').forEach(function (el) { el.textContent = u; });
+			var inF = (window._tempUnit === 'F');
+			blanketSpInp.min  = inF ? '32'  : '0';
+			blanketSpInp.max  = inF ? '140' : '60';
+			blanketTolInp.max = inF ? '18'  : '10';
 		}
 
 		function openModal() {
-			if (statusEl) statusEl.textContent = 'Loading current setpoints…';
-			grid.innerHTML = '';
-			fetch('/api/zone-config')
-				.then(function (r) { return r.ok ? r.json() : {}; })
-				.then(function (cfg) {
-					buildRows(cfg || {});
-					if (statusEl) statusEl.textContent = '';
-				})
-				.catch(function () {
-					buildRows({});
-					if (statusEl) statusEl.textContent = 'Could not load current setpoints — values blank.';
-				});
+			if (statusEl) statusEl.textContent = '';
+			if (blanketResult) blanketResult.textContent = '';
+			blanketSpInp.value = '';
+			blanketTolInp.value = '';
+			refreshUnitLabels();
 			modal.classList.add('is-open');
+			setTimeout(function () { blanketSpInp.focus(); }, 50);
 		}
 
 		function closeModal() { modal.classList.remove('is-open'); }
 
-		function applyAll() {
-			var rows = grid.querySelectorAll('[data-zone]');
-			if (!rows.length) return;
+		function applyBlanket() {
+			var spRaw  = blanketSpInp.value.trim();
+			var tolRaw = blanketTolInp.value.trim();
+			if (spRaw === '' && tolRaw === '') {
+				blanketResult.textContent = 'Enter setpoint and/or tolerance first.';
+				blanketResult.style.color = 'var(--color-text-3)';
+				return;
+			}
+			var payload = {};
+			if (spRaw !== '') {
+				var spDispNum = parseFloat(spRaw);
+				if (isNaN(spDispNum)) {
+					blanketResult.textContent = 'Setpoint must be a number.';
+					blanketResult.style.color = 'var(--color-critical, #c33)';
+					return;
+				}
+				var spC = convFromDisp(spDispNum);
+				if (isNaN(spC) || spC < 0 || spC > 60) {
+					blanketResult.textContent = 'Setpoint out of range (0–60 °C / 32–140 °F).';
+					blanketResult.style.color = 'var(--color-critical, #c33)';
+					return;
+				}
+				payload.setpoint_c = Number(spC.toFixed(2));
+			}
+			if (tolRaw !== '') {
+				var tolDispNum = parseFloat(tolRaw);
+				if (isNaN(tolDispNum) || tolDispNum < 0) {
+					blanketResult.textContent = 'Tolerance must be a non-negative number.';
+					blanketResult.style.color = 'var(--color-critical, #c33)';
+					return;
+				}
+				var tolC = convDeltaFromDisp(tolDispNum);
+				if (isNaN(tolC) || tolC < 0 || tolC > 10) {
+					blanketResult.textContent = 'Tolerance out of range (0–10 °C / 0–18 °F).';
+					blanketResult.style.color = 'var(--color-critical, #c33)';
+					return;
+				}
+				payload.tolerance_c = Number(tolC.toFixed(3));
+			}
 			applyBtn.disabled = true;
 			statusEl.textContent = 'Saving…';
-			grid.querySelectorAll('.usp-result').forEach(function (el) { el.textContent = ''; });
-			var jobs = [];
-			for (var z = 1; z <= 6; z++) {
-				(function (zone) {
-					var spInp  = grid.querySelector('.usp-sp[data-zone="'  + zone + '"]');
-					var tolInp = grid.querySelector('.usp-tol[data-zone="' + zone + '"]');
-					var resEl  = grid.querySelector('.usp-result[data-zone="' + zone + '"]');
-					var partial = {};
-					var changes = {};
-					if (spInp && spInp.value !== '') {
-						var spRaw = parseFloat(spInp.value);
-						if (!isNaN(spRaw)) {
-							var spC = convFromDisp(spRaw);
-							if (!isNaN(spC) && spC >= 0 && spC <= 60) changes.setpoint_c = Number(spC.toFixed(2));
-						}
-					}
-					if (tolInp && tolInp.value !== '') {
-						var tolRaw = parseFloat(tolInp.value);
-						if (!isNaN(tolRaw) && tolRaw >= 0) {
-							var tolC = convDeltaFromDisp(tolRaw);
-							if (!isNaN(tolC) && tolC >= 0 && tolC <= 10) changes.tolerance_c = Number(tolC.toFixed(3));
-						}
-					}
-					if (!Object.keys(changes).length) {
-						if (resEl) { resEl.textContent = 'No changes.'; resEl.style.color = 'var(--color-text-3)'; }
-						return;
-					}
-					partial['zone' + zone] = changes;
-					jobs.push(
-						fetch('/api/zone-config', {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify(partial)
-						})
-						.then(function (r) {
-							if (!r.ok) throw new Error(r.status);
-							if (resEl) { resEl.textContent = 'Saved.'; resEl.style.color = 'var(--color-success-hover, #2a8)'; }
-						})
-						.catch(function (err) {
-							if (resEl) { resEl.textContent = 'Failed (' + err.message + ').'; resEl.style.color = 'var(--color-critical, #c33)'; }
-						})
-					);
-				})(z);
-			}
-			Promise.allSettled(jobs).then(function () {
-				applyBtn.disabled = false;
+			fetch('/api/zone-config/all', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			})
+			.then(function (r) {
+				if (!r.ok) return r.json().then(function (e) { throw new Error(e.error || r.status); });
+				return r.json();
+			})
+			.then(function () {
+				blanketResult.textContent = 'Applied to all 6 zones.';
+				blanketResult.style.color = 'var(--color-success-hover, #2a8)';
 				statusEl.textContent = 'Done. Fan-state will reflect changes within ~10 s.';
-				// Refresh fan-state badges + zone card setpoint rows now
 				setTimeout(function () {
 					fetch('/api/fan-state').then(function (r) { return r.ok ? r.json() : {}; })
 						.then(function (d) {
@@ -5614,7 +5591,13 @@ const tempSeries = {
 							if (window.applyDeviationColors) window.applyDeviationColors();
 						}).catch(function () {});
 				}, 1500);
-			});
+			})
+			.catch(function (err) {
+				blanketResult.textContent = 'Failed: ' + err.message;
+				blanketResult.style.color = 'var(--color-critical, #c33)';
+				statusEl.textContent = '';
+			})
+			.then(function () { applyBtn.disabled = false; });
 		}
 
 		card.addEventListener('click', openModal);
@@ -5623,7 +5606,7 @@ const tempSeries = {
 		});
 		if (closeBtn)  closeBtn.addEventListener('click', closeModal);
 		if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
-		if (applyBtn)  applyBtn.addEventListener('click', applyAll);
+		if (applyBtn)  applyBtn.addEventListener('click', applyBlanket);
 		modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
 		document.addEventListener('keydown', function (e) {
 			if (e.key === 'Escape' && modal.classList.contains('is-open')) closeModal();

@@ -18,3 +18,7 @@ server.log.*
 smartsake.db
 smartsake.db-wal
 smartsake.db-shm
+
+# Rolling 24h sensor CSV + its rotation backups
+sensor_data.csv
+sensor_data.csv.*.bak

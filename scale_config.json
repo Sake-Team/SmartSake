@@ -1,11 +1,28 @@
 {
-  "sensors": {
-    "sht30_temp_offset_c": 0.0
-  },
   "scales": {
-    "1": {"dat_pin": 5,  "clk_pin": 6,  "tare_offset": 4166, "calibration_factor": 8000, "units": "kg", "label": "Scale 1"},
-    "2": {"dat_pin": 12, "clk_pin": 15, "tare_offset": 0,    "calibration_factor": 8000, "units": "kg", "label": "Scale 2"},
-    "3": {"dat_pin": 16, "clk_pin": 19, "tare_offset": 0,    "calibration_factor": 8000, "units": "kg", "label": "Scale 3"},
-    "4": {"dat_pin": 20, "clk_pin": 21, "tare_offset": 0,    "calibration_factor": 8000, "units": "kg", "label": "Scale 4"}
+    "1": {
+      "dat_pin": 5,
+      "clk_pin": 6,
+      "tare_offset": 397,
+      "calibration_factor": 8000.0
+    },
+    "2": {
+      "dat_pin": 12,
+      "clk_pin": 15,
+      "tare_offset": 1023,
+      "calibration_factor": 8000.0
+    },
+    "3": {
+      "dat_pin": 16,
+      "clk_pin": 19,
+      "tare_offset": 5324,
+      "calibration_factor": 8000.0
+    },
+    "4": {
+      "dat_pin": 20,
+      "clk_pin": 21,
+      "tare_offset": 298,
+      "calibration_factor": 8000.0
+    }
   }
 }

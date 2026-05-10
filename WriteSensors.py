@@ -69,6 +69,32 @@ MAX_CSV_ROWS = 8640   # ~24 hrs at 10-second interval
 SENSOR_INTERVAL_S = 10   # TC + SHT30 + fan control + CSV/JSON/DB
 WEIGHT_INTERVAL_S = 30   # HX711 thread ADC read cycle
 
+
+# ── systemd watchdog (sd_notify) ─────────────────────────────────────────────
+# Open the NOTIFY_SOCKET once at import time. Each sensor-loop tick pings
+# WATCHDOG=1 so systemd's WatchdogSec doesn't SIGABRT the service. No-op when
+# not running under systemd.
+_NOTIFY_SOCK = None
+try:
+    _notify_path = os.environ.get("NOTIFY_SOCKET")
+    if _notify_path:
+        import socket as _socket
+        _NOTIFY_SOCK = _socket.socket(_socket.AF_UNIX, _socket.SOCK_DGRAM)
+        # Abstract socket: leading '@' or '\0' in path
+        _NOTIFY_SOCK.connect("\0" + _notify_path[1:] if _notify_path[0] == "@" else _notify_path)
+except Exception as _e:
+    print(f"[sd_notify] init skipped: {_e}")
+    _NOTIFY_SOCK = None
+
+
+def _sd_notify(msg):
+    if _NOTIFY_SOCK is None:
+        return
+    try:
+        _NOTIFY_SOCK.send(msg.encode("utf-8"))
+    except Exception:
+        pass
+
 # Cached CSV line count — avoids re-reading the entire file on every write.
 # Initialized from disk on first use, then incremented in memory.
 _csv_line_count = None
@@ -1296,6 +1322,7 @@ def start_sensor_loop():
     _loop_iteration = 0
 
     print(f"[sensors] Entering read loop ({SENSOR_INTERVAL_S}s temp/fan, {WEIGHT_INTERVAL_S}s weight).")
+    _sd_notify("READY=1")
     while True:
         try:
             _loop_iteration += 1
@@ -1592,6 +1619,8 @@ def start_sensor_loop():
                 except Exception:
                     pass
 
+        # Tell systemd we're still alive — must fire faster than WatchdogSec.
+        _sd_notify("WATCHDOG=1")
         time.sleep(SENSOR_INTERVAL_S)
 
 
