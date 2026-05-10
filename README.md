@@ -582,6 +582,18 @@ To add SmartSake to your iPhone home screen as an app:
 
 `/calibration.html` (linked from the home page) covers thermocouple offsets, probe-to-zone mapping, and load cell calibration. The thermocouple workflows (`2-Point Cal`, `Quick Cal`) and the probe mapping panel are documented inline on the page.
 
+#### Probe → Zone Heat-Detect (web equivalent of `identify_tcs.py`)
+
+The **Probe → Zone Mapping** panel now mirrors the CLI's heat-and-identify flow so the mapping can be (re)built without dropping to a shell:
+
+1. Pick the zone you want to identify from the **Detect zone** dropdown.
+2. Click **Capture Baseline** — the current temperature of every probe on the 1-Wire bus is snapshotted; the **Δ since baseline** column resets to `+0.00`.
+3. Physically heat the probe you want for that zone (skin contact, hot-water bath, etc.) for ~15 s. The Δ column updates every poll (~3 s); rows that climb ≥ 2 °C above baseline are highlighted in green.
+4. Click **Detect (after heating)** — the probe with the largest rise (excluding probes already manually assigned to other zones) is auto-assigned to the chosen zone, and the Detect dropdown advances to the next unassigned zone.
+5. Repeat for each remaining zone, then click **Save Mapping**. The mapping is persisted to `tc_zone_map.json` and the sensor loop picks it up within ~10 s.
+
+The 2 °C rise threshold mirrors `RISE_THRESHOLD_C` in `scripts/identify_tcs.py`. Below-threshold detections are rejected with a status message ("heat longer and click Detect again") rather than silently misassigning. **Clear Baseline** discards the snapshot if you want to redo the protocol. Manual dropdown selections are preserved across the 3-second poll — the table now diff-renders, so in-progress edits aren't wiped before you save.
+
 #### Calibrate All (Centered Load)
 
 Above the per-scale table, a **Calibrate All (centered load)** panel handles all 4 cells in two clicks. Step 1: empty the table and click **Tare All** — every wired scale tares in parallel. Step 2: place a known weight at the **center** of the table, enter the **total mass in kg**, and click **Calibrate All**. The total is divided equally across the wired cells (`total / 4`, or `total / N` if fewer than 4 are wired) and pushed to each scale's `known_weight_kg`. Unwired scales are skipped automatically. The per-scale Tare / Calibrate / Multi-Point Cal buttons in the table below remain available for individual cells.

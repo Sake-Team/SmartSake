@@ -134,6 +134,19 @@
     .page-wrapper { height: auto !important; }
     main { overflow: visible !important; }
 
+    /* ── Probe→Zone heat-detect protocol ───────────────────────────────── */
+    .map-detect-row { display: flex; gap: .5rem; align-items: center;
+                      flex-wrap: wrap; margin-bottom: .6rem;
+                      padding: .55rem .7rem; background: var(--color-bg-subtle);
+                      border: 1px solid var(--color-border); border-radius: var(--r-sm); }
+    .map-detect-row select { min-height: 44px; padding: .3rem .5rem;
+                             background: var(--color-bg); border: 1px solid var(--color-border);
+                             border-radius: var(--r-sm); color: var(--color-text-1); font-size: .82rem; }
+    .map-row-detected { background: rgba(34, 197, 94, 0.08); }
+    .map-row-detected td { border-color: var(--color-success); }
+    .map-delta--rise { color: var(--color-success); font-weight: 600; }
+    .map-delta--fall { color: var(--color-warning); }
+
     @media (max-width: 720px) {
       .cal-table th, .cal-table td { padding: .4rem .35rem; font-size: .8rem; }
       .cal-table input[type=number] { width: 60px; }
@@ -166,19 +179,42 @@
     <div class="panel" id="mapping-panel">
       <h2>Probe &rarr; Zone Mapping</h2>
       <p class="panel-help">
-        Assign each physical thermocouple probe to a zone (1-6). Heat a probe to identify it — its temperature will rise in the table below.
-        Changes take effect on next service restart or sensor loop cycle.
+        Each physical thermocouple probe must be mapped to a zone (1-6).
+        <b>Heat-detect protocol</b> (mirrors <code>scripts/identify_tcs.py</code>):
+        pick a zone, <b>Capture Baseline</b>, grip the probe you want for that zone
+        (skin contact for ~15 s), then <b>Detect</b>. The probe with the largest rise
+        (&ge; 2&deg;C above baseline) is auto-assigned. Repeat for each zone, then
+        <b>Save Mapping</b>. Saved mappings take effect within ~10 seconds (next sensor loop cycle).
       </p>
+
+      <div class="map-detect-row">
+        <span class="cal-step-label" style="margin:0">Detect zone:</span>
+        <select id="map-detect-zone" aria-label="Zone to detect">
+          <option value="">&mdash; pick zone &mdash;</option>
+          <option value="1">Zone 1</option>
+          <option value="2">Zone 2</option>
+          <option value="3">Zone 3</option>
+          <option value="4">Zone 4</option>
+          <option value="5">Zone 5</option>
+          <option value="6">Zone 6</option>
+        </select>
+        <button class="btn btn-secondary" id="map-baseline-btn" type="button">Capture Baseline</button>
+        <button class="btn btn-primary"   id="map-detect-btn"   type="button" disabled>Detect (after heating)</button>
+        <button class="btn btn-secondary" id="map-baseline-clear-btn" type="button" disabled>Clear Baseline</button>
+        <span class="status-msg" id="map-detect-status"></span>
+      </div>
+
       <table class="cal-table" id="map-table">
         <thead>
           <tr>
             <th>Probe ID</th>
             <th class="col-temp">Live Temp</th>
+            <th class="col-temp">&Delta; since baseline</th>
             <th style="width:100px">Zone</th>
           </tr>
         </thead>
         <tbody id="map-tbody">
-          <tr><td colspan="3" style="color:var(--color-text-3)">Scanning 1-Wire bus&hellip;</td></tr>
+          <tr><td colspan="4" style="color:var(--color-text-3)">Scanning 1-Wire bus&hellip;</td></tr>
         </tbody>
       </table>
       <div style="display:flex; gap:.5rem; align-items:center; margin-top:.75rem; flex-wrap:wrap;">
@@ -1491,27 +1527,51 @@
   });
 
   // ══════════════════════════════════════════════════════════════════════
-  // ── Probe → Zone Mapping UI ──────────────────────────────────────────
+  // ── Probe → Zone Mapping UI (with heat-detect protocol) ──────────────
   // ══════════════════════════════════════════════════════════════════════
 
-  var _mapTbody   = document.getElementById('map-tbody');
-  var _mapSaveBtn = document.getElementById('map-save-btn');
-  var _mapStatus  = document.getElementById('map-status');
-  var _mapProbes  = [];
-  var _mapCurrent = {};  // current saved mapping: {probeId: zone}
-  var MAP_POLL_MS = 3000;
-  var _mapTimer   = null;
+  var _mapTbody             = document.getElementById('map-tbody');
+  var _mapSaveBtn           = document.getElementById('map-save-btn');
+  var _mapStatus            = document.getElementById('map-status');
+  var _mapBaselineBtn       = document.getElementById('map-baseline-btn');
+  var _mapBaselineClearBtn  = document.getElementById('map-baseline-clear-btn');
+  var _mapDetectBtn         = document.getElementById('map-detect-btn');
+  var _mapDetectZone        = document.getElementById('map-detect-zone');
+  var _mapDetectStatus      = document.getElementById('map-detect-status');
+
+  var _mapProbes       = [];
+  var _mapCurrent      = {};   // saved mapping: {probeId: zone}
+  var _mapBaseline     = null; // {probeId: temp_c} or null
+  var _mapLastProbeIds = '';   // signature of last full rebuild — prevents poll wipe
+  var MAP_POLL_MS            = 3000;
+  var MAP_RISE_THRESHOLD_C   = 2.0;   // matches scripts/identify_tcs.py
+  var _mapTimer = null;
 
   function mapSetStatus(msg, ok) {
     _mapStatus.textContent = msg;
     _mapStatus.className = 'status-msg ' + (ok ? 'status-ok' : 'status-err');
   }
+  function mapSetDetectStatus(msg, ok) {
+    _mapDetectStatus.textContent = msg;
+    _mapDetectStatus.className = 'status-msg ' + (ok ? 'status-ok' : 'status-err');
+  }
+  function fmtTemp(t)  { return (t == null || isNaN(t)) ? 'err' : t.toFixed(1) + '°C'; }
+  function fmtDelta(d) { return (d == null || isNaN(d)) ? '—' : (d >= 0 ? '+' : '') + d.toFixed(2); }
+  function deltaClass(d) {
+    if (d == null || isNaN(d)) return '';
+    if (d >=  MAP_RISE_THRESHOLD_C) return 'map-delta--rise';
+    if (d <= -0.5)                  return 'map-delta--fall';
+    return '';
+  }
+  function cssEsc(s) { return (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/"/g, '\\"'); }
 
   function loadCurrentMap() {
     fetch('/api/tc-zone-map')
       .then(function (r) { return r.json(); })
       .then(function (data) {
         _mapCurrent = data.mapping || {};
+        // Force a rebuild so saved zones land in the dropdowns on first load.
+        _mapLastProbeIds = '';
         renderMapTable();
       })
       .catch(function () {});
@@ -1527,39 +1587,37 @@
       .catch(function () {});
   }
 
-  function renderMapTable() {
+  // Full rebuild — clobbers in-progress dropdown selections. Only called when
+  // the set of probes on the bus changes (or on first render).
+  function rebuildMapTable() {
     if (_mapProbes.length === 0) {
-      _mapTbody.innerHTML = '<tr><td colspan="3" style="color:var(--color-text-3)">No probes detected on 1-Wire bus</td></tr>';
+      _mapTbody.innerHTML = '<tr><td colspan="4" style="color:var(--color-text-3)">No probes detected on 1-Wire bus</td></tr>';
       _mapSaveBtn.disabled = true;
       return;
     }
-
-    // Build inverse map: zone -> probeId (from saved)
-    var zoneToProbe = {};
-    for (var pid in _mapCurrent) {
-      zoneToProbe[_mapCurrent[pid]] = pid;
-    }
-
     var html = '';
     _mapProbes.forEach(function (probe) {
-      var currentZone = _mapCurrent[probe.id] || '';
-      var tempStr = (probe.temp_c !== null && probe.temp_c !== undefined) ? probe.temp_c.toFixed(1) + '°C' : 'err';
+      var savedZone = _mapCurrent[probe.id] || '';
+      var baseT     = _mapBaseline ? _mapBaseline[probe.id] : null;
+      var delta     = (baseT != null && probe.temp_c != null) ? (probe.temp_c - baseT) : null;
+      var rowCls    = (delta != null && delta >= MAP_RISE_THRESHOLD_C) ? ' class="map-row-detected"' : '';
 
-      html += '<tr>'
+      html += '<tr data-probe="' + probe.id + '"' + rowCls + '>'
             +   '<td><code style="font-size:.8rem">' + probe.id + '</code></td>'
-            +   '<td class="num" style="font-weight:600">' + tempStr + '</td>'
+            +   '<td class="num" style="font-weight:600" data-cell-temp>' + fmtTemp(probe.temp_c) + '</td>'
+            +   '<td class="num ' + deltaClass(delta) + '" data-cell-delta>' + fmtDelta(delta) + '</td>'
             +   '<td>'
             +     '<select class="map-zone-select" data-probe="' + probe.id + '" style="'
             +       'min-height:44px; padding:.3rem .5rem; background:var(--color-bg);'
             +       'border:1px solid var(--color-border); border-radius:var(--r-sm);'
             +       'color:var(--color-text-1); font-size:.82rem;">'
             +       '<option value="">—</option>'
-            +       '<option value="1"' + (currentZone == 1 ? ' selected' : '') + '>Zone 1</option>'
-            +       '<option value="2"' + (currentZone == 2 ? ' selected' : '') + '>Zone 2</option>'
-            +       '<option value="3"' + (currentZone == 3 ? ' selected' : '') + '>Zone 3</option>'
-            +       '<option value="4"' + (currentZone == 4 ? ' selected' : '') + '>Zone 4</option>'
-            +       '<option value="5"' + (currentZone == 5 ? ' selected' : '') + '>Zone 5</option>'
-            +       '<option value="6"' + (currentZone == 6 ? ' selected' : '') + '>Zone 6</option>'
+            +       '<option value="1"' + (savedZone == 1 ? ' selected' : '') + '>Zone 1</option>'
+            +       '<option value="2"' + (savedZone == 2 ? ' selected' : '') + '>Zone 2</option>'
+            +       '<option value="3"' + (savedZone == 3 ? ' selected' : '') + '>Zone 3</option>'
+            +       '<option value="4"' + (savedZone == 4 ? ' selected' : '') + '>Zone 4</option>'
+            +       '<option value="5"' + (savedZone == 5 ? ' selected' : '') + '>Zone 5</option>'
+            +       '<option value="6"' + (savedZone == 6 ? ' selected' : '') + '>Zone 6</option>'
             +     '</select>'
             +   '</td>'
             + '</tr>';
@@ -1567,29 +1625,122 @@
     _mapTbody.innerHTML = html;
     _mapSaveBtn.disabled = false;
 
-    // Attach change listeners to enable save
     var selects = _mapTbody.querySelectorAll('.map-zone-select');
     selects.forEach(function (sel) {
-      sel.addEventListener('change', function () {
-        // Check for duplicate zone assignments
-        var assigned = {};
-        var dupes = false;
-        selects.forEach(function (s) {
-          var v = s.value;
-          if (v) {
-            if (assigned[v]) { dupes = true; s.style.borderColor = 'var(--color-critical)'; assigned[v].style.borderColor = 'var(--color-critical)'; }
-            else { assigned[v] = s; s.style.borderColor = ''; }
-          } else { s.style.borderColor = ''; }
-        });
-        if (dupes) {
-          mapSetStatus('Duplicate zone assignment — each zone can only have one probe', false);
-          _mapSaveBtn.disabled = true;
-        } else {
-          _mapStatus.textContent = '';
-          _mapSaveBtn.disabled = false;
-        }
-      });
+      sel.addEventListener('change', function () { highlightDupes(selects); });
     });
+    highlightDupes(selects);
+  }
+
+  // In-place update — preserves user's pending dropdown selections.
+  function patchMapTable() {
+    _mapProbes.forEach(function (probe) {
+      var tr = _mapTbody.querySelector('tr[data-probe="' + cssEsc(probe.id) + '"]');
+      if (!tr) return;
+      var baseT = _mapBaseline ? _mapBaseline[probe.id] : null;
+      var delta = (baseT != null && probe.temp_c != null) ? (probe.temp_c - baseT) : null;
+
+      var tempCell  = tr.querySelector('[data-cell-temp]');
+      var deltaCell = tr.querySelector('[data-cell-delta]');
+      if (tempCell)  tempCell.textContent  = fmtTemp(probe.temp_c);
+      if (deltaCell) {
+        deltaCell.textContent = fmtDelta(delta);
+        deltaCell.className   = 'num ' + deltaClass(delta);
+      }
+      tr.className = (delta != null && delta >= MAP_RISE_THRESHOLD_C) ? 'map-row-detected' : '';
+    });
+  }
+
+  function highlightDupes(selects) {
+    selects = selects || _mapTbody.querySelectorAll('.map-zone-select');
+    var assigned = {};
+    var dupes = false;
+    selects.forEach(function (s) {
+      var v = s.value;
+      if (v) {
+        if (assigned[v]) { dupes = true; s.style.borderColor = 'var(--color-critical)'; assigned[v].style.borderColor = 'var(--color-critical)'; }
+        else { assigned[v] = s; s.style.borderColor = ''; }
+      } else { s.style.borderColor = ''; }
+    });
+    if (dupes) {
+      mapSetStatus('Duplicate zone assignment — each zone can only have one probe', false);
+      _mapSaveBtn.disabled = true;
+    } else {
+      if (_mapStatus.classList.contains('status-err')) _mapStatus.textContent = '';
+      _mapSaveBtn.disabled = false;
+    }
+  }
+
+  function renderMapTable() {
+    var sig = _mapProbes.map(function (p) { return p.id; }).sort().join(',');
+    if (sig !== _mapLastProbeIds) {
+      _mapLastProbeIds = sig;
+      rebuildMapTable();
+    } else {
+      patchMapTable();
+    }
+  }
+
+  // ── Heat-detect protocol ───────────────────────────────────────────────
+  function captureBaseline() {
+    if (_mapProbes.length === 0) { mapSetDetectStatus('No probes on the bus.', false); return; }
+    _mapBaseline = {};
+    _mapProbes.forEach(function (p) { if (p.temp_c != null) _mapBaseline[p.id] = p.temp_c; });
+    _mapDetectBtn.disabled = false;
+    _mapBaselineClearBtn.disabled = false;
+    var stamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    mapSetDetectStatus('Baseline captured at ' + stamp + ' — pick a zone, heat its probe ~15 s, then Detect.', true);
+    patchMapTable();
+  }
+
+  function clearBaseline() {
+    _mapBaseline = null;
+    _mapDetectBtn.disabled = true;
+    _mapBaselineClearBtn.disabled = true;
+    mapSetDetectStatus('Baseline cleared.', true);
+    patchMapTable();
+  }
+
+  function detectAndAssign() {
+    if (!_mapBaseline) { mapSetDetectStatus('Capture baseline first.', false); return; }
+    var zone = _mapDetectZone.value;
+    if (!zone) { mapSetDetectStatus('Pick a zone to detect.', false); return; }
+
+    // Exclude probes already assigned to OTHER zones in the current UI
+    // (mirrors scripts/identify_tcs.py used_ids semantics).
+    var selects = _mapTbody.querySelectorAll('.map-zone-select');
+    var assignedElsewhere = {};
+    selects.forEach(function (s) {
+      if (s.value && s.value !== zone) assignedElsewhere[s.getAttribute('data-probe')] = true;
+    });
+
+    var winner = null, winnerDelta = -Infinity;
+    _mapProbes.forEach(function (p) {
+      if (assignedElsewhere[p.id]) return;
+      var b = _mapBaseline[p.id];
+      if (b == null || p.temp_c == null) return;
+      var d = p.temp_c - b;
+      if (d > winnerDelta) { winnerDelta = d; winner = p.id; }
+    });
+
+    if (!winner) { mapSetDetectStatus('No usable probe deltas (all assigned or reading errors).', false); return; }
+    if (winnerDelta < MAP_RISE_THRESHOLD_C) {
+      mapSetDetectStatus('Largest rise ' + fmtDelta(winnerDelta) + '°C on ' + winner +
+                         ' is below the ' + MAP_RISE_THRESHOLD_C + '°C threshold — heat longer and click Detect again.', false);
+      return;
+    }
+
+    var sel = _mapTbody.querySelector('.map-zone-select[data-probe="' + cssEsc(winner) + '"]');
+    if (sel) { sel.value = zone; highlightDupes(selects); }
+    mapSetDetectStatus('Zone ' + zone + ' = ' + winner + ' (Δ' + fmtDelta(winnerDelta) + '°C). Click Save Mapping when all zones are set.', true);
+
+    // Auto-advance the zone dropdown to the next unassigned slot.
+    var assignedZones = {};
+    _mapTbody.querySelectorAll('.map-zone-select').forEach(function (s) { if (s.value) assignedZones[s.value] = true; });
+    _mapDetectZone.value = '';
+    for (var z = 1; z <= 6; z++) {
+      if (!assignedZones[String(z)]) { _mapDetectZone.value = String(z); break; }
+    }
   }
 
   function saveMap() {
@@ -1598,24 +1749,19 @@
     var zones = {};
     var hasAny = false;
 
+    var dup = false;
     selects.forEach(function (sel) {
       var probe = sel.getAttribute('data-probe');
       var zone = sel.value;
       if (zone) {
-        if (zones[zone]) {
-          mapSetStatus('Duplicate zone ' + zone + ' — fix before saving', false);
-          return;
-        }
+        if (zones[zone]) { dup = true; return; }
         zones[zone] = true;
         mapping[probe] = parseInt(zone);
         hasAny = true;
       }
     });
-
-    if (!hasAny) {
-      mapSetStatus('Assign at least one probe to a zone', false);
-      return;
-    }
+    if (dup)     { mapSetStatus('Duplicate zone assignment — fix before saving', false); return; }
+    if (!hasAny) { mapSetStatus('Assign at least one probe to a zone', false); return; }
 
     _mapSaveBtn.disabled = true;
     fetch('/api/tc-zone-map', {
@@ -1640,13 +1786,14 @@
   }
 
   _mapSaveBtn.addEventListener('click', saveMap);
+  _mapBaselineBtn.addEventListener('click', captureBaseline);
+  _mapBaselineClearBtn.addEventListener('click', clearBaseline);
+  _mapDetectBtn.addEventListener('click', detectAndAssign);
 
-  // Start probe polling (faster than main calibration poll for responsive mapping)
   loadCurrentMap();
   pollProbes();
   _mapTimer = setInterval(pollProbes, MAP_POLL_MS);
 
-  // Pause/resume with visibility
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) {
       if (_mapTimer) { clearInterval(_mapTimer); _mapTimer = null; }
