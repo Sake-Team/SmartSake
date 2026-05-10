@@ -11,6 +11,10 @@ no_run_overrides.json
 sensor_status.json
 sensor_latest.json
 fan_state.json
+*.json.tmp
+scale_*_data.json
+server.log
+server.log.*
 smartsake.db
 smartsake.db-wal
 smartsake.db-shm

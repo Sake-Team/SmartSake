@@ -19,10 +19,95 @@ The README is the single source of truth for setup, operations, and usage. If th
 
 - Active branch: `ClaudeAgents`
 - `main` and `zany` are protected — do not push to them
+- Local auto-commits are allowed; **never `git push`** without an explicit user request
 
 ## Coding Standards
 
 - Generation delegated to non-Anthropic models; Claude plans and reviews
-- All hardware imports must degrade gracefully (try/except with warning, no crash)
-- Relay logic is active-LOW (GPIO LOW = fan ON)
-- Config files are hot-reloaded by mtime check — no restart needed for config changes
+- All hardware imports must degrade gracefully (try/except with warning, no crash). The pattern is: import inside a try block, set an `_AVAILABLE = False` sentinel, and let downstream code skip cleanly.
+- Relay logic is **active-LOW** (GPIO LOW = fan ON, GPIO HIGH = fan OFF). Boot state is HIGH.
+- Config files (`zone_config.json`, `tc_zone_map.json`, `scale_config.json`) are **hot-reloaded by mtime check** — no restart needed for config edits. The fan auto loop and HX711 threads pick up changes on the next tick.
+- JSON config writes go through atomic `os.replace(tmp, path)`. Read-modify-write paths in `server.py` are wrapped in `_AtomicCfgSection` (RLock) to prevent races during parallel calibration POSTs.
+
+---
+
+# Pi-side runtime context
+
+This section is for an agent (or you) working on the Pi itself. Most of what's here is also in `README.md` but front-loaded so a fresh CC instance can orient fast.
+
+## Service & process layout
+
+- **`smartsake.service`** — the canonical unit. Runs `server.py` as user `kojitable` from `/home/kojitable/ClaudeAgents`. Spawns the sensor loop in a background thread inside the same process. `Restart=on-failure`, `RestartSec=5`, `MemoryMax=256M`, `CPUQuota=80%`.
+- `smartsake-sensors.service` — fallback for gunicorn/multi-worker setups; declares `Conflicts=smartsake.service` so the two cannot run simultaneously. Don't enable both.
+- `smartsake-backup.timer` + `smartsake-backup.service` — periodic SQLite backup.
+- Restart is via `./restart.sh` (works with or without systemd) or `sudo systemctl restart smartsake`.
+
+## Volatile state — `/run/smartsake/` (tmpfs under systemd)
+
+| File | Producer | Schema |
+|---|---|---|
+| `sensor_latest.json` | sensor loop (every `SENSOR_INTERVAL_S` = 10s) | latest TC + SHT30 + scale readings, timestamped |
+| `fan_state.json` | sensor loop | per-zone `{action, mode, setpoint_c, trigger_c, alarm_level, alarm_reason}` |
+| `sensor_status.json` | sensor loop | health: bus scan, mapped probes, consecutive failures, last error |
+
+These do **not** survive reboot (tmpfs). On dev boxes with no `/run/smartsake/`, they fall back to project root.
+
+## Persistent state — project root
+
+| File | Tracked? | Notes |
+|---|---|---|
+| `smartsake.db` (+ `-wal`, `-shm`) | gitignored | runs, samples, fan_overrides, fan_rules |
+| `no_run_overrides.json` | gitignored | manual overrides when no run is active; survives `systemctl restart`, cleared on reboot |
+| `zone_config.json` | tracked | per-zone tolerance + optional setpoint_c. Hot-reloaded. |
+| `tc_zone_map.json` | tracked | `{1-Wire-device-id: zone_int}`. Hot-reloaded. |
+| `scale_config.json` | tracked | HX711 pins + tare/factor/calibration_points per scale. Hot-reloaded. |
+
+## GPIO map (BCM)
+
+```
+Reserved:  2, 3 (I²C)   4 (1-Wire DQ)   5/6/12/15/16/19/20/21 (HX711)
+Fan relays:
+  Zone 1 → GPIO 25   Zone 4 → GPIO 22
+  Zone 2 → GPIO 24   Zone 5 → GPIO 17
+  Zone 3 → GPIO 23   Zone 6 → GPIO 27
+HX711 (DAT/CLK):
+  Scale 1: 5/6      Scale 3: 16/19
+  Scale 2: 12/15    Scale 4: 20/21
+```
+Pin 15 is UART RXD0 — **disable the serial console** (`raspi-config` → Interface → Serial Port → No login shell, Yes hardware) or scale 2 will misbehave.
+
+## Timing constants
+
+- `SENSOR_INTERVAL_S = 10` (TC + SHT30 + fan tick)
+- `WEIGHT_INTERVAL_S = 30` (HX711 read cycle, per scale, in its own daemon thread)
+- `DEADBAND_HOLD = 1` (auto-fan transitions hold for ≥1 tick before committing — protects relay life)
+- `DEFAULT_TOLERANCE_C = 1.0` (used when zone_config has no tolerance for a zone)
+- `TC_OFFSET_MAX_ABS_C = 5.0` (rejected with 400 if an offset/cal would exceed this)
+
+## Quick health check (paste on the Pi)
+
+```bash
+./restart.sh --status                       # is the server alive?
+journalctl -u smartsake -n 50 --no-pager    # recent startup log
+cat /run/smartsake/sensor_status.json       # sensor loop health
+cat /run/smartsake/fan_state.json           # current fan decisions
+cat /run/smartsake/sensor_latest.json       # current TC/SHT30/weight
+curl -s http://localhost:8080/api/system-health | jq
+```
+
+## Debug playbooks
+
+For symptom → diagnostic flow → fix, see `DEBUG.md`:
+- **Automatic relay switching** — fan won't turn on/off, stuck on, or oscillating
+- **Load cell calibration** — wrong weight, drift, raw read failures, multi-point issues
+
+Both playbooks reference real symbols and file paths in this repo, so commands map straight to the running system.
+
+## Hard rules — DO NOT
+
+- Never modify files in `Archives/` or `archive/` — read-only history.
+- Never `git push` (or `--force`, or `--force-with-lease`) without explicit user request in the current turn.
+- Never run destructive git operations without explicit request: `reset --hard`, `rebase`, `merge`, `checkout --`, `clean -f`, `branch -D`, `filter-branch`, `filter-repo`, `remote set-url`.
+- Never `--no-verify` to skip pre-commit hooks. If a hook fails, fix the underlying issue.
+- Never push to `main` or `zany`.
+- Never delete `smartsake.db` or `*.db-wal`/`-shm` files — they hold every run's history.

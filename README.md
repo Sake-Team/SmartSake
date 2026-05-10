@@ -103,6 +103,7 @@ The cheat sheet for running SmartSake day-to-day. Detailed background lives in s
 | Disk getting tight? | Home page **System Health** → Disk free. Threshold warnings start at 100 MB. |
 | Multiple "active" runs? | Home page **System Health** → Active runs (should be 0 or 1). The DB now auto-supersedes leftovers on next run start. |
 | Smoke-test the fan logic | `python3 test_fan_state.py` — exercises the override / hysteresis / shutdown paths |
+| Deeper debug playbook | [`DEBUG.md`](DEBUG.md) — symptom → cause trees for auto fan switching and load cell calibration |
 
 ---
 
