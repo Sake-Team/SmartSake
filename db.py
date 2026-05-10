@@ -855,10 +855,14 @@ def _bucket_average_one_source(rows, bucket_min):
     """Bucket a single source's rows into per-bucket zone-averaged temps.
 
     rows: iterable of {'elapsed_min': float, 'zones': [t1..t6 or None]}.
-    Returns {bucket_start_min: avg_temp_c} where each bucket value is the mean
-    of per-row "average across present zones" temperatures.
+    bucket_min may be fractional (e.g. 0.6 = 0.01h granularity).
+    Returns {bucket_index: avg_temp_c} where bucket_index is the integer floor
+    of elapsed_min / bucket_min — using an int key avoids float-key precision
+    drift across sources with the same bucket_min.
     """
     from collections import defaultdict
+    if bucket_min <= 0:
+        raise ValueError("bucket_min must be > 0")
     buckets = defaultdict(list)
     for r in rows:
         zones = [t for t in r.get('zones', []) if t is not None]
@@ -867,22 +871,28 @@ def _bucket_average_one_source(rows, bucket_min):
         elapsed = r.get('elapsed_min')
         if elapsed is None or elapsed < 0:
             continue
-        bucket = int(elapsed // bucket_min) * bucket_min
-        buckets[bucket].append(sum(zones) / len(zones))
-    return {b: sum(v) / len(v) for b, v in buckets.items()}
+        idx = int(elapsed // bucket_min)
+        buckets[idx].append(sum(zones) / len(zones))
+    return {i: sum(v) / len(v) for i, v in buckets.items()}
 
 
-def _combine_buckets(per_source_buckets):
-    """Average each bucket across sources. Returns [(elapsed_min, rounded_temp), ...]."""
+def _combine_buckets(per_source_buckets, bucket_min):
+    """Average each bucket across sources. Returns [(elapsed_min, rounded_temp), ...].
+
+    Bucket keys are integer indices into a stride of `bucket_min` minutes.
+    elapsed_min is rounded to 0.01 — sub-minute precision is meaningful when
+    the user picks an hour-granularity build interval like 0.25h (15 min) or
+    0.01h (36 s).
+    """
     from collections import defaultdict
     cross = defaultdict(lambda: {'sum': 0.0, 'count': 0})
     for b in per_source_buckets:
-        for bucket, val in b.items():
-            cross[bucket]['sum'] += val
-            cross[bucket]['count'] += 1
+        for idx, val in b.items():
+            cross[idx]['sum'] += val
+            cross[idx]['count'] += 1
     return [
-        (em, round(cross[em]['sum'] / cross[em]['count'], 1))
-        for em in sorted(cross) if cross[em]['count']
+        (round(idx * bucket_min, 2), round(cross[idx]['sum'] / cross[idx]['count'], 1))
+        for idx in sorted(cross) if cross[idx]['count']
     ]
 
 
@@ -891,6 +901,8 @@ def generate_curve_from_runs(run_ids, bucket_min=30):
 
     For each run: stream readings from cursor (never fetchall) → bucket on the fly →
     average within bucket. Then average the per-run bucket averages across all runs.
+    bucket_min may be fractional (the UI now expresses build intervals in hours
+    with 0.01-h granularity → as low as 0.6 min on the wire).
     Returns [(elapsed_min, avg_temp_rounded), ...] sorted by elapsed_min.
     """
     per_run = []
@@ -921,19 +933,20 @@ def generate_curve_from_runs(run_ids, bucket_min=30):
 
             per_run.append(_bucket_average_one_source(_stream_rows(run_id, started_at), bucket_min))
 
-    return _combine_buckets(per_run)
+    return _combine_buckets(per_run, bucket_min)
 
 
 def generate_curve_from_csv(csv_text, bucket_min=30):
     """Average zone temperatures from a single CSV into bucketed curve points.
 
+    bucket_min may be fractional (see generate_curve_from_runs).
     Returns [(elapsed_min, avg_temp_rounded), ...] sorted by elapsed_min.
     Raises ValueError if the CSV is unparseable or has no usable rows.
     """
     rows = parse_curve_csv(csv_text)
     if not rows:
         raise ValueError("CSV contained no usable temperature rows.")
-    return _combine_buckets([_bucket_average_one_source(rows, bucket_min)])
+    return _combine_buckets([_bucket_average_one_source(rows, bucket_min)], bucket_min)
 
 
 _TS_FORMATS = (

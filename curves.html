@@ -148,14 +148,10 @@
               <span style="color:var(--color-text-3);font-size:.8rem">Loading runs…</span>
             </div>
             <div class="gen-filter-row" style="margin-top:.5rem">
-              <span class="gen-label">Bucket:</span>
-              <select id="gen-bucket" class="gen-select">
-                <option value="5">5 min</option>
-                <option value="15">15 min</option>
-                <option value="30" selected>30 min</option>
-                <option value="60">1 hr</option>
-                <option value="120">2 hr</option>
-              </select>
+              <span class="gen-label">Build interval (hr):</span>
+              <input type="number" id="gen-bucket-hr" class="gen-select"
+                     min="0.01" max="6" step="0.01" value="0.50"
+                     style="width:5.5rem;text-align:right;">
             </div>
             <button class="btn btn-secondary btn-sm" id="gen-preview-btn" style="width:100%;margin-top:.55rem">Preview</button>
             <div id="gen-preview-status" class="status-msg" style="margin-top:.3rem"></div>
@@ -174,13 +170,10 @@
             <input type="file" id="csv-file" accept=".csv,text/csv"
               style="width:100%;font-size:.78rem;color:var(--color-text-2);">
             <div class="gen-filter-row" style="margin-top:.5rem">
-              <span class="gen-label">Bucket:</span>
-              <select id="csv-bucket" class="gen-select">
-                <option value="5" selected>5 min</option>
-                <option value="15">15 min</option>
-                <option value="30">30 min</option>
-                <option value="60">1 hr</option>
-              </select>
+              <span class="gen-label">Build interval (hr):</span>
+              <input type="number" id="csv-bucket-hr" class="gen-select"
+                     min="0.01" max="6" step="0.01" value="0.50"
+                     style="width:5.5rem;text-align:right;">
             </div>
             <button class="btn btn-secondary btn-sm" id="csv-preview-btn" style="width:100%;margin-top:.55rem" disabled>Preview</button>
             <div id="csv-preview-status" class="status-msg" style="margin-top:.3rem"></div>
@@ -692,7 +685,16 @@
   var saveRow     = document.getElementById('gen-save-row');
   var nameInput   = document.getElementById('gen-name');
   var saveBtn     = document.getElementById('gen-save-btn');
-  var bucketSel   = document.getElementById('gen-bucket');
+  var bucketHrInp = document.getElementById('gen-bucket-hr');
+
+  function readBucketHours(input) {
+    var hr = parseFloat(input.value);
+    if (!isFinite(hr) || hr <= 0) return null;
+    // Clamp to UI range and snap to 0.01-h grid.
+    hr = Math.max(0.01, Math.min(6, Math.round(hr * 100) / 100));
+    input.value = hr.toFixed(2);
+    return hr;
+  }
 
   // Load runs when panel opens
   panel.addEventListener('toggle', function () {
@@ -743,7 +745,13 @@
       return;
     }
     var runIds    = checked.map(function (cb) { return parseInt(cb.value, 10); });
-    var bucketMin = parseInt(bucketSel.value, 10);
+    var bucketHr  = readBucketHours(bucketHrInp);
+    if (bucketHr == null) {
+      setPreviewStatus('Build interval must be 0.01–6 hr', false);
+      return;
+    }
+    // Wire format stays bucket_min; convert hours → minutes, round to 2 dp.
+    var bucketMin = Math.round(bucketHr * 60 * 100) / 100;
 
     previewBtn.disabled = true;
     setPreviewStatus('Generating preview…', null);
@@ -828,8 +836,16 @@
   'use strict';
 
   var fileInput   = document.getElementById('csv-file');
-  var bucketSel   = document.getElementById('csv-bucket');
+  var bucketHrInp = document.getElementById('csv-bucket-hr');
   var previewBtn  = document.getElementById('csv-preview-btn');
+
+  function readBucketHours(input) {
+    var hr = parseFloat(input.value);
+    if (!isFinite(hr) || hr <= 0) return null;
+    hr = Math.max(0.01, Math.min(6, Math.round(hr * 100) / 100));
+    input.value = hr.toFixed(2);
+    return hr;
+  }
   var previewStat = document.getElementById('csv-preview-status');
   var saveRow     = document.getElementById('csv-save-row');
   var nameInput   = document.getElementById('csv-name');
@@ -848,9 +864,13 @@
     var file = fileInput.files[0];
     if (!file) { setStatus('Choose a CSV first', false); return; }
 
+    var bucketHr = readBucketHours(bucketHrInp);
+    if (bucketHr == null) { setStatus('Build interval must be 0.01–6 hr', false); return; }
+    var bucketMin = Math.round(bucketHr * 60 * 100) / 100;
+
     var fd = new FormData();
     fd.append('file', file);
-    fd.append('bucket_min', bucketSel.value);
+    fd.append('bucket_min', String(bucketMin));
 
     previewBtn.disabled = true;
     setStatus('Parsing…', null);
@@ -867,7 +887,7 @@
         if (!pts.length) { setStatus('No data after bucketing', false); return; }
         _previewPts = pts;
         window._genLoadPreview(pts);
-        setStatus('Preview loaded — ' + pts.length + ' points (' + bucketSel.value + ' min buckets)', true);
+        setStatus('Preview loaded — ' + pts.length + ' points (' + bucketHr.toFixed(2) + ' hr buckets)', true);
         if (!nameInput.value) {
           nameInput.value = file.name.replace(/\.csv$/i, '');
         }
@@ -885,13 +905,15 @@
     if (!name) { nameInput.focus(); return; }
 
     saveBtn.disabled = true;
+    var bucketHrLabel = parseFloat(bucketHrInp.value);
+    if (!isFinite(bucketHrLabel) || bucketHrLabel <= 0) bucketHrLabel = 0.5;
 
     fetch('/api/reference-curves', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name:        name,
-        description: 'Imported from CSV (' + _previewPts.length + ' points, ' + bucketSel.value + ' min buckets)',
+        description: 'Imported from CSV (' + _previewPts.length + ' points, ' + bucketHrLabel.toFixed(2) + ' hr buckets)',
         source:      'csv-import',
         points:      _previewPts
       })

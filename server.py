@@ -920,9 +920,14 @@ def api_generate_curve():
     run_ids = body.get('run_ids', [])
     if not run_ids:
         return jsonify({"error": "run_ids required"}), 400
-    bucket_min = int(body.get('bucket_min', 30))
-    if not (5 <= bucket_min <= 360):
-        return jsonify({"error": "bucket_min must be 5–360"}), 400
+    try:
+        bucket_min = float(body.get('bucket_min', 30))
+    except (TypeError, ValueError):
+        return jsonify({"error": "bucket_min must be a number"}), 400
+    # Build intervals are now expressed in hours at 0.01-h accuracy on the UI;
+    # the wire format stays bucket_min, so the floor is 0.01 h × 60 = 0.6 min.
+    if not (0.6 <= bucket_min <= 360):
+        return jsonify({"error": "bucket_min must be between 0.6 and 360 (0.01–6 h)"}), 400
     pts = db.generate_curve_from_runs(run_ids, bucket_min)
     return jsonify([{"elapsed_min": p[0], "temp_target": p[1]} for p in pts])
 
@@ -939,7 +944,7 @@ def api_generate_curve_from_csv():
       - application/json with {csv_text, bucket_min}.
     """
     csv_text = None
-    bucket_min = 30
+    bucket_min = 30.0
 
     if request.files and 'file' in request.files:
         f = request.files['file']
@@ -955,22 +960,23 @@ def api_generate_curve_from_csv():
                 return jsonify({"error": "could not decode CSV (try UTF-8)"}), 400
         if request.form.get('bucket_min'):
             try:
-                bucket_min = int(request.form['bucket_min'])
+                bucket_min = float(request.form['bucket_min'])
             except ValueError:
-                return jsonify({"error": "bucket_min must be an integer"}), 400
+                return jsonify({"error": "bucket_min must be a number"}), 400
     else:
         body = request.get_json(force=True, silent=True) or {}
         csv_text = body.get('csv_text')
         if body.get('bucket_min') is not None:
             try:
-                bucket_min = int(body['bucket_min'])
+                bucket_min = float(body['bucket_min'])
             except (TypeError, ValueError):
-                return jsonify({"error": "bucket_min must be an integer"}), 400
+                return jsonify({"error": "bucket_min must be a number"}), 400
 
     if not csv_text or not csv_text.strip():
         return jsonify({"error": "csv_text or file required"}), 400
-    if not (5 <= bucket_min <= 360):
-        return jsonify({"error": "bucket_min must be 5–360"}), 400
+    # See api_generate_curve: hour-granularity UI → 0.6 min floor, 360 min ceiling.
+    if not (0.6 <= bucket_min <= 360):
+        return jsonify({"error": "bucket_min must be between 0.6 and 360 (0.01–6 h)"}), 400
 
     try:
         pts = db.generate_curve_from_csv(csv_text, bucket_min)

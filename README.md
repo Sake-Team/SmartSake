@@ -41,11 +41,12 @@ The cheat sheet for running SmartSake day-to-day. Detailed background lives in s
 
 | Command | Effect |
 |---|---|
-| `./restart.sh` | Restart the server (works with or without systemd) |
+| `./restart.sh` | Bring up the SmartSake WiFi AP (static IP `192.168.50.1` on `wlan0`, sudo), ensure Tailscale is connected, then restart the server. Default behavior. |
 | `./restart.sh --status` | Show whether the server is running |
 | `./restart.sh --logs` | Tail the live server log |
-| `./restart.sh --ap` | Bring up Pi WiFi access point, then restart the server (sudo) |
-| `./restart.sh --no-ap` | Tear down AP, return to home WiFi (sudo) |
+| `./restart.sh --ap` | Same as default — explicitly bring up the AP and restart the server (sudo) |
+| `./restart.sh --no-ap` | Tear down AP, return to home WiFi (sudo), then restart |
+| `./restart.sh --skip-ap` | Restart server without touching network state (use when AP is already up or on dev boxes) |
 | `./scripts/ap-mode.sh status` | Report current AP mode without changing anything |
 | `sudo systemctl restart smartsake` | Same as `./restart.sh` under systemd |
 | `journalctl -u smartsake -f` | Live service journal |
@@ -405,16 +406,23 @@ git pull
 
 ### Standalone WiFi Access Point Mode
 
-For mobile use in a brewing space without WiFi, the Pi can broadcast its own
-access point. Mobile devices connect to the SSID and reach the dashboard at
-the AP's static IP.
+The Pi self-hosts a local LAN. `./restart.sh` brings the SmartSake WiFi AP
+up by default (no flag needed) on `wlan0` with the static IP defined in
+`scripts/ap-config.env` (`192.168.50.1` by default). Mobile devices join
+SSID `SmartSake` and reach the dashboard at `http://192.168.50.1:8080`.
 
 ```bash
-# Bring up the AP, then start the server (needs sudo for hostapd/dnsmasq)
+# Default: bring up the AP, assign 192.168.50.1, then start the server
+sudo ./restart.sh
+
+# Explicit alias of the default
 sudo ./restart.sh --ap
 
 # Tear down the AP, return to home WiFi, restart the server
 sudo ./restart.sh --no-ap
+
+# Restart the server WITHOUT touching network state (server only)
+./restart.sh --skip-ap
 
 # Or call the helper directly
 sudo ./scripts/ap-mode.sh start
@@ -422,10 +430,16 @@ sudo ./scripts/ap-mode.sh stop
 ./scripts/ap-mode.sh status
 ```
 
-Defaults: SSID `SmartSake`, password `kojitable`, gateway `192.168.50.1`,
-DHCP pool `192.168.50.50`–`.150`. Edit `scripts/ap-config.env` to change.
+Defaults: SSID `SmartSake`, password `kojitable`, **static IP `192.168.50.1`**,
+DHCP pool `192.168.50.50`–`.150`. Edit `scripts/ap-config.env` to change. The
+static IP is reapplied on every `./restart.sh` via `ip addr add` against
+`wlan0`, so the Pi is always reachable at the same address while the AP is up.
 
 **Prerequisites:** `sudo apt install hostapd dnsmasq`.
+
+**Best-effort start:** if `restart.sh` runs on a box with no `wlan0`, no sudo,
+or missing `hostapd`/`dnsmasq`, the AP step warns and is skipped — the server
+still starts. Use `--skip-ap` to suppress the attempt entirely on dev boxes.
 
 **Reversibility:** `--no-ap` removes the AP configs (`/etc/hostapd/smartsake.conf`,
 `/etc/dnsmasq.d/smartsake-ap.conf`), restarts NetworkManager / wpa_supplicant,
@@ -433,6 +447,30 @@ and the Pi reconnects to home WiFi.
 
 **Recommendation for first try:** keep a wired ethernet cable connected so SSH
 remains reachable if anything goes sideways.
+
+### Remote access via Tailscale
+
+The Pi runs `tailscaled` as an enabled systemd service, so it auto-starts on
+boot and reconnects automatically to the tailnet (no flag, no login required
+after the initial `tailscale up`). On every `./restart.sh` an idempotent
+`ensure_tailscale_up` step verifies the connection: if `tailscale ip -4`
+already returns an address it's a no-op, otherwise it runs `sudo tailscale up`.
+A missing binary or auth failure is warned and does not abort the script.
+
+```bash
+# Initial one-time auth (prints a URL to open in a browser)
+sudo tailscale up
+
+# Verify
+tailscale status
+tailscale ip -4
+```
+
+Once authenticated, this Pi is reachable from any other tailnet device by its
+tailnet IP (or MagicDNS hostname) — useful for working off-site without
+exposing port 8080 to the public internet. Install Tailscale on your laptop,
+sign in to the same account, then `ssh kojitable@<tailnet-ip>` or browse to
+`http://<tailnet-ip>:8080`.
 
 ### Development Mode (Windows/Mac)
 
@@ -804,8 +842,8 @@ All endpoints are JSON unless noted. Base URL is `http://<pi-ip>:8080`.
 |---|---|---|
 | GET / POST | `/api/reference-curves` | List/save curves |
 | GET / DELETE | `/api/reference-curves/<id>` | Get/delete curve |
-| POST | `/api/reference-curves/generate` | Build a curve from setpoints |
-| POST | `/api/reference-curves/generate-from-csv` | Build a curve from a CSV upload |
+| POST | `/api/reference-curves/generate` | Build a curve from completed runs — body: `{run_ids, bucket_min}` where `bucket_min` is the build interval in minutes (0.6–360, the curves UI exposes this as **0.01–6 hr at 0.01-h precision**) |
+| POST | `/api/reference-curves/generate-from-csv` | Build a curve from a CSV upload — same `bucket_min` semantics (multipart `bucket_min` field or JSON `{csv_text, bucket_min}`) |
 
 ### Calibration & config
 | Method | Path | Purpose |
