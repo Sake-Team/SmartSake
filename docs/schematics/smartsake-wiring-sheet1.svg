@@ -1,0 +1,273 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -1000 1500 1000" width="1500" height="1000">
+<rect x="0" y="-1000" width="1500" height="1000" fill="white"/>
+<rect x="0.0" y="-1000.0" width="1500.0" height="1000.0" stroke="#880000" stroke-width="1" fill="none"/>
+<rect x="10.0" y="-990.0" width="1480.0" height="980.0" stroke="#880000" stroke-width="1" fill="none"/>
+<rect x="1100.0" y="-90.0" width="390.0" height="80.0" stroke="#880000" stroke-width="1" fill="none"/>
+<text x="1115.0" y="-65.0" fill="#0000FF" font-family="Arial" font-size="14.663" text-anchor="start" transform="rotate(0 1115.0 -65.0)">SmartSake - Low Voltage Signal Wiring</text>
+<text x="1115.0" y="-45.0" fill="#880000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 1115.0 -45.0)">Sheet 1 of 2 | Rev 1.2 | 2026-11-16 | BAE 402 Sake Team</text>
+<text x="1115.0" y="-30.0" fill="#880000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 1115.0 -30.0)">Drawn by Ben Lin | All GPIO numbering BCM</text>
+<rect x="50.0" y="-800.0" width="400.0" height="700.0" stroke="#005C29" stroke-width="1" fill="#0E8C4E"/>
+<rect x="62.0" y="-790.0" width="24.0" height="10.0" stroke="#222222" stroke-width="1" fill="#000000"/>
+<rect x="95.0" y="-790.0" width="24.0" height="10.0" stroke="#222222" stroke-width="1" fill="#000000"/>
+<rect x="135.0" y="-790.0" width="16.0" height="10.0" stroke="#222222" stroke-width="1" fill="#000000"/>
+<rect x="62.0" y="-160.0" width="24.0" height="12.0" stroke="#222222" stroke-width="1" fill="#000000"/>
+<rect x="50.0" y="-440.0" width="10.0" height="50.0" stroke="#222222" stroke-width="1" fill="#101010"/>
+<rect x="370.0" y="-180.0" width="80.0" height="60.0" stroke="#222222" stroke-width="1" fill="#101010"/>
+<rect x="370.0" y="-260.0" width="80.0" height="60.0" stroke="#222222" stroke-width="1" fill="#101010"/>
+<rect x="370.0" y="-380.0" width="80.0" height="80.0" stroke="#444444" stroke-width="1" fill="#202020"/>
+<text x="75.0" y="-130.0" fill="#FFFFFF" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 75.0 -130.0)">5V USB-C</text>
+<text x="155.0" y="-780.0" fill="#FFFFFF" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 155.0 -780.0)">uHDMI x2</text>
+<text x="380.0" y="-220.0" fill="#FFFFFF" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 380.0 -220.0)">USB 3.0</text>
+<text x="380.0" y="-300.0" fill="#FFFFFF" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 380.0 -300.0)">USB 2.0</text>
+<text x="380.0" y="-345.0" fill="#FFFFFF" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 380.0 -345.0)">Ethernet</text>
+<text x="145.0" y="-475.0" fill="#FFFFFF" font-family="Arial" font-size="17.329" text-anchor="start" transform="rotate(0 145.0 -475.0)">Raspberry Pi 4B</text>
+<text x="150.0" y="-455.0" fill="#FFFFFF" font-family="Arial" font-size="10.664" text-anchor="start" transform="rotate(0 150.0 -455.0)">SC0194(9) - 4 GB</text>
+<text x="145.0" y="-435.0" fill="#FFFFFF" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 145.0 -435.0)">Powered: 5V/3A USB-C (Outlet A)</text>
+<rect x="210.0" y="-720.0" width="110.0" height="50.0" stroke="#404040" stroke-width="1" fill="#202020"/>
+<text x="225.0" y="-700.0" fill="#FFFFFF" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 225.0 -700.0)">BCM2711 SoC</text>
+<rect x="260.0" y="-630.0" width="80.0" height="10.0" stroke="#FFCC00" stroke-width="1" fill="#FFCC00"/>
+<text x="265.0" y="-640.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 265.0 -640.0)">40-pin GPIO header</text>
+<rect x="258.0" y="-660.0" width="14.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="258.0" y="-680.0" width="14.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="258.0" y="-700.0" width="14.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="258.0" y="-720.0" width="14.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="258.0" y="-740.0" width="14.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="258.0" y="-760.0" width="14.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<text x="290.0" y="-660.0" fill="#FFFFFF" font-family="Arial" font-size="8.6645" text-anchor="start" transform="rotate(0 290.0 -660.0)">3V3</text>
+<text x="290.0" y="-680.0" fill="#FFFFFF" font-family="Arial" font-size="8.6645" text-anchor="start" transform="rotate(0 290.0 -680.0)">5V</text>
+<text x="290.0" y="-700.0" fill="#FFFFFF" font-family="Arial" font-size="8.6645" text-anchor="start" transform="rotate(0 290.0 -700.0)">GND</text>
+<text x="290.0" y="-720.0" fill="#FFFFFF" font-family="Arial" font-size="8.6645" text-anchor="start" transform="rotate(0 290.0 -720.0)">GPIO 2 SDA</text>
+<text x="290.0" y="-740.0" fill="#FFFFFF" font-family="Arial" font-size="8.6645" text-anchor="start" transform="rotate(0 290.0 -740.0)">GPIO 3 SCL</text>
+<text x="290.0" y="-760.0" fill="#FFFFFF" font-family="Arial" font-size="8.6645" text-anchor="start" transform="rotate(0 290.0 -760.0)">GPIO 4 1-Wire</text>
+<text x="360.0" y="-720.0" fill="#000000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 360.0 -720.0)">3V3 / GND power exits at 450,-660 / 450,-700.</text>
+<text x="360.0" y="-705.0" fill="#000000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 360.0 -705.0)">Each GPIO exits at right edge at its own y.</text>
+<polyline points="272 -660 580 -660" stroke="#FF0000" stroke-width="1.5" fill="none" />
+<polyline points="580 -660 580 -120 1450 -120" stroke="#FF0000" stroke-width="1.5" fill="none" />
+<text x="700.0" y="-115.0" fill="#660000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 700.0 -115.0)">3.3 V Bus</text>
+<polyline points="272 -700 590 -700" stroke="#000000" stroke-width="1.5" fill="none" />
+<polyline points="590 -700 590 -150 1450 -150" stroke="#000000" stroke-width="1.5" fill="none" />
+<text x="700.0" y="-145.0" fill="#000000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 700.0 -145.0)">GND Bus</text>
+<rect x="610.0" y="-200.0" width="150.0" height="80.0" stroke="#660000" stroke-width="1" fill="#FFEAEA"/>
+<rect x="620.0" y="-195.0" width="10.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="635.0" y="-195.0" width="10.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="650.0" y="-195.0" width="10.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="665.0" y="-195.0" width="10.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<text x="625.0" y="-180.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 625.0 -180.0)">V</text>
+<text x="640.0" y="-180.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 640.0 -180.0)">G</text>
+<text x="654.0" y="-180.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 654.0 -180.0)">D</text>
+<text x="669.0" y="-180.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 669.0 -180.0)">C</text>
+<text x="625.0" y="-160.0" fill="#990000" font-family="Arial" font-size="11.997" text-anchor="start" transform="rotate(0 625.0 -160.0)">SHT30 / SHT31D</text>
+<text x="625.0" y="-145.0" fill="#660000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 625.0 -145.0)">Humidity + Temp (I2C)</text>
+<polyline points="625 -195 625 -120" stroke="#FF0000" stroke-width="1" fill="none" />
+<polyline points="640 -195 640 -150" stroke="#000000" stroke-width="1" fill="none" />
+<polyline points="655 -195 655 -260 460 -260 460 -720 450 -720" stroke="#FFCC00" stroke-width="1" fill="none" />
+<polyline points="670 -195 670 -270 470 -270 470 -740 450 -740" stroke="#0066CC" stroke-width="1" fill="none" />
+<text x="480.0" y="-255.0" fill="#660000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 480.0 -255.0)">SDA</text>
+<text x="480.0" y="-265.0" fill="#660000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 480.0 -265.0)">SCL</text>
+<rect x="520.0" y="-410.0" width="140.0" height="70.0" stroke="#003366" stroke-width="1" fill="#E6F0FF"/>
+<text x="535.0" y="-395.0" fill="#000080" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 535.0 -395.0)">4.7k pull-up</text>
+<text x="535.0" y="-380.0" fill="#003366" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 535.0 -380.0)">3V3 -&gt; 1-Wire bus</text>
+<text x="535.0" y="-365.0" fill="#003366" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 535.0 -365.0)">(at any one MAX31850K)</text>
+<polyline points="590 -340 590 -370" stroke="#00AA00" stroke-width="1" fill="none" />
+<polyline points="590 -370 590 -120" stroke="#00AA00" stroke-width="1" fill="none" />
+<text x="700.0" y="-530.0" fill="#003300" font-family="Arial" font-size="13.33" text-anchor="start" transform="rotate(0 700.0 -530.0)">6 x MAX31850K Type-K Thermocouple Amplifiers (1-Wire bus on GPIO 4)</text>
+<polyline points="450 -760 540 -760 540 -340 1410 -340" stroke="#00AA00" stroke-width="1.2" fill="none" />
+<text x="750.0" y="-335.0" fill="#006600" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 750.0 -335.0)">1-Wire DATA bus  (GPIO 4)</text>
+<rect x="560.0" y="-490.0" width="110.0" height="80.0" stroke="#330033" stroke-width="1" fill="#F2EAFF"/>
+<rect x="588.0" y="-485.0" width="6.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="600.0" y="-485.0" width="6.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="612.0" y="-485.0" width="6.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<text x="588.0" y="-475.0" fill="#000000" font-family="Arial" font-size="6.665" text-anchor="start" transform="rotate(0 588.0 -475.0)">V</text>
+<text x="600.0" y="-475.0" fill="#000000" font-family="Arial" font-size="6.665" text-anchor="start" transform="rotate(0 600.0 -475.0)">G</text>
+<text x="612.0" y="-475.0" fill="#000000" font-family="Arial" font-size="6.665" text-anchor="start" transform="rotate(0 612.0 -475.0)">D</text>
+<text x="575.0" y="-460.0" fill="#330033" font-family="Arial" font-size="10.664" text-anchor="start" transform="rotate(0 575.0 -460.0)">MAX31850K #1</text>
+<text x="580.0" y="-445.0" fill="#660066" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 580.0 -445.0)">Zone 1</text>
+<polyline points="588 -485 588 -120" stroke="#FF0000" stroke-width="1" fill="none" />
+<polyline points="600 -485 600 -150" stroke="#000000" stroke-width="1" fill="none" />
+<polyline points="612 -485 612 -340" stroke="#00AA00" stroke-width="1" fill="none" />
+<rect x="575.0" y="-440.0" width="80.0" height="30.0" stroke="#FFCC00" stroke-width="1" fill="#FFFFCC"/>
+<text x="582.0" y="-425.0" fill="#996600" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 582.0 -425.0)">Type-K Probe</text>
+<text x="595.0" y="-413.0" fill="#996600" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 595.0 -413.0)">Zone 1</text>
+<polyline points="600 -440 600 -490" stroke="#FFCC00" stroke-width="1" fill="none" />
+<rect x="700.0" y="-490.0" width="110.0" height="80.0" stroke="#330033" stroke-width="1" fill="#F2EAFF"/>
+<rect x="728.0" y="-485.0" width="6.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="740.0" y="-485.0" width="6.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="752.0" y="-485.0" width="6.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<text x="715.0" y="-460.0" fill="#330033" font-family="Arial" font-size="10.664" text-anchor="start" transform="rotate(0 715.0 -460.0)">MAX31850K #2</text>
+<text x="720.0" y="-445.0" fill="#660066" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 720.0 -445.0)">Zone 2</text>
+<polyline points="728 -485 728 -120" stroke="#FF0000" stroke-width="1" fill="none" />
+<polyline points="740 -485 740 -150" stroke="#000000" stroke-width="1" fill="none" />
+<polyline points="752 -485 752 -340" stroke="#00AA00" stroke-width="1" fill="none" />
+<rect x="715.0" y="-440.0" width="80.0" height="30.0" stroke="#FFCC00" stroke-width="1" fill="#FFFFCC"/>
+<text x="722.0" y="-425.0" fill="#996600" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 722.0 -425.0)">Type-K Probe</text>
+<text x="735.0" y="-413.0" fill="#996600" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 735.0 -413.0)">Zone 2</text>
+<polyline points="740 -440 740 -490" stroke="#FFCC00" stroke-width="1" fill="none" />
+<rect x="840.0" y="-490.0" width="110.0" height="80.0" stroke="#330033" stroke-width="1" fill="#F2EAFF"/>
+<rect x="868.0" y="-485.0" width="6.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="880.0" y="-485.0" width="6.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="892.0" y="-485.0" width="6.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<text x="855.0" y="-460.0" fill="#330033" font-family="Arial" font-size="10.664" text-anchor="start" transform="rotate(0 855.0 -460.0)">MAX31850K #3</text>
+<text x="860.0" y="-445.0" fill="#660066" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 860.0 -445.0)">Zone 3</text>
+<polyline points="868 -485 868 -120" stroke="#FF0000" stroke-width="1" fill="none" />
+<polyline points="880 -485 880 -150" stroke="#000000" stroke-width="1" fill="none" />
+<polyline points="892 -485 892 -340" stroke="#00AA00" stroke-width="1" fill="none" />
+<rect x="855.0" y="-440.0" width="80.0" height="30.0" stroke="#FFCC00" stroke-width="1" fill="#FFFFCC"/>
+<text x="862.0" y="-425.0" fill="#996600" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 862.0 -425.0)">Type-K Probe</text>
+<text x="875.0" y="-413.0" fill="#996600" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 875.0 -413.0)">Zone 3</text>
+<polyline points="880 -440 880 -490" stroke="#FFCC00" stroke-width="1" fill="none" />
+<rect x="980.0" y="-490.0" width="110.0" height="80.0" stroke="#330033" stroke-width="1" fill="#F2EAFF"/>
+<rect x="1008.0" y="-485.0" width="6.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="1020.0" y="-485.0" width="6.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="1032.0" y="-485.0" width="6.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<text x="995.0" y="-460.0" fill="#330033" font-family="Arial" font-size="10.664" text-anchor="start" transform="rotate(0 995.0 -460.0)">MAX31850K #4</text>
+<text x="1000.0" y="-445.0" fill="#660066" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1000.0 -445.0)">Zone 4</text>
+<polyline points="1008 -485 1008 -120" stroke="#FF0000" stroke-width="1" fill="none" />
+<polyline points="1020 -485 1020 -150" stroke="#000000" stroke-width="1" fill="none" />
+<polyline points="1032 -485 1032 -340" stroke="#00AA00" stroke-width="1" fill="none" />
+<rect x="995.0" y="-440.0" width="80.0" height="30.0" stroke="#FFCC00" stroke-width="1" fill="#FFFFCC"/>
+<text x="1002.0" y="-425.0" fill="#996600" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 1002.0 -425.0)">Type-K Probe</text>
+<text x="1015.0" y="-413.0" fill="#996600" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1015.0 -413.0)">Zone 4</text>
+<polyline points="1020 -440 1020 -490" stroke="#FFCC00" stroke-width="1" fill="none" />
+<rect x="1120.0" y="-490.0" width="110.0" height="80.0" stroke="#330033" stroke-width="1" fill="#F2EAFF"/>
+<rect x="1148.0" y="-485.0" width="6.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="1160.0" y="-485.0" width="6.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="1172.0" y="-485.0" width="6.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<text x="1135.0" y="-460.0" fill="#330033" font-family="Arial" font-size="10.664" text-anchor="start" transform="rotate(0 1135.0 -460.0)">MAX31850K #5</text>
+<text x="1140.0" y="-445.0" fill="#660066" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1140.0 -445.0)">Zone 5</text>
+<polyline points="1148 -485 1148 -120" stroke="#FF0000" stroke-width="1" fill="none" />
+<polyline points="1160 -485 1160 -150" stroke="#000000" stroke-width="1" fill="none" />
+<polyline points="1172 -485 1172 -340" stroke="#00AA00" stroke-width="1" fill="none" />
+<rect x="1135.0" y="-440.0" width="80.0" height="30.0" stroke="#FFCC00" stroke-width="1" fill="#FFFFCC"/>
+<text x="1142.0" y="-425.0" fill="#996600" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 1142.0 -425.0)">Type-K Probe</text>
+<text x="1155.0" y="-413.0" fill="#996600" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1155.0 -413.0)">Zone 5</text>
+<polyline points="1160 -440 1160 -490" stroke="#FFCC00" stroke-width="1" fill="none" />
+<rect x="1260.0" y="-490.0" width="110.0" height="80.0" stroke="#330033" stroke-width="1" fill="#F2EAFF"/>
+<rect x="1288.0" y="-485.0" width="6.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="1300.0" y="-485.0" width="6.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="1312.0" y="-485.0" width="6.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<text x="1275.0" y="-460.0" fill="#330033" font-family="Arial" font-size="10.664" text-anchor="start" transform="rotate(0 1275.0 -460.0)">MAX31850K #6</text>
+<text x="1280.0" y="-445.0" fill="#660066" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1280.0 -445.0)">Zone 6</text>
+<polyline points="1288 -485 1288 -120" stroke="#FF0000" stroke-width="1" fill="none" />
+<polyline points="1300 -485 1300 -150" stroke="#000000" stroke-width="1" fill="none" />
+<polyline points="1312 -485 1312 -340" stroke="#00AA00" stroke-width="1" fill="none" />
+<rect x="1275.0" y="-440.0" width="80.0" height="30.0" stroke="#FFCC00" stroke-width="1" fill="#FFFFCC"/>
+<text x="1282.0" y="-425.0" fill="#996600" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 1282.0 -425.0)">Type-K Probe</text>
+<text x="1295.0" y="-413.0" fill="#996600" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1295.0 -413.0)">Zone 6</text>
+<polyline points="1300 -440 1300 -490" stroke="#FFCC00" stroke-width="1" fill="none" />
+<rect x="580.0" y="-960.0" width="860.0" height="140.0" stroke="#666600" stroke-width="1" fill="#FFF8E0"/>
+<rect x="595.0" y="-870.0" width="830.0" height="10.0" stroke="#1A1A1A" stroke-width="1" fill="#1A1A1A"/>
+<text x="620.0" y="-880.0" fill="#FFFFFF" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 620.0 -880.0)">LOGIC HEADER (VCC, GND, IN1..IN8)</text>
+<rect x="620.0" y="-868.0" width="10.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="640.0" y="-868.0" width="10.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="700.0" y="-868.0" width="10.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="770.0" y="-868.0" width="10.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="840.0" y="-868.0" width="10.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="910.0" y="-868.0" width="10.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="980.0" y="-868.0" width="10.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="1050.0" y="-868.0" width="10.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="1120.0" y="-868.0" width="10.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="1190.0" y="-868.0" width="10.0" height="6.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<text x="614.0" y="-855.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 614.0 -855.0)">VCC</text>
+<text x="636.0" y="-855.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 636.0 -855.0)">GND</text>
+<text x="696.0" y="-855.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 696.0 -855.0)">IN1</text>
+<text x="766.0" y="-855.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 766.0 -855.0)">IN2</text>
+<text x="836.0" y="-855.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 836.0 -855.0)">IN3</text>
+<text x="906.0" y="-855.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 906.0 -855.0)">IN4</text>
+<text x="976.0" y="-855.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 976.0 -855.0)">IN5</text>
+<text x="1046.0" y="-855.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1046.0 -855.0)">IN6</text>
+<text x="1116.0" y="-855.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1116.0 -855.0)">IN7</text>
+<text x="1186.0" y="-855.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1186.0 -855.0)">IN8</text>
+<text x="700.0" y="-940.0" fill="#666600" font-family="Arial" font-size="13.33" text-anchor="start" transform="rotate(0 700.0 -940.0)">SunFounder TS0012  -  8-Channel Active-LOW Relay Module (logic side)</text>
+<text x="700.0" y="-925.0" fill="#666600" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 700.0 -925.0)">ACTIVE-LOW: GPIO LOW = relay coil energised = fan ON.  Boot state = HIGH (fans OFF).</text>
+<text x="700.0" y="-905.0" fill="#000080" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 700.0 -905.0)">Six channel relay blocks shown in box outline; HV side on Sheet 2</text>
+<rect x="640.0" y="-895.0" width="30.0" height="20.0" stroke="#990000" stroke-width="1" fill="#FFFFFF"/>
+<rect x="700.0" y="-895.0" width="30.0" height="20.0" stroke="#990000" stroke-width="1" fill="#FFFFFF"/>
+<rect x="770.0" y="-895.0" width="30.0" height="20.0" stroke="#990000" stroke-width="1" fill="#FFFFFF"/>
+<rect x="840.0" y="-895.0" width="30.0" height="20.0" stroke="#990000" stroke-width="1" fill="#FFFFFF"/>
+<rect x="910.0" y="-895.0" width="30.0" height="20.0" stroke="#990000" stroke-width="1" fill="#FFFFFF"/>
+<rect x="980.0" y="-895.0" width="30.0" height="20.0" stroke="#990000" stroke-width="1" fill="#FFFFFF"/>
+<text x="648.0" y="-882.0" fill="#990000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 648.0 -882.0)">K1</text>
+<text x="708.0" y="-882.0" fill="#990000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 708.0 -882.0)">K2</text>
+<text x="778.0" y="-882.0" fill="#990000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 778.0 -882.0)">K3</text>
+<text x="848.0" y="-882.0" fill="#990000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 848.0 -882.0)">K4</text>
+<text x="918.0" y="-882.0" fill="#990000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 918.0 -882.0)">K5</text>
+<text x="988.0" y="-882.0" fill="#990000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 988.0 -882.0)">K6</text>
+<polyline points="625 -868 625 -120" stroke="#FF0000" stroke-width="1" fill="none" />
+<text x="628.0" y="-180.0" fill="#660000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 628.0 -180.0)">5V</text>
+<polyline points="645 -868 645 -150" stroke="#000000" stroke-width="1" fill="none" />
+<polyline points="705 -868 705 -460 460 -460 460 -880 450 -880" stroke="#666666" stroke-width="1" fill="none" />
+<polyline points="775 -868 775 -440 460 -440 450 -440" stroke="#666666" stroke-width="1" fill="none" />
+<polyline points="845 -868 845 -420 460 -420 450 -420" stroke="#666666" stroke-width="1" fill="none" />
+<polyline points="915 -868 915 -400 460 -400 450 -400" stroke="#666666" stroke-width="1" fill="none" />
+<polyline points="985 -868 985 -380 460 -380 450 -380" stroke="#666666" stroke-width="1" fill="none" />
+<polyline points="1055 -868 1055 -360 460 -360 450 -360" stroke="#666666" stroke-width="1" fill="none" />
+<text x="675.0" y="-820.0" fill="#666666" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 675.0 -820.0)">CH1&lt;-GP25</text>
+<text x="745.0" y="-820.0" fill="#666666" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 745.0 -820.0)">CH2&lt;-GP24</text>
+<text x="815.0" y="-820.0" fill="#666666" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 815.0 -820.0)">CH3&lt;-GP23</text>
+<text x="885.0" y="-820.0" fill="#666666" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 885.0 -820.0)">CH4&lt;-GP22</text>
+<text x="955.0" y="-820.0" fill="#666666" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 955.0 -820.0)">CH5&lt;-GP17</text>
+<text x="1025.0" y="-820.0" fill="#666666" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1025.0 -820.0)">CH6&lt;-GP27</text>
+<rect x="50.0" y="-960.0" width="480.0" height="140.0" stroke="#003366" stroke-width="1" fill="#E6F0FF"/>
+<text x="60.0" y="-945.0" fill="#000080" font-family="Arial" font-size="11.997" text-anchor="start" transform="rotate(0 60.0 -945.0)">LEGEND  &amp;  NOTES</text>
+<polyline points="70 -922 100 -922" stroke="#FF0000" stroke-width="1.5" fill="none" />
+<text x="110.0" y="-918.0" fill="#000000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 110.0 -918.0)">+V (3.3V or 5V)</text>
+<polyline points="70 -908 100 -908" stroke="#000000" stroke-width="1.5" fill="none" />
+<text x="110.0" y="-904.0" fill="#000000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 110.0 -904.0)">GND</text>
+<polyline points="70 -894 100 -894" stroke="#FFCC00" stroke-width="1" fill="none" />
+<text x="110.0" y="-890.0" fill="#000000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 110.0 -890.0)">Data: I2C SDA</text>
+<polyline points="70 -880 100 -880" stroke="#0066CC" stroke-width="1" fill="none" />
+<text x="110.0" y="-876.0" fill="#000000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 110.0 -876.0)">Clock: I2C SCL</text>
+<polyline points="70 -866 100 -866" stroke="#00AA00" stroke-width="1" fill="none" />
+<text x="110.0" y="-862.0" fill="#000000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 110.0 -862.0)">1-Wire bus (GPIO 4)</text>
+<polyline points="70 -852 100 -852" stroke="#666666" stroke-width="1" fill="none" />
+<text x="110.0" y="-848.0" fill="#000000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 110.0 -848.0)">Relay control GPIO -&gt; IN</text>
+<text x="280.0" y="-918.0" fill="#990000" font-family="Arial" font-size="8.6645" text-anchor="start" transform="rotate(0 280.0 -918.0)">Reserved pins:</text>
+<text x="280.0" y="-905.0" fill="#000000" font-family="Arial" font-size="8.6645" text-anchor="start" transform="rotate(0 280.0 -905.0)">2/3 (I2C), 4 (1-Wire),</text>
+<text x="280.0" y="-892.0" fill="#000000" font-family="Arial" font-size="8.6645" text-anchor="start" transform="rotate(0 280.0 -892.0)">(GPIO 5/6/12/13/16/19/20/21 free - no HX711)</text>
+<text x="280.0" y="-872.0" fill="#990000" font-family="Arial" font-size="8.6645" text-anchor="start" transform="rotate(0 280.0 -872.0)">Single-point GND</text>
+<text x="280.0" y="-859.0" fill="#000000" font-family="Arial" font-size="8.6645" text-anchor="start" transform="rotate(0 280.0 -859.0)">All sensor grounds tie to Pi GND</text>
+<polyline points="70 -838 100 -838" stroke="#7B2FBE" stroke-width="1.5" fill="none" stroke-dasharray='4 3'/>
+<text x="110.0" y="-834.0" fill="#000000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 110.0 -834.0)">Bluetooth LE link (wireless, no cable)</text>
+<rect x="300.0" y="-612.0" width="140.0" height="34.0" stroke="#4B1C7A" stroke-width="1" fill="#EFE4FA"/>
+<text x="307.0" y="-598.0" fill="#4B1C7A" font-family="Arial" font-size="8.6645" text-anchor="start" transform="rotate(0 307.0 -598.0)">On-board Bluetooth 5.0 (BLE)</text>
+<text x="307.0" y="-585.0" fill="#4B1C7A" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 307.0 -585.0)">bleak / BlueZ -&gt; ble_scales.py</text>
+<text x="1090.0" y="-790.0" fill="#4B1C7A" font-family="Arial" font-size="11.997" text-anchor="start" transform="rotate(0 1090.0 -790.0)">4 x Bluetooth LE Leg Scales (one per table leg)</text>
+<text x="1090.0" y="-777.0" fill="#4B1C7A" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1090.0 -777.0)">THINKSCALE 440 lb, BLE name Chipsea_BLE, GATT FFF0/FFF1</text>
+<rect x="1090.0" y="-765.0" width="170.0" height="90.0" stroke="#4B1C7A" stroke-width="1" fill="#F4ECFC"/>
+<text x="1100.0" y="-749.0" fill="#4B1C7A" font-family="Arial" font-size="11.997" text-anchor="start" transform="rotate(0 1100.0 -749.0)">Leg Scale #1</text>
+<text x="1100.0" y="-734.0" fill="#333333" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1100.0 -734.0)">THINKSCALE 440 lb x 0.01 lb</text>
+<text x="1100.0" y="-721.0" fill="#333333" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1100.0 -721.0)">scale_config.json -&gt; scales.1.address</text>
+<text x="1100.0" y="-708.0" fill="#333333" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1100.0 -708.0)">Power: own AC adapter (Sheet 2)</text>
+<text x="1100.0" y="-695.0" fill="#990000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1100.0 -695.0)">Wireless display: keep OFF</text>
+<text x="1100.0" y="-682.0" fill="#990000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1100.0 -682.0)">No wires to the Pi</text>
+<rect x="1290.0" y="-765.0" width="170.0" height="90.0" stroke="#4B1C7A" stroke-width="1" fill="#F4ECFC"/>
+<text x="1300.0" y="-749.0" fill="#4B1C7A" font-family="Arial" font-size="11.997" text-anchor="start" transform="rotate(0 1300.0 -749.0)">Leg Scale #2</text>
+<text x="1300.0" y="-734.0" fill="#333333" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1300.0 -734.0)">THINKSCALE 440 lb x 0.01 lb</text>
+<text x="1300.0" y="-721.0" fill="#333333" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1300.0 -721.0)">scale_config.json -&gt; scales.2.address</text>
+<text x="1300.0" y="-708.0" fill="#333333" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1300.0 -708.0)">Power: own AC adapter (Sheet 2)</text>
+<text x="1300.0" y="-695.0" fill="#990000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1300.0 -695.0)">Wireless display: keep OFF</text>
+<text x="1300.0" y="-682.0" fill="#990000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1300.0 -682.0)">No wires to the Pi</text>
+<rect x="1090.0" y="-660.0" width="170.0" height="90.0" stroke="#4B1C7A" stroke-width="1" fill="#F4ECFC"/>
+<text x="1100.0" y="-644.0" fill="#4B1C7A" font-family="Arial" font-size="11.997" text-anchor="start" transform="rotate(0 1100.0 -644.0)">Leg Scale #3</text>
+<text x="1100.0" y="-629.0" fill="#333333" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1100.0 -629.0)">THINKSCALE 440 lb x 0.01 lb</text>
+<text x="1100.0" y="-616.0" fill="#333333" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1100.0 -616.0)">scale_config.json -&gt; scales.3.address</text>
+<text x="1100.0" y="-603.0" fill="#333333" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1100.0 -603.0)">Power: own AC adapter (Sheet 2)</text>
+<text x="1100.0" y="-590.0" fill="#990000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1100.0 -590.0)">Wireless display: keep OFF</text>
+<text x="1100.0" y="-577.0" fill="#990000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1100.0 -577.0)">No wires to the Pi</text>
+<rect x="1290.0" y="-660.0" width="170.0" height="90.0" stroke="#4B1C7A" stroke-width="1" fill="#F4ECFC"/>
+<text x="1300.0" y="-644.0" fill="#4B1C7A" font-family="Arial" font-size="11.997" text-anchor="start" transform="rotate(0 1300.0 -644.0)">Leg Scale #4</text>
+<text x="1300.0" y="-629.0" fill="#333333" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1300.0 -629.0)">THINKSCALE 440 lb x 0.01 lb</text>
+<text x="1300.0" y="-616.0" fill="#333333" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1300.0 -616.0)">scale_config.json -&gt; scales.4.address</text>
+<text x="1300.0" y="-603.0" fill="#333333" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1300.0 -603.0)">Power: own AC adapter (Sheet 2)</text>
+<text x="1300.0" y="-590.0" fill="#990000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1300.0 -590.0)">Wireless display: keep OFF</text>
+<text x="1300.0" y="-577.0" fill="#990000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1300.0 -577.0)">No wires to the Pi</text>
+<polyline points="440 -595 1075 -595" stroke="#7B2FBE" stroke-width="1.5" fill="none" stroke-dasharray='4 3'/>
+<text x="700.0" y="-600.0" fill="#7B2FBE" font-family="Arial" font-size="8.6645" text-anchor="start" transform="rotate(0 700.0 -600.0)">Bluetooth LE 2.4 GHz - wireless, one link per scale</text>
+<polyline points="1075 -720 1075 -615" stroke="#7B2FBE" stroke-width="1.5" fill="none" stroke-dasharray='4 3'/>
+<polyline points="1075 -720 1090 -720" stroke="#7B2FBE" stroke-width="1.5" fill="none" stroke-dasharray='4 3'/>
+<polyline points="1075 -615 1090 -615" stroke="#7B2FBE" stroke-width="1.5" fill="none" stroke-dasharray='4 3'/>
+<polyline points="1260 -720 1290 -720" stroke="#7B2FBE" stroke-width="1.5" fill="none" stroke-dasharray='4 3'/>
+<polyline points="1260 -615 1290 -615" stroke="#7B2FBE" stroke-width="1.5" fill="none" stroke-dasharray='4 3'/>
+<text x="1090.0" y="-555.0" fill="#4B1C7A" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1090.0 -555.0)">Each scale accepts ONE BLE connection; the Pi replaces the wireless display.</text>
+<text x="1090.0" y="-543.0" fill="#4B1C7A" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1090.0 -543.0)">Scales auto-zero at power-up: power them with the table empty (UPS advised).</text>
+</svg>
