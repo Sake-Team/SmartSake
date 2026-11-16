@@ -1,0 +1,173 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -1000 1500 1000" width="1500" height="1000">
+<rect x="0" y="-1000" width="1500" height="1000" fill="white"/>
+<rect x="0.0" y="-1000.0" width="1500.0" height="1000.0" stroke="#880000" stroke-width="1" fill="none"/>
+<rect x="10.0" y="-990.0" width="1480.0" height="980.0" stroke="#880000" stroke-width="1" fill="none"/>
+<rect x="1100.0" y="-90.0" width="390.0" height="80.0" stroke="#880000" stroke-width="1" fill="none"/>
+<text x="1115.0" y="-65.0" fill="#0000FF" font-family="Arial" font-size="14.663" text-anchor="start" transform="rotate(0 1115.0 -65.0)">SmartSake - 120 VAC Power Wiring</text>
+<text x="1115.0" y="-45.0" fill="#880000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 1115.0 -45.0)">Sheet 2 of 2 | Rev 1.2 | 2026-11-16 | BAE 402 Sake Team</text>
+<text x="1115.0" y="-30.0" fill="#990000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 1115.0 -30.0)">** ENCLOSE ALL 120 VAC WIRING BEFORE ENERGIZING **</text>
+<rect x="50.0" y="-200.0" width="180.0" height="120.0" stroke="#000000" stroke-width="1" fill="#FAFAFA"/>
+<ellipse cx="80" cy="-150" rx="10" ry="10" stroke="#000000" stroke-width="1" fill="#000000"/>
+<ellipse cx="140" cy="-150" rx="10" ry="10" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="70.0" y="-160.0" width="10.0" height="3.0" stroke="#FFFFFF" stroke-width="1" fill="#FFFFFF"/>
+<rect x="130.0" y="-160.0" width="10.0" height="3.0" stroke="#FFFFFF" stroke-width="1" fill="#FFFFFF"/>
+<rect x="70.0" y="-145.0" width="10.0" height="3.0" stroke="#FFFFFF" stroke-width="1" fill="#FFFFFF"/>
+<rect x="130.0" y="-145.0" width="10.0" height="3.0" stroke="#FFFFFF" stroke-width="1" fill="#FFFFFF"/>
+<ellipse cx="110" cy="-115" rx="6" ry="6" stroke="#000000" stroke-width="1" fill="#000000"/>
+<text x="75.0" y="-185.0" fill="#000000" font-family="Arial" font-size="11.997" text-anchor="start" transform="rotate(0 75.0 -185.0)">Outlet A  (Control)</text>
+<text x="75.0" y="-95.0" fill="#000000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 75.0 -95.0)">120 VAC GFCI -- Pi PSU + scales</text>
+<rect x="50.0" y="-380.0" width="180.0" height="120.0" stroke="#000000" stroke-width="1" fill="#FAFAFA"/>
+<ellipse cx="80" cy="-330" rx="10" ry="10" stroke="#000000" stroke-width="1" fill="#000000"/>
+<ellipse cx="140" cy="-330" rx="10" ry="10" stroke="#000000" stroke-width="1" fill="#000000"/>
+<rect x="70.0" y="-340.0" width="10.0" height="3.0" stroke="#FFFFFF" stroke-width="1" fill="#FFFFFF"/>
+<rect x="130.0" y="-340.0" width="10.0" height="3.0" stroke="#FFFFFF" stroke-width="1" fill="#FFFFFF"/>
+<rect x="70.0" y="-325.0" width="10.0" height="3.0" stroke="#FFFFFF" stroke-width="1" fill="#FFFFFF"/>
+<rect x="130.0" y="-325.0" width="10.0" height="3.0" stroke="#FFFFFF" stroke-width="1" fill="#FFFFFF"/>
+<ellipse cx="110" cy="-295" rx="6" ry="6" stroke="#000000" stroke-width="1" fill="#000000"/>
+<text x="75.0" y="-365.0" fill="#000000" font-family="Arial" font-size="11.997" text-anchor="start" transform="rotate(0 75.0 -365.0)">Outlet B  (Load)</text>
+<text x="75.0" y="-275.0" fill="#000000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 75.0 -275.0)">120 VAC GFCI -- Relay box + Dehumidifier</text>
+<rect x="290.0" y="-200.0" width="180.0" height="100.0" stroke="#003366" stroke-width="1" fill="#E6F0FF"/>
+<rect x="280.0" y="-160.0" width="14.0" height="10.0" stroke="#222222" stroke-width="1" fill="#000000"/>
+<text x="310.0" y="-185.0" fill="#003366" font-family="Arial" font-size="11.997" text-anchor="start" transform="rotate(0 310.0 -185.0)">Raspberry Pi 5V/3A PSU</text>
+<text x="310.0" y="-170.0" fill="#003366" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 310.0 -170.0)">SC1412 -- 120 VAC -&gt; 5 VDC</text>
+<text x="310.0" y="-155.0" fill="#003366" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 310.0 -155.0)">USB-C output to Pi 4B</text>
+<text x="310.0" y="-130.0" fill="#000000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 310.0 -130.0)">** Outlet A only -- never tap fan rail **</text>
+<polyline points="230 -160 290 -160" stroke="#000000" stroke-width="1" fill="none" />
+<polyline points="230 -140 290 -140" stroke="#999999" stroke-width="1" fill="none" />
+<polyline points="230 -120 290 -120" stroke="#008000" stroke-width="1" fill="none" />
+<text x="240.0" y="-155.0" fill="#660000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 240.0 -155.0)">HOT (black, 14 AWG)</text>
+<text x="240.0" y="-135.0" fill="#660000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 240.0 -135.0)">NEUTRAL (white)</text>
+<text x="240.0" y="-115.0" fill="#006600" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 240.0 -115.0)">GROUND (green)</text>
+<rect x="290.0" y="-380.0" width="180.0" height="100.0" stroke="#660000" stroke-width="1" fill="#FFEEEE"/>
+<rect x="310.0" y="-330.0" width="140.0" height="30.0" stroke="#444444" stroke-width="1" fill="#1A1A1A"/>
+<text x="315.0" y="-313.0" fill="#FFFFFF" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 315.0 -313.0)">|||||| AIR INTAKE ||||||</text>
+<text x="310.0" y="-365.0" fill="#660000" font-family="Arial" font-size="11.997" text-anchor="start" transform="rotate(0 310.0 -365.0)">Vellgoo Dehumidifier</text>
+<text x="310.0" y="-350.0" fill="#660000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 310.0 -350.0)">VGE033A3BS  --  120V, 280W</text>
+<text x="310.0" y="-295.0" fill="#990000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 310.0 -295.0)">ALWAYS-ON, NOT switched by relay</text>
+<polyline points="230 -340 290 -340" stroke="#000000" stroke-width="1" fill="none" />
+<polyline points="230 -320 290 -320" stroke="#999999" stroke-width="1" fill="none" />
+<polyline points="230 -300 290 -300" stroke="#008000" stroke-width="1" fill="none" />
+<rect x="530.0" y="-880.0" width="620.0" height="580.0" stroke="#996600" stroke-width="1" fill="#FFF8E0"/>
+<text x="600.0" y="-855.0" fill="#996600" font-family="Arial" font-size="14.663" text-anchor="start" transform="rotate(0 600.0 -855.0)">Relay Enclosure  (TS0012 HV side, 14 AWG, gland-strain-relieved)</text>
+<text x="600.0" y="-835.0" fill="#996600" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 600.0 -835.0)">Each fan HOT enters relay COM, exits NO when GPIO IN goes LOW (active-LOW).</text>
+<text x="600.0" y="-820.0" fill="#996600" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 600.0 -820.0)">Neutral and Ground are bussed in parallel to all fans (NOT switched).</text>
+<rect x="545.0" y="-790.0" width="590.0" height="10.0" stroke="#000000" stroke-width="1" fill="#000000"/>
+<text x="555.0" y="-800.0" fill="#FFFFFF" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 555.0 -800.0)">HOT BUS-BAR (120 VAC from Outlet B)</text>
+<rect x="565.0" y="-740.0" width="120.0" height="50.0" stroke="#996600" stroke-width="1" fill="#FFFFFF"/>
+<text x="580.0" y="-725.0" fill="#000000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 580.0 -725.0)">CH1 - GPIO 25</text>
+<text x="580.0" y="-710.0" fill="#990000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 580.0 -710.0)">COM &lt;-&gt; NO</text>
+<text x="580.0" y="-695.0" fill="#660000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 580.0 -695.0)">switches Fan 1</text>
+<polyline points="580 -740 580 -790" stroke="#000000" stroke-width="1" fill="none" />
+<polyline points="680 -740 680 -250 1140 -250" stroke="#000000" stroke-width="1" fill="none" />
+<rect x="565.0" y="-660.0" width="120.0" height="50.0" stroke="#996600" stroke-width="1" fill="#FFFFFF"/>
+<text x="580.0" y="-645.0" fill="#000000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 580.0 -645.0)">CH2 - GPIO 24</text>
+<text x="580.0" y="-630.0" fill="#990000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 580.0 -630.0)">COM &lt;-&gt; NO</text>
+<text x="580.0" y="-615.0" fill="#660000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 580.0 -615.0)">switches Fan 2</text>
+<polyline points="580 -660 580 -670 575 -670 575 -790 580 -790" stroke="#000000" stroke-width="1" fill="none" />
+<polyline points="680 -660 680 -340 1140 -340" stroke="#000000" stroke-width="1" fill="none" />
+<rect x="565.0" y="-580.0" width="120.0" height="50.0" stroke="#996600" stroke-width="1" fill="#FFFFFF"/>
+<text x="580.0" y="-565.0" fill="#000000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 580.0 -565.0)">CH3 - GPIO 23</text>
+<text x="580.0" y="-550.0" fill="#990000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 580.0 -550.0)">COM &lt;-&gt; NO</text>
+<text x="580.0" y="-535.0" fill="#660000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 580.0 -535.0)">switches Fan 3</text>
+<polyline points="580 -580 580 -590 570 -590 570 -790 580 -790" stroke="#000000" stroke-width="1" fill="none" />
+<polyline points="680 -580 680 -430 1140 -430" stroke="#000000" stroke-width="1" fill="none" />
+<rect x="890.0" y="-740.0" width="120.0" height="50.0" stroke="#996600" stroke-width="1" fill="#FFFFFF"/>
+<text x="905.0" y="-725.0" fill="#000000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 905.0 -725.0)">CH4 - GPIO 22</text>
+<text x="905.0" y="-710.0" fill="#990000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 905.0 -710.0)">COM &lt;-&gt; NO</text>
+<text x="905.0" y="-695.0" fill="#660000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 905.0 -695.0)">switches Fan 4</text>
+<polyline points="905 -740 905 -790" stroke="#000000" stroke-width="1" fill="none" />
+<polyline points="1005 -740 1005 -520 1140 -520" stroke="#000000" stroke-width="1" fill="none" />
+<rect x="890.0" y="-660.0" width="120.0" height="50.0" stroke="#996600" stroke-width="1" fill="#FFFFFF"/>
+<text x="905.0" y="-645.0" fill="#000000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 905.0 -645.0)">CH5 - GPIO 17</text>
+<text x="905.0" y="-630.0" fill="#990000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 905.0 -630.0)">COM &lt;-&gt; NO</text>
+<text x="905.0" y="-615.0" fill="#660000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 905.0 -615.0)">switches Fan 5</text>
+<polyline points="905 -660 905 -670 900 -670 900 -790 905 -790" stroke="#000000" stroke-width="1" fill="none" />
+<polyline points="1005 -660 1005 -610 1140 -610" stroke="#000000" stroke-width="1" fill="none" />
+<rect x="890.0" y="-580.0" width="120.0" height="50.0" stroke="#996600" stroke-width="1" fill="#FFFFFF"/>
+<text x="905.0" y="-565.0" fill="#000000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 905.0 -565.0)">CH6 - GPIO 27</text>
+<text x="905.0" y="-550.0" fill="#990000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 905.0 -550.0)">COM &lt;-&gt; NO</text>
+<text x="905.0" y="-535.0" fill="#660000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 905.0 -535.0)">switches Fan 6</text>
+<polyline points="905 -580 905 -590 895 -590 895 -790 905 -790" stroke="#000000" stroke-width="1" fill="none" />
+<polyline points="1005 -580 1005 -700 1140 -700" stroke="#000000" stroke-width="1" fill="none" />
+<text x="570.0" y="-510.0" fill="#996600" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 570.0 -510.0)">Each &quot;COM &lt;-&gt; NO&quot; block is one of 8 channels in the TS0012 module.</text>
+<text x="570.0" y="-495.0" fill="#996600" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 570.0 -495.0)">Channels 7 + 8 are unused (spare).</text>
+<rect x="430.0" y="-880.0" width="80.0" height="580.0" stroke="#FFFFFF" stroke-width="2" fill="#FFFFFF"/>
+<text x="440.0" y="-870.0" fill="#000000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 440.0 -870.0)">NEUTRAL bus</text>
+<text x="440.0" y="-855.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 440.0 -855.0)">(parallel to all</text>
+<text x="440.0" y="-843.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 440.0 -843.0)">loads, NOT switched)</text>
+<polyline points="430 -870 200 -870 200 -340" stroke="#999999" stroke-width="2" fill="none" />
+<polyline points="510 -870 1140 -870 1140 -250" stroke="#999999" stroke-width="2" fill="none" />
+<polyline points="1140 -870 1140 -340" stroke="#999999" stroke-width="2" fill="none" />
+<polyline points="1140 -340 1140 -430" stroke="#999999" stroke-width="2" fill="none" />
+<polyline points="1140 -430 1140 -520" stroke="#999999" stroke-width="2" fill="none" />
+<polyline points="1140 -520 1140 -610" stroke="#999999" stroke-width="2" fill="none" />
+<polyline points="1140 -610 1140 -700" stroke="#999999" stroke-width="2" fill="none" />
+<rect x="430.0" y="-280.0" width="80.0" height="50.0" stroke="#008000" stroke-width="1" fill="#E6FFE6"/>
+<text x="440.0" y="-265.0" fill="#006600" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 440.0 -265.0)">GROUND BUS</text>
+<text x="440.0" y="-250.0" fill="#006600" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 440.0 -250.0)">bonded to chassis</text>
+<polyline points="430 -255 200 -255 200 -120" stroke="#008000" stroke-width="1" fill="none" />
+<polyline points="510 -255 1240 -255 1240 -180 1450 -180" stroke="#008000" stroke-width="1" fill="none" />
+<polyline points="1240 -255 1240 -300" stroke="#008000" stroke-width="1" fill="none" />
+<polyline points="510 -255 510 -310 470 -310" stroke="#008000" stroke-width="1" fill="none" />
+<rect x="1190.0" y="-280.0" width="250.0" height="50.0" stroke="#990000" stroke-width="1" fill="#FFE8E8"/>
+<ellipse cx="1265" cy="-255" rx="30" ry="30" stroke="#990000" stroke-width="1" fill="#FFFFFF"/>
+<path d="M 1245 -255 L 1285 -255 M 1265 -275 L 1265 -235" stroke="#990000" stroke-width="1" fill="none"/>
+<text x="1310.0" y="-275.0" fill="#990000" font-family="Arial" font-size="11.997" text-anchor="start" transform="rotate(0 1310.0 -275.0)">Fan 1 - Zone 1</text>
+<text x="1310.0" y="-258.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1310.0 -258.0)">Lasko 20&quot; B20201</text>
+<text x="1310.0" y="-245.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1310.0 -245.0)">120 VAC, 75 W</text>
+<rect x="1190.0" y="-360.0" width="250.0" height="50.0" stroke="#990000" stroke-width="1" fill="#FFE8E8"/>
+<ellipse cx="1265" cy="-335" rx="30" ry="30" stroke="#990000" stroke-width="1" fill="#FFFFFF"/>
+<path d="M 1245 -335 L 1285 -335 M 1265 -355 L 1265 -315" stroke="#990000" stroke-width="1" fill="none"/>
+<text x="1310.0" y="-355.0" fill="#990000" font-family="Arial" font-size="11.997" text-anchor="start" transform="rotate(0 1310.0 -355.0)">Fan 2 - Zone 2</text>
+<text x="1310.0" y="-338.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1310.0 -338.0)">Lasko 20&quot; B20201</text>
+<text x="1310.0" y="-325.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1310.0 -325.0)">120 VAC, 75 W</text>
+<rect x="1190.0" y="-450.0" width="250.0" height="50.0" stroke="#990000" stroke-width="1" fill="#FFE8E8"/>
+<ellipse cx="1265" cy="-425" rx="30" ry="30" stroke="#990000" stroke-width="1" fill="#FFFFFF"/>
+<path d="M 1245 -425 L 1285 -425 M 1265 -445 L 1265 -405" stroke="#990000" stroke-width="1" fill="none"/>
+<text x="1310.0" y="-445.0" fill="#990000" font-family="Arial" font-size="11.997" text-anchor="start" transform="rotate(0 1310.0 -445.0)">Fan 3 - Zone 3</text>
+<text x="1310.0" y="-428.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1310.0 -428.0)">Lasko 20&quot; B20201</text>
+<text x="1310.0" y="-415.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1310.0 -415.0)">120 VAC, 75 W</text>
+<rect x="1190.0" y="-540.0" width="250.0" height="50.0" stroke="#990000" stroke-width="1" fill="#FFE8E8"/>
+<ellipse cx="1265" cy="-515" rx="30" ry="30" stroke="#990000" stroke-width="1" fill="#FFFFFF"/>
+<path d="M 1245 -515 L 1285 -515 M 1265 -535 L 1265 -495" stroke="#990000" stroke-width="1" fill="none"/>
+<text x="1310.0" y="-535.0" fill="#990000" font-family="Arial" font-size="11.997" text-anchor="start" transform="rotate(0 1310.0 -535.0)">Fan 4 - Zone 4</text>
+<text x="1310.0" y="-518.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1310.0 -518.0)">Lasko 20&quot; B20201</text>
+<text x="1310.0" y="-505.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1310.0 -505.0)">120 VAC, 75 W</text>
+<rect x="1190.0" y="-630.0" width="250.0" height="50.0" stroke="#990000" stroke-width="1" fill="#FFE8E8"/>
+<ellipse cx="1265" cy="-605" rx="30" ry="30" stroke="#990000" stroke-width="1" fill="#FFFFFF"/>
+<path d="M 1245 -605 L 1285 -605 M 1265 -625 L 1265 -585" stroke="#990000" stroke-width="1" fill="none"/>
+<text x="1310.0" y="-625.0" fill="#990000" font-family="Arial" font-size="11.997" text-anchor="start" transform="rotate(0 1310.0 -625.0)">Fan 5 - Zone 5</text>
+<text x="1310.0" y="-608.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1310.0 -608.0)">Lasko 20&quot; B20201</text>
+<text x="1310.0" y="-595.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1310.0 -595.0)">120 VAC, 75 W</text>
+<rect x="1190.0" y="-720.0" width="250.0" height="50.0" stroke="#990000" stroke-width="1" fill="#FFE8E8"/>
+<ellipse cx="1265" cy="-695" rx="30" ry="30" stroke="#990000" stroke-width="1" fill="#FFFFFF"/>
+<path d="M 1245 -695 L 1285 -695 M 1265 -715 L 1265 -675" stroke="#990000" stroke-width="1" fill="none"/>
+<text x="1310.0" y="-715.0" fill="#990000" font-family="Arial" font-size="11.997" text-anchor="start" transform="rotate(0 1310.0 -715.0)">Fan 6 - Zone 6</text>
+<text x="1310.0" y="-698.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1310.0 -698.0)">Lasko 20&quot; B20201</text>
+<text x="1310.0" y="-685.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 1310.0 -685.0)">120 VAC, 75 W</text>
+<rect x="50.0" y="-960.0" width="700.0" height="80.0" stroke="#990000" stroke-width="1" fill="#FFEAEA"/>
+<text x="70.0" y="-945.0" fill="#990000" font-family="Arial" font-size="13.33" text-anchor="start" transform="rotate(0 70.0 -945.0)">SAFETY CALL-OUTS</text>
+<text x="70.0" y="-928.0" fill="#000000" font-family="Arial" font-size="9.9975" text-anchor="start" transform="rotate(0 70.0 -928.0)">* Enclose all 120 VAC wiring before energising. No exposed terminals.</text>
+<text x="70.0" y="-913.0" fill="#000000" font-family="Arial" font-size="9.9975" text-anchor="start" transform="rotate(0 70.0 -913.0)">* Pi 5V supply on Outlet A only -- never tap from fan rail (Outlet B).</text>
+<text x="70.0" y="-898.0" fill="#000000" font-family="Arial" font-size="9.9975" text-anchor="start" transform="rotate(0 70.0 -898.0)">* Relays switch HOT only.  Neutral is bussed in parallel to all loads.</text>
+<text x="70.0" y="-883.0" fill="#000000" font-family="Arial" font-size="9.9975" text-anchor="start" transform="rotate(0 70.0 -883.0)">* Fans hold last commanded state during a server crash -- kill power at relay box for hard cutoff.</text>
+<rect x="770.0" y="-960.0" width="330.0" height="80.0" stroke="#003366" stroke-width="1" fill="#E6F0FF"/>
+<text x="790.0" y="-945.0" fill="#000080" font-family="Arial" font-size="13.33" text-anchor="start" transform="rotate(0 790.0 -945.0)">LEGEND  (120 VAC mains)</text>
+<polyline points="790 -922 830 -922" stroke="#000000" stroke-width="1.5" fill="none" />
+<text x="840.0" y="-918.0" fill="#000000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 840.0 -918.0)">HOT (black, 14 AWG)</text>
+<polyline points="790 -902 830 -902" stroke="#999999" stroke-width="2" fill="none" />
+<text x="840.0" y="-898.0" fill="#000000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 840.0 -898.0)">NEUTRAL (white, 14 AWG)</text>
+<polyline points="790 -882 830 -882" stroke="#008000" stroke-width="1.5" fill="none" />
+<text x="840.0" y="-878.0" fill="#000000" font-family="Arial" font-size="9.331" text-anchor="start" transform="rotate(0 840.0 -878.0)">GROUND (green, 14 AWG)</text>
+<rect x="560.0" y="-225.0" width="330.0" height="105.0" stroke="#4B1C7A" stroke-width="1" fill="#F4ECFC"/>
+<text x="575.0" y="-207.0" fill="#4B1C7A" font-family="Arial" font-size="11.997" text-anchor="start" transform="rotate(0 575.0 -207.0)">4 x Leg-Scale AC Adapters</text>
+<text x="575.0" y="-192.0" fill="#333333" font-family="Arial" font-size="8.6645" text-anchor="start" transform="rotate(0 575.0 -192.0)">THINKSCALE wall adapters, one per table-leg scale</text>
+<text x="575.0" y="-179.0" fill="#990000" font-family="Arial" font-size="8.6645" text-anchor="start" transform="rotate(0 575.0 -179.0)">ALWAYS-ON, NOT switched by relay (Outlet A side)</text>
+<text x="575.0" y="-166.0" fill="#333333" font-family="Arial" font-size="8.6645" text-anchor="start" transform="rotate(0 575.0 -166.0)">Scales auto-zero at power-up: a UPS on Outlet A is advised</text>
+<text x="575.0" y="-153.0" fill="#333333" font-family="Arial" font-size="8.6645" text-anchor="start" transform="rotate(0 575.0 -153.0)">Low-voltage DC to each scale; data is Bluetooth LE (Sheet 1)</text>
+<text x="575.0" y="-135.0" fill="#333333" font-family="Arial" font-size="8.6645" text-anchor="start" transform="rotate(0 575.0 -135.0)">Replaces HX711 + FX29 load cells (no wiring to the Pi)</text>
+<polyline points="230 -92 700 -92 700 -120" stroke="#000000" stroke-width="1" fill="none" />
+<polyline points="230 -84 720 -84 720 -120" stroke="#999999" stroke-width="1" fill="none" />
+<text x="480.0" y="-95.0" fill="#000000" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 480.0 -95.0)">HOT</text>
+<text x="480.0" y="-75.0" fill="#666666" font-family="Arial" font-size="7.997999999999999" text-anchor="start" transform="rotate(0 480.0 -75.0)">NEUTRAL</text>
+</svg>

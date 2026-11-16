@@ -1,9 +1,25 @@
 # Changelog
 
-All notable changes to SmartSake. Format inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
-this project does not currently version semver-style, so entries are grouped by date.
+All notable changes to SmartSake. Format inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+Releases are tagged `vMAJOR.MINOR.PATCH` starting with v2.0.0; everything before that (the HX711
+load-cell build) counts as v1 and is grouped by date.
 
-## [Unreleased] — 2026-10-09 — Bluetooth leg scales (branch `ble-scales`)
+## [2.0.0] — 2026-11-16 — Bluetooth leg scales
+
+Breaking hardware change: the four HX711 amplifiers + FX29 load cells are replaced by four
+Bluetooth LE leg scales. Existing `scale_config.json` files must be re-created
+(`python3 ble_scales.py setup`); HX711 tare/factor values do not carry over.
+
+### Documentation
+- **Wiring schematic Rev 1.2** (`docs/schematics/smartsake-wiring.json`): Sheet 1 drops the HX711 ×4
+  and FX29 load-cell blocks and all their GPIO/power wiring (GPIO 5/6/12/13/16/19/20/21 now free) and
+  adds the Pi's on-board Bluetooth radio with a wireless link to the four leg scales; legend and
+  reserved-pin notes updated; two malformed SDA/SCL labels repaired. Sheet 2 adds the leg-scale AC
+  adapters on the always-on Outlet A side. EasyEDA BOM table updated.
+- New rendered copies: `docs/schematics/smartsake-wiring.pdf` (2 pages) and
+  `smartsake-wiring-sheet1.svg` / `-sheet2.svg`. README now points at these as the current schematic;
+  the Fall 2025 PLC-era `power-schematic.pdf`, `wiring-schematic.pdf`, `signal-schematic.svg` are
+  marked superseded, and the load-cell housing CAD/STL and the xlsx BOM are marked as v1-only.
 
 ### Changed
 - **Weight now comes from four Bluetooth LE scales** (THINKSCALE 440 lb, BLE name `Chipsea_BLE`),

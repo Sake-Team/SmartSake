@@ -13,7 +13,7 @@ Drop PNGs into `images/` and uncomment:
 
 ## About the Project
 
-SmartSake is the controls and instrumentation half of a senior capstone project for the **University of Kentucky Biosystems & Agricultural Engineering** department (BAE 402/403, Fall 2025 – Spring 2026). The mechanical half — the koji table and load cell housings — is documented in `hardware/` and `docs/`.
+SmartSake is the controls and instrumentation half of a senior capstone project for the **University of Kentucky Biosystems & Agricultural Engineering** department (BAE 402/403, Fall 2025 – Spring 2026). The mechanical half — the koji table (and the original load cell housings, superseded by the Bluetooth leg scales in v2.0.0) — is documented in `hardware/` and `docs/`.
 
 **Team:** Benjamin Lin, Anastasia Myers, Makenna Hull, Natalie Cupples
 **Advisor:** Dr. Alicia Modenbach
@@ -24,9 +24,9 @@ For background on the design — problem definition, constraints, alternatives c
 
 This system controls mains-voltage equipment near food-contact surfaces. Before powering anything on:
 
-- **Electrical:** All 120 VAC wiring (relay → fan power) must be enclosed and follow [`docs/schematics/power-schematic.pdf`](docs/schematics/power-schematic.pdf). Do not energize with the relay board exposed. The Pi must be on a separate 5V supply, never tapped from the fan rail.
+- **Electrical:** All 120 VAC wiring (relay → fan power) must be enclosed and follow Sheet 2 of [`docs/schematics/smartsake-wiring.pdf`](docs/schematics/smartsake-wiring.pdf). Do not energize with the relay board exposed. The Pi must be on a separate 5V supply, never tapped from the fan rail.
 - **Thermal:** Fans run hot under sustained load. The auto fan-control loop has no upper bound — a misconfigured `tolerance_c` of 0 will keep fans on indefinitely. Always set a sane tolerance (1–2 °C) and check the dashboard during the first hour of every new run.
-- **Food contact:** Only the load cell housing surface and the koji table top are food-contact. Use food-safe PETG or food-safe-coated PLA for the [STL parts](hardware/stl/), and sanitize between runs.
+- **Food contact:** Only the koji table top (and, on v1 builds, the load cell housing surface) is food-contact. Use food-safe PETG or food-safe-coated PLA for the [STL parts](hardware/stl/), and sanitize between runs.
 - **Crash recovery:** systemd `Restart=on-failure` brings the server back if it dies; the SIGTERM handler drives every fan relay HIGH (= OFF on active-LOW) before exit, so a clean restart leaves no fan stranded on. A hard kill (`SIGKILL`, power loss) bypasses the handler — relays hold their last state.
 - **systemd watchdog:** the unit ships with `WatchdogSec=60`; `WriteSensors.py` calls `sd_notify("WATCHDOG=1")` once per sensor tick (~10 s) so a frozen loop is caught and restarted. To temporarily disable the watchdog, drop in `/etc/systemd/system/smartsake.service.d/no-watchdog.conf` with `[Service]\nWatchdogSec=0`, then `systemctl daemon-reload && systemctl restart smartsake`.
 - **Hard cutoff:** The dashboard no longer ships an in-page emergency-stop button. To force all fans OFF, kill power at the relay board, or POST to `/api/runs/<id>/emergency-stop` directly (the route still exists server-side).
@@ -708,10 +708,13 @@ SmartSake/
     ├── brewing-flow-chart.png
     └── schematics/
         ├── koji-room-layout.png
-        ├── power-schematic.pdf
-        ├── wiring-schematic.pdf
-        ├── signal-schematic.svg
-        └── smartsake-wiring.json   # EasyEDA source (LV signal + 120 V power, 2 sheets)
+        ├── smartsake-wiring.json         # EasyEDA source (LV signal + 120 V power, 2 sheets) — current
+        ├── smartsake-wiring.pdf          # Rendered from the JSON (2 pages) — current
+        ├── smartsake-wiring-sheet1.svg   # Sheet 1 render (LV signal, BLE leg scales)
+        ├── smartsake-wiring-sheet2.svg   # Sheet 2 render (120 VAC power)
+        ├── power-schematic.pdf           # Fall 2025 PLC concept (superseded)
+        ├── wiring-schematic.pdf          # Fall 2025 PLC concept (superseded)
+        └── signal-schematic.svg          # Fall 2025 PLC concept (superseded)
 ```
 
 ---
@@ -720,7 +723,7 @@ SmartSake/
 
 ### Bill of Materials
 
-[`hardware/bill-of-materials.xlsx`](hardware/bill-of-materials.xlsx) — full parts list with vendors, part numbers, quantities, and unit costs (Spring 2026 revision).
+[`hardware/bill-of-materials.xlsx`](hardware/bill-of-materials.xlsx) — full parts list with vendors, part numbers, quantities, and unit costs (Spring 2026 revision — predates the v2.0.0 switch from HX711 load cells to Bluetooth leg scales; [`BOM.md`](BOM.md) is current).
 
 ### CAD Drawings
 
@@ -728,13 +731,13 @@ SmartSake/
 |---|---|
 | [`hardware/cad/sake-table-drawing.pdf`](hardware/cad/sake-table-drawing.pdf) | Dimensioned drawing of the koji table (v3) |
 | [`hardware/cad/sake-table-exploded.png`](hardware/cad/sake-table-exploded.png) | Exploded assembly view |
-| [`hardware/cad/load-cell-housing-drawing.pdf`](hardware/cad/load-cell-housing-drawing.pdf) | Load cell housing dimensioned drawing |
+| [`hardware/cad/load-cell-housing-drawing.pdf`](hardware/cad/load-cell-housing-drawing.pdf) | Load cell housing dimensioned drawing (v1 HX711 build — not needed with the Bluetooth leg scales) |
 
 ### 3D-Printable Parts (STL)
 
 | File | Description | Notes |
 |---|---|---|
-| [`hardware/stl/load-cell-housing.stl`](hardware/stl/load-cell-housing.stl) | Load cell housing body (v3) | PLA or PETG, 0.2mm layer, 30% infill |
+| [`hardware/stl/load-cell-housing.stl`](hardware/stl/load-cell-housing.stl) | Load cell housing body (v3) — v1 HX711 build only | PLA or PETG, 0.2mm layer, 30% infill |
 | [`hardware/stl/load-cell-housing-lid.stl`](hardware/stl/load-cell-housing-lid.stl) | Load cell housing lid | Same settings as body |
 
 The native Fusion 360 file (`SakeTableCAD.f3z`) is not included due to size; contact the team if you need the editable source.
@@ -749,10 +752,10 @@ The native Fusion 360 file (`SakeTableCAD.f3z`) is not included due to size; con
 | [`docs/standards-memo.pdf`](docs/standards-memo.pdf) | Applicable engineering standards (food safety, electrical, fabrication) |
 | [`docs/brewing-flow-chart.png`](docs/brewing-flow-chart.png) | Sake brewing process flow chart |
 | [`docs/schematics/koji-room-layout.png`](docs/schematics/koji-room-layout.png) | Koji room physical layout |
-| [`docs/schematics/power-schematic.pdf`](docs/schematics/power-schematic.pdf) | Power distribution schematic |
-| [`docs/schematics/wiring-schematic.pdf`](docs/schematics/wiring-schematic.pdf) | Full wiring schematic (Pi → relays → fans → sensors) |
-| [`docs/schematics/signal-schematic.svg`](docs/schematics/signal-schematic.svg) | Signal-level schematic (1-Wire, I2C, GPIO) |
-| [`docs/schematics/smartsake-wiring.json`](docs/schematics/smartsake-wiring.json) | Editable EasyEDA source — Sheet 1: LV signal wiring (Pi GPIO → MAX31850K × 6, SHT30, HX711 × 4 (historical — scales are now Bluetooth), relay logic). Sheet 2: 120 VAC power wiring (separate Pi-supply outlet, relay-switched fans, always-on dehumidifier). Open in EasyEDA Std Edition via *File → Open → Local*. |
+| [`docs/schematics/smartsake-wiring.pdf`](docs/schematics/smartsake-wiring.pdf) | **Current wiring schematic (Rev 1.2, 2 pages).** Sheet 1: LV signal — Pi GPIO → MAX31850K × 6 (1-Wire), SHT30 (I2C), relay logic, and the four Bluetooth LE leg scales (wireless, no GPIO or cables to the Pi). Sheet 2: 120 VAC power — separate Pi-supply outlet (also feeds the leg-scale AC adapters), relay-switched fans, always-on dehumidifier. |
+| [`docs/schematics/smartsake-wiring-sheet1.svg`](docs/schematics/smartsake-wiring-sheet1.svg), [`…-sheet2.svg`](docs/schematics/smartsake-wiring-sheet2.svg) | The same two sheets as SVG (view in a browser). |
+| [`docs/schematics/smartsake-wiring.json`](docs/schematics/smartsake-wiring.json) | Editable EasyEDA source for the two sheets above. Open in EasyEDA Std Edition via *File → Open → Local*. After editing, re-export the PDF/SVGs so they stay in sync. |
+| [`docs/schematics/power-schematic.pdf`](docs/schematics/power-schematic.pdf), [`wiring-schematic.pdf`](docs/schematics/wiring-schematic.pdf), [`signal-schematic.svg`](docs/schematics/signal-schematic.svg) | Fall 2025 concept based on a Click PLC — **superseded** by the Raspberry Pi design above; kept for the design history. |
 
 ---
 
